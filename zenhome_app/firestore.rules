@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Hàm tiện ích: Kiểm tra xem user đã đăng nhập chưa
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Cho phép tất cả người dùng ĐƯỢC ĐỌC (để hỗ trợ tra cứu username lúc đăng nhập)
+    // và CHỈ ĐƯỢC GHI khi đã đăng nhập
+    match /{document=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+  }
+}

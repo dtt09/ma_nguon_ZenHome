@@ -1,0 +1,66 @@
+name: zenhome_app
+description: "A new Flutter project."
+
+publish_to: 'none'
+
+version: 1.3.0+10
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  mqtt_client: ^10.11.11
+  shared_preferences: ^2.5.5
+  geolocator: ^14.0.3
+  geocoding: ^4.0.0
+  http: ^1.6.0
+  flutter_local_notifications: ^22.0.1
+  firebase_core: ^4.12.1
+  firebase_messaging: ^16.4.3
+  firebase_auth: ^6.5.6
+  cloud_firestore: ^6.7.1
+  google_sign_in: ^6.1.6
+  flutter_dotenv: ^6.0.1
+  firebase_crashlytics: ^5.2.6
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.3.5
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  flutter_animate: ^4.5.2
+  flutter_secure_storage: ^10.3.1
+  pinput: ^6.0.2
+  device_info_plus: ^13.2.0
+  jailbreak_root_detection: ^1.2.3
+  flutter_windowmanager_plus: ^1.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.13
+  riverpod_generator: ^2.6.3
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  # KHAI BÁO FILE .env ĐỂ ĐỌC BIẾN MÔI TRƯỜNG Ở ĐÂY
+  assets:
+    - .env
+    - public/zenhome_logo_real.png
+    - public/zenhome_logo_padded.png
+    - public/zenhome_logo_transparent.png
+    - public/zenhome_logo_padded_more.png
+    - public/google_logo.png
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "public/zenhome_logo_padded_more.png"
+  min_sdk_android: 21

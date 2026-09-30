@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "645075290078",
+    "firebase_url": "https://smarthome-98dd7-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "smarthome-98dd7",
+    "storage_bucket": "smarthome-98dd7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:645075290078:android:a80c6321a482fadcdb3f4f",
+        "android_client_info": {
+          "package_name": "com.example.zenhome_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "645075290078-lqiegggmqihjiqj2lh8hdu04gfctinsp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.zenhome_app",
+            "certificate_hash": "8e42a123fc526fd2dacb8da31bc7d6133213c727"
+          }
+        },
+        {
+          "client_id": "645075290078-ssudmib08pe8q4m6bm15rom20hr3inq7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCsLwYgFIS6D0hkaQzPGYc7gqab8wAH0dQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "645075290078-ssudmib08pe8q4m6bm15rom20hr3inq7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

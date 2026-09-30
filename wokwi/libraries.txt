@@ -1,0 +1,8 @@
+# Wokwi Library List
+# See https://docs.wokwi.com/guides/libraries
+
+ArduinoJson
+PubSubClient
+DHT sensor library
+Adafruit Unified Sensor
+Adafruit PCF8574

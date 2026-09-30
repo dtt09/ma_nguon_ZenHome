@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "author": "ZenHome",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht1", "top": -180, "left": 100, "attrs": {} },
+    { "type": "chip-pcf8574", "id": "pcf", "top": -50, "left": 150, "attrs": {} },
+    { "type": "wokwi-relay-module", "id": "relay1", "top": -150, "left": 300, "attrs": {} },
+    { "type": "wokwi-relay-module", "id": "relay2", "top": -50, "left": 300, "attrs": {} },
+    { "type": "wokwi-relay-module", "id": "relay3", "top": 50, "left": 300, "attrs": {} },
+    { "type": "wokwi-relay-module", "id": "relay4", "top": 150, "left": 300, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp:3V3", "dht1:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.1", "dht1:GND", "black", [ "v0" ] ],
+    [ "esp:14", "dht1:SDA", "green", [ "v0" ] ],
+
+    [ "esp:5V", "pcf:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.2", "pcf:GND", "black", [ "v0" ] ],
+    [ "esp:21", "pcf:SDA", "purple", [ "v0" ] ],
+    [ "esp:22", "pcf:SCL", "yellow", [ "v0" ] ],
+
+    [ "esp:5V", "relay1:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.2", "relay1:GND", "black", [ "v0" ] ],
+    [ "pcf:P0", "relay1:IN", "blue", [ "v0" ] ],
+
+    [ "esp:5V", "relay2:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.2", "relay2:GND", "black", [ "v0" ] ],
+    [ "pcf:P1", "relay2:IN", "blue", [ "v0" ] ],
+
+    [ "esp:5V", "relay3:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.2", "relay3:GND", "black", [ "v0" ] ],
+    [ "pcf:P2", "relay3:IN", "blue", [ "v0" ] ],
+
+    [ "esp:5V", "relay4:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.2", "relay4:GND", "black", [ "v0" ] ],
+    [ "pcf:P3", "relay4:IN", "blue", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}
