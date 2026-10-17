@@ -11,6 +11,10 @@
 #include <Wire.h>
 #include <Adafruit_PCF8574.h> // Tích hợp PCF8574
 #include <esp_task_wdt.h>     // Hardware Watchdog Timer chống treo vi điều khiển
+#include <esp_system.h>       // Phát hiện nguyên nhân khởi động (mất điện vs phần mềm)
+
+bool isPowerOutageBoot = false; // Đánh dấu khởi động sau khi mất điện
+bool wasMqttPreviouslyConnected = false;
 
 #define WDT_TIMEOUT_SECONDS 30
 #define MAX_RELAYS 16
@@ -142,6 +146,17 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   Serial.println("\n--- KHỞI ĐỘNG HỆ THỐNG SMART HOME ---");
+
+  // Phát hiện lý do khởi động: Mất điện (Power-on/Brownout) vs Khởi động lại thông thường
+  esp_reset_reason_t rstReason = esp_reset_reason();
+  if (rstReason == ESP_RST_POWERON || rstReason == ESP_RST_BROWNOUT) {
+    isPowerOutageBoot = true;
+    Serial.println("[NGUỒN ĐIỆN] ⚡ CẢNH BÁO: Phát hiện ESP32 khởi động sau khi MẤT ĐIỆN (Power-On / Brownout)!");
+  } else {
+    isPowerOutageBoot = false;
+    Serial.print("[HỆ THỐNG] Khởi động lại phần mềm/watchdog (không phải mất điện). Mã: ");
+    Serial.println(rstReason);
+  }
 
   pinMode(RESET_BTN_PIN, INPUT_PULLUP); // Cấu hình chân nút nhấn (mặc định kéo lên HIGH)
   pinMode(STATUS_LED_PIN, OUTPUT);      // Cấu hình chân đèn LED trạng thái
@@ -309,11 +324,16 @@ void loop() {
     checkUdpDiscovery();
 
     if (!mqttClient.connected()) {
+      if (wasMqttPreviouslyConnected) {
+        Serial.println("\n[MẠNG] ⚠️ Phát hiện mất kết nối MQTT trong khi nguồn điện vẫn duy trì!");
+        wasMqttPreviouslyConnected = false;
+      }
       if (currentMillis - lastMQTTRetry >= 8000) {
         lastMQTTRetry = currentMillis;
         connectMQTT();
       }
     } else {
+      wasMqttPreviouslyConnected = true;
       mqttClient.loop();
     }
   }
@@ -428,8 +448,19 @@ bool loadConfig() {
     }
     relayCount++;
   }
-  // Khôi phục trạng thái Bật/Tắt lần cuối từ flash LittleFS (nếu có)
-  loadRelayStatesFromFS();
+
+  if (isPowerOutageBoot) {
+    // TH1: MẤT ĐIỆN -> KHI CÓ ĐIỆN LẠI: PHẢI TẮT TOÀN BỘ THIẾT BỊ ĐỂ AN TOÀN ĐIỆN!
+    Serial.println("\n[AN TOÀN ĐIỆN] ⚡ CÓ ĐIỆN LẠI SAU KHI MẤT ĐIỆN: TẮT TOÀN BỘ RELAY!");
+    for (int i = 0; i < relayCount; i++) {
+      myRelays[i].state = "0";
+      safeSetRelayPin(myRelays[i].pin, HIGH); // Active-Low TẮT
+    }
+    saveRelayStatesToFS(); // Ghi đè file flash là tắt toàn bộ (0)
+  } else {
+    // TH2: KHÔNG PHẢI MẤT ĐIỆN (Mất mạng, reboot phần mềm) -> Khôi phục trạng thái lần cuối
+    loadRelayStatesFromFS();
+  }
   return true;
 }
 
@@ -593,28 +624,50 @@ void connectMQTT() {
       Serial.println("Đã xác nhận cấu hình đúng! Khóa cứng chế độ AP.");
     }
     
-    // Gửi tín hiệu online ngay khi kết nối
-    mqttClient.publish(statusTopic.c_str(), "online", true);
+    if (isPowerOutageBoot) {
+      // 1. TRƯỜNG HỢP CÓ ĐIỆN LẠI SAU KHI MẤT ĐIỆN: TẮT TOÀN BỘ THIẾT BỊ
+      Serial.println("\n[HỆ THỐNG] ⚡ Báo cáo sự kiện: CÓ ĐIỆN LẠI SAU MẤT ĐIỆN (Tắt toàn bộ thiết bị)");
+      mqttClient.publish(statusTopic.c_str(), "online_power_restored", true);
 
-    // Đồng bộ trạng thái thực tế của toàn bộ relay lên MQTT Broker & Server Backup
-    DynamicJsonDocument syncDoc(1024);
-    syncDoc["mac"] = mac;
-    JsonArray relayArr = syncDoc.createNestedArray("relays");
-    for (int i = 0; i < relayCount; i++) {
-      String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
-      String stateTopic = mqtt_prefix + "/" + rName + "/" + myRelays[i].id + "/state";
-      mqttClient.publish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
+      String eventTopic = mqtt_prefix + "/system/event";
+      mqttClient.publish(eventTopic.c_str(), "{\"event\":\"power_restored\",\"action\":\"all_off\",\"reason\":\"power_outage\"}", false);
 
-      JsonObject rObj = relayArr.createNestedObject();
-      rObj["id"] = myRelays[i].id;
-      rObj["state"] = myRelays[i].state;
-      rObj["room"] = rName;
+      // Xuất bản trạng thái toàn bộ là 0 (TẮT)
+      for (int i = 0; i < relayCount; i++) {
+        String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
+        String stateTopic = mqtt_prefix + "/" + rName + "/" + myRelays[i].id + "/state";
+        mqttClient.publish(stateTopic.c_str(), "0", true);
+      }
+      isPowerOutageBoot = false; // Đã báo cáo xong lần có điện lại
+    } else {
+      // 2. TRƯỜNG HỢP CÓ MẠNG LẠI SAU KHI MẤT MẠNG: CHỈ ĐỒNG BỘ TRẠNG THÁI LẦN CUỐI
+      Serial.println("\n[HỆ THỐNG] 🌐 Báo cáo sự kiện: CÓ MẠNG LẠI SAU MẤT MẠNG (Đồng bộ trạng thái lần cuối)");
+      mqttClient.publish(statusTopic.c_str(), "online_network_restored", true);
+
+      String eventTopic = mqtt_prefix + "/system/event";
+      mqttClient.publish(eventTopic.c_str(), "{\"event\":\"network_restored\",\"action\":\"sync_last_state\",\"reason\":\"network_loss\"}", false);
+
+      // Xuất bản trạng thái thực tế của toàn bộ relay lên MQTT Broker & Server Backup
+      DynamicJsonDocument syncDoc(1024);
+      syncDoc["mac"] = mac;
+      syncDoc["event"] = "network_restored";
+      JsonArray relayArr = syncDoc.createNestedArray("relays");
+      for (int i = 0; i < relayCount; i++) {
+        String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
+        String stateTopic = mqtt_prefix + "/" + rName + "/" + myRelays[i].id + "/state";
+        mqttClient.publish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
+
+        JsonObject rObj = relayArr.createNestedObject();
+        rObj["id"] = myRelays[i].id;
+        rObj["state"] = myRelays[i].state;
+        rObj["room"] = rName;
+      }
+      String syncPayload;
+      serializeJson(syncDoc, syncPayload);
+      String syncReportTopic = mqtt_prefix + "/sync/report";
+      mqttClient.publish(syncReportTopic.c_str(), syncPayload.c_str(), false);
+      Serial.println("[SYNC] Đã đồng bộ trạng thái thực tế lên MQTT Broker & Server Backup!");
     }
-    String syncPayload;
-    serializeJson(syncDoc, syncPayload);
-    String syncReportTopic = mqtt_prefix + "/sync/report";
-    mqttClient.publish(syncReportTopic.c_str(), syncPayload.c_str(), false);
-    Serial.println("[SYNC] Đã đồng bộ trạng thái thực tế lên MQTT Broker & Server Backup!");
 
     // Bắt đầu lắng nghe lệnh điều khiển từ ứng dụng
     String listenTopic = mqtt_prefix + "/+/+/cmd";

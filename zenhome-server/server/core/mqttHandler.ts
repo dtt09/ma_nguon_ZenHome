@@ -2,7 +2,7 @@ import { db, FieldValue } from './firebase';
 import { client } from './mqtt';
 import { state } from './state';
 import { logHistoryAndNotify, sendPushToUserTokens } from './notifications';
-import { handleEspPowerRestored, sendCommandWithRetry } from './devices';
+import { handleEspPowerRestored, handleEspNetworkRestored, sendCommandWithRetry } from './devices';
 import { saveScheduleToFirebase, deleteScheduleFromFirebase } from './schedules';
 import { setTimer } from './timers';
 import { recordDeviceState, recordEspOffline } from './deviceStateBackup';
@@ -72,12 +72,12 @@ export function setupMqttHandlers() {
 
                 if (!state.espOnlineStatus) state.espOnlineStatus = {};
 
-                if (payload === 'online') {
+                if (payload === 'online' || payload === 'online_power_restored' || payload === 'online_network_restored') {
                     state.espOnlineStatus[macAddress] = { isOnline: true, lastSeen: new Date().toISOString() };
                     state.espOnlineStatus[userId] = { isOnline: true, lastSeen: new Date().toISOString() };
 
                     if (isRetained) {
-                        console.log(`[ESP] ⏭️ Bỏ qua gói 'online' cũ (Retained) của ${macAddress} để tránh kích hoạt sai.`);
+                        console.log(`[ESP] ⏭️ Bỏ qua gói '${payload}' cũ (Retained) của ${macAddress} để tránh kích hoạt sai.`);
                         return;
                     }
 
@@ -88,8 +88,15 @@ export function setupMqttHandlers() {
                         return;
                     }
 
-                    console.log(`[ESP] ⚡ ESP32 ${macAddress} của user ${userId} vừa online (Có điện trở lại)`);
-                    handleEspPowerRestored(userId, macAddress);
+                    if (payload === 'online_power_restored') {
+                        // 1. TRƯỜNG HỢP MẤT ĐIỆN -> CÓ ĐIỆN LẠI: TẮT TOÀN BỘ THIẾT BỊ ĐỂ AN TOÀN ĐIỆN
+                        console.log(`[ESP] ⚡ ESP32 ${macAddress} (user ${userId}) CÓ ĐIỆN LẠI SAU KHI MẤT ĐIỆN -> TẮT TOÀN BỘ THIẾT BỊ!`);
+                        handleEspPowerRestored(userId, macAddress);
+                    } else {
+                        // 2. TRƯỜNG HỢP MẤT MẠNG -> CÓ MẠNG LẠI: CHỈ ĐỒNG BỘ TRẠNG THÁI LẦN CUỐI
+                        console.log(`[ESP] 🌐 ESP32 ${macAddress} (user ${userId}) CÓ MẠNG LẠI SAU KHI MẤT MẠNG -> ĐỒNG BỘ TRẠNG THÁI LẦN CUỐI!`);
+                        handleEspNetworkRestored(userId, macAddress);
+                    }
                 } else if (payload === 'offline') {
                     state.espOnlineStatus[macAddress] = { isOnline: false, lastSeen: new Date().toISOString() };
                     state.espOnlineStatus[userId] = { isOnline: false, lastSeen: new Date().toISOString() };
@@ -168,6 +175,23 @@ export function setupMqttHandlers() {
                     sendPushToUserTokens(userId, notificationVi, notificationEn, false, false, 'important').catch(e => console.error(e));
                 }
             }
+            return;
+        }
+
+        // 0.8 BẮT SỰ KIỆN HỆ THỐNG TỪ ESP32 (MẤT ĐIỆN / MẤT MẠNG)
+        if (topicParts[topicParts.length - 1] === 'event' && topicParts[topicParts.length - 2] === 'system') {
+            const userId = topicParts[0];
+            const macAddress = topicParts.length > 3 ? topicParts[1] : 'unknown';
+            try {
+                const eventData = JSON.parse(payload);
+                if (eventData.event === 'power_restored') {
+                    console.log(`[EVENT] ⚡ Nhận sự kiện CÓ ĐIỆN LẠI từ ESP32 ${macAddress} -> Tắt toàn bộ thiết bị!`);
+                    handleEspPowerRestored(userId, macAddress);
+                } else if (eventData.event === 'network_restored') {
+                    console.log(`[EVENT] 🌐 Nhận sự kiện CÓ MẠNG LẠI từ ESP32 ${macAddress} -> Đồng bộ trạng thái lần cuối!`);
+                    handleEspNetworkRestored(userId, macAddress);
+                }
+            } catch (e) {}
             return;
         }
 

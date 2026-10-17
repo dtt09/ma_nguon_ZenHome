@@ -169,9 +169,97 @@ export function recordEspOffline(userId: string, macAddress: string): void {
 }
 
 /**
- * TỰ ĐỘNG ĐỒNG BỘ: Khi ESP32 có mạng trở lại, khôi phục lại trạng thái bật/tắt lần cuối!
+ * TRƯỜNG HỢP 1: MẤT ĐIỆN -> KHI CÓ ĐIỆN LẠI PHẢI TẮT TOÀN BỘ THIẾT BỊ ĐỂ AN TOÀN ĐIỆN
  */
-export async function syncDeviceStatesToEsp(
+export async function handlePowerRestored(
+    userId: string,
+    macAddress: string,
+    fallbackDevices: any[] = [],
+    isEn: boolean = false
+): Promise<{ shutCount: number }> {
+    initDeviceStateBackup();
+
+    console.log(`[POWER RESTORED] ⚡ PHÁT HIỆN CÓ ĐIỆN LẠI: TẮT TOÀN BỘ THIẾT BỊ CỦA GIA CHỦ ${userId} (ESP: ${macAddress}) ĐỂ AN TOÀN!`);
+    addLog('[POWER]', `⚡ Phát hiện có điện lại: Tiến hành TẮT TOÀN BỘ thiết bị của gia chủ ${userId} để chống sốc điện/chập cháy!`, 'warn');
+
+    let shutCount = 0;
+    const userBackup = backupCache[userId];
+
+    // 1. Cập nhật trong cache backup và gửi lệnh 0 (TẮT) cho tất cả thiết bị đã lưu
+    if (userBackup && Object.keys(userBackup.devices).length > 0) {
+        for (const [devId, record] of Object.entries(userBackup.devices)) {
+            record.state = '0';
+            record.source = 'power_restored_safety';
+            record.updatedAt = new Date().toISOString();
+            record.syncStatus = 'synced';
+
+            const targetTopic = record.baseTopic.includes(macAddress)
+                ? record.baseTopic
+                : `${userId}/${macAddress}/${record.room}/${devId}`;
+
+            console.log(`[POWER SAFETY] 🔌 TẮT AN TOÀN ${devId} -> ${targetTopic}/cmd: 0`);
+            sendCommandWithRetry(targetTopic, '0', 'power_safety');
+            shutCount++;
+        }
+        userBackup.lastOnlineAt = new Date().toISOString();
+        persistBackupToDisk();
+    } else if (fallbackDevices && fallbackDevices.length > 0) {
+        // Nếu chưa có cache, duyệt qua danh sách devices cấu hình
+        for (const dev of fallbackDevices) {
+            if (dev.room && dev.id) {
+                const baseTopic = `${userId}/${macAddress}/${dev.room}/${dev.id}`;
+                sendCommandWithRetry(baseTopic, '0', 'power_safety');
+                shutCount++;
+            }
+        }
+    }
+
+    // 2. Ghi đè trạng thái toàn bộ là 0 trên Firestore
+    try {
+        const resetStates: Record<string, any> = {};
+        if (userBackup) {
+            Object.keys(userBackup.devices).forEach(devId => {
+                resetStates[devId] = {
+                    state: '0',
+                    room: userBackup.devices[devId].room,
+                    updatedAt: FieldValue.serverTimestamp(),
+                    source: 'power_restored_safety'
+                };
+            });
+            await db.collection('users').doc(userId).collection('device_states').doc('latest').set(resetStates, { merge: true });
+        }
+
+        // Ghi lịch sử Firestore
+        await db.collection('users').doc(userId).collection('history').add({
+            deviceName: isEn ? 'Power Supply System' : 'Hệ Thống Nguồn Điện',
+            action: isEn
+                ? 'Power restored after outage. All devices auto-turned off for electrical safety!'
+                : 'Có điện trở lại sau khi mất điện. Đã tự động TẮT TOÀN BỘ thiết bị để đảm bảo an toàn điện!',
+            timestamp: FieldValue.serverTimestamp(),
+        });
+
+        // Bắn Push Notification cho gia chủ
+        const notiVi = {
+            title: '⚡ Thông Báo Nguồn Điện',
+            body: 'Hệ thống vừa có điện trở lại. Toàn bộ thiết bị đã được tự động tắt để đảm bảo an toàn!'
+        };
+        const notiEn = {
+            title: '⚡ Power Supply Notification',
+            body: 'Power has been restored. All devices were automatically turned off for safety!'
+        };
+        await sendPushToUserTokens(userId, notiVi, notiEn, isEn, false, 'important');
+    } catch (e: any) {
+        console.warn('[POWER RESTORED] Không thể cập nhật lịch sử Firestore:', e.message);
+    }
+
+    addLog('[POWER]', `✅ Đã tắt an toàn thành công ${shutCount} thiết bị cho gia chủ ${userId}!`, 'success');
+    return { shutCount };
+}
+
+/**
+ * TRƯỜNG HỢP 2: MẤT MẠNG -> KHI CÓ MẠNG LẠI: CHỈ ĐỒNG BỘ TRẠNG THÁI LẦN CUỐI
+ */
+export async function handleNetworkRestored(
     userId: string,
     macAddress: string,
     fallbackDevices: any[] = [],
@@ -179,26 +267,25 @@ export async function syncDeviceStatesToEsp(
 ): Promise<{ syncedCount: number; states: Record<string, string> }> {
     initDeviceStateBackup();
 
-    console.log(`[BACKUP SYNC] 🔄 Bắt đầu quy trình tự động đồng bộ trạng thái cho ESP32 ${macAddress} (User: ${userId})...`);
-    addLog('[BACKUP SYNC]', `Bắt đầu tự động đồng bộ trạng thái thiết bị lần cuối cho ESP32 ${macAddress}...`, 'info');
+    console.log(`[NETWORK RESTORED] 🌐 PHÁT HIỆN CÓ MẠNG LẠI: ĐỒNG BỘ TRẠNG THÁI LẦN CUỐI CHO ESP32 ${macAddress} (User: ${userId})...`);
+    addLog('[NETWORK SYNC]', `🌐 Có mạng lại: Bắt đầu đồng bộ trạng thái thiết bị lần cuối cho ESP32 ${macAddress}...`, 'info');
 
     const userBackup = backupCache[userId];
     const syncedStates: Record<string, string> = {};
     let syncedCount = 0;
 
-    // 1. Nếu đã có dữ liệu backup trong Server Backup
+    // Chỉ đồng bộ trạng thái lần cuối cho các thiết bị
     if (userBackup && Object.keys(userBackup.devices).length > 0) {
         for (const [devId, record] of Object.entries(userBackup.devices)) {
-            const targetState = record.state; // '0' hoặc '1'
+            const targetState = record.state; // Giữ nguyên '0' hoặc '1' lần cuối
             syncedStates[devId] = targetState;
 
-            // Đảm bảo topic đúng chuẩn userId/macAddress/room/devId
             const targetTopic = record.baseTopic.includes(macAddress)
                 ? record.baseTopic
                 : `${userId}/${macAddress}/${record.room}/${devId}`;
 
-            console.log(`[BACKUP SYNC] ⚡ Khôi phục ${devId}: ${targetState === '1' ? 'BẬT' : 'TẮT'} -> Gửi tới: ${targetTopic}/cmd`);
-            sendCommandWithRetry(targetTopic, targetState, 'backup_restore');
+            console.log(`[NETWORK SYNC] 🔄 Đồng bộ ${devId}: ${targetState === '1' ? 'BẬT' : 'TẮT'} -> Gửi tới: ${targetTopic}/cmd`);
+            sendCommandWithRetry(targetTopic, targetState, 'network_sync_restore');
             record.syncStatus = 'synced';
             syncedCount++;
         }
@@ -206,7 +293,6 @@ export async function syncDeviceStatesToEsp(
         userBackup.lastSyncAt = new Date().toISOString();
         persistBackupToDisk();
     } else if (fallbackDevices && fallbackDevices.length > 0) {
-        // 2. Nếu chưa có lịch sử trong cache, an toàn điện: gửi 0 cho các thiết bị đã cấu hình
         for (const dev of fallbackDevices) {
             if (dev.room && dev.id) {
                 const baseTopic = `${userId}/${macAddress}/${dev.room}/${dev.id}`;
@@ -217,33 +303,36 @@ export async function syncDeviceStatesToEsp(
         }
     }
 
-    // Ghi nhận lịch sử hệ thống vào Firestore
+    // Ghi nhận lịch sử phục hồi mạng
     try {
         await db.collection('users').doc(userId).collection('history').add({
-            deviceName: isEn ? 'Backup Sync Server' : 'Máy chủ Đồng Bộ Backup',
+            deviceName: isEn ? 'Network Connectivity' : 'Kết Nối Mạng Internet',
             action: isEn
-                ? `Network restored. Auto-synchronized ${syncedCount} devices to their last known state.`
-                : `Có mạng trở lại. Đã tự động đồng bộ ${syncedCount} thiết bị về trạng thái lần cuối.`,
+                ? `Network connection restored. Auto-synchronized ${syncedCount} devices to their last known state.`
+                : `Kết nối mạng được khôi phục. Đã tự động đồng bộ ${syncedCount} thiết bị theo trạng thái lần cuối.`,
             timestamp: FieldValue.serverTimestamp(),
         });
 
-        // Bắn thông báo Push cho người dùng biết
+        // Bắn Push Notification cho gia chủ
         const notiVi = {
-            title: '⚡ Kết Nối Phục Hồi & Đã Đồng Bộ',
-            body: `ESP32 đã online trở lại. Hệ thống đã khôi phục thành công trạng thái ${syncedCount} thiết bị theo lần cuối!`
+            title: '🌐 Kết Nối Mạng Phục Hồi',
+            body: `Mạng đã kết nối lại. Hệ thống đã đồng bộ thành công trạng thái ${syncedCount} thiết bị theo lần cuối!`
         };
         const notiEn = {
-            title: '⚡ Connection Restored & Synced',
-            body: `ESP32 is back online. Auto-synchronized ${syncedCount} devices to their last known state!`
+            title: '🌐 Network Restored & Synced',
+            body: `Network reconnected. Auto-synchronized ${syncedCount} devices to their last known state!`
         };
-        await sendPushToUserTokens(userId, notiVi, notiEn, false, false, 'important');
+        await sendPushToUserTokens(userId, notiVi, notiEn, isEn, false, 'normal');
     } catch (e: any) {
-        console.warn('[BACKUP SYNC] Không thể lưu lịch sử đồng bộ:', e.message);
+        console.warn('[NETWORK SYNC] Không thể lưu lịch sử đồng bộ mạng:', e.message);
     }
 
-    addLog('[BACKUP SYNC]', `✅ Đồng bộ hoàn tất: ${syncedCount} thiết bị đã phục hồi trạng thái cho gia chủ ${userId}!`, 'success');
+    addLog('[NETWORK SYNC]', `✅ Đồng bộ mạng hoàn tất: ${syncedCount} thiết bị đã phục hồi trạng thái cho gia chủ ${userId}!`, 'success');
     return { syncedCount, states: syncedStates };
 }
+
+// Giữ lại alias syncDeviceStatesToEsp để tương thích ngược
+export const syncDeviceStatesToEsp = handleNetworkRestored;
 
 /**
  * Lấy toàn bộ dữ liệu trạng thái backup của một User
@@ -260,3 +349,4 @@ export function getAllDeviceBackupStates(): Record<string, UserDeviceBackup> {
     initDeviceStateBackup();
     return backupCache;
 }
+

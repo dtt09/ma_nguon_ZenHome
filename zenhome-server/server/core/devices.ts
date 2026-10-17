@@ -72,13 +72,37 @@ export async function handleEspPowerRestored(userId: string, macAddress: string)
         }
 
         if (!targetEmail) return;
-
         const isEn = language === 'en';
 
-        // Tự động khôi phục và đồng bộ trạng thái Bật/Tắt lần cuối từ Mini Backup Server
-        const { syncDeviceStatesToEsp } = await import('./deviceStateBackup');
-        await syncDeviceStatesToEsp(userId, macAddress, devices, isEn);
+        // TH1: MẤT ĐIỆN -> CÓ ĐIỆN LẠI PHẢI TẮT TOÀN BỘ THIẾT BỊ ĐỂ AN TOÀN ĐIỆN
+        const { handlePowerRestored } = await import('./deviceStateBackup');
+        await handlePowerRestored(userId, macAddress, devices, isEn);
     } catch (error) {
-        console.error("[FIREBASE ERROR] ❌ Lỗi khi xử lý ESP online:", error);
+        console.error("[FIREBASE ERROR] ❌ Lỗi khi xử lý ESP power restored:", error);
+    }
+}
+
+export async function handleEspNetworkRestored(userId: string, macAddress: string) {
+    try {
+        let targetEmail: string | null = null;
+        let devices: any[] = [];
+        let language = 'vi';
+
+        const userDoc = await db.collection('users').doc(userId).get();
+        if (userDoc.exists) {
+            targetEmail = userDoc.id;
+            const data = userDoc.data() || {};
+            if (data.language) language = data.language;
+            devices = data.devices || [];
+        }
+
+        if (!targetEmail) return;
+        const isEn = language === 'en';
+
+        // TH2: MẤT MẠNG -> CÓ MẠNG LẠI: CHỈ ĐỒNG BỘ TRẠNG THÁI LẦN CUỐI
+        const { handleNetworkRestored } = await import('./deviceStateBackup');
+        await handleNetworkRestored(userId, macAddress, devices, isEn);
+    } catch (error) {
+        console.error("[FIREBASE ERROR] ❌ Lỗi khi xử lý ESP network restored:", error);
     }
 }
