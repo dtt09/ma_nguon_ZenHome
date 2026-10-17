@@ -2,8 +2,18 @@ import { Router, Request, Response } from 'express';
 import { sendCommandWithRetry } from '../../zenhomeWorker';
 import { state, addLog } from '../../zenhomeState';
 import { findUser, FieldValue } from '../../utils/firestoreHelper';
+import { requireAuth } from '../../middlewares/auth';
 
 export const devicesRouter = Router();
+
+// Bắt buộc xác thực người dùng (Chấp nhận Bearer Token Firebase ID hoặc Admin Secret)
+devicesRouter.use(requireAuth);
+
+function checkUserPermission(req: Request, targetUser: { id: string; data: any }): boolean {
+  if (req.user?.role === 'admin') return true;
+  if (!req.user) return false;
+  return req.user.uid === targetUser.id || req.user.uid === targetUser.data?.uid;
+}
 
 /**
  * @route   GET /api/v1/devices
@@ -11,7 +21,7 @@ export const devicesRouter = Router();
  */
 devicesRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const userIdQuery = req.query.userId as string | undefined;
+    const userIdQuery = (req.query.userId as string | undefined) || (req.user?.role === 'user' ? req.user.uid : undefined);
     const user = await findUser(userIdQuery);
 
     if (!user) {
@@ -20,6 +30,13 @@ devicesRouter.get('/', async (req: Request, res: Response) => {
         error: userIdQuery
           ? `Không tìm thấy tài khoản người dùng '${userIdQuery}' trong cơ sở dữ liệu.`
           : 'Hệ thống chưa có tài khoản người dùng nào trong cơ sở dữ liệu.',
+      });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Bạn không có quyền truy cập danh sách thiết bị của tài khoản khác.',
       });
     }
 
@@ -75,12 +92,20 @@ devicesRouter.post('/', async (req: Request, res: Response) => {
     }
 
     const pinNum = Number(pin);
-    const user = await findUser(userId);
+    const targetUserId = userId || (req.user?.role === 'user' ? req.user.uid : undefined);
+    const user = await findUser(targetUserId);
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: `Không tìm thấy tài khoản người dùng '${userId || 'mặc định'}' trong cơ sở dữ liệu.`,
+        error: `Không tìm thấy tài khoản người dùng '${targetUserId || 'mặc định'}' trong cơ sở dữ liệu.`,
+      });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Bạn không có quyền thêm thiết bị cho tài khoản khác.',
       });
     }
 
@@ -143,11 +168,15 @@ devicesRouter.post('/', async (req: Request, res: Response) => {
 devicesRouter.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userIdQuery = req.query.userId as string | undefined;
+    const userIdQuery = (req.query.userId as string | undefined) || (req.user?.role === 'user' ? req.user.uid : undefined);
     const user = await findUser(userIdQuery);
 
     if (!user) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền truy cập thông tin của thiết bị này.' });
     }
 
     const rawDevices: any[] = Array.isArray(user.data.devices) ? user.data.devices : [];
@@ -191,9 +220,14 @@ devicesRouter.put('/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { userId, name, room, pin, icon } = req.body;
 
-    const user = await findUser(userId);
+    const targetUserId = userId || (req.user?.role === 'user' ? req.user.uid : undefined);
+    const user = await findUser(targetUserId);
     if (!user) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền chỉnh sửa thiết bị của người dùng khác.' });
     }
 
     const rawDevices: any[] = Array.isArray(user.data.devices) ? [...user.data.devices] : [];
@@ -246,11 +280,15 @@ devicesRouter.put('/:id', async (req: Request, res: Response) => {
 devicesRouter.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userIdQuery = (req.query.userId || req.body.userId) as string | undefined;
+    const targetUserId = (req.query.userId || req.body.userId) || (req.user?.role === 'user' ? req.user.uid : undefined);
 
-    const user = await findUser(userIdQuery);
+    const user = await findUser(targetUserId as string);
     if (!user) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền xóa thiết bị của người dùng khác.' });
     }
 
     const rawDevices: any[] = Array.isArray(user.data.devices) ? user.data.devices : [];
@@ -295,11 +333,19 @@ devicesRouter.post('/:id/control', async (req: Request, res: Response) => {
       });
     }
 
-    const user = await findUser(userId);
+    const targetUserId = userId || (req.user?.role === 'user' ? req.user.uid : undefined);
+    const user = await findUser(targetUserId);
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: `Không tìm thấy người dùng '${userId || 'mặc định'}' trong cơ sở dữ liệu.`,
+        error: `Không tìm thấy người dùng '${targetUserId || 'mặc định'}' trong cơ sở dữ liệu.`,
+      });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Bạn không có quyền điều khiển thiết bị của người dùng khác.',
       });
     }
 
@@ -358,9 +404,17 @@ devicesRouter.post('/bulk', async (req: Request, res: Response) => {
       });
     }
 
-    const user = await findUser(userId);
+    const targetUserId = userId || (req.user?.role === 'user' ? req.user.uid : undefined);
+    const user = await findUser(targetUserId);
     if (!user) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Bạn không có quyền điều khiển thiết bị của người dùng khác.',
+      });
     }
 
     const rawDevices: any[] = Array.isArray(user.data.devices) ? user.data.devices : [];
@@ -416,11 +470,18 @@ devicesRouter.post('/bulk', async (req: Request, res: Response) => {
  */
 devicesRouter.get('/telemetry/status', async (req: Request, res: Response) => {
   try {
-    const userIdQuery = req.query.userId as string | undefined;
+    const userIdQuery = (req.query.userId as string | undefined) || (req.user?.role === 'user' ? req.user.uid : undefined);
     const user = await findUser(userIdQuery);
 
     if (!user) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Bạn không có quyền xem dữ liệu cảm biến của người dùng khác.',
+      });
     }
 
     const mac = user.data.macAddress || null;

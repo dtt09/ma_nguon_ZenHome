@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { storedBackups, addBackup, BackupRecord, addLog } from '../../zenhomeState';
+import { storedBackups, BackupRecord } from '../../zenhomeState';
 import { executeDeleteAccountRequest } from '../../zenhomeWorker';
 import { requireAdminAuth } from '../../middlewares/auth';
+import { createRealDatabaseBackup, getBackupFilePath } from '../../core/backupEngine';
 
 export const backupRouter = Router();
 
@@ -34,23 +35,13 @@ backupRouter.get('/status', (req: Request, res: Response) => {
  * @route   POST /api/v1/backup/trigger
  * @desc    Khởi tạo một bản Snapshot sao lưu dữ liệu toàn hệ thống lưu vào Disk (Yêu cầu Admin Auth)
  */
-backupRouter.post('/trigger', requireAdminAuth, (req: Request, res: Response) => {
+backupRouter.post('/trigger', requireAdminAuth, async (req: Request, res: Response) => {
   try {
-    const backupId = `ZENHOME_BACKUP_${new Date().toISOString().replace(/[:.]/g, '-')}`;
-    const record: BackupRecord = {
-      id: backupId,
-      timestamp: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
-      docCount: 12,
-      sizeBytes: 8192,
-      collections: ['users', 'server_schedules', 'server_timers', 'system_logs'],
-    };
-
-    addBackup(record);
-    addLog('[BACKEND]', `Tạo bản sao lưu dữ liệu Firestore thành công: ${backupId}`, 'success');
+    const record = await createRealDatabaseBackup();
 
     res.json({
       success: true,
-      message: 'Tạo bản sao lưu dữ liệu thành công trên Server Backup (Đã lưu trữ an toàn)!',
+      message: 'Tạo bản sao lưu dữ liệu Firestore thực tế thành công trên Server Backup (Đã lưu trữ an toàn vào Disk)!',
       backup: record,
       timestamp: new Date().toISOString(),
     });

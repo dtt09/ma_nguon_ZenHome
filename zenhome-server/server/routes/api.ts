@@ -20,6 +20,7 @@ import { requireAdminAuth } from '../middlewares/auth';
 import { apiLimiter, actionLimiter } from '../middlewares/rateLimiter';
 import { client as mqttClient } from '../core/mqtt';
 import { getCpuMetrics, getRamMetrics, getDiskMetrics, formatUptimeString } from '../core/systemTelemetry';
+import { createRealDatabaseBackup } from '../core/backupEngine';
 
 
 export const apiRouter = Router();
@@ -247,22 +248,17 @@ apiRouter.post('/backup-server/delete-request', requireAdminAuth, actionLimiter,
   });
 });
 
-apiRouter.post('/backup-server/trigger-backup', requireAdminAuth, actionLimiter, (req: Request, res: Response) => {
-  const backupId = `ZENHOME_BACKUP_${new Date().toISOString().replace(/[:.]/g, '-')}`;
-  const record: BackupRecord = {
-    id: backupId,
-    timestamp: new Date().toLocaleString('vi-VN'),
-    docCount: 4,
-    sizeBytes: 4280,
-    collections: ['users', 'users/Dtthuat/sessions'],
-  };
-  addBackup(record);
-  addLog('[BACKEND]', `Tạo bản sao lưu dữ liệu Firestore thành công: ${backupId}`, 'success');
-  res.json({
-    success: true,
-    backup: record,
-    message: 'Tạo bản sao lưu dữ liệu Firestore thành công trên Server (Đã lưu vào Disk)!',
-  });
+apiRouter.post('/backup-server/trigger-backup', requireAdminAuth, actionLimiter, async (req: Request, res: Response) => {
+  try {
+    const record = await createRealDatabaseBackup();
+    res.json({
+      success: true,
+      backup: record,
+      message: 'Tạo bản sao lưu dữ liệu Firestore thực tế thành công trên Server (Đã lưu vào Disk)!',
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 apiRouter.get('/backup-server/backups', apiLimiter, (req: Request, res: Response) => {

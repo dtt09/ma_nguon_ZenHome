@@ -26,6 +26,8 @@ import 'package:zenhome_app/features/home/ui/home_switcher_sheet.dart';
 import 'package:zenhome_app/features/home/ui/room_tab.dart';
 import 'package:zenhome_app/features/notifications/ui/notification_badge.dart';
 import 'package:zenhome_app/features/home/ui/scene_section.dart';
+import 'package:zenhome_app/core/services/local_network_service.dart';
+import 'package:zenhome_app/core/providers/local_network_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -60,6 +62,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (availableRooms.isNotEmpty) {
       _selectedRoomCode = availableRooms.first; 
     }
+    // Khởi chạy giám sát mạng cục bộ (Local LAN) và kích hoạt cầu nối đồng bộ
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(localSyncBridgeProvider);
+      ref.read(localNetworkServiceProvider).startMonitoring(targetMac: activeConfig.macAddress);
+    });
   }
 
   String _getDynamicGreeting() {
@@ -96,18 +103,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       mqttUser: activeConfig.mqttUser,
       mqttPass: activeConfig.mqttPass,
     );
+
+    // 3. Kiểm tra lại kết nối mạng cục bộ LAN
+    ref.read(localNetworkServiceProvider).checkConnectivity();
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
   void _toggleDevice(String devId, String roomId, bool currentState) {
     if (_cooldowns[devId] == true) return; 
-
-    final mqttState = ref.read(mqttConnectionStateProvider);
-    final isOnline = ref.read(espOnlineStateProvider);
-    if (mqttState != 2 || !isOnline) {
-      showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
-      return;
-    }
 
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
 
@@ -124,10 +127,72 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       return;
     }
 
+    final localService = ref.read(localNetworkServiceProvider);
+    final bool isLocalAvailable = localService.isLocalAvailable;
+    final mqttState = ref.read(mqttConnectionStateProvider);
+    final isOnline = ref.read(espOnlineStateProvider);
+
+    // Nếu không có mạng LAN VÀ không có kết nối MQTT Cloud
+    if (!isLocalAvailable && (mqttState != 2 || !isOnline)) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...',
+        isError: true,
+      );
+      return;
+    }
+
     String cmd = !currentState ? '1' : '0';
     String actionText = !currentState ? context.tr('status_on') : context.tr('status_off');
+
+    // Thêm hiệu ứng rung phản hồi (Haptics)
+    if (!currentState) {
+      HapticFeedback.heavyImpact(); // Rung mạnh khi BẬT
+    } else {
+      HapticFeedback.mediumImpact(); // Rung vừa khi TẮT
+    }
+
+    // 1. ƯU TIÊN MẠNG CỤC BỘ (LOCAL LAN) NẾU ĐANG CÙNG MẠNG VỚI ESP32
+    if (isLocalAvailable) {
+      setState(() => _cooldowns[devId] = true);
+      // Tối ưu hóa UI lạc quan (Optimistic UI)
+      final currentStates = Map<String, bool>.from(ref.read(globalDeviceStatesProvider));
+      currentStates[devId] = !currentState;
+      ref.read(globalDeviceStatesProvider.notifier).state = currentStates;
+
+      localService.sendLocalControl(devId: devId, cmd: cmd).then((success) {
+        if (!mounted) return;
+        setState(() => _cooldowns[devId] = false);
+
+        if (success) {
+          showFloatingToast(
+            context,
+            context.tr('toast_success'),
+            '${!currentState ? context.tr('toast_turn_on') : context.tr('toast_turn_off')} (Mạng LAN ⚡)',
+          );
+          _logHistoryToFirebase(devId, actionText);
+        } else {
+          // Dự phòng tự động: Thử gửi tiếp qua Cloud MQTT nếu Local HTTP trục trặc
+          _sendViaMqtt(devId, roomId, currentState, cmd, actionText, activeConfig);
+        }
+      });
+      return;
+    }
+
+    // 2. GỬI QUA CLOUD MQTT NẾU KHÔNG Ở MẠNG LAN
+    _sendViaMqtt(devId, roomId, currentState, cmd, actionText, activeConfig);
+  }
+
+  void _sendViaMqtt(
+    String devId,
+    String roomId,
+    bool currentState,
+    String cmd,
+    String actionText,
+    SmartConfig activeConfig,
+  ) {
     String topicCmd = '${activeConfig.mqttPrefix}/$roomId/$devId/cmd';
-    
     try {
       final currentStates = Map<String, bool>.from(ref.read(globalDeviceStatesProvider));
       currentStates[devId] = !currentState;
@@ -140,13 +205,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
          }
       });
       _subscriptions.add(sub);
-
-      // Thêm hiệu ứng rung phản hồi (Haptics)
-      if (!currentState) {
-        HapticFeedback.heavyImpact(); // Rung mạnh khi BẬT
-      } else {
-        HapticFeedback.mediumImpact(); // Rung vừa khi TẮT
-      }
 
       ref.read(mqttRepositoryProvider).publishCmd(topicCmd, cmd);
       showFloatingToast(context, context.tr('toast_success'), !currentState ? context.tr('toast_turn_on') : context.tr('toast_turn_off'));
@@ -343,18 +401,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             const SizedBox(width: 8),
                             Builder(
                               builder: (context) {
+                                final isLocalAvailable = ref.watch(isLocalNetworkAvailableProvider).value ?? ref.watch(localNetworkServiceProvider).isLocalAvailable;
                                 bool isOnline = ref.watch(espOnlineStateProvider);
                                 bool isUnlinked = activeConfig.macAddress == 'unknown_mac' || activeConfig.macAddress.isEmpty;
 
-                                String statusText = isUnlinked
-                                    ? (context.tr('unlinked') ?? 'Chưa l.kết')
-                                    : (isOnline ? 'Online' : 'Offline');
-                                Color statusColor = isUnlinked
-                                    ? const Color(0xFFF59E0B)
-                                    : (isOnline ? const Color(0xFF10B981) : const Color(0xFFEF4444));
+                                String statusText;
+                                Color statusColor;
+                                IconData statusIcon;
+
+                                if (isUnlinked) {
+                                  statusText = context.tr('unlinked') ?? 'Chưa l.kết';
+                                  statusColor = const Color(0xFFF59E0B);
+                                  statusIcon = Icons.link_off_rounded;
+                                } else if (isLocalAvailable) {
+                                  statusText = 'Mạng LAN ⚡';
+                                  statusColor = const Color(0xFF10B981);
+                                  statusIcon = Icons.bolt_rounded;
+                                } else if (isOnline) {
+                                  statusText = 'Cloud MQTT';
+                                  statusColor = const Color(0xFF0EA5E9);
+                                  statusIcon = Icons.cloud_done_rounded;
+                                } else {
+                                  statusText = 'Offline';
+                                  statusColor = const Color(0xFFEF4444);
+                                  statusIcon = Icons.cloud_off_rounded;
+                                }
 
                                 return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                   decoration: BoxDecoration(
                                     color: statusColor.withOpacity(0.12),
                                     borderRadius: BorderRadius.circular(12),
@@ -363,24 +437,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: statusColor,
-                                          boxShadow: isOnline
-                                              ? [
-                                                  BoxShadow(
-                                                    color: statusColor.withOpacity(0.6),
-                                                    blurRadius: 6,
-                                                    spreadRadius: 1,
-                                                  )
-                                                ]
-                                              : [],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 5),
+                                      Icon(statusIcon, size: 12, color: statusColor),
+                                      const SizedBox(width: 4),
                                       Text(
                                         statusText,
                                         style: TextStyle(

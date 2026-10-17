@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h> // HiveMQ Cloud yêu cầu kết nối bảo mật TLS (8883)
+#include <WiFiUdp.h>          // Hỗ trợ UDP Broadcast phát hiện thiết bị trong mạng LAN
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
@@ -9,8 +10,20 @@
 #include <DHT.h>              // Tích hợp thư viện cảm biến
 #include <Wire.h>
 #include <Adafruit_PCF8574.h> // Tích hợp PCF8574
+#include <esp_task_wdt.h>     // Hardware Watchdog Timer chống treo vi điều khiển
+
+#define WDT_TIMEOUT_SECONDS 30
+#define MAX_RELAYS 16
+#define UDP_DISCOVERY_PORT 4210 // Cổng UDP Broadcast cho Discovery
 
 Adafruit_PCF8574 pcf;
+bool pcfFound = false;
+
+void safeSetRelayPin(int pin, int level) {
+  if (pcfFound && pin >= 0 && pin <= 7) {
+    pcf.digitalWrite(pin, level);
+  }
+}
 // ---------------------------------------------------------
 // CẤU HÌNH ĐÈN LED TRẠNG THÁI
 // ---------------------------------------------------------
@@ -43,6 +56,7 @@ bool isButtonPressed = false;
 AsyncWebServer server(80);
 WiFiClientSecure espClient; // Bắt buộc dùng Secure Client cho HiveMQ Cloud
 PubSubClient mqttClient(espClient);
+WiFiUDP udpDiscovery;       // Socket UDP cho mạng LAN
 
 String wifi_ssid = "";
 String wifi_pass = "";
@@ -54,14 +68,17 @@ String mqtt_pass = "DTC_ZenHome2103";
 struct RelayDev {
   String id;
   int pin;
+  String state; // "0" hoặc "1"
 };
 
-RelayDev myRelays[10]; 
+RelayDev myRelays[MAX_RELAYS]; 
 int relayCount = 0;
 
 bool isConfigured = false;
 bool shouldReboot = false;
 unsigned long rebootScheduledAt = 0;
+bool isWebServerStarted = false;
+bool isUdpStarted = false;
 
 
 // ---------------------------------------------------------
@@ -114,6 +131,9 @@ bool loadConfig();
 void connectMQTT();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
 void syncTime(); // Thêm hàm đồng bộ thời gian
+void setupStationWebServer();
+void setupUdpDiscovery();
+void checkUdpDiscovery();
 
 void setup() {
   Serial.begin(115200);
@@ -126,20 +146,32 @@ void setup() {
   dht.begin(); // Khởi động cảm biến
 
   Wire.begin(); // Khởi tạo I2C với chân mặc định (SDA=21, SCL=22)
-  if (!pcf.begin(0x20, &Wire)) {
-    Serial.println("Không tìm thấy PCF8574 tại 0x20, thử 0x27...");
-    if (!pcf.begin(0x27, &Wire)) {
-      if (!pcf.begin(0x38, &Wire)) { // Thử cả 0x38 (PCF8574A)
-        Serial.println("LỖI: Không tìm thấy mô-đun PCF8574 ở bất kỳ địa chỉ nào!");
-      } else {
-        Serial.println("OK: Tìm thấy PCF8574A tại 0x38");
-      }
-    } else {
-      Serial.println("OK: Tìm thấy PCF8574 tại 0x27");
-    }
-  } else {
+  if (pcf.begin(0x20, &Wire)) {
+    pcfFound = true;
     Serial.println("OK: Tìm thấy PCF8574 tại 0x20");
+  } else if (pcf.begin(0x27, &Wire)) {
+    pcfFound = true;
+    Serial.println("OK: Tìm thấy PCF8574 tại 0x27");
+  } else if (pcf.begin(0x38, &Wire)) {
+    pcfFound = true;
+    Serial.println("OK: Tìm thấy PCF8574A tại 0x38");
+  } else {
+    pcfFound = false;
+    Serial.println("CẢNH BÁO: Không tìm thấy mô-đun PCF8574 ở bất kỳ địa chỉ nào!");
   }
+
+  // Khởi tạo Task Watchdog Timer chống treo hệ thống (30s)
+  #if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
+    esp_task_wdt_config_t wdt_config = {
+      .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,
+      .idle_core_mask = 0,
+      .trigger_panic = true
+    };
+    esp_task_wdt_init(&wdt_config);
+  #else
+    esp_task_wdt_init(WDT_TIMEOUT_SECONDS, true);
+  #endif
+  esp_task_wdt_add(NULL);
 
   if (!LittleFS.begin(true)) {
     Serial.println("Lỗi mount LittleFS!");
@@ -169,6 +201,7 @@ void setup() {
 }
 
 void loop() {
+  esp_task_wdt_reset(); // Reset Task Watchdog Timer mỗi chu kỳ loop
   unsigned long currentMillis = millis();
 
   if (shouldReboot && (currentMillis - rebootScheduledAt >= 1000)) {
@@ -202,7 +235,7 @@ void loop() {
         
         // Tắt toàn bộ relay đang bật
         for (int i = 0; i < relayCount; i++) {
-          pcf.digitalWrite(myRelays[i].pin, HIGH);
+          safeSetRelayPin(myRelays[i].pin, HIGH);
         }
         Serial.println("Đã tắt toàn bộ thiết bị (relay).");
         
@@ -228,7 +261,7 @@ void loop() {
       
       // Tắt toàn bộ relay đang bật
       for (int i = 0; i < relayCount; i++) {
-        pcf.digitalWrite(myRelays[i].pin, HIGH);
+        safeSetRelayPin(myRelays[i].pin, HIGH);
       }
       
       shouldReboot = true;
@@ -262,9 +295,16 @@ void loop() {
   }
 
   // ---------------------------------------------------------
-  // 2. DUY TRÌ KẾT NỐI MQTT (NON-BLOCKING)
+  // 2. DUY TRÌ KẾT NỐI MQTT & DỊCH VỤ CỤC BỘ (NON-BLOCKING)
   // ---------------------------------------------------------
   if (WiFi.status() == WL_CONNECTED) {
+    if (!isWebServerStarted) {
+      setupStationWebServer();
+      setupUdpDiscovery();
+      isWebServerStarted = true;
+    }
+    checkUdpDiscovery();
+
     if (!mqttClient.connected()) {
       if (currentMillis - lastMQTTRetry >= 8000) {
         lastMQTTRetry = currentMillis;
@@ -362,8 +402,15 @@ bool loadConfig() {
   JsonArray devs = doc["devices"].as<JsonArray>();
   relayCount = 0;
   for(JsonObject dev : devs) {
+    if (relayCount >= MAX_RELAYS) {
+      Serial.print("CẢNH BÁO: Số lượng thiết bị vượt quá giới hạn tối đa (");
+      Serial.print(MAX_RELAYS);
+      Serial.println(")! Bỏ qua các thiết bị còn lại.");
+      break;
+    }
     myRelays[relayCount].id = dev["id"].as<String>();
     myRelays[relayCount].pin = dev["pin"].as<int>();
+    myRelays[relayCount].state = "0"; // Mặc định tắt (Active-Low)
     
     if (myRelays[relayCount].pin > 7) {
       Serial.print("CẢNH BÁO: Chân relay ");
@@ -371,8 +418,10 @@ bool loadConfig() {
       Serial.println(" lớn hơn 7! PCF8574 chỉ hỗ trợ chân từ 0-7.");
     }
 
-    pcf.pinMode(myRelays[relayCount].pin, OUTPUT);
-    pcf.digitalWrite(myRelays[relayCount].pin, HIGH); 
+    if (pcfFound && myRelays[relayCount].pin <= 7) {
+      pcf.pinMode(myRelays[relayCount].pin, OUTPUT);
+      safeSetRelayPin(myRelays[relayCount].pin, HIGH); // Mặc định tắt (Active-Low)
+    }
     relayCount++;
   }
   return true;
@@ -426,6 +475,7 @@ void connectToWiFi() {
   // Chờ kết nối để đồng bộ thời gian (cần thiết cho chứng chỉ SSL)
   int retries = 0;
   while (WiFi.status() != WL_CONNECTED && retries < 25) {
+    esp_task_wdt_reset();
     delay(500);
     Serial.print(".");
     retries++;
@@ -434,6 +484,11 @@ void connectToWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\nWiFi kết nối thành công! IP: " + WiFi.localIP().toString());
     syncTime();
+    if (!isWebServerStarted) {
+      setupStationWebServer();
+      setupUdpDiscovery();
+      isWebServerStarted = true;
+    }
   } else {
     Serial.print("\nLỖI: Chưa kết nối được WiFi (Mã trạng thái: ");
     Serial.print(WiFi.status());
@@ -447,6 +502,7 @@ void syncTime() {
   time_t now = time(nullptr);
   int retries = 0;
   while (now < 100000 && retries < 20) {
+    esp_task_wdt_reset();
     delay(500);
     Serial.print(".");
     now = time(nullptr);
@@ -557,7 +613,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     
     // Tắt toàn bộ relay đang bật
     for (int i = 0; i < relayCount; i++) {
-      pcf.digitalWrite(myRelays[i].pin, HIGH);
+      safeSetRelayPin(myRelays[i].pin, HIGH);
     }
     Serial.println("Đã tắt toàn bộ thiết bị (relay).");
     
@@ -669,14 +725,174 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
   for (int i = 0; i < relayCount; i++) {
     if (myRelays[i].id == devId) {
-      if (targetState == "1") pcf.digitalWrite(myRelays[i].pin, LOW);
-      else if (targetState == "0") pcf.digitalWrite(myRelays[i].pin, HIGH);
+      myRelays[i].state = targetState;
+      if (targetState == "1") safeSetRelayPin(myRelays[i].pin, LOW);
+      else if (targetState == "0") safeSetRelayPin(myRelays[i].pin, HIGH);
       
       // Đồng bộ lại trạng thái cho ứng dụng di động
       String stateTopic = topicStr;
       stateTopic.replace("/cmd", "/state"); 
       mqttClient.publish(stateTopic.c_str(), targetState.c_str(), true); 
       break;
+    }
+  }
+}
+
+// ---------------------------------------------------------
+// KHỞI TẠO HTTP SERVER CỤC BỘ TRONG MẠNG LAN
+// ---------------------------------------------------------
+void setupStationWebServer() {
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // Endpoint 1: Ping / Health check
+  server.on("/ping", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String mac = WiFi.macAddress();
+    String json = "{\"status\":\"ok\",\"service\":\"zenhome_hub\",\"macAddress\":\"" + mac + "\",\"ip\":\"" + WiFi.localIP().toString() + "\"}";
+    request->send(200, "application/json", json);
+  });
+
+  // Endpoint 2: Lấy toàn diện trạng thái thiết bị & cảm biến mạng LAN
+  server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+    DynamicJsonDocument doc(2048);
+    doc["status"] = "ok";
+    doc["service"] = "zenhome_hub";
+    doc["macAddress"] = WiFi.macAddress();
+    doc["ip"] = WiFi.localIP().toString();
+    doc["rssi"] = WiFi.RSSI();
+    doc["mqttConnected"] = mqttClient.connected();
+    doc["uptime"] = millis() / 1000;
+
+    float t = dht.readTemperature();
+    if (!isnan(t)) {
+      doc["temp"] = String(t, 1);
+    } else {
+      doc["temp"] = "--";
+    }
+
+    JsonArray devsArr = doc.createNestedArray("devices");
+    for (int i = 0; i < relayCount; i++) {
+      JsonObject devObj = devsArr.createNestedObject();
+      devObj["id"] = myRelays[i].id;
+      devObj["pin"] = myRelays[i].pin;
+      devObj["state"] = myRelays[i].state;
+    }
+
+    String response;
+    serializeJson(doc, response);
+    request->send(200, "application/json", response);
+  });
+
+  // Endpoint 3: Điều khiển thiết bị tức thì qua mạng LAN (POST /api/control)
+  server.on("/api/control", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+    String payload((char*)data, len);
+    StaticJsonDocument<256> doc;
+    DeserializationError err = deserializeJson(doc, payload);
+
+    if (err || !doc.containsKey("id") || !doc.containsKey("cmd")) {
+      request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Thiếu id hoặc cmd\"}");
+      return;
+    }
+
+    String devId = doc["id"].as<String>();
+    String cmd = doc["cmd"].as<String>();
+    String targetState = (cmd == "1" || cmd == "ON" || cmd == "on") ? "1" : "0";
+    bool found = false;
+
+    for (int i = 0; i < relayCount; i++) {
+      if (myRelays[i].id == devId) {
+        found = true;
+        myRelays[i].state = targetState;
+        if (targetState == "1") {
+          safeSetRelayPin(myRelays[i].pin, LOW); // Active-Low BẬT
+        } else {
+          safeSetRelayPin(myRelays[i].pin, HIGH); // Active-Low TẮT
+        }
+
+        // Nếu MQTT đang kết nối, đồng bộ ngay lập tức lên Cloud Broker
+        if (mqttClient.connected()) {
+          String stateTopic = mqtt_prefix + "/room/" + devId + "/state";
+          mqttClient.publish(stateTopic.c_str(), targetState.c_str(), true);
+        }
+        break;
+      }
+    }
+
+    if (found) {
+      String res = "{\"status\":\"ok\",\"id\":\"" + devId + "\",\"state\":\"" + targetState + "\"}";
+      request->send(200, "application/json", res);
+      Serial.println("[LOCAL-HTTP] Điều khiển thiết bị " + devId + " -> " + targetState);
+    } else {
+      request->send(404, "application/json", "{\"status\":\"error\",\"message\":\"Không tìm thấy thiết bị\"}");
+    }
+  });
+
+  // Endpoint 4: Khởi động lại (POST /api/reboot)
+  server.on("/api/reboot", HTTP_POST, [](AsyncWebServerRequest *request) {
+    request->send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Rebooting...\"}");
+    rebootScheduledAt = millis();
+    shouldReboot = true;
+  });
+
+  server.begin();
+  Serial.println("[HTTP] Web Server cục bộ (Local LAN) đã khởi động trên cổng 80!");
+}
+
+// ---------------------------------------------------------
+// DỊCH VỤ PHÁT HIỆN THIẾT BỊ MẠNG CỤC BỘ (UDP BROADCAST)
+// ---------------------------------------------------------
+void setupUdpDiscovery() {
+  if (!isUdpStarted) {
+    if (udpDiscovery.begin(UDP_DISCOVERY_PORT)) {
+      isUdpStarted = true;
+      Serial.printf("[UDP] Lắng nghe phát hiện thiết bị mạng LAN trên cổng %d\n", UDP_DISCOVERY_PORT);
+    }
+  }
+}
+
+void checkUdpDiscovery() {
+  if (!isUdpStarted) return;
+  int packetSize = udpDiscovery.parsePacket();
+  if (packetSize) {
+    char packetBuffer[255];
+    int len = udpDiscovery.read(packetBuffer, 254);
+    if (len > 0) {
+      packetBuffer[len] = 0;
+    }
+    String message = String(packetBuffer);
+    message.trim();
+
+    if (message.indexOf("ZENHOME_DISCOVER") != -1) {
+      IPAddress remoteIp = udpDiscovery.remoteIP();
+      uint16_t remotePort = udpDiscovery.remotePort();
+
+      String mac = WiFi.macAddress();
+      mac.replace(":", "");
+
+      DynamicJsonDocument resDoc(512);
+      resDoc["service"] = "zenhome_hub";
+      resDoc["macAddress"] = mac;
+      resDoc["ip"] = WiFi.localIP().toString();
+      resDoc["port"] = 80;
+      resDoc["name"] = "ZenHome Hub";
+      resDoc["mqtt_prefix"] = mqtt_prefix;
+      
+      float t = dht.readTemperature();
+      if (!isnan(t)) {
+        resDoc["temp"] = String(t, 1);
+      } else {
+        resDoc["temp"] = "--";
+      }
+
+      String reply;
+      serializeJson(resDoc, reply);
+
+      udpDiscovery.beginPacket(remoteIp, remotePort);
+      udpDiscovery.print(reply);
+      udpDiscovery.endPacket();
+
+      Serial.println("[UDP] Đã phản hồi vị trí Hub tới App (" + remoteIp.toString() + ")");
     }
   }
 }

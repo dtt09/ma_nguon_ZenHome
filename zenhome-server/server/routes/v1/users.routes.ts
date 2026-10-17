@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db, findUser } from '../../utils/firestoreHelper';
 import { addLog } from '../../zenhomeState';
-import { requireAdminAuth } from '../../middlewares/auth';
+import { requireAdminAuth, requireAuth } from '../../middlewares/auth';
 
 export const usersRouter = Router();
 
@@ -42,9 +42,9 @@ usersRouter.get('/', requireAdminAuth, async (req: Request, res: Response) => {
 
 /**
  * @route   GET /api/v1/users/:userId
- * @desc    Lấy hồ sơ chi tiết người dùng và danh sách phiên đăng nhập (sessions) từ Firestore
+ * @desc    Lấy hồ sơ chi tiết người dùng và danh sách phiên đăng nhập (sessions) từ Firestore (Yêu cầu xác thực tài khoản)
  */
-usersRouter.get('/:userId', async (req: Request, res: Response) => {
+usersRouter.get('/:userId', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = String(req.params.userId);
     const user = await findUser(userId);
@@ -53,6 +53,14 @@ usersRouter.get('/:userId', async (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         error: `Không tìm thấy tài khoản người dùng '${userId}' trong cơ sở dữ liệu.`,
+      });
+    }
+
+    // Kiểm tra quyền sở hữu (Chống lỗ hổng IDOR/BOLA)
+    if (req.user?.role !== 'admin' && req.user?.uid !== user.id && req.user?.uid !== user.data.uid) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Bạn không có quyền truy cập thông tin của tài khoản người dùng khác.',
       });
     }
 
@@ -68,7 +76,6 @@ usersRouter.get('/:userId', async (req: Request, res: Response) => {
         ...s.data(),
       }));
     } catch (err) {
-
       // Bỏ qua nếu chưa có subcollection
     }
 
@@ -97,9 +104,9 @@ usersRouter.get('/:userId', async (req: Request, res: Response) => {
 
 /**
  * @route   PUT /api/v1/users/:userId
- * @desc    Cập nhật thông tin hồ sơ người dùng trong Firestore
+ * @desc    Cập nhật thông tin hồ sơ người dùng trong Firestore (Yêu cầu xác thực tài khoản)
  */
-usersRouter.put('/:userId', async (req: Request, res: Response) => {
+usersRouter.put('/:userId', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = String(req.params.userId);
     const { displayName, phoneNumber, macAddress, birthday, language } = req.body;
@@ -110,6 +117,14 @@ usersRouter.put('/:userId', async (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         error: `Không tìm thấy tài khoản người dùng '${userId}' trong cơ sở dữ liệu.`,
+      });
+    }
+
+    // Kiểm tra quyền sở hữu (Chống lỗ hổng IDOR/BOLA)
+    if (req.user?.role !== 'admin' && req.user?.uid !== user.id && req.user?.uid !== user.data.uid) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Bạn không có quyền chỉnh sửa hồ sơ của người dùng khác.',
       });
     }
 
