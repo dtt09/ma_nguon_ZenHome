@@ -1,20 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
-import 'package:zenhome_app/core/utils/helpers.dart';
-import 'package:zenhome_app/core/utils/constants.dart';
-import 'package:zenhome_app/core/models/smart_config.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/features/home/ui/main_layout.dart'; 
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/features/setup/ui/wifi_setup_screen.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/premium_dialog.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
+import 'package:zenhome_app/features/settings/logic/member_controller.dart';
 
 class MemberScreen extends ConsumerStatefulWidget {
   const MemberScreen({super.key});
@@ -24,9 +19,7 @@ class MemberScreen extends ConsumerStatefulWidget {
 }
 
 class _MemberScreenState extends ConsumerState<MemberScreen> {
-  final User? currentUser = FirebaseAuth.instance.currentUser;
   final TextEditingController _usernameController = TextEditingController();
-  bool _isLoading = false;
   String? currentUsername;
 
   @override
@@ -42,19 +35,16 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
   }
 
   Future<void> _loadCurrentUsername() async {
-    if (currentUser != null) {
-      final query = await FirebaseFirestore.instance.collection('users').where('uid', isEqualTo: currentUser!.uid).get();
-      if (query.docs.isNotEmpty && mounted) {
-        setState(() {
-          currentUsername = query.docs.first.id;
-        });
-      }
+    final username = await ref.read(memberControllerProvider.notifier).loadCurrentUsername();
+    if (mounted) {
+      setState(() {
+        currentUsername = username;
+      });
     }
   }
 
   Stream<DocumentSnapshot>? _getMyDataStream() {
-    if (currentUsername == null) return null;
-    return FirebaseFirestore.instance.collection('users').doc(currentUsername).snapshots();
+    return ref.read(memberControllerProvider.notifier).getMyDataStream();
   }
 
   void _sendInvite() async {
@@ -63,7 +53,6 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
         activeConfig.macAddress != 'unknown_mac' &&
         activeConfig.macAddress != 'unknown';
 
-    // RÀNG BUỘC: Tài khoản phải liên kết với ESP32 mới được phép mời thành viên
     if (!isEspLinked) {
       showFloatingToast(
         context,
@@ -76,7 +65,7 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
 
     String targetUsername = _usernameController.text.trim();
     if (targetUsername.isEmpty) {
-      showFloatingToast(context, context.tr('error'), context.tr('err_invalid_username') ?? 'Vui lòng nhập Username hợp lệ', isError: true);
+      showFloatingToast(context, context.tr('error'), context.tr('err_invalid_username'), isError: true);
       return;
     }
     if (targetUsername == currentUsername) {
@@ -84,182 +73,107 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
-    try {
-      final targetDoc = await FirebaseFirestore.instance.collection('users').doc(targetUsername).get();
-      if (!targetDoc.exists) {
-        showFloatingToast(context, context.tr('error'), context.tr('err_user_not_found'), isError: true);
-        setState(() => _isLoading = false);
-        return;
-      }
+    final result = await ref.read(memberControllerProvider.notifier).sendInvite(targetUsername);
+    if (!mounted) return;
 
-      await FirebaseFirestore.instance.collection('users').doc(targetUsername).set({
-        'pendingInvitations': FieldValue.arrayUnion([currentUsername])
-      }, SetOptions(merge: true));
-      
-      // Bắn Alert để Server gọi Push FCM
-      String inviterName = FirebaseAuth.instance.currentUser?.displayName ?? currentUsername ?? (context.tr('someone') ?? 'Ai đó');
-      await FirebaseFirestore.instance.collection('users').doc(targetUsername).collection('alerts').add({
-        'type': 'new_invite',
-        'inviter': inviterName,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-
+    if (result.success) {
       _usernameController.clear();
       showFloatingToast(context, context.tr('toast_success'), '${context.tr('msg_send_success')} $targetUsername');
-    } catch (e) {
-      showFloatingToast(context, context.tr('error'), context.tr('error'), isError: true);
-    } finally {
-      setState(() => _isLoading = false);
+    } else {
+      final msg = result.errorMessage == 'err_user_not_found'
+          ? context.tr('err_user_not_found')
+          : (result.errorMessage ?? context.tr('error'));
+      showFloatingToast(context, context.tr('error'), msg, isError: true);
     }
   }
 
   void _acceptInvite(String ownerUsername) async {
     showFloatingToast(context, context.tr('msg_processing'), '${context.tr('msg_syncing_home')} $ownerUsername...');
-    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+    final result = await ref.read(memberControllerProvider.notifier).acceptInvite(ownerUsername);
+    if (!mounted) return;
 
-    // --- 1. HỦY ĐĂNG KÝ KÊNH NHÀ CŨ TRƯỚC KHI ĐỔI ---
-    try {
-      await FirebaseMessaging.instance.unsubscribeFromTopic('home_${activeConfig.userId}');
-      await FirebaseMessaging.instance.unsubscribeFromTopic('home_${activeConfig.userId}_vi');
-      await FirebaseMessaging.instance.unsubscribeFromTopic('home_${activeConfig.userId}_en');
-    } catch (e) {
-      debugPrint('Error getting email: $e');
-    }
-
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(ownerUsername).set({
-        'sharedWith': FieldValue.arrayUnion([currentUsername])
-      }, SetOptions(merge: true));
-      
-      // Cập nhật ownerUsername cho chính mình và xoá khỏi danh sách chờ
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
-        'ownerUsername': ownerUsername,
-        'pendingInvitations': FieldValue.arrayRemove([ownerUsername])
-      });
-
-      final targetDoc = await FirebaseFirestore.instance.collection('users').doc(ownerUsername).get();
-      if (targetDoc.exists) {
-        final data = targetDoc.data() as Map<String, dynamic>;
-        List<DeviceConfig> restoredDevices = [];
-        if (data.containsKey('devices') && data['devices'] != null) {
-          restoredDevices = (data['devices'] as List)
-              .map((e) => DeviceConfig.fromJson(e))
-              .toList();
-        }
-        
-        String ownerName = data['displayName'] ?? ownerUsername;
-        String assignedRole = 'member';
-        if (data['memberRoles'] != null && data['memberRoles'][currentUsername] != null) {
-          assignedRole = data['memberRoles'][currentUsername];
-        }
-        
-        SmartConfig newConfig = SmartConfig(
-          userId: ownerUsername,
-          macAddress: data['macAddress'] ?? 'unknown_mac',
-          mqttServer: data['mqttServer'] ?? 'broker.emqx.io',
-          mqttUser: data['mqttUser'],
-          mqttPass: data['mqttPass'],
-          devices: restoredDevices,
-          role: assignedRole,
-          homeName: '${context.tr('home_of')} $ownerName',
-          ownerEmail: ownerUsername,
-        );
-
-        // Cập nhật nhà mới
-        await ref.read(homeConfigProvider).saveConfigToStorage(newConfig);
-        await ref.read(homeConfigProvider).switchActiveHome(ownerUsername);
-      }
-
-      // --- 2. ĐĂNG KÝ VÀO KÊNH NHÀ MỚI ---
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        String lang = prefs.getString('app_lang') ?? 'en';
-        await FirebaseMessaging.instance.unsubscribeFromTopic('home_${activeConfig.userId}');
-        await FirebaseMessaging.instance.unsubscribeFromTopic('home_${activeConfig.userId}_vi');
-        await FirebaseMessaging.instance.unsubscribeFromTopic('home_${activeConfig.userId}_en');
-        await FirebaseMessaging.instance.subscribeToTopic('home_${activeConfig.userId}_$lang');
-      } catch (e) {
-        debugPrint('Error validating target email: $e');
-      }
-
-      if (mounted) {
-        showFloatingToast(context, context.tr('toast_success'), context.tr('msg_sync_success'));
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainLayout()),
-          (Route<dynamic> route) => false,
-        );
-      }
-    } catch (e) {
-      showFloatingToast(context, context.tr('error'), context.tr('error'), isError: true);
+    if (result.success) {
+      showFloatingToast(context, context.tr('toast_success'), context.tr('msg_sync_success'));
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MainLayout()),
+        (Route<dynamic> route) => false,
+      );
+    } else {
+      showFloatingToast(context, context.tr('error'), result.errorMessage ?? context.tr('error'), isError: true);
     }
   }
 
   void _rejectInvite(String ownerUsername) async {
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
-        'pendingInvitations': FieldValue.arrayRemove([ownerUsername])
-      });
+    final result = await ref.read(memberControllerProvider.notifier).rejectInvite(ownerUsername);
+    if (!mounted) return;
+
+    if (result.success) {
       showFloatingToast(context, context.tr('toast_success'), '${context.tr('msg_reject_success')} $ownerUsername');
-    } catch (e) {
-      showFloatingToast(context, context.tr('error'), context.tr('error'), isError: true);
+    } else {
+      showFloatingToast(context, context.tr('error'), result.errorMessage ?? context.tr('error'), isError: true);
     }
   }
 
   void _removeMember(String memberUsername) async {
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
-        'sharedWith': FieldValue.arrayRemove([memberUsername]),
-        'automationEditors': FieldValue.arrayRemove([memberUsername]),
-        'disabledMembers': FieldValue.arrayRemove([memberUsername]),
-        'memberRoles.$memberUsername': FieldValue.delete(),
-      });
-      await FirebaseFirestore.instance.collection('users').doc(memberUsername).update({
-        'ownerUsername': FieldValue.delete(),
-        'ownerEmail': FieldValue.delete()
-      });
+    final result = await ref.read(memberControllerProvider.notifier).removeMember(memberUsername);
+    if (!mounted) return;
+
+    if (result.success) {
       showFloatingToast(context, context.tr('msg_deleted_title'), '${context.tr('msg_revoke_success')} $memberUsername');
-    } catch (e) {
-      showFloatingToast(context, context.tr('error'), context.tr('error'), isError: true);
+    } else {
+      showFloatingToast(context, context.tr('error'), result.errorMessage ?? context.tr('error'), isError: true);
     }
   }
 
   void _toggleDisableMember(String memberUsername, bool isDisabled) async {
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
-        'disabledMembers': isDisabled 
-            ? FieldValue.arrayUnion([memberUsername])
-            : FieldValue.arrayRemove([memberUsername])
-      });
-      showFloatingToast(context, context.tr('toast_success'), isDisabled ? context.l10n.msg_disabled_member(memberUsername) : context.l10n.msg_enabled_member(memberUsername));
-    } catch (e) {
-      showFloatingToast(context, context.tr('error'), context.tr('error'), isError: true);
+    final result = await ref.read(memberControllerProvider.notifier).toggleDisableMember(memberUsername, isDisabled);
+    if (!mounted) return;
+
+    if (result.success) {
+      showFloatingToast(
+        context,
+        context.tr('toast_success'),
+        isDisabled
+            ? context.l10n.msg_disabled_member(memberUsername)
+            : context.l10n.msg_enabled_member(memberUsername),
+      );
+    } else {
+      showFloatingToast(context, context.tr('error'), result.errorMessage ?? context.tr('error'), isError: true);
     }
   }
 
   void _toggleAutomationEditor(String memberUsername, bool canEdit) async {
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
-        'automationEditors': canEdit 
-            ? FieldValue.arrayUnion([memberUsername])
-            : FieldValue.arrayRemove([memberUsername])
-      });
-      showFloatingToast(context, context.tr('toast_success'), canEdit ? '${context.tr('msg_grant_edit')} $memberUsername' : '${context.tr('msg_revoke_edit')} $memberUsername');
-    } catch (e) {
-      showFloatingToast(context, context.tr('error'), context.tr('error'), isError: true);
+    final result = await ref.read(memberControllerProvider.notifier).toggleAutomationEditor(memberUsername, canEdit);
+    if (!mounted) return;
+
+    if (result.success) {
+      showFloatingToast(
+        context,
+        context.tr('toast_success'),
+        canEdit
+            ? '${context.tr('msg_grant_edit')} $memberUsername'
+            : '${context.tr('msg_revoke_edit')} $memberUsername',
+      );
+    } else {
+      showFloatingToast(context, context.tr('error'), result.errorMessage ?? context.tr('error'), isError: true);
     }
   }
 
   void _changeRole(String memberUsername, String newRole) async {
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).set({
-        'memberRoles': {
-          memberUsername: newRole
-        }
-      }, SetOptions(merge: true));
-      showFloatingToast(context, context.tr('toast_success'), context.l10n.msg_role_granted(newRole == 'co_owner' ? context.tr('co_owner') : context.tr('member_role'), memberUsername));
-    } catch (e) {
-      showFloatingToast(context, context.tr('error'), context.tr('error'), isError: true);
+    final result = await ref.read(memberControllerProvider.notifier).changeRole(memberUsername, newRole);
+    if (!mounted) return;
+
+    if (result.success) {
+      showFloatingToast(
+        context,
+        context.tr('toast_success'),
+        context.l10n.msg_role_granted(
+          newRole == 'co_owner' ? context.tr('co_owner') : context.tr('member_role'),
+          memberUsername,
+        ),
+      );
+    } else {
+      showFloatingToast(context, context.tr('error'), result.errorMessage ?? context.tr('error'), isError: true);
     }
   }
 
@@ -281,6 +195,7 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isLoading = ref.watch(memberControllerProvider);
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
     final bool isEspLinked = activeConfig.macAddress.isNotEmpty &&
         activeConfig.macAddress != 'unknown_mac' &&
@@ -564,7 +479,7 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                 Expanded(
                                   child: TextField(
                                     controller: _usernameController,
-                                    enabled: isEspLinked && !_isLoading,
+                                    enabled: isEspLinked && !isLoading,
                                     decoration: InputDecoration(
                                       hintText: isEspLinked ? context.tr('username_member') : context.tr('err_esp_required_for_invite'),
                                       hintStyle: TextStyle(
@@ -583,10 +498,10 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: IconButton(
-                                    icon: _isLoading 
+                                    icon: isLoading 
                                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                         : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                                    onPressed: (!isEspLinked || _isLoading) ? null : _sendInvite,
+                                    onPressed: (!isEspLinked || isLoading) ? null : _sendInvite,
                                     tooltip: context.tr('btn_add'),
                                   ),
                                 ),

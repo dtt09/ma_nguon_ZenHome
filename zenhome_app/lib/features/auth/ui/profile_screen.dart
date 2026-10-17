@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/services/session_manager.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
-import 'package:zenhome_app/core/utils/helpers.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
@@ -20,6 +17,7 @@ import 'package:zenhome_app/features/auth/ui/logged_devices_screen.dart';
 import 'package:zenhome_app/features/auth/ui/update_email_phone_screen.dart';
 import 'package:zenhome_app/core/utils/reauth_helper.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
+import 'package:zenhome_app/features/auth/logic/profile_controller.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -30,16 +28,9 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final User? user = FirebaseAuth.instance.currentUser;
-  
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _birthdayController = TextEditingController();
-  
-  String _currentUsername = '';
-  String _currentEmail = '';
-  String _currentPhone = '';
-  bool _isGoogleLinked = false;
-  bool _isPhoneLinked = false;
-  bool _isLoading = false;
+
   bool _hasChanges = false;
   String _initialName = '';
   String _initialBirthday = '';
@@ -49,9 +40,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.initState();
     _initialName = user?.displayName ?? '';
     _nameController.text = _initialName;
-    _currentEmail = getDisplayEmail(user);
-    _checkLinkedProviders();
-    _fetchUserData();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(profileControllerProvider.notifier).fetchUserData();
+      final pState = ref.read(profileControllerProvider);
+      if (mounted) {
+        if (pState.displayName.isNotEmpty) {
+          _nameController.text = pState.displayName;
+          _initialName = pState.displayName;
+        }
+        if (pState.birthday.isNotEmpty) {
+          _birthdayController.text = pState.birthday;
+          _initialBirthday = pState.birthday;
+        }
+      }
+    });
   }
 
   @override
@@ -59,84 +62,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _nameController.dispose();
     _birthdayController.dispose();
     super.dispose();
-  }
-
-  void _checkLinkedProviders() {
-    if (user != null) {
-      _isGoogleLinked = false;
-      _isPhoneLinked = false;
-      for (var provider in user!.providerData) {
-        if (provider.providerId == 'google.com') {
-          if (provider.email != null && provider.email!.toLowerCase().endsWith('@gmail.com')) {
-            _isGoogleLinked = true;
-          }
-        }
-        if (provider.providerId == 'phone') _isPhoneLinked = true;
-      }
-      if (mounted) setState(() {});
-    }
-  }
-
-  Future<void> _fetchUserData() async {
-    if (user == null) return;
-    try {
-      final query = await FirebaseFirestore.instance
-          .collection('users')
-          .where('uid', isEqualTo: user!.uid)
-          .get();
-
-      if (query.docs.isNotEmpty) {
-        final doc = query.docs.first;
-        _currentUsername = doc.id;
-        final data = doc.data();
-
-        final googleEmail = getDisplayEmail(user);
-        final bool hasValidGoogleEmail = googleEmail.isNotEmpty;
-
-        if (hasValidGoogleEmail) {
-          if (data['email'] != googleEmail) {
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(_currentUsername)
-                .update({'email': googleEmail});
-            data['email'] = googleEmail;
-          }
-        } else {
-          // Nếu không có Google hoặc không phải @gmail.com, xoá email khỏi Firestore
-          if (data['email'] != null) {
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(_currentUsername)
-                .update({'email': FieldValue.delete()});
-            data.remove('email');
-          }
-        }
-
-        String phone = data['phoneNumber'] ?? '';
-        if (phone.isEmpty && user!.phoneNumber != null && user!.phoneNumber!.isNotEmpty) {
-          phone = user!.phoneNumber!;
-        }
-        if (phone.isEmpty &&
-            user!.email != null &&
-            user!.email!.endsWith('@zenhome.local')) {
-          String raw = user!.email!.replaceAll('@zenhome.local', '');
-          phone = raw.startsWith('+') ? raw : '+$raw';
-        }
-
-        if (mounted) {
-          setState(() {
-            _currentEmail = googleEmail;
-            _currentPhone = phone;
-            _isGoogleLinked = hasValidGoogleEmail;
-            _isPhoneLinked = phone.isNotEmpty;
-            _birthdayController.text = data['birthday'] ?? '';
-            _initialBirthday = _birthdayController.text;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error fetching user data: $e');
-    }
   }
 
   void _checkForChanges() {
@@ -150,46 +75,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _saveProfileChanges() async {
     if (!_hasChanges) return;
     HapticFeedback.lightImpact();
-    setState(() => _isLoading = true);
 
-    try {
-      final newName = _nameController.text.trim();
-      if (newName != user?.displayName) {
-        await user?.updateDisplayName(newName);
-      }
+    final result = await ref.read(profileControllerProvider.notifier).saveProfileChanges(
+      newName: _nameController.text,
+      newBirthday: _birthdayController.text,
+    );
 
-      if (_currentUsername.isNotEmpty) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_currentUsername)
-            .update({
-          'displayName': newName,
-          'birthday': _birthdayController.text.trim(),
-        });
-      }
-
-      _initialName = newName;
+    if (!mounted) return;
+    if (result.success) {
+      _initialName = _nameController.text.trim();
       _initialBirthday = _birthdayController.text.trim();
       setState(() => _hasChanges = false);
-
-      if (mounted) {
-        showFloatingToast(
-          context,
-          context.tr('toast_success') ?? 'Thành công',
-          context.tr('msg_profile_updated') ?? 'Thông tin hồ sơ đã được lưu',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        showFloatingToast(
-          context,
-          context.tr('error') ?? 'Lỗi',
-          e.toString(),
-          isError: true,
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      showFloatingToast(
+        context,
+        context.tr('toast_success'),
+        context.tr('msg_profile_updated'),
+      );
+    } else {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        result.errorMessage ?? context.tr('error'),
+        isError: true,
+      );
     }
   }
 
@@ -252,13 +160,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            context.tr('update_avatar') ?? 'Cập nhật ảnh đại diện',
+            context.tr('update_avatar'),
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           content: TextField(
             onChanged: (val) => newUrl = val.trim(),
             decoration: InputDecoration(
-              hintText: context.tr('enter_image_url') ?? 'Nhập link ảnh (URL)',
+              hintText: context.tr('enter_image_url'),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               prefixIcon: const Icon(Icons.link),
             ),
@@ -267,7 +175,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: Text(
-                context.tr('btn_cancel') ?? 'Hủy',
+                context.tr('btn_cancel'),
                 style: const TextStyle(color: Colors.grey),
               ),
             ),
@@ -280,33 +188,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               onPressed: () async {
                 Navigator.pop(ctx);
                 if (newUrl.isNotEmpty) {
-                  setState(() => _isLoading = true);
-                  try {
-                    await user?.updatePhotoURL(newUrl);
-                    await user?.reload();
-                    if (_currentUsername.isNotEmpty) {
-                      await FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(_currentUsername)
-                          .update({'photoURL': newUrl});
-                    }
-                    if (mounted) {
-                      showFloatingToast(
-                        context,
-                        context.tr('toast_success') ?? 'Thành công',
-                        context.tr('msg_avatar_updated') ?? 'Ảnh đại diện đã được cập nhật',
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.toString(), isError: true);
-                    }
-                  } finally {
-                    if (mounted) setState(() => _isLoading = false);
+                  final result = await ref.read(profileControllerProvider.notifier).updateAvatar(newUrl);
+                  if (!mounted) return;
+                  if (result.success) {
+                    showFloatingToast(
+                      context,
+                      context.tr('toast_success'),
+                      context.tr('msg_avatar_updated'),
+                    );
+                  } else {
+                    showFloatingToast(
+                      context,
+                      context.tr('error'),
+                      result.errorMessage ?? context.tr('error'),
+                      isError: true,
+                    );
                   }
                 }
               },
-              child: Text(context.tr('btn_save_image') ?? 'Lưu ảnh'),
+              child: Text(context.tr('btn_save_image')),
             ),
           ],
         );
@@ -315,33 +215,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _handleGoogleLinkToggle() async {
+    final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    final profileState = ref.read(profileControllerProvider);
 
     bool isTrusted = await SessionManager.isCurrentDeviceTrusted();
     if (!isTrusted) {
       if (mounted) {
         showFloatingToast(
           context,
-          context.tr('error') ?? 'Lỗi',
-          context.tr('err_require_trusted_device') ?? 'Chỉ thiết bị tin cậy mới có thể thay đổi liên kết tài khoản',
+          context.tr('error'),
+          context.tr('err_require_trusted_device'),
           isError: true,
         );
       }
       return;
     }
 
-    if (_isGoogleLinked) {
-      if (!_isPhoneLinked) {
+    if (profileState.isGoogleLinked) {
+      if (!profileState.isPhoneLinked) {
         showFloatingToast(
           context,
-          context.tr('error') ?? 'Lỗi',
-          context.tr('err_cannot_unlink_last') ?? 'Không thể hủy liên kết duy nhất (cần ít nhất 1 liên kết SĐT hoặc Google).',
+          context.tr('error'),
+          context.tr('err_cannot_unlink_last'),
           isError: true,
         );
         return;
       }
 
-      bool hasPassword = user!.providerData.any((p) => p.providerId == 'password');
+      bool hasPassword = user.providerData.any((p) => p.providerId == 'password');
       if (!hasPassword) {
         showFloatingToast(
           context,
@@ -353,42 +255,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
 
       bool? confirm = await _showConfirmDialog(
-        context.tr('confirm_unlink_google') ?? 'Hủy liên kết Google',
-        context.tr('confirm_unlink_google_desc') ?? 'Bạn có chắc chắn muốn hủy liên kết tài khoản Google này không?',
+        context.tr('confirm_unlink_google'),
+        context.tr('confirm_unlink_google_desc'),
       );
       if (confirm != true) return;
 
       bool isReauthed = await ReauthHelper.reauthWithGoogleExplicit(
         context,
-        reason: context.tr('confirm_unlink_google') ?? 'hủy liên kết Google',
+        reason: context.tr('confirm_unlink_google'),
       );
       if (!isReauthed) return;
 
       LoadingOverlay.show(context);
-      try {
-        await user!.unlink('google.com');
-        await GoogleSignIn().signOut();
+      final result = await ref.read(profileControllerProvider.notifier).unlinkGoogle();
+      LoadingOverlay.hide();
+      if (!mounted) return;
 
-        if (_currentUsername.isNotEmpty) {
-          await FirebaseFirestore.instance.collection('users').doc(_currentUsername).update({
-            'email': FieldValue.delete(),
-          });
-        }
-
-        await user!.reload();
-        _checkLinkedProviders();
-        await _fetchUserData();
-        LoadingOverlay.hide();
-        if (mounted) {
-          showFloatingToast(
-            context,
-            context.tr('toast_success') ?? 'Thành công',
-            context.tr('msg_google_unlinked') ?? 'Đã hủy liên kết Google',
-          );
-        }
-      } catch (e) {
-        LoadingOverlay.hide();
-        if (mounted) showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.toString(), isError: true);
+      if (result.success) {
+        showFloatingToast(
+          context,
+          context.tr('toast_success'),
+          context.tr('msg_google_unlinked'),
+        );
+      } else {
+        showFloatingToast(context, context.tr('error'), result.errorMessage ?? context.tr('error'), isError: true);
       }
     } else {
       LoadingOverlay.show(context);
@@ -422,56 +312,48 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
-        await user!.linkWithCredential(credential);
 
-        if (_currentUsername.isNotEmpty) {
-          await FirebaseFirestore.instance.collection('users').doc(_currentUsername).update({
-            'email': googleUser.email,
-          });
-        }
-
-        await user!.reload();
-        _checkLinkedProviders();
-        await _fetchUserData();
+        final result = await ref.read(profileControllerProvider.notifier).linkGoogle(credential, googleUser.email);
         LoadingOverlay.hide();
-        if (mounted) {
+        if (!mounted) return;
+
+        if (result.success) {
           showFloatingToast(
             context,
-            context.tr('toast_success') ?? 'Thành công',
-            context.tr('msg_google_linked') ?? 'Đã liên kết Google thành công',
+            context.tr('toast_success'),
+            context.tr('msg_google_linked'),
           );
+        } else {
+          String errorMsg = result.errorMessage ?? context.tr('error');
+          if (result.errorCode == 'credential-already-in-use') {
+            errorMsg = context.tr('err_credential_in_use');
+          }
+          showFloatingToast(context, context.tr('error'), errorMsg, isError: true);
         }
-      } on FirebaseAuthException catch (e) {
-        LoadingOverlay.hide();
-        String errorMsg = e.message ?? e.toString();
-        if (e.code == 'credential-already-in-use') {
-          errorMsg = context.tr('err_credential_in_use') ?? 'Tài khoản Google này đã được liên kết với một tài khoản khác.';
-        }
-        if (mounted) showFloatingToast(context, context.tr('error') ?? 'Lỗi', errorMsg, isError: true);
       } catch (e) {
         LoadingOverlay.hide();
-        if (mounted) showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.toString(), isError: true);
+        if (mounted) showFloatingToast(context, context.tr('error'), e.toString(), isError: true);
       }
     }
   }
 
   Future<void> _handlePhoneLinkToggle() async {
+    final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    final profileState = ref.read(profileControllerProvider);
 
-    if (_isPhoneLinked) {
-      // 1. Kiểm tra điều kiện: Cần duy trì ít nhất 1 phương thức liên kết (Google hoặc SĐT)
-      if (!_isGoogleLinked) {
+    if (profileState.isPhoneLinked) {
+      if (!profileState.isGoogleLinked) {
         showFloatingToast(
           context,
-          context.tr('error') ?? 'Lỗi',
-          context.tr('err_cannot_unlink_last') ?? 'Không thể hủy liên kết duy nhất (Mỗi tài khoản phải liên kết ít nhất 1 trong Số điện thoại hoặc Google).',
+          context.tr('error'),
+          context.tr('err_cannot_unlink_last'),
           isError: true,
         );
         return;
       }
 
-      // 2. Kiểm tra mật khẩu
-      bool hasPassword = user!.providerData.any((p) => p.providerId == 'password');
+      bool hasPassword = user.providerData.any((p) => p.providerId == 'password');
       if (!hasPassword) {
         showFloatingToast(
           context,
@@ -482,55 +364,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return;
       }
 
-      // 3. Hộp thoại xác nhận
       bool? confirm = await _showConfirmDialog(
-        context.tr('confirm_unlink_phone') ?? 'Hủy liên kết Số điện thoại',
-        context.tr('confirm_unlink_phone_desc') ?? 'Bạn có chắc chắn muốn hủy liên kết số điện thoại này khỏi tài khoản không?',
+        context.tr('confirm_unlink_phone'),
+        context.tr('confirm_unlink_phone_desc'),
       );
       if (confirm != true) return;
 
-      // 4. Xác thực bảo mật lại
       bool isReauthed = await ReauthHelper.reauthenticate(
         context,
-        reason: context.tr('confirm_unlink_phone') ?? 'hủy liên kết số điện thoại',
+        reason: context.tr('confirm_unlink_phone'),
       );
       if (!isReauthed) return;
 
       LoadingOverlay.show(context);
-      try {
-        for (var p in user!.providerData) {
-          if (p.providerId == 'phone') {
-            await user!.unlink('phone');
-            break;
-          }
-        }
+      final result = await ref.read(profileControllerProvider.notifier).unlinkPhone();
+      LoadingOverlay.hide();
+      if (!mounted) return;
 
-        if (_currentUsername.isNotEmpty) {
-          await FirebaseFirestore.instance.collection('users').doc(_currentUsername).update({
-            'phoneNumber': FieldValue.delete(),
-          });
-        }
-
-        await user!.reload();
-        _checkLinkedProviders();
-        await _fetchUserData();
-        LoadingOverlay.hide();
-        if (mounted) {
-          showFloatingToast(
-            context,
-            context.tr('toast_success') ?? 'Thành công',
-            context.tr('msg_phone_unlinked') ?? 'Đã hủy liên kết Số điện thoại thành công',
-          );
-        }
-      } catch (e) {
-        LoadingOverlay.hide();
-        if (mounted) showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.toString(), isError: true);
+      if (result.success) {
+        showFloatingToast(
+          context,
+          context.tr('toast_success'),
+          context.tr('msg_phone_unlinked'),
+        );
+      } else {
+        showFloatingToast(context, context.tr('error'), result.errorMessage ?? context.tr('error'), isError: true);
       }
     } else {
       await Navigator.push(context, MaterialPageRoute(builder: (_) => const UpdateEmailPhoneScreen(isPhone: true)));
-      await user?.reload();
-      _checkLinkedProviders();
-      _fetchUserData();
+      await ref.read(profileControllerProvider.notifier).fetchUserData();
     }
   }
 
@@ -843,30 +705,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     if (!mounted) return;
     LoadingOverlay.show(context);
-    try {
-      if (currentUsername != null) {
-        await FirebaseFirestore.instance.collection('delete_requests').doc(currentUsername).set({
-          'uid': user.uid,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-      }
+    final result = await ref.read(profileControllerProvider.notifier).executeAccountDeletion(currentUsername!);
+    if (!mounted) return;
 
-      await SessionManager.clearSession();
-      await ref.read(homeConfigProvider).clearAllHomes();
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('notification_history');
-
+    if (result.success) {
       await LoadingOverlay.hideSuccess();
-
-      try {
-        await FirebaseAuth.instance.signOut().timeout(const Duration(seconds: 2));
-      } catch (_) {}
-    } catch (e) {
+    } else {
       LoadingOverlay.hide();
-      if (mounted) {
-        showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.toString(), isError: true);
-      }
+      showFloatingToast(context, context.tr('error') ?? 'Lỗi', result.errorMessage ?? (context.tr('error') ?? 'Lỗi'), isError: true);
     }
   }
 
@@ -987,6 +833,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
+    final profileState = ref.watch(profileControllerProvider);
 
     return PopScope(
       canPop: !_hasChanges,
@@ -1022,7 +869,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: TextButton.icon(
-                onPressed: _isLoading ? null : _saveProfileChanges,
+                onPressed: profileState.isLoading ? null : _saveProfileChanges,
                 icon: const Icon(Icons.check, size: 18),
                 label: Text(context.tr('btn_save') ?? 'Lưu'),
                 style: TextButton.styleFrom(
@@ -1037,8 +884,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         color: const Color(0xFF0F766E),
         onRefresh: () async {
           await user?.reload();
-          await _fetchUserData();
-          _checkLinkedProviders();
+          await ref.read(profileControllerProvider.notifier).fetchUserData();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -1122,7 +968,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      if (_currentUsername.isNotEmpty)
+                      if (profileState.username.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                           decoration: BoxDecoration(
@@ -1131,7 +977,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             border: Border.all(color: const Color(0xFF0F766E).withOpacity(0.25)),
                           ),
                           child: Text(
-                            '@$_currentUsername',
+                            '@${profileState.username}',
                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F766E)),
                           ),
                         ),
@@ -1212,7 +1058,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 // Email (Google)
                 _buildInfoRow(
                   label: 'Email (Google)',
-                  value: _currentEmail.isNotEmpty ? _currentEmail : (context.tr('unlinked') ?? 'Chưa liên kết'),
+                  value: profileState.email.isNotEmpty ? profileState.email : (context.tr('unlinked') ?? 'Chưa liên kết'),
                   icon: Icons.alternate_email_rounded,
                   isDark: isDark,
                   trailing: Row(
@@ -1221,15 +1067,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: (_isGoogleLinked ? Colors.green : Colors.grey).withOpacity(0.12),
+                          color: (profileState.isGoogleLinked ? Colors.green : Colors.grey).withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          _isGoogleLinked ? (context.tr('linked') ?? 'Đã liên kết') : (context.tr('unlinked') ?? 'Chưa có'),
+                          profileState.isGoogleLinked ? (context.tr('linked') ?? 'Đã liên kết') : (context.tr('unlinked') ?? 'Chưa có'),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: _isGoogleLinked ? Colors.green : Colors.grey,
+                            color: profileState.isGoogleLinked ? Colors.green : Colors.grey,
                           ),
                         ),
                       ),
@@ -1237,14 +1083,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          backgroundColor: _isGoogleLinked ? Colors.redAccent.withOpacity(0.12) : const Color(0xFF0F766E).withOpacity(0.12),
-                          foregroundColor: _isGoogleLinked ? Colors.redAccent : const Color(0xFF0F766E),
+                          backgroundColor: profileState.isGoogleLinked ? Colors.redAccent.withOpacity(0.12) : const Color(0xFF0F766E).withOpacity(0.12),
+                          foregroundColor: profileState.isGoogleLinked ? Colors.redAccent : const Color(0xFF0F766E),
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                         onPressed: _handleGoogleLinkToggle,
                         child: Text(
-                          _isGoogleLinked ? (context.tr('unlink') ?? 'Hủy') : (context.tr('link') ?? 'Liên kết'),
+                          profileState.isGoogleLinked ? (context.tr('unlink') ?? 'Hủy') : (context.tr('link') ?? 'Liên kết'),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                         ),
                       ),
@@ -1255,7 +1101,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 // Số điện thoại
                 _buildInfoRow(
                   label: context.tr('phone_number') ?? 'Số điện thoại',
-                  value: _currentPhone.isNotEmpty ? _currentPhone : (context.tr('unlinked') ?? 'Chưa có'),
+                  value: profileState.phone.isNotEmpty ? profileState.phone : (context.tr('unlinked') ?? 'Chưa có'),
                   icon: Icons.phone_android_outlined,
                   isDark: isDark,
                   trailing: Row(
@@ -1264,20 +1110,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: (_isPhoneLinked ? Colors.green : Colors.grey).withOpacity(0.12),
+                          color: (profileState.isPhoneLinked ? Colors.green : Colors.grey).withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          _isPhoneLinked ? (context.tr('linked') ?? 'Đã liên kết') : (context.tr('unlinked') ?? 'Chưa có'),
+                          profileState.isPhoneLinked ? (context.tr('linked') ?? 'Đã liên kết') : (context.tr('unlinked') ?? 'Chưa có'),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: _isPhoneLinked ? Colors.green : Colors.grey,
+                            color: profileState.isPhoneLinked ? Colors.green : Colors.grey,
                           ),
                         ),
                       ),
                       const SizedBox(width: 6),
-                      if (_isPhoneLinked) ...[
+                      if (profileState.isPhoneLinked) ...[
                         IconButton(
                           tooltip: context.tr('tooltip_change_phone'),
                           constraints: const BoxConstraints(),
@@ -1286,8 +1132,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           onPressed: () async {
                             await Navigator.push(context, MaterialPageRoute(builder: (_) => const UpdateEmailPhoneScreen(isPhone: true)));
                             await user?.reload();
-                            _checkLinkedProviders();
-                            _fetchUserData();
+                            await ref.read(profileControllerProvider.notifier).fetchUserData();
                           },
                         ),
                         const SizedBox(width: 4),
@@ -1295,14 +1140,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          backgroundColor: _isPhoneLinked ? Colors.redAccent.withOpacity(0.12) : const Color(0xFF0F766E).withOpacity(0.12),
-                          foregroundColor: _isPhoneLinked ? Colors.redAccent : const Color(0xFF0F766E),
+                          backgroundColor: profileState.isPhoneLinked ? Colors.redAccent.withOpacity(0.12) : const Color(0xFF0F766E).withOpacity(0.12),
+                          foregroundColor: profileState.isPhoneLinked ? Colors.redAccent : const Color(0xFF0F766E),
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                         onPressed: _handlePhoneLinkToggle,
                         child: Text(
-                          _isPhoneLinked ? (context.tr('unlink') ?? 'Hủy') : (context.tr('link') ?? 'Liên kết'),
+                          profileState.isPhoneLinked ? (context.tr('unlink') ?? 'Hủy') : (context.tr('link') ?? 'Liên kết'),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                         ),
                       ),
@@ -1321,8 +1166,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      onPressed: _isLoading ? null : _saveProfileChanges,
-                      child: _isLoading
+                      onPressed: profileState.isLoading ? null : _saveProfileChanges,
+                      child: profileState.isLoading
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                           : Text(context.tr('btn_save') ?? 'Lưu thay đổi', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     ),

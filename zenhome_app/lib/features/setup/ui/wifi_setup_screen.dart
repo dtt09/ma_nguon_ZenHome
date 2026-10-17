@@ -18,6 +18,7 @@ import 'package:zenhome_app/features/admin/ui/device_mapping_screen.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart' hide MqttConnectionState;
+import 'package:zenhome_app/features/setup/logic/wifi_setup_wizard_controller.dart';
 
 class WifiSetupScreen extends ConsumerStatefulWidget {
   const WifiSetupScreen({super.key});
@@ -762,27 +763,14 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     setState(() => _isScanningHomeWifi = true);
 
     try {
-      final results = await WifiProvisioningService.scanNearbyWifi(espOnly: false);
-      if (mounted) {
-        setState(() => _isScanningHomeWifi = false);
+      final uniqueList = await ref.read(wifiSetupWizardProvider.notifier).scanNearbyHomeWifi();
+      if (!mounted) return;
+      setState(() => _isScanningHomeWifi = false);
 
-        final homeAps = results.where((ap) {
-          final s = ap.ssid.toLowerCase();
-          return !s.startsWith('zenhome') && !s.contains('setup');
-        }).toList();
-
-        final uniqueMap = <String, WiFiAccessPoint>{};
-        for (final ap in homeAps) {
-          if (!uniqueMap.containsKey(ap.ssid)) {
-            uniqueMap[ap.ssid] = ap;
-          }
-        }
-        final uniqueList = uniqueMap.values.toList();
-
-        if (uniqueList.isEmpty) {
-          showFloatingToast(context, context.tr('info'), context.tr('wifi_no_esp_found'));
-          return;
-        }
+      if (uniqueList.isEmpty) {
+        showFloatingToast(context, context.tr('info'), context.tr('wifi_no_esp_found'));
+        return;
+      }
 
         showModalBottomSheet(
           context: context,
@@ -860,7 +848,6 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
             );
           },
         );
-      }
     } catch (e) {
       if (mounted) {
         setState(() => _isScanningHomeWifi = false);
@@ -1058,180 +1045,34 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
   }
 
   Future<void> _executePairingWorkflow() async {
-    try {
-      // 1. Ping ESP32
-      setState(() {
-        _pairingProgress = 0.25;
-        _pairingMessage = context.tr('step_check_esp_connection');
-      });
+    final defaultServer = dotenv.env['DEFAULT_MQTT_SERVER'] ?? 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
+    final defaultUser = dotenv.env['DEFAULT_MQTT_USER'] ?? 'DTC_ZenHome';
+    final defaultPass = dotenv.env['DEFAULT_MQTT_PASS'] ?? 'DTC_ZenHome2103';
 
-      String? espMac = await EspApiService.pingESP();
-      if (espMac == null) {
-        setState(() {
-          _pairingFailed = true;
-          _pairingErrorMessage = context.tr('step_esp_unreachable');
-        });
-        return;
+    await ref.read(wifiSetupWizardProvider.notifier).executePairingWorkflow(
+      wifiSsid: _ssidController.text.trim(),
+      wifiPass: _passController.text.trim(),
+      adminPass: _adminPassController.text,
+      mqttServer: _mqttServerController.text.trim(),
+      mqttUser: _mqttUserController.text.trim(),
+      mqttPass: _mqttPassController.text.trim(),
+      defaultServer: defaultServer,
+      defaultUser: defaultUser,
+      defaultPass: defaultPass,
+    );
+
+    final pState = ref.read(wifiSetupWizardProvider);
+    if (!mounted) return;
+    setState(() {
+      _currentStep = pState.currentStep;
+      _pairingProgress = pState.pairingProgress;
+      _pairingFailed = pState.pairingFailed;
+      _pairingErrorMessage = pState.pairingErrorMessage;
+      _pairingMessage = pState.pairingMessage;
+      if (pState.detectedEspMac != null) {
+        _detectedEspMac = pState.detectedEspMac;
       }
-
-      if (espMac == "unknown_mac_fallback" || espMac.isEmpty) {
-        espMac = 'ESP_${DateTime.now().millisecondsSinceEpoch}';
-      }
-      _detectedEspMac = espMac;
-
-      final activeConfig = ref.read(homeConfigProvider).activeConfig;
-
-      final defaultServer = dotenv.env['DEFAULT_MQTT_SERVER'] ?? 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
-      final defaultUser = dotenv.env['DEFAULT_MQTT_USER'] ?? 'DTC_ZenHome';
-      final defaultPass = dotenv.env['DEFAULT_MQTT_PASS'] ?? 'DTC_ZenHome2103';
-
-      String serverInput = _mqttServerController.text.trim();
-      if (serverInput.isEmpty) {
-        serverInput = defaultServer;
-      } else if (!serverInput.contains('.')) {
-        serverInput = '$serverInput.s1.eu.hivemq.cloud';
-      }
-
-      String userMqtt = _mqttUserController.text.trim();
-      if (userMqtt.isEmpty) {
-        userMqtt = (activeConfig.mqttUser != null && activeConfig.mqttUser!.isNotEmpty)
-            ? activeConfig.mqttUser!
-            : defaultUser;
-      }
-
-      String passMqtt = _mqttPassController.text.trim();
-      if (passMqtt.isEmpty) {
-        passMqtt = (activeConfig.mqttPass != null && activeConfig.mqttPass!.isNotEmpty)
-            ? activeConfig.mqttPass!
-            : defaultPass;
-      }
-
-      // Gán MAC thực tế để tạo đúng mqttPrefix ($userId/$espMac)
-      activeConfig.macAddress = espMac;
-      activeConfig.mqttServer = serverInput;
-      activeConfig.mqttUser = userMqtt;
-      activeConfig.mqttPass = passMqtt;
-      activeConfig.adminPass = _adminPassController.text;
-
-      // 2. Gửi config sang ESP32
-      setState(() {
-        _pairingProgress = 0.50;
-        _pairingMessage = context.tr('step_sending_config');
-      });
-
-      bool isSuccess = await EspApiService.sendConfigToESP(
-        wifiSsid: _ssidController.text.trim(),
-        wifiPass: _passController.text.trim(),
-        adminPass: activeConfig.adminPass,
-        config: activeConfig,
-      );
-
-      if (!isSuccess) {
-        activeConfig.macAddress = 'unknown_mac';
-        setState(() {
-          _pairingFailed = true;
-          _pairingErrorMessage = context.tr('step_config_failed');
-        });
-        return;
-      }
-
-      // Giải phóng ép buộc Wi-Fi và ngắt kết nối SoftAP để điện thoại bắt lại Wi-Fi nhà có Internet
-      await WifiProvisioningService.releaseWifiUsage();
-      try {
-        await WiFiForIoTPlugin.disconnect();
-      } catch (_) {}
-
-      // 3. Đợi thiết bị reboot và lên mạng MQTT
-      setState(() {
-        _pairingProgress = 0.75;
-        _pairingMessage = context.tr('wifi_waiting_mqtt');
-      });
-
-      final mqttRepo = ref.read(mqttRepositoryProvider);
-      mqttRepo.disconnect();
-
-      bool isEspOnline = false;
-      final sub = mqttRepo.espOnlineStream.listen((online) {
-        if (online) isEspOnline = true;
-      });
-
-      // Cho điện thoại 3 giây để khôi phục kết nối Wi-Fi nhà / 4G
-      await Future.delayed(const Duration(seconds: 3));
-
-      int waitLoops = 0;
-      int lastConnectAttempt = -10;
-
-      while (!isEspOnline && waitLoops < 90) {
-        if (mqttRepo.isEspOnline) {
-          isEspOnline = true;
-          break;
-        }
-        if (waitLoops - lastConnectAttempt >= 6) {
-          final mqttState = mqttRepo.client?.connectionStatus?.state;
-          if (mqttState != MqttConnectionState.connected && mqttState != MqttConnectionState.connecting) {
-            lastConnectAttempt = waitLoops;
-            mqttRepo.disconnect();
-            mqttRepo.connect(
-              userId: activeConfig.userId,
-              mqttServer: activeConfig.mqttServer,
-              mqttPrefix: activeConfig.mqttPrefix,
-              dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
-              mqttUser: activeConfig.mqttUser,
-              mqttPass: activeConfig.mqttPass,
-            );
-          }
-        }
-        await Future.delayed(const Duration(seconds: 1));
-        waitLoops++;
-        if (waitLoops % 10 == 0) {
-          setState(() {
-            _pairingProgress = min(0.95, 0.75 + (waitLoops / 90.0) * 0.20);
-          });
-        }
-      }
-
-      sub.cancel();
-
-      if (!isEspOnline) {
-        // Thất bại -> hoàn tác MAC về unknown_mac và lưu lại để không làm khóa mục cài đặt
-        activeConfig.macAddress = 'unknown_mac';
-        await ref.read(homeConfigProvider).saveConfigToStorage(activeConfig);
-        setState(() {
-          _pairingFailed = true;
-          _pairingErrorMessage = context.tr('wifi_pair_error_hint');
-        });
-        return;
-      }
-
-      // 4. Khi ESP32 đã thực sự online thành công -> Lưu MAC và đồng bộ
-      activeConfig.macAddress = espMac;
-      await ref.read(homeConfigProvider).saveConfigToStorage(activeConfig);
-
-      // 5. Đồng bộ Firebase
-      try {
-        if (activeConfig.userId != 'guest' && activeConfig.userId.isNotEmpty) {
-          await FirebaseFirestore.instance.collection('users').doc(activeConfig.userId).set({
-            'mqttServer': activeConfig.mqttServer,
-            'mqttUser': activeConfig.mqttUser,
-            'mqttPass': activeConfig.mqttPass,
-            'macAddress': activeConfig.macAddress,
-          }, SetOptions(merge: true));
-        }
-      } catch (e) {
-        debugPrint("Lỗi đồng bộ Firebase sau khi setup: $e");
-      }
-
-      // 6. Thành công 100% -> Chuyển sang Step 3
-      setState(() {
-        _pairingProgress = 1.0;
-        _currentStep = 3;
-      });
-    } catch (e) {
-      setState(() {
-        _pairingFailed = true;
-        _pairingErrorMessage = '${context.tr('err_generic')}: $e';
-      });
-    }
+    });
   }
 
   Widget _buildStepperHeader(bool isDark) {
