@@ -129,7 +129,10 @@ class LocalNetworkService {
   }
 
   /// Gửi gói tin UDP Broadcast tìm kiếm ESP32 trong mạng nội bộ
-  Future<String?> discoverHub({Duration timeout = const Duration(milliseconds: 1800)}) async {
+  Future<String?> discoverHub({
+    Duration timeout = const Duration(milliseconds: 1800),
+    bool force = false,
+  }) async {
     RawDatagramSocket? socket;
     final completer = Completer<String?>();
 

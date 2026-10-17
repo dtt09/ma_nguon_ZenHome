@@ -153,11 +153,19 @@ async function main() {
   console.log('\n[*] Đang kết nối Firebase Firestore để đẩy cấu hình...');
 
   try {
-    if (!fs.existsSync(FIREBASE_MODULE_PATH)) {
-      throw new Error(`Không tìm thấy module Firebase Admin tại: ${FIREBASE_MODULE_PATH}`);
+    let db;
+    if (fs.existsSync(FIREBASE_MODULE_PATH)) {
+      const fb = require(FIREBASE_MODULE_PATH);
+      db = fb.db;
+    } else {
+      const admin = require(path.join(ROOT_DIR, 'zenhome-server', 'node_modules', 'firebase-admin'));
+      const keyPath = path.join(ROOT_DIR, 'zenhome-server', 'firebase-key.json');
+      if (fs.existsSync(keyPath) && admin.apps.length === 0) {
+        const serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+      }
+      db = admin.firestore();
     }
-
-    const { db } = require(FIREBASE_MODULE_PATH);
     if (!db) {
       throw new Error('Không thể khởi tạo kết nối Cloud Firestore.');
     }
