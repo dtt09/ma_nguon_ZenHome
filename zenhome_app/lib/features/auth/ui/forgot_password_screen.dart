@@ -68,11 +68,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           userData = phoneQuery.docs.first.data();
           username = phoneQuery.docs.first.id;
         } else if (input.contains('@')) {
-          // Thử tìm theo Email
-          var emailQuery = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: input).get();
-          if (emailQuery.docs.isNotEmpty) {
-            userData = emailQuery.docs.first.data();
-            username = emailQuery.docs.first.id;
+          if (input.toLowerCase().endsWith('@gmail.com')) {
+            // Thử tìm theo Email Google
+            var emailQuery = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: input).get();
+            if (emailQuery.docs.isNotEmpty) {
+              userData = emailQuery.docs.first.data();
+              username = emailQuery.docs.first.id;
+            }
           }
         }
       }
@@ -94,28 +96,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       showFloatingToast(context, context.tr('error') ?? 'Lỗi', '${context.tr('err_generic') ?? "Đã xảy ra lỗi"}: $e', isError: true);
     }
   }
-  
-  Future<void> _sendResetEmailDirectly(String email) async {
-      try {
-        await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-        LoadingOverlay.hide();
-        if (mounted) {
-          showFloatingToast(context, context.tr('toast_success') ?? 'Thành công', context.tr('msg_reset_link_sent') ?? 'Đã gửi link khôi phục đến email liên kết.', isError: false);
-          Navigator.pop(context);
-        }
-      } on FirebaseAuthException catch (e) {
-        LoadingOverlay.hide();
-        if (e.code == 'user-not-found' || e.code == 'invalid-email') {
-          showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_email_not_registered') ?? 'Email này chưa được đăng ký!', isError: true);
-        } else {
-          showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.message ?? (context.tr('err_send_email') ?? 'Lỗi gửi email'), isError: true);
-        }
-      }
-  }
 
   void _showAccountFoundDialog(Map<String, dynamic> data, String username) {
       String? phone = (data.containsKey('phoneNumber') && data['phoneNumber'].toString().isNotEmpty) ? data['phoneNumber'] : null;
       String? email = (data.containsKey('email') && data['email'].toString().isNotEmpty) ? data['email'] : null;
+      if (email != null && (!email.toLowerCase().endsWith('@gmail.com') || email.endsWith('@zenhome.local'))) {
+        email = null;
+      }
       String displayName = data['displayName'] ?? username;
       bool isDark = Theme.of(context).brightness == Brightness.dark;
       
@@ -186,10 +173,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       child: const Icon(Icons.g_mobiledata, color: Colors.white, size: 30),
                     ),
                     title: Text(context.tr('verify_via_google') ?? 'Xác thực bằng Google', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-                    subtitle: Text('Qua: ${_maskEmail(email)}', style: TextStyle(color: isDark ? Colors.red.shade200 : Colors.red.shade700)),
+                    subtitle: Text('Qua: ${_maskEmail(email!)}', style: TextStyle(color: isDark ? Colors.red.shade200 : Colors.red.shade700)),
                     onTap: () {
                       Navigator.pop(ctx);
-                      _sendResetEmail(email);
+                      _sendResetEmail(email!);
                     },
                   ),
                 ),
@@ -236,7 +223,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         if (googleUser.email != email) {
           await googleSignIn.signOut();
           LoadingOverlay.hide();
-          if (mounted) showFloatingToast(context, context.tr('error') ?? 'Lỗi', 'Vui lòng chọn đúng tài khoản Google ($email) để xác thực!', isError: true);
+          if (mounted) showFloatingToast(context, context.tr('error'), context.tr('err_reauth_select_google').replaceAll('{email}', email), isError: true);
           return;
         }
         
@@ -256,11 +243,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           }
         } catch (e) {
           LoadingOverlay.hide();
-          if (mounted) showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.toString(), isError: true);
+          if (mounted) showFloatingToast(context, context.tr('error'), e.toString(), isError: true);
         }
       } catch (e) {
         LoadingOverlay.hide();
-        if (mounted) showFloatingToast(context, context.tr('error') ?? 'Lỗi', 'Lỗi xác thực Google: $e', isError: true);
+        if (mounted) showFloatingToast(context, context.tr('error'), context.tr('err_google_auth_failed').replaceAll('{err}', e.toString()), isError: true);
       }
   }
 
@@ -305,7 +292,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   Widget _buildContent(BuildContext context, bool isTopLayer, ScrollController controller) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color color = isTopLayer ? Colors.white : (isDark ? const Color(0xFF5C8CFF) : const Color(0xFF2A3A7C));
+    Color color = isTopLayer ? Colors.white : (isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E));
     
     return SafeArea(
       bottom: false,
@@ -367,8 +354,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       width: double.infinity, height: 55,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isTopLayer ? Colors.white : const Color(0xFF2A3A7C),
-                          foregroundColor: isTopLayer ? const Color(0xFF2A3A7C) : Colors.white,
+                          backgroundColor: isTopLayer ? Colors.white : const Color(0xFF0F766E),
+                          foregroundColor: isTopLayer ? const Color(0xFF0F766E) : Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         ),
                         onPressed: _isLoading ? null : _handleSendOtp,
@@ -397,3 +384,4 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     );
   }
 }
+

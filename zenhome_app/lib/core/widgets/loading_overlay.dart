@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -30,7 +30,7 @@ class LoadingOverlay {
 
     final overlayState = Overlay.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = isDark ? const Color(0xFF5C8CFF) : const Color(0xFF2A3A7C);
+    final color = isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E);
 
     _overlayEntry = OverlayEntry(
       builder: (context) {
@@ -92,19 +92,21 @@ class LoadingOverlay {
     }
   }
 
-  static Future<void> hideSuccess() async {
+  static Future<void> hideSuccess({int delayMs = 600}) async {
     if (_overlayEntry != null) {
       _statusNotifier.value = 'success';
-      await Future.delayed(const Duration(milliseconds: 1000));
+      await Future.delayed(Duration(milliseconds: delayMs));
       hide();
     }
   }
 
-  static Future<void> hideError() async {
+  static Future<void> hideError({int delayMs = 600}) async {
     if (_overlayEntry != null) {
       _statusNotifier.value = 'error';
-      await Future.delayed(const Duration(milliseconds: 1000));
+      await Future.delayed(Duration(milliseconds: delayMs));
       hide();
     }
   }
 }
+
+

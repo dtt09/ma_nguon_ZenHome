@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/utils/haptic_helper.dart';
 
@@ -32,7 +32,7 @@ void showFloatingToast(BuildContext context, String title, String message, {bool
             )
           ],
           border: Border.all(
-            color: isError ? Colors.red.withOpacity(0.3) : const Color(0xFF2A3A7C).withOpacity(0.3),
+            color: isError ? Colors.red.withOpacity(0.3) : const Color(0xFF0F766E).withOpacity(0.3),
             width: 1.5,
           ),
         ),
@@ -63,7 +63,7 @@ void showFloatingToast(BuildContext context, String title, String message, {bool
                       fontSize: 16,
                       color: isError 
                           ? (isDark ? Colors.red.shade300 : Colors.red.shade800) 
-                          : (isDark ? Colors.white : const Color(0xFF2A3A7C)),
+                          : (isDark ? Colors.white : const Color(0xFF0F766E)),
                     ),
                   ),
                   if (message.isNotEmpty) const SizedBox(height: 4),

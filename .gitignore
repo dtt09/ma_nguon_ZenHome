@@ -1,0 +1,39 @@
+# Node / Web / Server
+**/node_modules/
+**/.pnpm-store/
+**/.vite/
+zenhome-web/dist/
+
+# Flutter / Dart
+**/.dart_tool/
+**/.pub-cache/
+**/.pub/
+**/build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# PlatformIO / Embedded
+**/.pio/
+**/.vscode/
+
+# Build artifacts & Large binaries
+*.apk
+*.aab
+*.zip
+*.rar
+*.tar.gz
+build_output/
+zenhome-server/public/downloads/*.apk
+
+# Environment & Sensitive configs
+**/.env
+**/.env.*
+!**/.env.example
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.log
+**/.idea/
+*.iml
+.tmp.driveupload/

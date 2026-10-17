@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 import 'package:zenhome_app/core/services/logger_service.dart';
@@ -26,6 +27,9 @@ class MqttRepository {
 
   bool _isHardDisconnected = false;
   bool get isHardDisconnected => _isHardDisconnected;
+
+  bool _isEspOnline = false;
+  bool get isEspOnline => _isEspOnline;
 
   Future<void> connect({
     required String userId,
@@ -107,8 +111,10 @@ class MqttRepository {
         
         if (currentTopic.startsWith(mqttPrefix)) {
           if (currentTopic == '$mqttPrefix/esp_status') {
-            _espOnlineController.add(payload.trim() == 'online');
+            _isEspOnline = (payload.trim() == 'online');
+            _espOnlineController.add(_isEspOnline);
           } else {
+            _isEspOnline = true;
             _espOnlineController.add(true);
           }
         }
@@ -121,7 +127,19 @@ class MqttRepository {
           final parts = currentTopic.split('/');
           if (parts.length >= 2) {
             String devId = parts[parts.length - 2];
-            _deviceStateController.add({devId: payload.trim() == '1'});
+            bool isOn = false;
+            final trimmed = payload.trim();
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+              try {
+                final json = jsonDecode(trimmed);
+                isOn = json['state'] == 1 || json['state'] == '1' || json['action'] == '1' || json['action'] == 'ON';
+              } catch (_) {
+                isOn = trimmed.contains('"state":1') || trimmed.contains('"state": 1');
+              }
+            } else {
+              isOn = trimmed == '1';
+            }
+            _deviceStateController.add({devId: isOn});
           }
         }
       }
@@ -137,6 +155,8 @@ class MqttRepository {
 
   void _onDisconnected() {
     LoggerService.w('Bị ngắt khỏi server MQTT!');
+    _isEspOnline = false;
+    _espOnlineController.add(false);
     _connectionStateController.add(-1);
     _silentRetryTimer?.cancel();
     
@@ -178,6 +198,7 @@ class MqttRepository {
 
   void disconnect() {
     _isIntentionalDisconnect = true;
+    _isEspOnline = false;
     _silentRetryTimer?.cancel();
     client?.disconnect();
   }

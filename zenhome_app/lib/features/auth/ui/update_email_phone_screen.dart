@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pinput/pinput.dart';
@@ -173,7 +173,7 @@ class _UpdateEmailPhoneScreenState extends State<UpdateEmailPhoneScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color color = isDark ? const Color(0xFF5C8CFF) : const Color(0xFF2A3A7C);
+    Color color = isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E);
 
     final defaultPinTheme = PinTheme(
       width: 55,
@@ -333,3 +333,5 @@ class _UpdateEmailPhoneScreenState extends State<UpdateEmailPhoneScreen> {
     );
   }
 }
+
+

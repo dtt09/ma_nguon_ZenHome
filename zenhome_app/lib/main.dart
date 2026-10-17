@@ -1,39 +1,27 @@
 import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
-import 'dart:io';
 import 'package:jailbreak_root_detection/jailbreak_root_detection.dart';
 import 'dart:async';
-import 'dart:ui';
 import 'dart:convert';
-import 'package:zenhome_app/core/models/smart_config.dart';
 import 'package:zenhome_app/core/providers/theme_provider.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zenhome_app/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
-import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 import 'package:zenhome_app/core/services/logger_service.dart';
-import 'package:zenhome_app/core/utils/helpers.dart';   
+import 'package:zenhome_app/core/services/app_update_service.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
-import 'package:zenhome_app/features/home/ui/dashboard_screen.dart';
-import 'package:zenhome_app/features/home/ui/scenes_screen.dart';
-import 'package:zenhome_app/features/settings/ui/settings_screen.dart';
 import 'package:zenhome_app/features/onboarding/ui/splash_screen.dart';
-import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/features/notifications/logic/notification_helper.dart';
-import 'package:zenhome_app/features/auth/ui/login_screen.dart';
-import 'package:zenhome_app/core/utils/localization_extension.dart';
-import 'package:zenhome_app/features/home/ui/main_layout.dart';
+import 'package:zenhome_app/core/services/connectivity_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -101,8 +89,51 @@ void main() async {
 
   await NotificationHelper.init();
   
+  // Dọn dẹp an toàn các file APK rác trong cache (nếu vừa nâng cấp phiên bản)
+  AppUpdateService.cleanOldApkFiles();
+  
+  // Tùy biến ErrorWidget để không bao giờ hiện màn hình trắng xóa nếu có lỗi ngoại lệ hoặc mạng
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: const Color(0xFF081210),
+      child: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppColors.amberGlow.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.amberGlow),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  PlatformDispatcher.instance.locale.languageCode == 'vi' ? 'Không thể tải nội dung' : 'Unable to load content',
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  PlatformDispatcher.instance.locale.languageCode == 'vi'
+                      ? 'Vui lòng kiểm tra lại kết nối mạng Wifi/4G và mở lại ứng dụng.'
+                      : 'Please check your network connection and restart the app.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  };
+
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp().timeout(const Duration(seconds: 3));
     
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
@@ -112,7 +143,6 @@ void main() async {
     
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     FirebaseMessaging messaging = FirebaseMessaging.instance;
-    await messaging.requestPermission(alert: true, badge: true, sound: true);
     
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (message.notification != null) {
@@ -124,9 +154,25 @@ void main() async {
         );
       }
     });
-    
+
+    // Chạy ngầm việc cấp quyền và subscribe topic FCM không chặn khởi động app khi mất mạng
+    unawaited(() async {
+      try {
+        await messaging.requestPermission(alert: true, badge: true, sound: true).timeout(const Duration(seconds: 2));
+        final prefs = await SharedPreferences.getInstance();
+        final lang = prefs.getString('language') ?? (PlatformDispatcher.instance.locale.languageCode == 'vi' ? 'vi' : 'en');
+        await messaging.subscribeToTopic('all_users').timeout(const Duration(seconds: 2));
+        if (lang == 'en') {
+          await messaging.subscribeToTopic('all_users_en').timeout(const Duration(seconds: 2));
+          await messaging.unsubscribeFromTopic('all_users_vi').timeout(const Duration(seconds: 2));
+        } else {
+          await messaging.subscribeToTopic('all_users_vi').timeout(const Duration(seconds: 2));
+          await messaging.unsubscribeFromTopic('all_users_en').timeout(const Duration(seconds: 2));
+        }
+      } catch (_) {}
+    }());
+
     if (activeConfig.userId != 'guest' && activeConfig.userId.isNotEmpty) {
-      // Previously handled topic subscriptions here. Now using token-based FCM routing.
       LoggerService.i("FCM Token-based routing enabled for user: ${activeConfig.userId}");
     }
   } catch (e, stack) {
@@ -140,6 +186,7 @@ void main() async {
     ),
   );
 }
+
 class ZenHomeApp extends ConsumerWidget {
   const ZenHomeApp({super.key});
 
@@ -161,18 +208,13 @@ class ZenHomeApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       locale: locale,
       
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2A3A7C), brightness: Brightness.light),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5C8CFF), brightness: Brightness.dark),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-
-      ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      builder: (context, child) {
+        return ConnectivityBannerWrapper(
+          child: child ?? const SizedBox(),
+        );
+      },
       home: const SplashScreen(),
     );
   }

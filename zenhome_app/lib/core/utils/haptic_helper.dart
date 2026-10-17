@@ -13,4 +13,7 @@ class HapticHelper {
   static void errorVibrate() {
     HapticFeedback.vibrate();
   }
+  static void warning() {
+    HapticFeedback.mediumImpact();
+  }
 }

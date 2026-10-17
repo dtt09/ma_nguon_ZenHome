@@ -12,6 +12,7 @@ import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
 
+import 'package:zenhome_app/core/providers/theme_provider.dart';
 import 'package:zenhome_app/features/home/ui/main_layout.dart';
 import 'package:zenhome_app/features/auth/ui/forgot_password_screen.dart';
 import 'package:zenhome_app/features/auth/ui/google_confirm_screen.dart';
@@ -52,8 +53,17 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
     
     if (currentAuthEmail.isNotEmpty) {
       if (!currentAuthEmail.endsWith('@zenhome.local')) {
-        // Trục xuất email thật nếu không còn liên kết Google
-        if (!hasGoogle) {
+        // Nếu có Google và là @gmail.com thì đồng bộ vào Firestore
+        if (hasGoogle && currentAuthEmail.toLowerCase().endsWith('@gmail.com')) {
+          if (data['email'] != currentAuthEmail) {
+            try {
+              await FirebaseFirestore.instance.collection('users').doc(username).update({
+                'email': currentAuthEmail
+              });
+            } catch (_) {}
+          }
+        } else {
+          // Trục xuất email nếu không còn liên kết Google hoặc không phải @gmail.com
           String fallbackEmail = phoneInDb.isNotEmpty
               ? '${phoneInDb.replaceAll('+', '')}@zenhome.local'
               : 'ghost_${user.uid.substring(0, 5)}@zenhome.local';
@@ -90,7 +100,7 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
     }
   }
 
-  void saveAndNavigate(String username) async {
+  Future<void> saveAndNavigate(String username) async {
     List<SmartConfig> myHomes = [];
     try {
       final myDoc = await FirebaseFirestore.instance.collection('users').doc(username).get();
@@ -108,6 +118,18 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
             }
         }
 
+        // Đồng bộ ngôn ngữ giữa App và Firebase Profile
+        if (data['language'] != null && (data['language'] == 'vi' || data['language'] == 'en')) {
+          final savedLang = data['language'].toString();
+          final currentLang = ref.read(localeNotifierProvider).languageCode;
+          if (currentLang != savedLang) {
+            await ref.read(localeNotifierProvider.notifier).setLocale(savedLang);
+          }
+        } else {
+          final currentLang = ref.read(localeNotifierProvider).languageCode;
+          await myDoc.reference.set({'language': currentLang}, SetOptions(merge: true));
+        }
+
         myHomes.add(SmartConfig(
           userId: username,
           macAddress: data['macAddress'] ?? 'unknown_mac',
@@ -118,6 +140,7 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
           role: 'owner',
           homeName: context.tr('my_home_default'),
           ownerEmail: username,
+          canEditAutomation: true,
         ));
 
         if (data['ownerUsername'] != null && data['ownerUsername'].toString().isNotEmpty) {
@@ -135,6 +158,10 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
                   if (ownerData['memberRoles'] != null && ownerData['memberRoles'][username] != null) {
                     assignedRole = ownerData['memberRoles'][username];
                   }
+                  bool canEdit = false;
+                  if (ownerData['automationEditors'] != null && (ownerData['automationEditors'] as List).contains(username)) {
+                    canEdit = true;
+                  }
                   
                   myHomes.add(SmartConfig(
                       userId: ownerUsername,
@@ -146,6 +173,7 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
                       role: assignedRole,
                       homeName: '${context.tr('home_of')} $ownerName',
                       ownerEmail: ownerUsername, 
+                      canEditAutomation: canEdit,
                   ));
               }
            } catch (e) {
@@ -161,6 +189,7 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
           role: 'owner',
           homeName: context.tr('my_home_default'),
           ownerEmail: username,
+          canEditAutomation: true,
         ));
       }
     } catch (e) {
@@ -169,14 +198,18 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
 
     if (myHomes.isEmpty) {
       myHomes.add(SmartConfig(
-        userId: username, macAddress: 'unknown_mac', devices: [], role: 'owner', homeName: context.tr('my_home_default'), ownerEmail: username,
+        userId: username, macAddress: 'unknown_mac', devices: [], role: 'owner', homeName: context.tr('my_home_default'), ownerEmail: username, canEditAutomation: true,
       ));
     }
     await ref.read(homeConfigProvider).setAvailableHomes(myHomes);
 
-    await SessionManager.recordSession();
+    // Ghi nhận session không đồng bộ để không chặn việc chuyển màn hình
+    SessionManager.recordSession().catchError((e) {
+      debugPrint("Lỗi ghi session: $e");
+    });
 
     if (mounted) {
+      await LoadingOverlay.hideSuccess(delayMs: 600);
       showFloatingToast(context, context.tr('toast_success'), context.tr('msg_sync_success') ?? 'Đã đồng bộ dữ liệu!', isError: false);
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainLayout()));
     }
@@ -285,8 +318,7 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
       
       if (query.docs.isNotEmpty) {
           await _verifyAndCleanEmail(userCred!.user!, query.docs.first.data() as Map<String, dynamic>, query.docs.first.id);
-          await LoadingOverlay.hideSuccess();
-          saveAndNavigate(query.docs.first.id);
+          await saveAndNavigate(query.docs.first.id);
       } else {
           await FirebaseAuth.instance.signOut();
           await LoadingOverlay.hideError();
@@ -319,8 +351,7 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
       final query = await FirebaseFirestore.instance.collection('users').where('uid', isEqualTo: uid).get();
       if (query.docs.isNotEmpty) {
         await _verifyAndCleanEmail(FirebaseAuth.instance.currentUser!, query.docs.first.data() as Map<String, dynamic>, query.docs.first.id);
-        await LoadingOverlay.hideSuccess();
-        saveAndNavigate(query.docs.first.id);
+        await saveAndNavigate(query.docs.first.id);
       } else {
         await FirebaseAuth.instance.currentUser?.delete();
         LoadingOverlay.hide();
@@ -389,6 +420,12 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
       await googleSignIn.signOut();
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
+        setState(() => isGoogleLoading = false);
+        return;
+      }
+      if (!googleUser.email.toLowerCase().endsWith('@gmail.com')) {
+        await googleSignIn.signOut();
+        showFloatingToast(context, context.tr('error'), context.tr('err_only_gmail_supported'), isError: true);
         setState(() => isGoogleLoading = false);
         return;
       }

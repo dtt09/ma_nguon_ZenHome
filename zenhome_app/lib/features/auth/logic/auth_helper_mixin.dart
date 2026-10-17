@@ -18,7 +18,7 @@ import 'package:zenhome_app/features/auth/ui/register_screen.dart';
 
 mixin AuthHelperMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   
-  void saveAndNavigate(String username) async {
+  Future<void> saveAndNavigate(String username) async {
     List<SmartConfig> myHomes = [];
     try {
       final myDoc = await FirebaseFirestore.instance.collection('users').doc(username).get();
@@ -102,21 +102,24 @@ mixin AuthHelperMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     }
     await ref.read(homeConfigProvider).setAvailableHomes(myHomes);
 
-    await SessionManager.recordSession();
+    // Ghi nhận session không đồng bộ
+    SessionManager.recordSession().catchError((e) {
+      debugPrint("Lỗi ghi session: $e");
+    });
 
     if (mounted) {
+      await LoadingOverlay.hideSuccess(delayMs: 600);
       showFloatingToast(context, context.tr('toast_success'), context.tr('msg_sync_success') ?? 'Đã đồng bộ dữ liệu!', isError: false);
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainLayout()));
     }
   }
 
-  void checkUserExistsAndNavigate(String uid, String email, GoogleSignIn googleSignIn, AuthCredential credential) async {
+  Future<void> checkUserExistsAndNavigate(String uid, String email, GoogleSignIn googleSignIn, AuthCredential credential) async {
     LoadingOverlay.show(context);
     try {
       final query = await FirebaseFirestore.instance.collection('users').where('uid', isEqualTo: uid).get();
       if (query.docs.isNotEmpty) {
-        await LoadingOverlay.hideSuccess();
-        saveAndNavigate(query.docs.first.id);
+        await saveAndNavigate(query.docs.first.id);
       } else {
         await FirebaseAuth.instance.currentUser?.delete();
         LoadingOverlay.hide();
@@ -183,6 +186,11 @@ mixin AuthHelperMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       await googleSignIn.signOut(); // Ép buộc hiển thị lại bảng chọn tài khoản
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
+        return;
+      }
+      if (!googleUser.email.toLowerCase().endsWith('@gmail.com')) {
+        await googleSignIn.signOut();
+        showFloatingToast(context, context.tr('error'), context.tr('err_only_gmail_supported'), isError: true);
         return;
       }
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;

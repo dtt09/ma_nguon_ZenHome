@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
+import 'package:package_info_plus/package_info_plus.dart';
 
 class SessionManager {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -150,9 +151,19 @@ class SessionManager {
         isTrusted = data['isTrusted'] ?? false;
       }
 
+      String appVersion = '1.5.0';
+      int buildNumber = 150;
+      try {
+        final pkg = await PackageInfo.fromPlatform();
+        appVersion = pkg.version;
+        buildNumber = int.tryParse(pkg.buildNumber) ?? 150;
+      } catch (_) {}
+
       await sessionRef.set({
         'deviceName': deviceName,
         'os': osVersion,
+        'appVersion': appVersion,
+        'buildNumber': buildNumber,
         'location': location,
         'lastLogin': FieldValue.serverTimestamp(),
         'lastAccess': FieldValue.serverTimestamp(),
@@ -203,45 +214,59 @@ class SessionManager {
       }
 
       final doc = await sessionRef.get();
-      if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>?;
-        if (data != null && data['isActive'] == true) {
-          final Timestamp? lastAccessTimestamp = data['lastAccess'];
-          if (lastAccessTimestamp != null) {
-            final lastAccessDate = lastAccessTimestamp.toDate();
-            final difference = DateTime.now().difference(lastAccessDate).inDays;
+      if (!doc.exists) {
+        await recordSession();
+        return;
+      }
 
-            if (difference > 30) {
-              // Expired session
-              await sessionRef.update({'isActive': false});
-              await _auth.signOut();
-              return;
-            }
+      final data = doc.data() as Map<String, dynamic>?;
+      if (data != null && data['isActive'] == true) {
+        final Timestamp? lastAccessTimestamp = data['lastAccess'];
+        if (lastAccessTimestamp != null) {
+          final lastAccessDate = lastAccessTimestamp.toDate();
+          final difference = DateTime.now().difference(lastAccessDate).inDays;
+
+          if (difference > 30) {
+            // Expired session
+            await sessionRef.update({'isActive': false});
+            await _auth.signOut();
+            return;
           }
-        } else if (data != null && data['isActive'] == false) {
-          // Already logged out from another device
-          await _auth.signOut();
-          return;
+        }
+      } else if (data != null && data['isActive'] == false) {
+        // Already logged out from another device
+        await _auth.signOut();
+        return;
+      }
+
+      if (data != null) {
+        // Check if it's eligible to be trusted (15 days)
+        bool isTrusted = data['isTrusted'] ?? false;
+        if (!isTrusted && data['firstSeen'] != null) {
+           final firstSeenTimestamp = data['firstSeen'] as Timestamp;
+           final firstSeenDiff = DateTime.now().difference(firstSeenTimestamp.toDate()).inDays;
+           if (firstSeenDiff >= 15) {
+              isTrusted = true;
+           }
         }
 
-        if (data != null) {
-          // Check if it's eligible to be trusted (15 days)
-          bool isTrusted = data['isTrusted'] ?? false;
-          if (!isTrusted && data['firstSeen'] != null) {
-             final firstSeenTimestamp = data['firstSeen'] as Timestamp;
-             final firstSeenDiff = DateTime.now().difference(firstSeenTimestamp.toDate()).inDays;
-             if (firstSeenDiff >= 15) {
-                isTrusted = true;
-             }
-          }
+        String appVersion = '1.5.0';
+        int buildNumber = 150;
+        try {
+          final pkg = await PackageInfo.fromPlatform();
+          appVersion = pkg.version;
+          buildNumber = int.tryParse(pkg.buildNumber) ?? 150;
+        } catch (_) {}
 
-          // Update last access and possibly trust status
-          await sessionRef.update({
-            'lastAccess': FieldValue.serverTimestamp(),
-            'isTrusted': isTrusted,
-            if (fcmToken != null) 'fcmToken': fcmToken,
-          });
-        }
+        // Update last access, app version, and possibly trust status
+        await sessionRef.update({
+          'lastAccess': FieldValue.serverTimestamp(),
+          'isTrusted': isTrusted,
+          'appVersion': appVersion,
+          'buildNumber': buildNumber,
+          'isActive': true,
+          if (fcmToken != null) 'fcmToken': fcmToken,
+        });
       }
     } catch (e) {
       print('Error updating session access: $e');

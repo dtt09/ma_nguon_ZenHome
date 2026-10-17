@@ -79,3 +79,7 @@ dependencies {
 flutter {
     source = "../.."
 }
+
+tasks.matching { it.name.contains("NativeSymbolTables") }.configureEach {
+    enabled = false
+}

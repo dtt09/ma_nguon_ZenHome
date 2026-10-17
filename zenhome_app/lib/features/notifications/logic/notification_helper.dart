@@ -1,7 +1,5 @@
 import 'dart:typed_data';
-import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationHelper {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -25,13 +23,23 @@ class NotificationHelper {
         vibrationPattern: vibrationPattern,
       );
 
+      final AndroidNotificationChannel downloadChannel = const AndroidNotificationChannel(
+        'zenhome_download_channel',
+        'Zen Home Downloads',
+        description: 'Thông báo tiến trình tải bản cập nhật Zen Home',
+        importance: Importance.low,
+        playSound: false,
+        enableVibration: false,
+      );
+
       final androidPlugin = _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       if (androidPlugin != null) {
         await androidPlugin.createNotificationChannel(channel);
+        await androidPlugin.createNotificationChannel(downloadChannel);
         await androidPlugin.requestNotificationsPermission();
       }
-    } catch (e, stack) {
-      print('NotificationHelper init error: $e');
+    } catch (e) {
+      // Ignored
     }
   }
 
@@ -49,11 +57,60 @@ class NotificationHelper {
     );
     final NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
     
-    await _notificationsPlugin.show(
-      id: DateTime.now().millisecond,
-      title: title,
-      body: body,
-      notificationDetails: platformDetails,
-    );
+    try {
+      await _notificationsPlugin.show(
+        id: DateTime.now().millisecond,
+        title: title,
+        body: body,
+        notificationDetails: platformDetails,
+      );
+    } catch (e) {
+      // Ignored if permissions not granted
+    }
+  }
+
+  static const int downloadNotificationId = 8888;
+
+  static Future<void> showDownloadProgressNotification({
+    int id = downloadNotificationId,
+    required String title,
+    required String body,
+    required int progress,
+    required int maxProgress,
+    bool indeterminate = false,
+  }) async {
+    try {
+      final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+        'zenhome_download_channel',
+        'Zen Home Downloads',
+        channelDescription: 'Thông báo tiến trình tải bản cập nhật Zen Home',
+        importance: Importance.low,
+        priority: Priority.low,
+        showProgress: true,
+        maxProgress: maxProgress,
+        progress: progress,
+        indeterminate: indeterminate,
+        ongoing: true,
+        onlyAlertOnce: true,
+        playSound: false,
+        enableVibration: false,
+      );
+      final NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+      
+      await _notificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: platformDetails,
+      );
+    } catch (e) {
+      // Don't let notification issues block download progress
+    }
+  }
+
+  static Future<void> cancelNotification(int id) async {
+    try {
+      await _notificationsPlugin.cancel(id: id);
+    } catch (_) {}
   }
 }

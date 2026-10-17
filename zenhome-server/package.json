@@ -1,0 +1,33 @@
+{
+  "name": "zenhome-server",
+  "private": true,
+  "version": "2.5.0",
+  "type": "module",
+  "scripts": {
+    "dev": "chcp 65001 >NUL && tsx watch server.ts",
+    "start": "chcp 65001 >NUL && tsx server.ts",
+    "build:web": "cd ../zenhome-web && npm run build",
+    "build": "npm run build:web"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^8.7.1",
+    "@types/jsonwebtoken": "^9.0.10",
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "firebase": "^12.19.0",
+    "firebase-admin": "^13.10.0",
+    "jsonwebtoken": "^9.0.3",
+    "mqtt": "^5.16.0",
+    "node-cron": "^4.6.0",
+    "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.6",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.0"
+  }
+}

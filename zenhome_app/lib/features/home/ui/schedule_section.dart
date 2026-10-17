@@ -1,16 +1,18 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
-import 'package:zenhome_app/core/utils/constants.dart';
 import 'package:zenhome_app/core/utils/helpers.dart'; 
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/premium_dialog.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
+import 'package:zenhome_app/core/widgets/bouncing_button.dart';
 
 class ScheduleSection extends ConsumerStatefulWidget {
   const ScheduleSection({super.key});
@@ -21,11 +23,67 @@ class ScheduleSection extends ConsumerStatefulWidget {
 
 class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
   List<Map<String, dynamic>> _savedSchedules = [];
+  StreamSubscription<QuerySnapshot>? _schedulesSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadSchedulesFromDisk();
+    _subscribeToFirestoreSchedules();
+  }
+
+  @override
+  void dispose() {
+    _schedulesSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToFirestoreSchedules() {
+    _schedulesSubscription?.cancel();
+    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+    String targetId = activeConfig.userId;
+    if (targetId.isEmpty || targetId == 'guest') return;
+
+    _schedulesSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(targetId)
+        .collection('schedules')
+        .snapshots()
+        .listen((snap) async {
+      final prefs = await SharedPreferences.getInstance();
+      String? schedulesString = prefs.getString('schedules_data_$targetId');
+      List<dynamic> localSchedules = (schedulesString != null) ? jsonDecode(schedulesString) : [];
+      List<dynamic> firestoreSchedules = snap.docs.map((doc) => doc.data()).toList();
+
+      List<Map<String, dynamic>> combined = [];
+      combined.addAll(localSchedules.map((e) => Map<String, dynamic>.from(e)));
+      combined.addAll(firestoreSchedules.map((e) => Map<String, dynamic>.from(e)));
+
+      Map<String, Map<String, dynamic>> uniqueMap = {};
+      for (var item in combined) {
+        if (item['id'] != null) {
+          uniqueMap[item['id']] = item;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _savedSchedules = uniqueMap.values.map((item) => {
+            'id': item['id'],
+            'topic': item['topic'],
+            'topics': item['topics'] != null ? List<String>.from(item['topics']) : (item['topic'] != null ? [item['topic']] : []),
+            'timeOn': item['timeOn'],
+            'timeOff': item['timeOff'],
+            'days': List<bool>.from(item['days'] ?? List.filled(7, true)),
+            'isActive': item['isActive'] ?? true,
+            'isShared': item['isShared'] ?? false,
+            'authorUid': item['authorUid'] ?? '',
+          }).toList();
+        });
+      }
+    }, onError: (err) {
+      debugPrint("Lỗi stream schedules: $err");
+    });
   }
 
   Widget _buildSelector({required String title, required String valueText, required VoidCallback onTap}) {
@@ -215,14 +273,14 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                   ),
                   const SizedBox(height: 20),
                   Text(context.tr('schedule_repeat'), style: const TextStyle(color: Colors.grey)), const SizedBox(height: 10),
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: List.generate(7, (index) { return GestureDetector(onTap: () => setModalState(() => selectedDays[index] = !selectedDays[index]), child: Container(width: 40, height: 40, decoration: BoxDecoration(color: selectedDays[index] ? const Color(0xFF2A3A7C) : (isDark ? Colors.grey.shade800 : Colors.grey.shade200), shape: BoxShape.circle), child: Center(child: Text(dayLabels[index], style: TextStyle(color: selectedDays[index] ? Colors.white : Colors.grey, fontWeight: FontWeight.bold))))); })),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: List.generate(7, (index) { return GestureDetector(onTap: () => setModalState(() => selectedDays[index] = !selectedDays[index]), child: Container(width: 40, height: 40, decoration: BoxDecoration(color: selectedDays[index] ? const Color(0xFF0F766E) : (isDark ? Colors.grey.shade800 : Colors.grey.shade200), shape: BoxShape.circle), child: Center(child: Text(dayLabels[index], style: TextStyle(color: selectedDays[index] ? Colors.white : Colors.grey, fontWeight: FontWeight.bold))))); })),
                   const SizedBox(height: 15),
                   Row(
                     children: [
                       Checkbox(
                         value: _shareWithAll,
                         onChanged: (val) => setModalState(() => _shareWithAll = val ?? false),
-                        activeColor: const Color(0xFF2A3A7C),
+                        activeColor: const Color(0xFF0F766E),
                       ),
                       Expanded(child: Text(context.tr('share_with_all'))),
                     ],
@@ -231,7 +289,7 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                   SizedBox(
                     width: double.infinity, height: 55,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2A3A7C), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
                       onPressed: () {
                         if (newDevices.isEmpty) { Navigator.pop(context); showAlertDialogHelper(context, context.tr('error'), context.tr('err_select_device') ?? 'Vui lòng chọn thiết bị', isError: true); return; }
                         if (!selectedDays.contains(true)) { Navigator.pop(context); showAlertDialogHelper(context, context.tr('error'), context.tr('err_select_day'), isError: true); return; }
@@ -390,96 +448,334 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Section Header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(context.tr('schedule_title'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            IconButton(onPressed: () => _showScheduleBottomSheet(), icon: const Icon(Icons.add_circle, color: Color(0xFF2A3A7C), size: 30)),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.cyanGlow.withOpacity(0.2), AppColors.primaryLight.withOpacity(0.1)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.alarm_on_rounded, color: AppColors.cyanGlow, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Text(context.tr('schedule_title'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+                if (_savedSchedules.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${_savedSchedules.length}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            BouncingButton(
+              onTap: () => _showScheduleBottomSheet(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: AppColors.navPillGradient,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryLight.withOpacity(0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.add_rounded, color: Colors.white, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      context.tr('btn_add') ?? 'Add',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 15),
-        _savedSchedules.isEmpty
-            ? Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(context.tr('schedule_empty'), style: TextStyle(color: Colors.grey.shade500))))
-            : ListView.builder(
-                shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: _savedSchedules.length,
-                itemBuilder: (context, index) {
-                  final schedule = _savedSchedules[index];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 15), padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(color: isDark ? const Color(0xFF121827) : Colors.white, borderRadius: BorderRadius.circular(20), border: isDark ? Border.all(color: Colors.grey.shade800) : null, boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))]),
-                    child: Row(
+        const SizedBox(height: 14),
+
+        if (_savedSchedules.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : AppColors.lightCard,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+              ),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.calendar_today_outlined, size: 36, color: (isDark ? Colors.white : Colors.black).withOpacity(0.25)),
+                  const SizedBox(height: 10),
+                  Text(context.tr('schedule_empty'), style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                ],
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _savedSchedules.length,
+            itemBuilder: (context, index) {
+              final schedule = _savedSchedules[index];
+              final bool isActive = schedule['isActive'] ?? false;
+              final List<String> topics = List<String>.from(schedule['topics'] ?? (schedule['topic'] != null ? [schedule['topic']] : []));
+              final String deviceNames = topics.map((t) => getDeviceNameHelper(context, t, ref.watch(homeConfigProvider).activeConfig)).join(', ');
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: isActive
+                        ? (isDark ? AppColors.primaryLight.withOpacity(0.3) : AppColors.primary.withOpacity(0.2))
+                        : (isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isActive
+                          ? (isDark ? AppColors.primaryLight.withOpacity(0.1) : AppColors.primary.withOpacity(0.04))
+                          : Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top row: Icon, device names, shared chip, and switch
+                    Row(
                       children: [
-                        Icon(Icons.schedule, color: schedule['isActive'] ? const Color(0xFF2A3A7C) : Colors.grey, size: 40), const SizedBox(width: 15),
+                        Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? (isDark ? AppColors.primaryLight.withOpacity(0.2) : AppColors.primary.withOpacity(0.1))
+                                : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                            Icons.alarm_rounded,
+                            color: isActive ? (isDark ? AppColors.primaryLight : AppColors.primary) : Colors.grey,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(child: Text(List<String>.from(schedule['topics'] ?? (schedule['topic'] != null ? [schedule['topic']] : [])).map((t) => getDeviceNameHelper(context, t, ref.watch(homeConfigProvider).activeConfig)).join(', '), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                  const SizedBox(width: 5),
-                                  if (schedule['isShared'] == true)
-                                    Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.blue.shade200)), child: Text(context.tr('shared'), style: const TextStyle(color: Colors.blue, fontSize: 10)))
-                                  else
-                                    Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade300)), child: Text(context.tr('private'), style: const TextStyle(color: Colors.grey, fontSize: 10))),
-                                ],
+                              Text(
+                                deviceNames,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: isDark ? AppColors.darkText : AppColors.lightText,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 5),
-                              Text('${context.tr('status_on')}: ${schedule['timeOn']} - ${context.tr('status_off')}: ${schedule['timeOff']}', style: TextStyle(color: Colors.grey.shade600, fontSize: 14)), const SizedBox(height: 5),
-                              Row(children: List.generate(7, (dayIndex) { bool isActiveDay = schedule['days'][dayIndex]; return Container(margin: const EdgeInsets.only(right: 4), width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: isActiveDay ? Colors.green : Colors.grey.shade300)); }))
+                              const SizedBox(height: 3),
+                              if (schedule['isShared'] == true)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                                  ),
+                                  child: Text(context.tr('shared'), style: const TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
+                                )
+                              else
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(context.tr('private'), style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                                ),
                             ],
                           ),
                         ),
-                        Column(
-                          children: [
-                            Switch(
-                              value: schedule['isActive'], activeColor: const Color(0xFF2A3A7C),
-                              onChanged: (val) {
-                                final mqttState = ref.read(mqttConnectionStateProvider);
-                                final isOnline = ref.read(espOnlineStateProvider);
-                                if (mqttState != 2 || !isOnline) {
-                                  showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
-                                  return;
-                                }
-                                
-                                setState(() => schedule['isActive'] = val);
-                                String daysBinary = List<bool>.from(schedule['days']).map((d) => d ? '1' : '0').join('');
-                                String activeFlag = val ? '1' : '0';
-                                String payload = '${schedule['id']}|${schedule['timeOn']}|${schedule['timeOff']}|$daysBinary|$activeFlag';
-                                List<String> sTopics = List<String>.from(schedule['topics'] ?? (schedule['topic'] != null ? [schedule['topic']] : []));
-                                for (String dev in sTopics) {
-                                  ref.read(mqttRepositoryProvider).publishCmd('$dev/schedule', payload);
-                                }
-                                
-                                final activeConfig = ref.read(homeConfigProvider).activeConfig;
-                                String targetId = activeConfig.userId;
-                                if (schedule['isShared'] == true && targetId.isNotEmpty && targetId != 'guest') {
-                                  FirebaseFirestore.instance.collection('users').doc(targetId).collection('schedules').doc(schedule['id']).update({'isActive': val});
-                                } else {
-                                  _saveSchedulesToDisk();
-                                }
+                        Transform.scale(
+                          scale: 0.85,
+                          child: Switch(
+                            value: isActive,
+                            activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
+                            onChanged: (val) {
+                              final mqttState = ref.read(mqttConnectionStateProvider);
+                              final isOnline = ref.read(espOnlineStateProvider);
+                              if (mqttState != 2 || !isOnline) {
+                                showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
+                                return;
                               }
-                            ),
-                              Row(
-                                children: [
-                                  if (schedule['isShared'] == true && ref.watch(homeConfigProvider).activeConfig.role == 'member' && !ref.watch(homeConfigProvider).activeConfig.canEditAutomation && schedule['authorUid'] != FirebaseAuth.instance.currentUser?.uid) ...[
-                                    IconButton(icon: const Icon(Icons.remove_red_eye, color: Colors.blue, size: 20), onPressed: () => _showViewOnlyScheduleBottomSheet(schedule)),
-                                  ] else ...[
-                                    IconButton(icon: const Icon(Icons.edit, color: Colors.blue, size: 20), onPressed: () => _showScheduleBottomSheet(editSchedule: schedule)),
-                                    IconButton(icon: const Icon(Icons.delete, color: Colors.red, size: 20), onPressed: () => _deleteSchedule(schedule['id'])),
-                                  ]
-                                ],
-                              )
-                          ],
-                        )
+                              
+                              setState(() => schedule['isActive'] = val);
+                              String daysBinary = List<bool>.from(schedule['days']).map((d) => d ? '1' : '0').join('');
+                              String activeFlag = val ? '1' : '0';
+                              String payload = '${schedule['id']}|${schedule['timeOn']}|${schedule['timeOff']}|$daysBinary|$activeFlag';
+                              List<String> sTopics = List<String>.from(schedule['topics'] ?? (schedule['topic'] != null ? [schedule['topic']] : []));
+                              for (String dev in sTopics) {
+                                ref.read(mqttRepositoryProvider).publishCmd('$dev/schedule', payload);
+                              }
+                              
+                              final activeConfig = ref.read(homeConfigProvider).activeConfig;
+                              String targetId = activeConfig.userId;
+                              if (schedule['isShared'] == true && targetId.isNotEmpty && targetId != 'guest') {
+                                FirebaseFirestore.instance.collection('users').doc(targetId).collection('schedules').doc(schedule['id']).update({'isActive': val});
+                              } else {
+                                _saveSchedulesToDisk();
+                              }
+                            },
+                          ),
+                        ),
                       ],
                     ),
-                  );
-                },
-              )
+                    const SizedBox(height: 14),
+
+                    // Time on & off chips
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0x10FFFFFF) : const Color(0x06000000),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.wb_sunny_rounded, size: 14, color: AppColors.amberGlow),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${context.tr('status_on')}: ${schedule['timeOn']}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.darkText : AppColors.lightText,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Icon(Icons.arrow_forward_rounded, size: 12, color: isDark ? Colors.white38 : Colors.black38),
+                          const SizedBox(width: 10),
+                          Icon(Icons.nightlight_round, size: 14, color: AppColors.primaryLight),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${context.tr('status_off')}: ${schedule['timeOff']}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.darkText : AppColors.lightText,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 7-day row & actions
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: List.generate(7, (dayIndex) {
+                            bool isActiveDay = schedule['days'][dayIndex];
+                            return Container(
+                              margin: const EdgeInsets.only(right: 5),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: isActiveDay
+                                    ? (isDark ? AppColors.primaryLight.withOpacity(0.2) : AppColors.primary.withOpacity(0.12))
+                                    : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03)),
+                                borderRadius: BorderRadius.circular(7),
+                                border: Border.all(
+                                  color: isActiveDay
+                                      ? (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.4)
+                                      : Colors.transparent,
+                                ),
+                              ),
+                              child: Text(
+                                dayLabels[dayIndex],
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: isActiveDay ? FontWeight.bold : FontWeight.normal,
+                                  color: isActiveDay
+                                      ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (schedule['isShared'] == true && ref.watch(homeConfigProvider).activeConfig.role == 'member' && !ref.watch(homeConfigProvider).activeConfig.canEditAutomation && schedule['authorUid'] != FirebaseAuth.instance.currentUser?.uid) ...[
+                              IconButton(
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(6),
+                                icon: const Icon(Icons.remove_red_eye_rounded, color: Colors.blue, size: 18),
+                                onPressed: () => _showViewOnlyScheduleBottomSheet(schedule),
+                              ),
+                            ] else ...[
+                              IconButton(
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(6),
+                                icon: const Icon(Icons.edit_rounded, color: Colors.blue, size: 18),
+                                onPressed: () => _showScheduleBottomSheet(editSchedule: schedule),
+                              ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(6),
+                                icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18),
+                                onPressed: () => _deleteSchedule(schedule['id']),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
       ],
     );
   }

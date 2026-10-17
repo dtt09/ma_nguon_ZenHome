@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
 class WaveBackground extends StatefulWidget {
@@ -52,7 +52,7 @@ class _WaveBackgroundState extends State<WaveBackground>
                       end: Alignment.bottomRight,
                       colors: isDark
                           ? [const Color(0xFF1E1E2C), const Color(0xFF090C15)]
-                          : [const Color(0xFF5C8CFF), const Color(0xFF2A3A7C)],
+                          : [const Color(0xFF14B8A6), const Color(0xFF0F766E)],
                     ),
                   ),
                 ),
@@ -113,3 +113,5 @@ class AnimatedWaveClipper extends CustomClipper<Path> {
       oldClipper.heightPercent != heightPercent ||
       oldClipper.keyboardHeight != keyboardHeight;
 }
+
+

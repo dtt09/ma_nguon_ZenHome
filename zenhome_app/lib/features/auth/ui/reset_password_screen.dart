@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -135,7 +135,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
   Widget _buildContent(BuildContext context, bool isTopLayer, ScrollController controller) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color color = isTopLayer ? Colors.white : (isDark ? const Color(0xFF5C8CFF) : const Color(0xFF2A3A7C));
+    Color color = isTopLayer ? Colors.white : (isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E));
 
     int strengthScore = (_hasMinLength ? 1 : 0) +
         (_hasUppercase ? 1 : 0) +
@@ -260,8 +260,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       height: 55,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isTopLayer ? Colors.white : const Color(0xFF2A3A7C),
-                          foregroundColor: isTopLayer ? const Color(0xFF2A3A7C) : Colors.white,
+                          backgroundColor: isTopLayer ? Colors.white : const Color(0xFF0F766E),
+                          foregroundColor: isTopLayer ? const Color(0xFF0F766E) : Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         ),
                         onPressed: _handleResetPassword,
@@ -291,3 +291,5 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     );
   }
 }
+
+

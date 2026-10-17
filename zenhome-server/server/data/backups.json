@@ -1,0 +1,14 @@
+[
+  {
+    "id": "ZENHOME_BACKUP_2026-10-14T08-41-55-324Z",
+    "timestamp": "15:41:55 14/10/2026",
+    "docCount": 12,
+    "sizeBytes": 8192,
+    "collections": [
+      "users",
+      "server_schedules",
+      "server_timers",
+      "system_logs"
+    ]
+  }
+]

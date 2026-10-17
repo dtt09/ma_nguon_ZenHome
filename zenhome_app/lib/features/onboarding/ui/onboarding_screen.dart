@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
@@ -138,7 +138,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         height: 10,
                         width: _currentPage == index ? 25 : 10,
                         decoration: BoxDecoration(
-                          color: _currentPage == index ? const Color(0xFF2A3A7C) : Colors.grey.shade300,
+                          color: _currentPage == index ? const Color(0xFF0F766E) : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(5),
                         ),
                       ),
@@ -146,7 +146,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2A3A7C),
+                      backgroundColor: const Color(0xFF0F766E),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
@@ -168,3 +168,4 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 }
+

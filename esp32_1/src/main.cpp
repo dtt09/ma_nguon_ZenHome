@@ -48,8 +48,8 @@ String wifi_ssid = "";
 String wifi_pass = "";
 String mqtt_prefix = "";
 String mqtt_server = "e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud";
-String mqtt_user = "";
-String mqtt_pass = "";
+String mqtt_user = "DTC_ZenHome";
+String mqtt_pass = "DTC_ZenHome2103";
 
 struct RelayDev {
   String id;
@@ -152,11 +152,13 @@ void setup() {
     isConfigured = true;
     setupStartTime = millis(); // Bắt đầu đếm thời gian kiểm tra kết nối
     
-    // Cấu hình CA để bảo mật TLS chống MitM thay vì dùng setInsecure()
-    espClient.setCACert(root_ca); 
+    // Cho phép kết nối TLS HiveMQ linh hoạt (chống rớt mạng do sai lệch giờ NTP hoặc thiếu chứng chỉ trung gian)
+    espClient.setInsecure(); 
     mqttClient.setServer(mqtt_server.c_str(), 8883); 
     mqttClient.setCallback(mqttCallback);
     mqttClient.setBufferSize(1024); // Tăng kích thước buffer MQTT để nhận cấu hình JSON dài
+    mqttClient.setKeepAlive(60);
+    mqttClient.setSocketTimeout(30);
     
     connectToWiFi();
   } else {
@@ -215,8 +217,8 @@ void loop() {
   // 0. KIỂM TRA TIMEOUT TRONG LẦN SETUP ĐẦU TIÊN
   // ---------------------------------------------------------
   if (isConfigured && !isProvisioned) {
-    if (currentMillis - setupStartTime > 45000) { // 45 giây timeout
-      Serial.println("\n[!] Lỗi: Quá thời gian (45s) không thể kết nối WiFi/MQTT!");
+    if (currentMillis - setupStartTime > 65000) { // 65 giây timeout
+      Serial.println("\n[!] Lỗi: Quá thời gian (65s) không thể kết nối WiFi/MQTT!");
       Serial.println("[!] Xóa cấu hình nghi ngờ sai và khởi động lại vào chế độ AP...");
       if (LittleFS.exists("/config.json")) {
         LittleFS.remove("/config.json");
@@ -262,7 +264,7 @@ void loop() {
   // ---------------------------------------------------------
   if (WiFi.status() == WL_CONNECTED) {
     if (!mqttClient.connected()) {
-      if (currentMillis - lastMQTTRetry >= 5000) {
+      if (currentMillis - lastMQTTRetry >= 8000) {
         lastMQTTRetry = currentMillis;
         connectMQTT();
       }
@@ -344,10 +346,12 @@ bool loadConfig() {
     }
   }
   if (doc.containsKey("mqtt_user")) {
-    mqtt_user = doc["mqtt_user"].as<String>();
+    String u = doc["mqtt_user"].as<String>();
+    if (u.length() > 0) mqtt_user = u;
   }
   if (doc.containsKey("mqtt_pass")) {
-    mqtt_pass = doc["mqtt_pass"].as<String>();
+    String p = doc["mqtt_pass"].as<String>();
+    if (p.length() > 0) mqtt_pass = p;
   }
 
   if (wifi_ssid == "" || wifi_ssid == "null") return false;
@@ -375,23 +379,27 @@ void setupAPMode() {
   String mac = WiFi.macAddress();
   mac.replace(":", "");
   String apName = "ZenHome_Setup_" + mac.substring(6);
-  // Tạo mật khẩu phức tạp hơn bằng cách kết hợp chuỗi ngẫu nhiên tĩnh và MAC
-  String apPass = "ZH-" + mac.substring(6) + "@" + mac.substring(2,4); 
+  // Mật khẩu phát sóng chuẩn AP để người dùng kết nối trực tiếp trong ứng dụng
+  String apPass = "12345678"; 
   
   WiFi.mode(WIFI_AP);
   WiFi.softAP(apName.c_str(), apPass.c_str()); 
   
   server.on("/api/config", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
     String jsonPayload((char*)data, len);
+    Serial.println("\n[HTTP] >>> Nhận gói cấu hình từ App:");
+    Serial.println(jsonPayload);
     
     File file = LittleFS.open("/config.json", "w");
     if (file) {
       file.print(jsonPayload);
       file.close();
       String mac = WiFi.macAddress();
+      Serial.println("[HTTP] Đã ghi file /config.json thành công. Khởi động lại sau 2 giây...");
       request->send(200, "application/json", "{\"status\":\"ok\",\"macAddress\":\"" + mac + "\"}");
       shouldReboot = true; 
     } else {
+      Serial.println("[HTTP] LỖI ghi file /config.json!");
       request->send(500, "application/json", "{\"status\":\"error\"}");
     }
   });
@@ -414,15 +422,19 @@ void connectToWiFi() {
   
   // Chờ kết nối để đồng bộ thời gian (cần thiết cho chứng chỉ SSL)
   int retries = 0;
-  while (WiFi.status() != WL_CONNECTED && retries < 20) {
+  while (WiFi.status() != WL_CONNECTED && retries < 25) {
     delay(500);
     Serial.print(".");
     retries++;
   }
   
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi kết nối thành công!");
+    Serial.println("\nWiFi kết nối thành công! IP: " + WiFi.localIP().toString());
     syncTime();
+  } else {
+    Serial.print("\nLỖI: Chưa kết nối được WiFi (Mã trạng thái: ");
+    Serial.print(WiFi.status());
+    Serial.println("). Tiếp tục thử ở vòng lặp nền...");
   }
 }
 
@@ -441,8 +453,10 @@ void syncTime() {
 }
 
 void connectMQTT() {
-  Serial.println("Đang kết nối MQTT TLS (8883) tới: " + mqtt_server);
-  String clientId = "ESP32_Node_" + WiFi.macAddress();
+  Serial.println("Đang kết nối MQTT TLS (8883) tới: " + mqtt_server + " (User: " + mqtt_user + ")");
+  String mac = WiFi.macAddress();
+  mac.replace(":", "");
+  String clientId = "ESP32_" + mac;
   String statusTopic = mqtt_prefix + "/esp_status";
 
   // Thiết lập thông điệp Di chúc (Last Will) là "offline"
@@ -482,15 +496,44 @@ void connectMQTT() {
     // Lắng nghe lệnh reset hệ thống từ backend
     String systemResetTopic = mqtt_prefix + "/system/reset";
     mqttClient.subscribe(systemResetTopic.c_str());
+
+    // Lắng nghe lệnh khởi động lại hệ thống từ backend/app
+    String systemRebootTopic = mqtt_prefix + "/system/reboot";
+    String systemRestartTopic = mqtt_prefix + "/system/restart";
+    mqttClient.subscribe(systemRebootTopic.c_str());
+    mqttClient.subscribe(systemRestartTopic.c_str());
   } else {
-    Serial.print("Lỗi kết nối MQTT, mã lỗi: ");
-    Serial.println(mqttClient.state());
+    int state = mqttClient.state();
+    Serial.print("LỖI kết nối MQTT! Mã lỗi (rc): ");
+    Serial.print(state);
+    if (state == -4) {
+      Serial.println(" (MQTT_CONNECTION_TIMEOUT: Máy chủ HiveMQ phản hồi chậm hoặc đang bắt tay TLS)");
+    } else if (state == -2) {
+      Serial.println(" (MQTT_CONNECT_FAILED: Lỗi kết nối TCP/TLS)");
+    } else if (state == 4 || state == 5) {
+      Serial.println(" (MQTT_UNAUTHORIZED: Sai tên đăng nhập hoặc mật khẩu)");
+    } else {
+      Serial.println();
+    }
   }
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String message((char*)payload, length);
   String topicStr = String(topic);
+
+  // Kiểm tra lệnh khởi động lại (Reboot / Restart) hệ thống từ App
+  String systemRebootTopic = mqtt_prefix + "/system/reboot";
+  String systemRestartTopic = mqtt_prefix + "/system/restart";
+  if ((topicStr == systemRebootTopic || topicStr == systemRestartTopic) && message == "1") {
+    Serial.println("\n[!] NHẬN ĐƯỢC LỆNH KHỞI ĐỘNG LẠI (REBOOT) TỪ APP!");
+    mqttClient.publish(systemRebootTopic.c_str(), "", true);
+    mqttClient.publish(systemRestartTopic.c_str(), "", true);
+    Serial.println("ESP32 sẽ khởi động lại sau 1 giây...");
+    delay(1000);
+    shouldReboot = true;
+    return;
+  }
 
   // Kiểm tra lệnh reset hệ thống từ Backend
   String systemResetTopic = mqtt_prefix + "/system/reset";
@@ -519,10 +562,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  // Kiểm tra lệnh cập nhật thiết bị qua MQTT
+  // Kiểm tra lệnh cập nhật cấu hình hệ thống / thiết bị qua MQTT
   String systemConfigTopic = mqtt_prefix + "/system/config";
   if (topicStr == systemConfigTopic) {
-    Serial.println("\n[!] NHẬN ĐƯỢC CẬP NHẬT CẤU HÌNH THIẾT BỊ TỪ APP!");
+    Serial.println("\n[!] NHẬN ĐƯỢC CẬP NHẬT CẤU HÌNH TỪ APP!");
     
     File file = LittleFS.open("/config.json", "r");
     if (file) {
@@ -534,18 +577,53 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       
       DynamicJsonDocument doc(2048);
       if (!deserializeJson(doc, buf.get())) {
-        // Parse mảng devices mới
-        DynamicJsonDocument newDevsDoc(1024);
-        if (!deserializeJson(newDevsDoc, message)) {
-           doc["devices"] = newDevsDoc.as<JsonArray>();
-           
-           File outFile = LittleFS.open("/config.json", "w");
-           if (outFile) {
-             serializeJson(doc, outFile);
-             outFile.close();
-             Serial.println("Đã lưu cấu hình mới, khởi động lại ESP32...");
-             shouldReboot = true;
-           }
+        DynamicJsonDocument newConfigDoc(1536);
+        if (!deserializeJson(newConfigDoc, message)) {
+          if (newConfigDoc.is<JsonArray>()) {
+            // Tương thích ngược: Gói tin gửi mảng devices từ màn hình gán chân GPIO
+            doc["devices"] = newConfigDoc.as<JsonArray>();
+          } else if (newConfigDoc.is<JsonObject>()) {
+            // Cập nhật cấu hình Wi-Fi, MQTT hoặc toàn bộ hệ thống
+            if (newConfigDoc.containsKey("wifi_ssid")) {
+              String s = newConfigDoc["wifi_ssid"].as<String>();
+              if (s.length() > 0) doc["wifi_ssid"] = s;
+            }
+            if (newConfigDoc.containsKey("wifi_pass")) {
+              doc["wifi_pass"] = newConfigDoc["wifi_pass"].as<String>();
+            }
+            if (newConfigDoc.containsKey("mqtt_server")) {
+              String s = newConfigDoc["mqtt_server"].as<String>();
+              if (s.length() > 0) doc["mqtt_server"] = s;
+            }
+            if (newConfigDoc.containsKey("mqtt_user")) {
+              doc["mqtt_user"] = newConfigDoc["mqtt_user"].as<String>();
+            }
+            if (newConfigDoc.containsKey("mqtt_pass")) {
+              doc["mqtt_pass"] = newConfigDoc["mqtt_pass"].as<String>();
+            }
+            if (newConfigDoc.containsKey("mqtt_prefix")) {
+              String p = newConfigDoc["mqtt_prefix"].as<String>();
+              if (p.length() > 0) doc["mqtt_prefix"] = p;
+            }
+            if (newConfigDoc.containsKey("admin_pass")) {
+              doc["admin_pass"] = newConfigDoc["admin_pass"].as<String>();
+            }
+            if (newConfigDoc.containsKey("devices") && newConfigDoc["devices"].is<JsonArray>()) {
+              doc["devices"] = newConfigDoc["devices"].as<JsonArray>();
+            }
+          }
+          
+          File outFile = LittleFS.open("/config.json", "w");
+          if (outFile) {
+            serializeJson(doc, outFile);
+            outFile.close();
+            Serial.println("Đã lưu cấu hình mới vào /config.json thành công!");
+            Serial.println("ESP32 sẽ tự khởi động lại sau 1 giây để áp dụng...");
+            delay(1000);
+            shouldReboot = true;
+          } else {
+            Serial.println("Lỗi mở /config.json để ghi!");
+          }
         }
       }
     }
@@ -558,15 +636,32 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   
   String devId = topicStr.substring(secondLastSlash + 1, lastSlash); 
 
+  String targetState = "";
+
+  if (message.startsWith("{") && message.endsWith("}")) {
+    StaticJsonDocument<256> doc;
+    DeserializationError err = deserializeJson(doc, message);
+    if (!err) {
+      if (doc.containsKey("action")) {
+        String act = doc["action"].as<String>();
+        targetState = (act == "1" || act == "ON" || act == "on") ? "1" : "0";
+      } else if (doc.containsKey("state")) {
+        targetState = doc["state"].as<String>();
+      }
+    }
+  } else {
+    targetState = message;
+  }
+
   for (int i = 0; i < relayCount; i++) {
     if (myRelays[i].id == devId) {
-      if (message == "1") pcf.digitalWrite(myRelays[i].pin, LOW);
-      else if (message == "0") pcf.digitalWrite(myRelays[i].pin, HIGH);
+      if (targetState == "1") pcf.digitalWrite(myRelays[i].pin, LOW);
+      else if (targetState == "0") pcf.digitalWrite(myRelays[i].pin, HIGH);
       
       // Đồng bộ lại trạng thái cho ứng dụng di động
       String stateTopic = topicStr;
       stateTopic.replace("/cmd", "/state"); 
-      mqttClient.publish(stateTopic.c_str(), message.c_str(), true); 
+      mqttClient.publish(stateTopic.c_str(), targetState.c_str(), true); 
       break;
     }
   }

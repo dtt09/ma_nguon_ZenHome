@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pinput/pinput.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -156,7 +156,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     Color color = isTopLayer
         ? Colors.white
-        : (isDark ? const Color(0xFF5C8CFF) : const Color(0xFF2A3A7C));
+        : (isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E));
 
     final defaultPinTheme = PinTheme(
       width: 55,
@@ -316,15 +316,15 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: isTopLayer
                               ? Colors.white
-                              : const Color(0xFF2A3A7C),
+                              : const Color(0xFF0F766E),
                           foregroundColor: isTopLayer
-                              ? const Color(0xFF2A3A7C)
+                              ? const Color(0xFF0F766E)
                               : Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
                           ),
                           elevation: isTopLayer ? 0 : 5,
-                          shadowColor: isTopLayer ? Colors.transparent : const Color(0xFF2A3A7C).withOpacity(0.5),
+                          shadowColor: isTopLayer ? Colors.transparent : const Color(0xFF0F766E).withOpacity(0.5),
                         ),
                         onPressed:
                             _pinController.text.length == 6 &&
@@ -365,3 +365,5 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     );
   }
 }
+
+

@@ -542,6 +542,12 @@ abstract class AppLocalizations {
   /// **'Smart Scenes'**
   String get scene_title;
 
+  /// No description provided for @scene_empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No scenes available'**
+  String get scene_empty;
+
   /// No description provided for @scene_leave.
   ///
   /// In en, this message translates to:
@@ -1073,7 +1079,7 @@ abstract class AppLocalizations {
   /// No description provided for @btn_add_device.
   ///
   /// In en, this message translates to:
-  /// **'Add Device'**
+  /// **'Add New Device'**
   String get btn_add_device;
 
   /// No description provided for @edit_relay.
@@ -2489,7 +2495,7 @@ abstract class AppLocalizations {
   /// No description provided for @status_unlinked.
   ///
   /// In en, this message translates to:
-  /// **'Not linked'**
+  /// **'Unlinked'**
   String get status_unlinked;
 
   /// No description provided for @status_linked_safe.
@@ -2959,6 +2965,1464 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Confirm'**
   String get confirm;
+
+  /// No description provided for @confirm_exit.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Exit'**
+  String get confirm_exit;
+
+  /// No description provided for @msg_unsaved_changes.
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved changes. Are you sure you want to exit?'**
+  String get msg_unsaved_changes;
+
+  /// No description provided for @app_version_title.
+  ///
+  /// In en, this message translates to:
+  /// **'VERSION & UPDATES'**
+  String get app_version_title;
+
+  /// No description provided for @check_for_updates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for new updates'**
+  String get check_for_updates;
+
+  /// No description provided for @btn_check.
+  ///
+  /// In en, this message translates to:
+  /// **'Check'**
+  String get btn_check;
+
+  /// No description provided for @checking_update.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates...'**
+  String get checking_update;
+
+  /// No description provided for @update_dialog_critical_badge.
+  ///
+  /// In en, this message translates to:
+  /// **'CRITICAL UPDATE'**
+  String get update_dialog_critical_badge;
+
+  /// No description provided for @update_dialog_new_badge.
+  ///
+  /// In en, this message translates to:
+  /// **'NEW VERSION AVAILABLE'**
+  String get update_dialog_new_badge;
+
+  /// No description provided for @current_version.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get current_version;
+
+  /// No description provided for @latest_version.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest'**
+  String get latest_version;
+
+  /// No description provided for @whats_new_in_release.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new in this release:'**
+  String get whats_new_in_release;
+
+  /// No description provided for @btn_later.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get btn_later;
+
+  /// No description provided for @btn_update_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Now'**
+  String get btn_update_now;
+
+  /// No description provided for @err_cannot_check_update.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to check for updates at this time. Please try again later.'**
+  String get err_cannot_check_update;
+
+  /// No description provided for @msg_app_up_to_date.
+  ///
+  /// In en, this message translates to:
+  /// **'You are using the latest version!'**
+  String get msg_app_up_to_date;
+
+  /// No description provided for @downloading_update.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update...'**
+  String get downloading_update;
+
+  /// No description provided for @preparing_download.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing download...'**
+  String get preparing_download;
+
+  /// No description provided for @opening_installer.
+  ///
+  /// In en, this message translates to:
+  /// **'Launching installer...'**
+  String get opening_installer;
+
+  /// No description provided for @download_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not download update from server'**
+  String get download_error;
+
+  /// No description provided for @new_version_available_title.
+  ///
+  /// In en, this message translates to:
+  /// **'🚀 New ZenHome update available!'**
+  String get new_version_available_title;
+
+  /// No description provided for @new_version_available_body.
+  ///
+  /// In en, this message translates to:
+  /// **'A new version is ready. Tap to update now!'**
+  String get new_version_available_body;
+
+  /// No description provided for @has_new_version_badge.
+  ///
+  /// In en, this message translates to:
+  /// **'NEW UPDATE'**
+  String get has_new_version_badge;
+
+  /// No description provided for @btn_download_in_background.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide & Download in background'**
+  String get btn_download_in_background;
+
+  /// No description provided for @downloading_in_background_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading ZenHome update'**
+  String get downloading_in_background_title;
+
+  /// No description provided for @download_complete_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Update download completed'**
+  String get download_complete_title;
+
+  /// No description provided for @download_complete_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening installer...'**
+  String get download_complete_body;
+
+  /// No description provided for @tab_scenes.
+  ///
+  /// In en, this message translates to:
+  /// **'Scenes'**
+  String get tab_scenes;
+
+  /// No description provided for @tab_automation.
+  ///
+  /// In en, this message translates to:
+  /// **'Automations'**
+  String get tab_automation;
+
+  /// No description provided for @automation_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Timers & Automated Schedules'**
+  String get automation_subtitle;
+
+  /// No description provided for @device_not_linked_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Not Linked'**
+  String get device_not_linked_title;
+
+  /// No description provided for @device_not_linked_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Utilities require pairing with a ZenHome Hub controller to run scenes and automations.'**
+  String get device_not_linked_desc;
+
+  /// No description provided for @device_offline_title.
+  ///
+  /// In en, this message translates to:
+  /// **'System is Offline'**
+  String get device_offline_title;
+
+  /// No description provided for @device_offline_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'ZenHome Hub controller is unreachable. Waiting to reconnect to device...'**
+  String get device_offline_desc;
+
+  /// No description provided for @btn_setup_hub.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up Wi-Fi Hub'**
+  String get btn_setup_hub;
+
+  /// No description provided for @btn_reconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry Connection'**
+  String get btn_reconnect;
+
+  /// No description provided for @not_set.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get not_set;
+
+  /// No description provided for @full_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Full name'**
+  String get full_name;
+
+  /// No description provided for @linked.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked'**
+  String get linked;
+
+  /// No description provided for @unlink.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlink'**
+  String get unlink;
+
+  /// No description provided for @link.
+  ///
+  /// In en, this message translates to:
+  /// **'Link'**
+  String get link;
+
+  /// No description provided for @security_and_devices.
+  ///
+  /// In en, this message translates to:
+  /// **'Security & Devices'**
+  String get security_and_devices;
+
+  /// No description provided for @danger_zone.
+  ///
+  /// In en, this message translates to:
+  /// **'Danger Zone'**
+  String get danger_zone;
+
+  /// No description provided for @email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get email;
+
+  /// No description provided for @already_have_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account?'**
+  String get already_have_account;
+
+  /// No description provided for @access_restricted.
+  ///
+  /// In en, this message translates to:
+  /// **'Access restricted'**
+  String get access_restricted;
+
+  /// No description provided for @manage_members.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage members'**
+  String get manage_members;
+
+  /// No description provided for @online.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get online;
+
+  /// No description provided for @offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get offline;
+
+  /// No description provided for @btn_add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get btn_add;
+
+  /// No description provided for @err_only_gmail_supported.
+  ///
+  /// In en, this message translates to:
+  /// **'Only Google accounts ending in @gmail.com are supported!'**
+  String get err_only_gmail_supported;
+
+  /// No description provided for @reauth_google_select_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select the correct linked Google account ({email}) to verify!'**
+  String reauth_google_select_account(String email);
+
+  /// No description provided for @email_google.
+  ///
+  /// In en, this message translates to:
+  /// **'Email (Google)'**
+  String get email_google;
+
+  /// No description provided for @update_phone_tooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Phone (OTP)'**
+  String get update_phone_tooltip;
+
+  /// No description provided for @report_bug_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Report Issue & Feedback'**
+  String get report_bug_title;
+
+  /// No description provided for @report_bug_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Send feedback directly to the development team'**
+  String get report_bug_desc;
+
+  /// No description provided for @err_esp_required_for_invite.
+  ///
+  /// In en, this message translates to:
+  /// **'You must link an ESP32 central hub to this home before inviting members.'**
+  String get err_esp_required_for_invite;
+
+  /// No description provided for @esp_required_for_invite_title.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub Required'**
+  String get esp_required_for_invite_title;
+
+  /// No description provided for @esp_required_for_invite_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Home sharing requires your home to be paired with a ZenHome Central Hub.'**
+  String get esp_required_for_invite_desc;
+
+  /// No description provided for @btn_link_hub_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up Wi-Fi Hub Now'**
+  String get btn_link_hub_now;
+
+  /// No description provided for @invite_member_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite family members to monitor and control smart home devices together'**
+  String get invite_member_subtitle;
+
+  /// No description provided for @role_co_owner_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Full management & configuration rights'**
+  String get role_co_owner_desc;
+
+  /// No description provided for @role_member_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Device control & status viewing'**
+  String get role_member_desc;
+
+  /// No description provided for @member_active.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get member_active;
+
+  /// No description provided for @member_disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended'**
+  String get member_disabled;
+
+  /// No description provided for @automation_edit_allowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Can edit automations'**
+  String get automation_edit_allowed;
+
+  /// No description provided for @automation_edit_denied.
+  ///
+  /// In en, this message translates to:
+  /// **'View-only automations'**
+  String get automation_edit_denied;
+
+  /// No description provided for @admin_mapping_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure relay pins and map rooms for your devices'**
+  String get admin_mapping_subtitle;
+
+  /// No description provided for @sort_devices.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort Devices'**
+  String get sort_devices;
+
+  /// No description provided for @sorted_devices_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Devices sorted successfully'**
+  String get sorted_devices_success;
+
+  /// No description provided for @err_link_esp_first.
+  ///
+  /// In en, this message translates to:
+  /// **'Please link an ESP32 hub before adding new devices!'**
+  String get err_link_esp_first;
+
+  /// No description provided for @device_empty_list.
+  ///
+  /// In en, this message translates to:
+  /// **'No devices found'**
+  String get device_empty_list;
+
+  /// No description provided for @device_empty_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the + button below to add your first relay device for this home.'**
+  String get device_empty_desc;
+
+  /// No description provided for @btn_update_device.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Device'**
+  String get btn_update_device;
+
+  /// No description provided for @edit_device_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Device'**
+  String get edit_device_title;
+
+  /// No description provided for @add_device_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Relay Device'**
+  String get add_device_title;
+
+  /// No description provided for @device_name_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Name (e.g. Ceiling Light)'**
+  String get device_name_label;
+
+  /// No description provided for @device_id_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Identifier (Device ID)'**
+  String get device_id_label;
+
+  /// No description provided for @select_pin_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay GPIO Pin (PIN)'**
+  String get select_pin_label;
+
+  /// No description provided for @unsaved_changes_device_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Save device changes?'**
+  String get unsaved_changes_device_title;
+
+  /// No description provided for @unsaved_changes_device_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved device changes. Do you want to save them before leaving?'**
+  String get unsaved_changes_device_desc;
+
+  /// No description provided for @confirm_delete_device_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Device'**
+  String get confirm_delete_device_title;
+
+  /// No description provided for @confirm_delete_device_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to remove this device from this home?'**
+  String get confirm_delete_device_desc;
+
+  /// No description provided for @mark_all_read.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all as read'**
+  String get mark_all_read;
+
+  /// No description provided for @notification_category_all.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get notification_category_all;
+
+  /// No description provided for @notification_category_update.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates'**
+  String get notification_category_update;
+
+  /// No description provided for @notification_category_important.
+  ///
+  /// In en, this message translates to:
+  /// **'Important'**
+  String get notification_category_important;
+
+  /// No description provided for @notification_category_schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedules'**
+  String get notification_category_schedule;
+
+  /// No description provided for @notification_category_timer.
+  ///
+  /// In en, this message translates to:
+  /// **'Timers'**
+  String get notification_category_timer;
+
+  /// No description provided for @notification_category_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get notification_category_action;
+
+  /// No description provided for @notification_category_other.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get notification_category_other;
+
+  /// No description provided for @empty_notification_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your notification inbox is clean. New events will appear here.'**
+  String get empty_notification_desc;
+
+  /// No description provided for @shared_home_badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared Home'**
+  String get shared_home_badge;
+
+  /// No description provided for @no_internet_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No Internet Connection'**
+  String get no_internet_title;
+
+  /// No description provided for @no_internet_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please check your Wi-Fi or cellular (4G/5G) network to continue using ZenHome.'**
+  String get no_internet_desc;
+
+  /// No description provided for @no_internet_banner.
+  ///
+  /// In en, this message translates to:
+  /// **'No Internet connection. Operating in Offline Mode.'**
+  String get no_internet_banner;
+
+  /// No description provided for @internet_restored_banner.
+  ///
+  /// In en, this message translates to:
+  /// **'Internet connection restored.'**
+  String get internet_restored_banner;
+
+  /// No description provided for @btn_continue_offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Offline'**
+  String get btn_continue_offline;
+
+  /// No description provided for @wifi_prep_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Preparation'**
+  String get wifi_prep_title;
+
+  /// No description provided for @wifi_prep_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepare the ZenHome Hub (ESP32) controller before installation.'**
+  String get wifi_prep_desc;
+
+  /// No description provided for @wifi_step1_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Power on the device'**
+  String get wifi_step1_title;
+
+  /// No description provided for @wifi_step1_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a Type-C charger or a stable 5V power supply to power the ZenHome Hub.'**
+  String get wifi_step1_desc;
+
+  /// No description provided for @wifi_step2_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Check status LED'**
+  String get wifi_step2_title;
+
+  /// No description provided for @wifi_step2_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'The blue LED on the board flashes steadily indicating the device is broadcasting setup Wi-Fi AP.'**
+  String get wifi_step2_desc;
+
+  /// No description provided for @wifi_step3_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect phone to device Wi-Fi'**
+  String get wifi_step3_title;
+
+  /// No description provided for @wifi_step3_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Wi-Fi Settings on your phone and select the network starting with \'ZenHome_Setup_...\' (No password required).'**
+  String get wifi_step3_desc;
+
+  /// No description provided for @wifi_step_prep.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparation'**
+  String get wifi_step_prep;
+
+  /// No description provided for @wifi_step_config.
+  ///
+  /// In en, this message translates to:
+  /// **'Config'**
+  String get wifi_step_config;
+
+  /// No description provided for @wifi_step_pair.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing'**
+  String get wifi_step_pair;
+
+  /// No description provided for @wifi_step_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete'**
+  String get wifi_step_done;
+
+  /// No description provided for @wifi_checking_esp.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning for device...'**
+  String get wifi_checking_esp;
+
+  /// No description provided for @wifi_check_esp_btn.
+  ///
+  /// In en, this message translates to:
+  /// **'Check ESP32 connection'**
+  String get wifi_check_esp_btn;
+
+  /// No description provided for @wifi_found_esp.
+  ///
+  /// In en, this message translates to:
+  /// **'Device found!'**
+  String get wifi_found_esp;
+
+  /// No description provided for @wifi_check_conn_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Check connection:'**
+  String get wifi_check_conn_label;
+
+  /// No description provided for @wifi_btn_continue_config.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue: Wi-Fi Setup'**
+  String get wifi_btn_continue_config;
+
+  /// No description provided for @wifi_home_info_section.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Home Wi-Fi (2.4GHz)'**
+  String get wifi_home_info_section;
+
+  /// No description provided for @wifi_admin_pass_section.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Technical Password'**
+  String get wifi_admin_pass_section;
+
+  /// No description provided for @wifi_admin_pass_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Technical Password'**
+  String get wifi_admin_pass_label;
+
+  /// No description provided for @wifi_admin_pass_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Board admin password'**
+  String get wifi_admin_pass_hint;
+
+  /// No description provided for @wifi_confirm_admin_pass_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Technical Password'**
+  String get wifi_confirm_admin_pass_label;
+
+  /// No description provided for @wifi_confirm_admin_pass_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-enter technical password'**
+  String get wifi_confirm_admin_pass_hint;
+
+  /// No description provided for @wifi_mqtt_adv_title.
+  ///
+  /// In en, this message translates to:
+  /// **'MQTT Server Settings (Advanced)'**
+  String get wifi_mqtt_adv_title;
+
+  /// No description provided for @wifi_mqtt_default_cloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Default EMQX Cloud'**
+  String get wifi_mqtt_default_cloud;
+
+  /// No description provided for @wifi_btn_back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get wifi_btn_back;
+
+  /// No description provided for @wifi_btn_start_pairing.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Pairing'**
+  String get wifi_btn_start_pairing;
+
+  /// No description provided for @wifi_pairing_failed_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing Failed'**
+  String get wifi_pairing_failed_title;
+
+  /// No description provided for @wifi_btn_change_wifi_pass.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Wi-Fi Password'**
+  String get wifi_btn_change_wifi_pass;
+
+  /// No description provided for @wifi_btn_retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get wifi_btn_retry;
+
+  /// No description provided for @wifi_pairing_success_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Paired Successfully!'**
+  String get wifi_pairing_success_title;
+
+  /// No description provided for @wifi_pairing_success_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'The ZenHome Hub device has connected to Wi-Fi and is online on the server.'**
+  String get wifi_pairing_success_desc;
+
+  /// No description provided for @wifi_btn_device_mapping.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Mapping'**
+  String get wifi_btn_device_mapping;
+
+  /// No description provided for @wifi_btn_return_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to Home'**
+  String get wifi_btn_return_home;
+
+  /// No description provided for @wifi_esp_connected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected to ESP32 ({mac})'**
+  String wifi_esp_connected(Object mac);
+
+  /// No description provided for @wifi_esp_not_found.
+  ///
+  /// In en, this message translates to:
+  /// **'Device not found. Make sure phone is connected to \'ZenHome_Setup_...\' Wi-Fi'**
+  String get wifi_esp_not_found;
+
+  /// No description provided for @wifi_waiting_mqtt.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for device to connect to Wi-Fi and become online on MQTT server...'**
+  String get wifi_waiting_mqtt;
+
+  /// No description provided for @wifi_pair_error_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong Wi-Fi password or device cannot connect to server. Please hold the BOOT button for 5s to reset and retry.'**
+  String get wifi_pair_error_hint;
+
+  /// No description provided for @bug_report_category_ui.
+  ///
+  /// In en, this message translates to:
+  /// **'User Interface'**
+  String get bug_report_category_ui;
+
+  /// No description provided for @bug_report_category_network.
+  ///
+  /// In en, this message translates to:
+  /// **'Network Connection'**
+  String get bug_report_category_network;
+
+  /// No description provided for @bug_report_category_control.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Control'**
+  String get bug_report_category_control;
+
+  /// No description provided for @bug_report_category_scene.
+  ///
+  /// In en, this message translates to:
+  /// **'Scenes & Automation'**
+  String get bug_report_category_scene;
+
+  /// No description provided for @bug_report_category_other.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get bug_report_category_other;
+
+  /// No description provided for @bug_report_err_empty_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a bug title summary!'**
+  String get bug_report_err_empty_title;
+
+  /// No description provided for @bug_report_err_empty_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please describe the issue in detail!'**
+  String get bug_report_err_empty_desc;
+
+  /// No description provided for @bug_report_device_mobile.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile'**
+  String get bug_report_device_mobile;
+
+  /// No description provided for @bug_report_user_zenhome.
+  ///
+  /// In en, this message translates to:
+  /// **'ZenHome User'**
+  String get bug_report_user_zenhome;
+
+  /// No description provided for @bug_report_success_msg.
+  ///
+  /// In en, this message translates to:
+  /// **'Bug report submitted successfully! The admin team will review your feedback.'**
+  String get bug_report_success_msg;
+
+  /// No description provided for @bug_report_send_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to submit report:'**
+  String get bug_report_send_failed;
+
+  /// No description provided for @bug_report_modal_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Bug Report & Feedback'**
+  String get bug_report_modal_title;
+
+  /// No description provided for @bug_report_modal_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback will be sent directly to the administrators'**
+  String get bug_report_modal_subtitle;
+
+  /// No description provided for @bug_report_category_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Issue Category'**
+  String get bug_report_category_label;
+
+  /// No description provided for @bug_report_title_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary Title'**
+  String get bug_report_title_label;
+
+  /// No description provided for @bug_report_title_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'E.g. Fan button does not respond...'**
+  String get bug_report_title_hint;
+
+  /// No description provided for @bug_report_desc_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Detailed Description'**
+  String get bug_report_desc_label;
+
+  /// No description provided for @bug_report_desc_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe specific steps to reproduce or when the issue happened...'**
+  String get bug_report_desc_hint;
+
+  /// No description provided for @bug_report_auto_attach_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Device info & app version will be automatically attached for best support.'**
+  String get bug_report_auto_attach_hint;
+
+  /// No description provided for @bug_report_btn_submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Bug Report'**
+  String get bug_report_btn_submit;
+
+  /// No description provided for @tooltip_change_phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Change phone number'**
+  String get tooltip_change_phone;
+
+  /// No description provided for @err_create_pass_before_unlink_google.
+  ///
+  /// In en, this message translates to:
+  /// **'You must create a password (in Change Password) before unlinking Google to be able to sign in.'**
+  String get err_create_pass_before_unlink_google;
+
+  /// No description provided for @err_create_pass_before_unlink_phone.
+  ///
+  /// In en, this message translates to:
+  /// **'You must create a password (in Change Password) before unlinking phone to ensure you can still sign in.'**
+  String get err_create_pass_before_unlink_phone;
+
+  /// No description provided for @btn_leave.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get btn_leave;
+
+  /// No description provided for @btn_stay.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay'**
+  String get btn_stay;
+
+  /// No description provided for @register_sms_otp_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'A verification OTP will be sent via SMS to activate your account.'**
+  String get register_sms_otp_hint;
+
+  /// No description provided for @register_btn_get_otp.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue to receive OTP'**
+  String get register_btn_get_otp;
+
+  /// No description provided for @register_verified_phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified: {phone}'**
+  String register_verified_phone(Object phone);
+
+  /// No description provided for @err_reauth_select_google.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select the matching linked Google account ({email}) to authenticate!'**
+  String err_reauth_select_google(Object email);
+
+  /// No description provided for @err_google_auth_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Google authentication error: {err}'**
+  String err_google_auth_failed(Object err);
+
+  /// No description provided for @role_co_owner_full.
+  ///
+  /// In en, this message translates to:
+  /// **'Co-Owner'**
+  String get role_co_owner_full;
+
+  /// No description provided for @device_count_label.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} devices'**
+  String device_count_label(Object count);
+
+  /// No description provided for @relay_device_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay / Devices'**
+  String get relay_device_title;
+
+  /// No description provided for @switching_to_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Switching to {name}...'**
+  String switching_to_home(Object name);
+
+  /// No description provided for @switched_to_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected to {name}'**
+  String switched_to_home(Object name);
+
+  /// No description provided for @update_confirm_cancel_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Cancellation'**
+  String get update_confirm_cancel_title;
+
+  /// No description provided for @update_confirm_cancel_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to cancel downloading this update? Download progress will be stopped.'**
+  String get update_confirm_cancel_desc;
+
+  /// No description provided for @update_keep_downloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Downloading'**
+  String get update_keep_downloading;
+
+  /// No description provided for @update_btn_cancel_download.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel Download'**
+  String get update_btn_cancel_download;
+
+  /// No description provided for @update_download_failed_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Download Failed'**
+  String get update_download_failed_title;
+
+  /// No description provided for @update_troubleshoot_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Troubleshooting Checklist'**
+  String get update_troubleshoot_title;
+
+  /// No description provided for @update_troubleshoot_step1.
+  ///
+  /// In en, this message translates to:
+  /// **'• Ensure phone and ZenHome server computer are on the same Wi-Fi network.'**
+  String get update_troubleshoot_step1;
+
+  /// No description provided for @update_troubleshoot_step2.
+  ///
+  /// In en, this message translates to:
+  /// **'• Check if ZenHome Server (IP: {ip}) is active.'**
+  String update_troubleshoot_step2(Object ip);
+
+  /// No description provided for @update_troubleshoot_step3.
+  ///
+  /// In en, this message translates to:
+  /// **'• If direct in-app download fails, you can download the APK file directly via Browser.'**
+  String get update_troubleshoot_step3;
+
+  /// No description provided for @update_btn_browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Browser'**
+  String get update_btn_browser;
+
+  /// No description provided for @update_cannot_open_link.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open update link: {url}'**
+  String update_cannot_open_link(Object url);
+
+  /// No description provided for @update_direct_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct in-app download failed'**
+  String get update_direct_failed;
+
+  /// No description provided for @update_time_remaining_s.
+  ///
+  /// In en, this message translates to:
+  /// **'~{sec}s remaining'**
+  String update_time_remaining_s(Object sec);
+
+  /// No description provided for @update_time_remaining_ms.
+  ///
+  /// In en, this message translates to:
+  /// **'~{min}m {sec}s remaining'**
+  String update_time_remaining_ms(Object min, Object sec);
+
+  /// No description provided for @update_speed_connecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting...'**
+  String get update_speed_connecting;
+
+  /// No description provided for @wifi_scan_esp_btn.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan ESP32 Signal'**
+  String get wifi_scan_esp_btn;
+
+  /// No description provided for @wifi_scanning_signal.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning for nearby ESP32 signals...'**
+  String get wifi_scanning_signal;
+
+  /// No description provided for @wifi_detected_esp_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected ESP32 Signals ({count})'**
+  String wifi_detected_esp_title(Object count);
+
+  /// No description provided for @wifi_no_esp_found.
+  ///
+  /// In en, this message translates to:
+  /// **'No ESP32 signal detected nearby. Please ensure the board is powered on and LED is blinking in setup mode.'**
+  String get wifi_no_esp_found;
+
+  /// No description provided for @wifi_connect_esp_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to {ssid}'**
+  String wifi_connect_esp_title(Object ssid);
+
+  /// No description provided for @wifi_connect_esp_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the ESP32 AP password (leave empty if open network without password):'**
+  String get wifi_connect_esp_subtitle;
+
+  /// No description provided for @wifi_esp_pass_label.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Wi-Fi Password'**
+  String get wifi_esp_pass_label;
+
+  /// No description provided for @wifi_esp_pass_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave blank if open, or enter AP password'**
+  String get wifi_esp_pass_hint;
+
+  /// No description provided for @wifi_btn_connect_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm & Connect'**
+  String get wifi_btn_connect_now;
+
+  /// No description provided for @wifi_connecting_in_app.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to {ssid}...'**
+  String wifi_connecting_in_app(Object ssid);
+
+  /// No description provided for @wifi_connect_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Successfully connected to {ssid}!'**
+  String wifi_connect_success(Object ssid);
+
+  /// No description provided for @wifi_connect_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to {ssid}. Please retry or open Phone Settings.'**
+  String wifi_connect_failed(Object ssid);
+
+  /// No description provided for @wifi_open_settings_shortcut.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Phone Wi-Fi Settings'**
+  String get wifi_open_settings_shortcut;
+
+  /// No description provided for @wifi_signal_quality.
+  ///
+  /// In en, this message translates to:
+  /// **'Signal: {rssi} dBm ({quality})'**
+  String wifi_signal_quality(Object quality, Object rssi);
+
+  /// No description provided for @wifi_signal_strong.
+  ///
+  /// In en, this message translates to:
+  /// **'Strong'**
+  String get wifi_signal_strong;
+
+  /// No description provided for @wifi_signal_medium.
+  ///
+  /// In en, this message translates to:
+  /// **'Good'**
+  String get wifi_signal_medium;
+
+  /// No description provided for @wifi_signal_weak.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak'**
+  String get wifi_signal_weak;
+
+  /// No description provided for @wifi_scan_nearby_home_btn.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick from Nearby Wi-Fi'**
+  String get wifi_scan_nearby_home_btn;
+
+  /// No description provided for @wifi_select_home_wifi_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Home Wi-Fi (2.4GHz)'**
+  String get wifi_select_home_wifi_title;
+
+  /// No description provided for @wifi_scanning_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning for home Wi-Fi networks...'**
+  String get wifi_scanning_home;
+
+  /// No description provided for @wifi_current_status_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Wi-Fi Status'**
+  String get wifi_current_status_title;
+
+  /// No description provided for @wifi_current_connected_to.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected to: {ssid}'**
+  String wifi_current_connected_to(Object ssid);
+
+  /// No description provided for @wifi_current_disconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Wi-Fi Disconnected'**
+  String get wifi_current_disconnected;
+
+  /// No description provided for @wifi_current_esp_connected.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 SIGNAL CAPTURED'**
+  String get wifi_current_esp_connected;
+
+  /// No description provided for @wifi_current_esp_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone is connected to device Wi-Fi. Tap Handshake Now to verify response.'**
+  String get wifi_current_esp_desc;
+
+  /// No description provided for @wifi_gps_disabled_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Location (GPS) is turned off. Android requires Location to scan Wi-Fi signals.'**
+  String get wifi_gps_disabled_warning;
+
+  /// No description provided for @wifi_btn_turn_on_gps.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn On Location (GPS)'**
+  String get wifi_btn_turn_on_gps;
+
+  /// No description provided for @wifi_adapter_disabled_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Wi-Fi is currently disabled. Please enable Wi-Fi to find ESP32.'**
+  String get wifi_adapter_disabled_warning;
+
+  /// No description provided for @wifi_btn_turn_on_wifi.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn On Wi-Fi'**
+  String get wifi_btn_turn_on_wifi;
+
+  /// No description provided for @wifi_progress_modal_title.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Connection Progress'**
+  String get wifi_progress_modal_title;
+
+  /// No description provided for @wifi_progress_step1_req.
+  ///
+  /// In en, this message translates to:
+  /// **'Requesting Wi-Fi connection ({ssid})...'**
+  String wifi_progress_step1_req(Object ssid);
+
+  /// No description provided for @wifi_progress_step2_route.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuring local IoT Wi-Fi priority...'**
+  String get wifi_progress_step2_route;
+
+  /// No description provided for @wifi_progress_step3_handshake.
+  ///
+  /// In en, this message translates to:
+  /// **'Handshaking with ESP32 ({retry}/6)...'**
+  String wifi_progress_step3_handshake(Object retry);
+
+  /// No description provided for @wifi_progress_step4_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Signal Captured & Connected!'**
+  String get wifi_progress_step4_success;
+
+  /// No description provided for @wifi_progress_step4_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 verified (MAC: {mac}). Moving to configuration...'**
+  String wifi_progress_step4_desc(Object mac);
+
+  /// No description provided for @wifi_progress_step4_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to capture signal or connect to ESP32'**
+  String get wifi_progress_step4_failed;
+
+  /// No description provided for @wifi_progress_failed_reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Possible causes: Device out of range, wrong password, or phone rejected network without Internet.'**
+  String get wifi_progress_failed_reason;
+
+  /// No description provided for @wifi_btn_retry_connect.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry Connection'**
+  String get wifi_btn_retry_connect;
+
+  /// No description provided for @wifi_handshake_now_btn.
+  ///
+  /// In en, this message translates to:
+  /// **'Handshake & Verify Now'**
+  String get wifi_handshake_now_btn;
+
+  /// No description provided for @wifi_handshake_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Handshake successful with ESP32 (MAC: {mac})!'**
+  String wifi_handshake_success(Object mac);
+
+  /// No description provided for @wifi_handshake_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 did not respond at 192.168.4.1. Please retry!'**
+  String get wifi_handshake_failed;
+
+  /// No description provided for @restart_hub_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart ESP32 Hub'**
+  String get restart_hub_title;
+
+  /// No description provided for @restart_hub_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Send remote reboot signal to MCU'**
+  String get restart_hub_desc;
+
+  /// No description provided for @restart_hub_confirm_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart Central Hub ESP32?'**
+  String get restart_hub_confirm_title;
+
+  /// No description provided for @restart_hub_confirm_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'The system will send a remote reboot signal to ESP32. Connections and devices may be temporarily interrupted for 5-10 seconds.'**
+  String get restart_hub_confirm_desc;
+
+  /// No description provided for @restart_hub_offline_err.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub is currently offline. Cannot receive remote reboot command.'**
+  String get restart_hub_offline_err;
+
+  /// No description provided for @restart_hub_success_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Reboot Command Sent'**
+  String get restart_hub_success_title;
+
+  /// No description provided for @restart_hub_success_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub received command and is restarting. The system will automatically reconnect when ready.'**
+  String get restart_hub_success_desc;
+
+  /// No description provided for @unlink_hub_menu_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlink Hub'**
+  String get unlink_hub_menu_title;
+
+  /// No description provided for @unlink_hub_confirm_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Wipe & Unlink Hub?'**
+  String get unlink_hub_confirm_title;
+
+  /// No description provided for @unlink_hub_confirm_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'This command will send a signal to wipe configuration (/config.json) on ESP32, turn off all relays, and reboot ESP32 into AP setup mode.'**
+  String get unlink_hub_confirm_desc;
+
+  /// No description provided for @unlink_hub_offline_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub is offline. For security and remote chip data wipe (Factory Reset), the Hub must be Online.'**
+  String get unlink_hub_offline_warning;
+
+  /// No description provided for @unlink_hub_success_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub Unlinked Successfully'**
+  String get unlink_hub_success_title;
+
+  /// No description provided for @unlink_hub_success_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote Reset command sent to ESP32. Device wiped configuration and is rebooting into AP Setup mode.'**
+  String get unlink_hub_success_desc;
+
+  /// No description provided for @err_duplicate_gpio.
+  ///
+  /// In en, this message translates to:
+  /// **'GPIO pin {pin} is already assigned to device \'{name}\'. Please choose another pin!'**
+  String err_duplicate_gpio(Object name, Object pin);
+
+  /// No description provided for @err_duplicate_name_room.
+  ///
+  /// In en, this message translates to:
+  /// **'Device name \'{name}\' already exists in {room}. Please choose a different name!'**
+  String err_duplicate_name_room(Object name, Object room);
+
+  /// No description provided for @mapping_saved_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Mapping Saved'**
+  String get mapping_saved_title;
+
+  /// No description provided for @mapping_saved_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'All device, room, and GPIO mappings have been synced to Cloud and reloaded to ESP32 Hub.'**
+  String get mapping_saved_desc;
 }
 
 class _AppLocalizationsDelegate

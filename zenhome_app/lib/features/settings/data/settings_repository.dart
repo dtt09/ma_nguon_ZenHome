@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingsRepository {
   static const String _themeKey = 'app_theme';
@@ -33,5 +35,27 @@ class SettingsRepository {
   Future<void> setLanguage(String langCode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_langKey, langCode);
+    await syncLanguageToFirestore(langCode);
+  }
+
+  Future<void> syncLanguageToFirestore(String langCode) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final query = await FirebaseFirestore.instance
+            .collection('users')
+            .where('uid', isEqualTo: user.uid)
+            .limit(1)
+            .get();
+        if (query.docs.isNotEmpty) {
+          await query.docs.first.reference.set(
+            {'language': langCode},
+            SetOptions(merge: true),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error syncing language to Firestore: $e');
+    }
   }
 }

@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import 'dart:io';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
@@ -137,7 +137,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color color = isDark ? const Color(0xFF5C8CFF) : const Color(0xFF2A3A7C);
+    Color color = isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E);
     
     int strengthScore = (_hasMinLength ? 1 : 0) +
         (_hasUppercase ? 1 : 0) +
@@ -241,7 +241,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               width: double.infinity, height: 55,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2A3A7C),
+                  backgroundColor: const Color(0xFF0F766E),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))
                 ),
@@ -257,3 +257,5 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     );
   }
 }
+
+

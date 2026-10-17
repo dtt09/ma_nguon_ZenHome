@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,17 +14,20 @@ import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/models/smart_config.dart';
 import 'package:zenhome_app/core/services/session_manager.dart';
 import 'package:zenhome_app/features/home/ui/main_layout.dart';
+import 'package:zenhome_app/features/auth/ui/otp_verification_screen.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   final bool isPhone;
   final String? phoneNumber;
   final String? uid;
+  final int initialTab;
 
   const RegisterScreen({
     super.key,
     this.isPhone = false,
     this.phoneNumber,
     this.uid,
+    this.initialTab = 0,
   });
 
   @override
@@ -31,13 +35,18 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+  late int _selectedTab;
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneInputController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   
   final FocusNode _usernameFocus = FocusNode();
   final FocusNode _nameFocus = FocusNode();
+  final FocusNode _emailFocus = FocusNode();
+  final FocusNode _phoneInputFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
   final FocusNode _confirmPasswordFocus = FocusNode();
   
@@ -58,8 +67,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedTab = widget.isPhone ? 1 : widget.initialTab;
     _usernameFocus.addListener(() { if (mounted) setState(() {}); });
     _nameFocus.addListener(() { if (mounted) setState(() {}); });
+    _emailFocus.addListener(() { if (mounted) setState(() {}); });
+    _phoneInputFocus.addListener(() { if (mounted) setState(() {}); });
     _passwordFocus.addListener(() { if (mounted) setState(() {}); });
     _confirmPasswordFocus.addListener(() { if (mounted) setState(() {}); });
   }
@@ -68,10 +80,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   void dispose() {
     _usernameController.dispose();
     _nameController.dispose();
+    _emailController.dispose();
+    _phoneInputController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _usernameFocus.dispose();
     _nameFocus.dispose();
+    _emailFocus.dispose();
+    _phoneInputFocus.dispose();
     _passwordFocus.dispose();
     _confirmPasswordFocus.dispose();
     _usernameDebounce?.cancel();
@@ -132,15 +148,82 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
   }
 
+  void _handleSendPhoneOtp() async {
+    final String input = _phoneInputController.text.trim();
+    if (input.isEmpty) {
+      showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_empty_field') ?? 'Vui lòng nhập số điện thoại', isError: true);
+      return;
+    }
+    LoadingOverlay.show(context);
+    try {
+      String phoneNumber = input;
+      if (phoneNumber.startsWith('0')) {
+        phoneNumber = '+84${phoneNumber.substring(1)}';
+      } else if (!phoneNumber.startsWith('+')) {
+        phoneNumber = '+$phoneNumber';
+      }
+
+      final query = await FirebaseFirestore.instance.collection('users').where('phoneNumber', isEqualTo: phoneNumber).get();
+      if (query.docs.isNotEmpty) {
+        LoadingOverlay.hide();
+        showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_phone_already_registered') ?? 'Số điện thoại này đã được đăng ký!', isError: true);
+        return;
+      }
+
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          try {
+            final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+            final uid = userCred.user!.uid;
+            LoadingOverlay.hide();
+            if (mounted) {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => RegisterScreen(isPhone: true, phoneNumber: phoneNumber, uid: uid)));
+            }
+          } catch (e) {
+            LoadingOverlay.hide();
+            showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.toString(), isError: true);
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          LoadingOverlay.hide();
+          showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.message ?? context.tr('err_send_otp') ?? 'Lỗi gửi mã OTP', isError: true);
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          LoadingOverlay.hide();
+          if (mounted) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => OtpVerificationScreen(
+              verificationId: verificationId,
+              phoneNumber: phoneNumber,
+              isRegistration: true,
+            )));
+          }
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {},
+      );
+    } catch (e) {
+      LoadingOverlay.hide();
+      showFloatingToast(context, context.tr('error') ?? 'Lỗi', '${context.tr('err_generic') ?? "Đã xảy ra lỗi"}: $e', isError: true);
+    }
+  }
+
   void _showConfirmationDialog() async {
     final String username = _usernameController.text.trim();
     final String displayName = _nameController.text.trim();
     final String password = _passwordController.text;
     final String confirmPassword = _confirmPasswordController.text;
+    final String email = _emailController.text.trim();
 
     if (username.isEmpty || displayName.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_empty_field') ?? 'Vui lòng nhập đầy đủ thông tin!', isError: true);
       return;
+    }
+
+    if (_selectedTab == 0 && widget.phoneNumber == null && FirebaseAuth.instance.currentUser == null) {
+      if (email.isEmpty || !email.toLowerCase().endsWith('@gmail.com')) {
+        showFloatingToast(context, context.tr('error'), context.tr('err_only_gmail_supported'), isError: true);
+        return;
+      }
     }
 
     if (password != confirmPassword) {
@@ -192,7 +275,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               const SizedBox(height: 8),
               Text('• ${context.tr('username_label_full') ?? 'Tên đăng nhập (Username):'} $username', style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              if (widget.isPhone && widget.phoneNumber != null)
+              if (_selectedTab == 0 && email.isNotEmpty)
+                Text('• Email: $email', style: const TextStyle(fontWeight: FontWeight.bold))
+              else if (widget.isPhone && widget.phoneNumber != null)
                 Text('• ${context.tr('phone_label') ?? 'Số điện thoại:'} ${widget.phoneNumber}', style: const TextStyle(fontWeight: FontWeight.bold))
               else
                 Text('• ${context.tr('google_linked') ?? 'Liên kết Google: Đã xác thực'}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
@@ -203,10 +288,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('btn_edit_info') ?? 'Sửa lại', style: const TextStyle(color: Colors.grey))),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
               onPressed: () {
                 Navigator.pop(ctx);
-                _executeRegistration(username, displayName, password);
+                _executeRegistration(username, displayName, password, email);
               },
               child: Text(context.tr('btn_create_account') ?? 'Tạo tài khoản'),
             ),
@@ -220,25 +305,29 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
-  void _executeRegistration(String username, String displayName, String password) async {
+  void _executeRegistration(String username, String displayName, String password, String email) async {
     LoadingOverlay.show(context);
     try {
+      User? currentUser = FirebaseAuth.instance.currentUser;
       
-      // 2. Xử lý liên kết tài khoản Firebase Auth
-      final currentUser = FirebaseAuth.instance.currentUser;
-      
-      if (widget.isPhone && widget.phoneNumber != null) {
+      // Trường hợp 1: Đăng ký trực tiếp bằng Email & Mật khẩu
+      if (_selectedTab == 0 && widget.phoneNumber == null && currentUser == null) {
+        final userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        currentUser = userCred.user;
+      }
+      // Trường hợp 2: Đăng ký bằng Số điện thoại (sau khi đã xác thực OTP)
+      else if (widget.isPhone && widget.phoneNumber != null) {
         final String dummyEmail = '${widget.phoneNumber!.replaceAll('+', '')}@zenhome.local';
         
         if (currentUser != null) {
           try {
-            // Liên kết Email/Password vào tài khoản SĐT đang đăng nhập hiện tại
             final cred = EmailAuthProvider.credential(email: dummyEmail, password: password);
             await currentUser.linkWithCredential(cred);
           } on FirebaseAuthException catch (e) {
              if (e.code == 'credential-already-in-use' || e.code == 'email-already-in-use') {
-                // Nếu email dummy đã bị dùng (ví dụ đăng ký lỗi trước đó), ta thử đăng nhập vào nó và liên kết ngược lại số điện thoại (trường hợp hiếm)
-                // Hoặc đơn giản là update email/password nếu được
                 try {
                    await currentUser.updatePassword(password);
                 } catch (_) {
@@ -253,32 +342,41 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
              }
           }
         }
-      } else {
-        // Tài khoản Google: đã login, giờ chỉ cần liên kết mật khẩu để sau này có thể đăng nhập bằng Email/Pass
-        if (currentUser != null && currentUser.email != null) {
-          try {
-            final cred = EmailAuthProvider.credential(email: currentUser.email!, password: password);
-            await currentUser.linkWithCredential(cred);
-          } catch (e) {
-            // Nếu đã liên kết hoặc có lỗi, thử updatePassword
-            await currentUser.updatePassword(password);
-          }
+      } 
+      // Trường hợp 3: Đăng ký Google bổ sung mật khẩu
+      else if (currentUser != null && currentUser.email != null) {
+        try {
+          final cred = EmailAuthProvider.credential(email: currentUser.email!, password: password);
+          await currentUser.linkWithCredential(cred);
+        } catch (e) {
+          await currentUser.updatePassword(password);
         }
       }
 
-      final updatedUser = FirebaseAuth.instance.currentUser;
+      final updatedUser = FirebaseAuth.instance.currentUser ?? currentUser;
       if (updatedUser != null) {
           await updatedUser.updateDisplayName(displayName);
       }
 
       // 3. Lưu thông tin user vào Firestore
-      await FirebaseFirestore.instance.collection('users').doc(username).set({
+      String emailToSave = '';
+      if (updatedUser?.email != null && !updatedUser!.email!.endsWith('@zenhome.local') && updatedUser!.email!.toLowerCase().endsWith('@gmail.com')) {
+        emailToSave = updatedUser.email!;
+      } else if (email.isNotEmpty && email.toLowerCase().endsWith('@gmail.com')) {
+        emailToSave = email;
+      }
+
+      final Map<String, dynamic> userDataToSave = {
         'uid': updatedUser?.uid ?? widget.uid,
         'phoneNumber': widget.phoneNumber ?? '',
-        'email': updatedUser?.email ?? '',
         'displayName': displayName,
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      };
+      if (emailToSave.isNotEmpty) {
+        userDataToSave['email'] = emailToSave;
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(username).set(userDataToSave);
 
       // 4. Tạo cấu trúc config mẫu
       List<SmartConfig> myHomes = [
@@ -295,7 +393,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       await ref.read(homeConfigProvider).setAvailableHomes(myHomes);
 
       await LoadingOverlay.hideSuccess();
-      
       await SessionManager.recordSession();
       
       if (mounted) {
@@ -334,7 +431,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color primaryColor = isDark ? const Color(0xFF5C8CFF) : const Color(0xFF2A3A7C);
+    Color primaryColor = isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E);
     Color textColor = isDark ? Colors.white : Colors.black87;
 
     int strengthScore = (_hasMinLength ? 1 : 0) +
@@ -431,163 +528,355 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Builder(
-                            builder: (context) {
-                              Widget? suffixIcon;
-                              if (_usernameController.text.trim().isNotEmpty) {
-                                if (_isCheckingUsername) {
-                                  suffixIcon = Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: SizedBox(
-                                      width: 20, height: 20,
-                                      child: LogoLoadingIndicator(color: primaryColor, size: 24),
+                          // 1. Segmented Control Switcher (Email vs Số điện thoại)
+                          if (widget.phoneNumber == null && FirebaseAuth.instance.currentUser == null)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 22),
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF090C15) : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        setState(() => _selectedTab = 0);
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 250),
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: _selectedTab == 0 ? const Color(0xFF0F766E) : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(12),
+                                          boxShadow: _selectedTab == 0
+                                              ? [BoxShadow(color: const Color(0xFF0F766E).withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 3))]
+                                              : [],
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.email_outlined, size: 18, color: _selectedTab == 0 ? Colors.white : (isDark ? Colors.white70 : Colors.black87)),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              context.tr('email') ?? 'Email',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: _selectedTab == 0 ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                  );
-                                } else if (_usernameError != null) {
-                                  suffixIcon = const Icon(Icons.error, color: Colors.red);
-                                } else if (_isUsernameAvailable == true) {
-                                  suffixIcon = const Icon(Icons.check_circle, color: Colors.green);
-                                }
-                              }
-
-                              Widget field = TextField(
-                                controller: _usernameController,
-                                focusNode: _usernameFocus,
-                                onChanged: _checkUsernameValidity,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
-                                  labelText: context.tr('username_label') ?? 'Username (Dùng để định danh)',
-                                  labelStyle: TextStyle(color: _usernameFocus.hasFocus ? primaryColor : textColor.withOpacity(0.6)),
-                                  prefixIcon: Icon(Icons.alternate_email, color: _usernameFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
-                                  suffixIcon: suffixIcon,
-                                  floatingLabelBehavior: FloatingLabelBehavior.auto,
-                                  errorText: _usernameError,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 2.0)),
-                                  errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.red, width: 1.0)),
-                                  focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.red, width: 2.0)),
-                                ),
-                                style: TextStyle(color: textColor),
-                              );
-                              return field;
-                            }
-                          ),
-                          const SizedBox(height: 15),
-                          
-                          Builder(
-                            builder: (context) {
-                              Widget field = TextField(
-                                controller: _nameController,
-                                focusNode: _nameFocus,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
-                                  labelText: context.tr('display_name') ?? 'Tên hiển thị',
-                                  labelStyle: TextStyle(color: _nameFocus.hasFocus ? primaryColor : textColor.withOpacity(0.6)),
-                                  prefixIcon: Icon(Icons.badge, color: _nameFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
-                                  floatingLabelBehavior: FloatingLabelBehavior.auto,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 2.0)),
-                                ),
-                                style: TextStyle(color: textColor),
-                              );
-                              return field;
-                            }
-                          ),
-                          const SizedBox(height: 15),
-                          
-                          Builder(
-                            builder: (context) {
-                              Widget field = TextField(
-                                controller: _passwordController,
-                                focusNode: _passwordFocus,
-                                obscureText: _obscurePassword,
-                                onChanged: _checkPasswordStrength,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
-                                  labelText: context.tr('password_label') ?? 'Mật khẩu đăng nhập',
-                                  labelStyle: TextStyle(color: _passwordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.6)),
-                                  prefixIcon: Icon(Icons.lock, color: _passwordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: _passwordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
-                                    onPressed: () { setState(() => _obscurePassword = !_obscurePassword); },
                                   ),
-                                  floatingLabelBehavior: FloatingLabelBehavior.auto,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 2.0)),
-                                ),
-                                style: TextStyle(color: textColor),
-                              );
-                              return field;
-                            }
-                          ),
-                          const SizedBox(height: 10),
-                          
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(5),
-                                child: LinearProgressIndicator(
-                                  value: strengthPercent,
-                                  backgroundColor: textColor.withOpacity(0.1),
-                                  color: strengthColor,
-                                  minHeight: 6,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildRequirement(context.tr('req_min_length') ?? 'Ít nhất 8 ký tự', _hasMinLength, textColor),
-                              _buildRequirement(context.tr('req_uppercase') ?? 'Chữ hoa', _hasUppercase, textColor),
-                              _buildRequirement(context.tr('req_lowercase') ?? 'Chữ thường', _hasLowercase, textColor),
-                              _buildRequirement(context.tr('req_number') ?? 'Chữ số', _hasNumber, textColor),
-                              _buildRequirement(context.tr('req_special_char') ?? 'Ký tự đặc biệt (!@#\$%^&*)', _hasSpecialChar, textColor),
-                            ],
-                          ),
-                          const SizedBox(height: 15),
-                          
-                          Builder(
-                            builder: (context) {
-                              Widget field = TextField(
-                                controller: _confirmPasswordController,
-                                focusNode: _confirmPasswordFocus,
-                                obscureText: _obscureConfirmPassword,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
-                                  labelText: context.tr('confirm_password') ?? 'Xác nhận mật khẩu',
-                                  labelStyle: TextStyle(color: _confirmPasswordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.6)),
-                                  prefixIcon: Icon(Icons.lock_outline, color: _confirmPasswordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: _confirmPasswordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
-                                    onPressed: () { setState(() => _obscureConfirmPassword = !_obscureConfirmPassword); },
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        setState(() => _selectedTab = 1);
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 250),
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: _selectedTab == 1 ? const Color(0xFF0F766E) : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(12),
+                                          boxShadow: _selectedTab == 1
+                                              ? [BoxShadow(color: const Color(0xFF0F766E).withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 3))]
+                                              : [],
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.phone_android_rounded, size: 18, color: _selectedTab == 1 ? Colors.white : (isDark ? Colors.white70 : Colors.black87)),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              context.tr('phone_label') ?? 'Số điện thoại',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: _selectedTab == 1 ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  floatingLabelBehavior: FloatingLabelBehavior.auto,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 2.0)),
-                                ),
-                                style: TextStyle(color: textColor),
-                              );
-                              return field;
-                            }
-                          ),
-                          const SizedBox(height: 30),
-                          
-                          SizedBox(
-                            width: double.infinity,
-                            height: 55,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2A3A7C),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                                elevation: 5,
-                                shadowColor: const Color(0xFF2A3A7C).withOpacity(0.5),
+                                ],
                               ),
-                              onPressed: _showConfirmationDialog,
-                              child: Text(context.tr('btn_continue') ?? 'Bắt đầu sử dụng', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                             ),
+
+                          // 2. PHÂN HỆ: Nhập Số điện thoại để gửi OTP (khi chưa xác thực)
+                          if (_selectedTab == 1 && widget.phoneNumber == null) ...[
+                            TextField(
+                              controller: _phoneInputController,
+                              focusNode: _phoneInputFocus,
+                              keyboardType: TextInputType.phone,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
+                                labelText: context.tr('phone_label') ?? 'Số điện thoại',
+                                hintText: '0912 345 678',
+                                labelStyle: TextStyle(color: _phoneInputFocus.hasFocus ? primaryColor : textColor.withOpacity(0.6)),
+                                prefixIcon: Icon(Icons.phone_android_rounded, color: _phoneInputFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 2.0)),
+                              ),
+                              style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: (isDark ? Colors.white : Colors.blue).withOpacity(0.06),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: (isDark ? Colors.white10 : Colors.blue.withOpacity(0.2))),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.info_outline_rounded, size: 18, color: isDark ? Colors.white70 : Colors.blue),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      context.tr('register_sms_otp_hint'),
+                                      style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0F766E),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                  elevation: 4,
+                                ),
+                                onPressed: _handleSendPhoneOtp,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.sms_rounded, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(context.tr('register_btn_get_otp'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ] else ...[
+                            // 3. PHÂN HỆ: Đăng ký bằng Email HOẶC Hoàn tất sau khi xác thực Phone
+                            if (widget.phoneNumber != null)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      context.tr('register_verified_phone').replaceAll('{phone}', widget.phoneNumber ?? ''),
+                                      style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF10B981), fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                            Builder(
+                              builder: (context) {
+                                Widget? suffixIcon;
+                                if (_usernameController.text.trim().isNotEmpty) {
+                                  if (_isCheckingUsername) {
+                                    suffixIcon = Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: SizedBox(
+                                        width: 20, height: 20,
+                                        child: LogoLoadingIndicator(color: primaryColor, size: 24),
+                                      ),
+                                    );
+                                  } else if (_usernameError != null) {
+                                    suffixIcon = const Icon(Icons.error, color: Colors.red);
+                                  } else if (_isUsernameAvailable == true) {
+                                    suffixIcon = const Icon(Icons.check_circle, color: Colors.green);
+                                  }
+                                }
+
+                                return TextField(
+                                  controller: _usernameController,
+                                  focusNode: _usernameFocus,
+                                  onChanged: _checkUsernameValidity,
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
+                                    labelText: context.tr('username_label') ?? 'Username (Định danh duy nhất)',
+                                    labelStyle: TextStyle(color: _usernameFocus.hasFocus ? primaryColor : textColor.withOpacity(0.6)),
+                                    prefixIcon: Icon(Icons.alternate_email, color: _usernameFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
+                                    suffixIcon: suffixIcon,
+                                    floatingLabelBehavior: FloatingLabelBehavior.auto,
+                                    errorText: _usernameError,
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 2.0)),
+                                    errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.red, width: 1.0)),
+                                    focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.red, width: 2.0)),
+                                  ),
+                                  style: TextStyle(color: textColor),
+                                );
+                              }
+                            ),
+                            const SizedBox(height: 15),
+                            
+                            TextField(
+                              controller: _nameController,
+                              focusNode: _nameFocus,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
+                                labelText: context.tr('display_name') ?? 'Họ và tên hiển thị',
+                                labelStyle: TextStyle(color: _nameFocus.hasFocus ? primaryColor : textColor.withOpacity(0.6)),
+                                prefixIcon: Icon(Icons.badge, color: _nameFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
+                                floatingLabelBehavior: FloatingLabelBehavior.auto,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 2.0)),
+                              ),
+                              style: TextStyle(color: textColor),
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Trường nhập Email (nếu đăng ký bằng Email)
+                            if (_selectedTab == 0 && widget.phoneNumber == null && FirebaseAuth.instance.currentUser == null) ...[
+                              TextField(
+                                controller: _emailController,
+                                focusNode: _emailFocus,
+                                keyboardType: TextInputType.emailAddress,
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
+                                  labelText: context.tr('email') ?? 'Địa chỉ Email',
+                                  labelStyle: TextStyle(color: _emailFocus.hasFocus ? primaryColor : textColor.withOpacity(0.6)),
+                                  prefixIcon: Icon(Icons.email_outlined, color: _emailFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
+                                  floatingLabelBehavior: FloatingLabelBehavior.auto,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 2.0)),
+                                ),
+                                style: TextStyle(color: textColor),
+                              ),
+                              const SizedBox(height: 15),
+                            ],
+                            
+                            TextField(
+                              controller: _passwordController,
+                              focusNode: _passwordFocus,
+                              obscureText: _obscurePassword,
+                              onChanged: _checkPasswordStrength,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
+                                labelText: context.tr('password_label') ?? 'Mật khẩu đăng nhập',
+                                labelStyle: TextStyle(color: _passwordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.6)),
+                                prefixIcon: Icon(Icons.lock, color: _passwordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
+                                suffixIcon: IconButton(
+                                  icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: _passwordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
+                                  onPressed: () { setState(() => _obscurePassword = !_obscurePassword); },
+                                ),
+                                floatingLabelBehavior: FloatingLabelBehavior.auto,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 2.0)),
+                              ),
+                              style: TextStyle(color: textColor),
+                            ),
+                            const SizedBox(height: 10),
+                            
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(5),
+                                  child: LinearProgressIndicator(
+                                    value: strengthPercent,
+                                    backgroundColor: textColor.withOpacity(0.1),
+                                    color: strengthColor,
+                                    minHeight: 6,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                _buildRequirement(context.tr('req_min_length') ?? 'Ít nhất 8 ký tự', _hasMinLength, textColor),
+                                _buildRequirement(context.tr('req_uppercase') ?? 'Chữ hoa', _hasUppercase, textColor),
+                                _buildRequirement(context.tr('req_lowercase') ?? 'Chữ thường', _hasLowercase, textColor),
+                                _buildRequirement(context.tr('req_number') ?? 'Chữ số', _hasNumber, textColor),
+                                _buildRequirement(context.tr('req_special_char') ?? 'Ký tự đặc biệt (!@#\$%^&*)', _hasSpecialChar, textColor),
+                              ],
+                            ),
+                            const SizedBox(height: 15),
+                            
+                            TextField(
+                              controller: _confirmPasswordController,
+                              focusNode: _confirmPasswordFocus,
+                              obscureText: _obscureConfirmPassword,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
+                                labelText: context.tr('confirm_password') ?? 'Xác nhận mật khẩu',
+                                labelStyle: TextStyle(color: _confirmPasswordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.6)),
+                                prefixIcon: Icon(Icons.lock_outline, color: _confirmPasswordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
+                                suffixIcon: IconButton(
+                                  icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: _confirmPasswordFocus.hasFocus ? primaryColor : textColor.withOpacity(0.5)),
+                                  onPressed: () { setState(() => _obscureConfirmPassword = !_obscureConfirmPassword); },
+                                ),
+                                floatingLabelBehavior: FloatingLabelBehavior.auto,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor, width: 2.0)),
+                              ),
+                              style: TextStyle(color: textColor),
+                            ),
+                            const SizedBox(height: 28),
+                            
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0F766E),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                  elevation: 5,
+                                  shadowColor: const Color(0xFF0F766E).withOpacity(0.4),
+                                ),
+                                onPressed: _showConfirmationDialog,
+                                child: Text(context.tr('btn_continue') ?? 'Hoàn tất & Bắt đầu', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                context.tr('already_have_account') ?? 'Đã có tài khoản? ',
+                                style: TextStyle(color: textColor.withOpacity(0.7), fontSize: 13),
+                              ),
+                              GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Text(
+                                  context.tr('btn_login') ?? 'Đăng nhập ngay',
+                                  style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -603,3 +892,5 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 }
+
+

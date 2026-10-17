@@ -234,6 +234,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get scene_title => 'Ngữ cảnh thông minh';
 
   @override
+  String get scene_empty => 'Chưa có ngữ cảnh nào';
+
+  @override
   String get scene_leave => 'Rời khỏi nhà';
 
   @override
@@ -502,7 +505,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get tooltip_save_sync => 'Lưu & Đồng bộ';
 
   @override
-  String get btn_add_device => 'Thêm thiết bị';
+  String get btn_add_device => 'Thêm thiết bị mới';
 
   @override
   String get edit_relay => 'Sửa thông số Relay';
@@ -1532,4 +1535,840 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get confirm => 'Xác nhận';
+
+  @override
+  String get confirm_exit => 'Xác nhận thoát';
+
+  @override
+  String get msg_unsaved_changes =>
+      'Bạn có thay đổi chưa lưu. Bạn có chắc chắn muốn thoát?';
+
+  @override
+  String get app_version_title => 'PHIÊN BẢN & CẬP NHẬT';
+
+  @override
+  String get check_for_updates => 'Kiểm tra bản cập nhật mới';
+
+  @override
+  String get btn_check => 'Kiểm tra';
+
+  @override
+  String get checking_update => 'Đang kiểm tra bản cập nhật...';
+
+  @override
+  String get update_dialog_critical_badge => 'BẮT BUỘC CẬP NHẬT';
+
+  @override
+  String get update_dialog_new_badge => 'BẢN CẬP NHẬT MỚI';
+
+  @override
+  String get current_version => 'Hiện tại';
+
+  @override
+  String get latest_version => 'Mới nhất';
+
+  @override
+  String get whats_new_in_release => 'Những điểm mới trong phiên bản này:';
+
+  @override
+  String get btn_later => 'Để sau';
+
+  @override
+  String get btn_update_now => 'Cập nhật ngay';
+
+  @override
+  String get err_cannot_check_update =>
+      'Không thể kiểm tra bản cập nhật lúc này. Vui lòng thử lại sau.';
+
+  @override
+  String get msg_app_up_to_date => 'Bạn đang sử dụng phiên bản mới nhất!';
+
+  @override
+  String get downloading_update => 'Đang tải bản cập nhật...';
+
+  @override
+  String get preparing_download => 'Đang chuẩn bị tải...';
+
+  @override
+  String get opening_installer => 'Đang kích hoạt cài đặt...';
+
+  @override
+  String get download_error => 'Không thể tải bản cập nhật từ máy chủ';
+
+  @override
+  String get new_version_available_title => '🚀 Bản cập nhật ZenHome mới!';
+
+  @override
+  String get new_version_available_body =>
+      'Phiên bản mới đã sẵn sàng. Nhấn để nâng cấp ngay!';
+
+  @override
+  String get has_new_version_badge => 'BẢN MỚI';
+
+  @override
+  String get btn_download_in_background => 'Ẩn & Tải trong nền';
+
+  @override
+  String get downloading_in_background_title => 'Đang tải bản cập nhật ZenHome';
+
+  @override
+  String get download_complete_title => 'Tải bản cập nhật hoàn tất';
+
+  @override
+  String get download_complete_body => 'Đang mở trình cài đặt...';
+
+  @override
+  String get tab_scenes => 'Ngữ cảnh';
+
+  @override
+  String get tab_automation => 'Tự động hóa';
+
+  @override
+  String get automation_subtitle => 'Hẹn giờ & Lịch trình tự động cho thiết bị';
+
+  @override
+  String get device_not_linked_title => 'Chưa liên kết thiết bị';
+
+  @override
+  String get device_not_linked_desc =>
+      'Mục Tiện ích yêu cầu kết nối với bộ điều khiển ZenHome Hub để thực thi kịch bản và tự động hóa.';
+
+  @override
+  String get device_offline_title => 'Hệ thống đang ngoại tuyến';
+
+  @override
+  String get device_offline_desc =>
+      'Bộ điều khiển ZenHome Hub đang mất kết nối. Đang chờ kết nối lại với thiết bị...';
+
+  @override
+  String get btn_setup_hub => 'Cài đặt Wi-Fi Hub ngay';
+
+  @override
+  String get btn_reconnect => 'Thử kết nối lại';
+
+  @override
+  String get not_set => 'Chưa thiết lập';
+
+  @override
+  String get full_name => 'Họ và tên';
+
+  @override
+  String get linked => 'Đã liên kết';
+
+  @override
+  String get unlink => 'Hủy';
+
+  @override
+  String get link => 'Liên kết';
+
+  @override
+  String get security_and_devices => 'Bảo mật & Thiết bị';
+
+  @override
+  String get danger_zone => 'Vùng nguy hiểm';
+
+  @override
+  String get email => 'Email';
+
+  @override
+  String get already_have_account => 'Đã có tài khoản?';
+
+  @override
+  String get access_restricted => 'Quyền truy cập bị hạn chế';
+
+  @override
+  String get manage_members => 'Quản lý thành viên';
+
+  @override
+  String get online => 'Trực tuyến';
+
+  @override
+  String get offline => 'Ngoại tuyến';
+
+  @override
+  String get btn_add => 'Thêm';
+
+  @override
+  String get err_only_gmail_supported =>
+      'Chỉ hỗ trợ tài khoản Google có đuôi @gmail.com!';
+
+  @override
+  String reauth_google_select_account(String email) {
+    return 'Vui lòng chọn đúng tài khoản Google đã liên kết ($email) để xác thực!';
+  }
+
+  @override
+  String get email_google => 'Email (Google)';
+
+  @override
+  String get update_phone_tooltip => 'Cập nhật SĐT (OTP)';
+
+  @override
+  String get report_bug_title => 'Báo cáo sự cố & Góp ý';
+
+  @override
+  String get report_bug_desc => 'Gửi phản hồi trực tiếp tới đội ngũ phát triển';
+
+  @override
+  String get err_esp_required_for_invite =>
+      'Bạn cần liên kết thiết bị ESP32 (Hub trung tâm) với nhà trước khi có thể mời thành viên tham gia.';
+
+  @override
+  String get esp_required_for_invite_title => 'Yêu cầu liên kết Hub ESP32';
+
+  @override
+  String get esp_required_for_invite_desc =>
+      'Tính năng chia sẻ quyền điều khiển nhà yêu cầu nhà đã được kết nối với bộ điều khiển ZenHome Hub.';
+
+  @override
+  String get btn_link_hub_now => 'Cài đặt Wi-Fi Hub ngay';
+
+  @override
+  String get invite_member_subtitle =>
+      'Mời các thành viên cùng theo dõi và điều khiển thiết bị thông minh trong nhà';
+
+  @override
+  String get role_co_owner_desc => 'Toàn quyền điều khiển & cài đặt';
+
+  @override
+  String get role_member_desc => 'Điều khiển thiết bị & xem trạng thái';
+
+  @override
+  String get member_active => 'Đang hoạt động';
+
+  @override
+  String get member_disabled => 'Đã tạm dừng';
+
+  @override
+  String get automation_edit_allowed => 'Cho phép sửa tự động hóa';
+
+  @override
+  String get automation_edit_denied => 'Chỉ xem tự động hóa';
+
+  @override
+  String get admin_mapping_subtitle =>
+      'Cấu hình chân Relay và ghép nối phòng cho các thiết bị';
+
+  @override
+  String get sort_devices => 'Sắp xếp thiết bị';
+
+  @override
+  String get sorted_devices_success =>
+      'Đã sắp xếp danh sách thiết bị thành công';
+
+  @override
+  String get err_link_esp_first =>
+      'Vui lòng liên kết ESP32 trước khi thêm thiết bị mới!';
+
+  @override
+  String get device_empty_list => 'Chưa có thiết bị nào';
+
+  @override
+  String get device_empty_desc =>
+      'Nhấn nút + bên dưới để gán thiết bị Relay đầu tiên cho ngôi nhà của bạn.';
+
+  @override
+  String get btn_update_device => 'Cập nhật thiết bị';
+
+  @override
+  String get edit_device_title => 'Chỉnh sửa thiết bị';
+
+  @override
+  String get add_device_title => 'Thêm thiết bị Relay';
+
+  @override
+  String get device_name_label => 'Tên thiết bị (VD: Đèn trần)';
+
+  @override
+  String get device_id_label => 'Mã định danh (Device ID)';
+
+  @override
+  String get select_pin_label => 'Chân GPIO Relay (PIN)';
+
+  @override
+  String get unsaved_changes_device_title => 'Lưu thay đổi thiết bị?';
+
+  @override
+  String get unsaved_changes_device_desc =>
+      'Bạn có thay đổi cấu hình thiết bị chưa được lưu lên hệ thống. Bạn có muốn lưu lại không?';
+
+  @override
+  String get confirm_delete_device_title => 'Xóa thiết bị';
+
+  @override
+  String get confirm_delete_device_desc =>
+      'Bạn có chắc chắn muốn xóa thiết bị này khỏi danh sách điều khiển của nhà?';
+
+  @override
+  String get mark_all_read => 'Đã đọc tất cả';
+
+  @override
+  String get notification_category_all => 'Tất cả';
+
+  @override
+  String get notification_category_update => 'Cập nhật';
+
+  @override
+  String get notification_category_important => 'Quan trọng';
+
+  @override
+  String get notification_category_schedule => 'Lịch trình';
+
+  @override
+  String get notification_category_timer => 'Hẹn giờ';
+
+  @override
+  String get notification_category_action => 'Điều khiển';
+
+  @override
+  String get notification_category_other => 'Khác';
+
+  @override
+  String get empty_notification_desc =>
+      'Hộp thư thông báo của bạn đang trống. Các sự kiện mới sẽ xuất hiện tại đây.';
+
+  @override
+  String get shared_home_badge => 'Nhà được chia sẻ';
+
+  @override
+  String get no_internet_title => 'Không có kết nối mạng';
+
+  @override
+  String get no_internet_desc =>
+      'Vui lòng kiểm tra lại kết nối Wifi hoặc dữ liệu di động (4G/5G) để tiếp tục sử dụng ZenHome.';
+
+  @override
+  String get no_internet_banner =>
+      'Mất kết nối Internet. Đang ở chế độ Ngoại tuyến.';
+
+  @override
+  String get internet_restored_banner => 'Đã khôi phục kết nối Internet.';
+
+  @override
+  String get btn_continue_offline => 'Tiếp tục chế độ Offline';
+
+  @override
+  String get wifi_prep_title => 'Chuẩn bị thiết bị';
+
+  @override
+  String get wifi_prep_desc =>
+      'Chuẩn bị thiết bị điều khiển ZenHome Hub (ESP32) trước khi cài đặt.';
+
+  @override
+  String get wifi_step1_title => 'Cắm nguồn điện cho thiết bị';
+
+  @override
+  String get wifi_step1_desc =>
+      'Sử dụng củ sạc Type-C hoặc nguồn 5V ổn định để cấp điện cho bộ trung tâm ZenHome Hub.';
+
+  @override
+  String get wifi_step2_title => 'Kiểm tra đèn LED trạng thái';
+
+  @override
+  String get wifi_step2_desc =>
+      'Đèn LED xanh trên bo mạch sẽ nhấp nháy đều đặn báo hiệu thiết bị đang phát mạng cấu hình Wi-Fi AP.';
+
+  @override
+  String get wifi_step3_title => 'Kết nối điện thoại vào WiFi thiết bị';
+
+  @override
+  String get wifi_step3_desc =>
+      'Mở Cài đặt Wi-Fi trên điện thoại, chọn mạng có tên bắt đầu bằng \'ZenHome_Setup_...\' (Không cần mật khẩu).';
+
+  @override
+  String get wifi_step_prep => 'Chuẩn bị';
+
+  @override
+  String get wifi_step_config => 'Cấu hình';
+
+  @override
+  String get wifi_step_pair => 'Ghép nối';
+
+  @override
+  String get wifi_step_done => 'Hoàn tất';
+
+  @override
+  String get wifi_checking_esp => 'Đang dò tìm thiết bị...';
+
+  @override
+  String get wifi_check_esp_btn => 'Kiểm tra kết nối ESP32';
+
+  @override
+  String get wifi_found_esp => 'Đã tìm thấy thiết bị!';
+
+  @override
+  String get wifi_check_conn_label => 'Kiểm tra kết nối:';
+
+  @override
+  String get wifi_btn_continue_config => 'Tiếp tục: Cấu hình Wi-Fi';
+
+  @override
+  String get wifi_home_info_section => 'Thông tin Wi-Fi nhà bạn (2.4GHz)';
+
+  @override
+  String get wifi_admin_pass_section => 'Mật khẩu kỹ thuật thiết bị';
+
+  @override
+  String get wifi_admin_pass_label => 'Mật khẩu kỹ thuật';
+
+  @override
+  String get wifi_admin_pass_hint => 'Mật khẩu quản trị bo mạch';
+
+  @override
+  String get wifi_confirm_admin_pass_label => 'Xác nhận mật khẩu kỹ thuật';
+
+  @override
+  String get wifi_confirm_admin_pass_hint => 'Nhập lại mật khẩu kỹ thuật';
+
+  @override
+  String get wifi_mqtt_adv_title => 'Cài đặt MQTT Máy chủ (Nâng cao)';
+
+  @override
+  String get wifi_mqtt_default_cloud => 'Mặc định EMQX Cloud';
+
+  @override
+  String get wifi_btn_back => 'Quay lại';
+
+  @override
+  String get wifi_btn_start_pairing => 'Bắt đầu ghép nối';
+
+  @override
+  String get wifi_pairing_failed_title => 'Ghép nối không thành công';
+
+  @override
+  String get wifi_btn_change_wifi_pass => 'Đổi mật khẩu WiFi';
+
+  @override
+  String get wifi_btn_retry => 'Thử lại';
+
+  @override
+  String get wifi_pairing_success_title => 'Ghép nối thiết bị thành công!';
+
+  @override
+  String get wifi_pairing_success_desc =>
+      'Thiết bị ZenHome Hub đã kết nối mạng Wi-Fi và trực tuyến máy chủ thành công.';
+
+  @override
+  String get wifi_btn_device_mapping => 'Bản đồ thiết bị (Device Mapping)';
+
+  @override
+  String get wifi_btn_return_home => 'Về màn hình chính';
+
+  @override
+  String wifi_esp_connected(Object mac) {
+    return 'Đã kết nối với ESP32 ($mac)';
+  }
+
+  @override
+  String get wifi_esp_not_found =>
+      'Không tìm thấy thiết bị. Hãy chắc chắn điện thoại đã kết nối vào WiFi \'ZenHome_Setup_...\'';
+
+  @override
+  String get wifi_waiting_mqtt =>
+      'Đang đợi thiết bị kết nối vào mạng Wi-Fi và trực tuyến máy chủ MQTT...';
+
+  @override
+  String get wifi_pair_error_hint =>
+      'Sai mật khẩu WiFi hoặc thiết bị không kết nối được máy chủ. Vui lòng giữ nút BOOT trong 5s để reset và thử lại.';
+
+  @override
+  String get bug_report_category_ui => 'Giao diện';
+
+  @override
+  String get bug_report_category_network => 'Kết nối mạng';
+
+  @override
+  String get bug_report_category_control => 'Điều khiển';
+
+  @override
+  String get bug_report_category_scene => 'Ngữ cảnh';
+
+  @override
+  String get bug_report_category_other => 'Khác';
+
+  @override
+  String get bug_report_err_empty_title => 'Vui lòng nhập tóm tắt tiêu đề lỗi!';
+
+  @override
+  String get bug_report_err_empty_desc =>
+      'Vui lòng mô tả chi tiết sự cố bạn gặp phải!';
+
+  @override
+  String get bug_report_device_mobile => 'Di động';
+
+  @override
+  String get bug_report_user_zenhome => 'Người dùng ZenHome';
+
+  @override
+  String get bug_report_success_msg =>
+      'Đã gửi báo cáo sự cố thành công! Ban quản trị sẽ xử lý phản hồi của bạn.';
+
+  @override
+  String get bug_report_send_failed => 'Không thể gửi báo cáo:';
+
+  @override
+  String get bug_report_modal_title => 'Báo cáo sự cố & Góp ý';
+
+  @override
+  String get bug_report_modal_subtitle =>
+      'Phản hồi sẽ được gửi trực tiếp đến quản trị viên';
+
+  @override
+  String get bug_report_category_label => 'Phân loại sự cố';
+
+  @override
+  String get bug_report_title_label => 'Tiêu đề tóm tắt';
+
+  @override
+  String get bug_report_title_hint =>
+      'VD: Nút điều khiển quạt không phản hồi...';
+
+  @override
+  String get bug_report_desc_label => 'Mô tả chi tiết';
+
+  @override
+  String get bug_report_desc_hint =>
+      'Mô tả cụ thể các bước gây ra lỗi hoặc thời điểm sự cố xảy ra để đội ngũ kỹ thuật tiện khắc phục...';
+
+  @override
+  String get bug_report_auto_attach_hint =>
+      'Hệ thống sẽ tự động đính kèm thông tin thiết bị & phiên bản ứng dụng để hỗ trợ tốt nhất.';
+
+  @override
+  String get bug_report_btn_submit => 'Gửi báo cáo sự cố';
+
+  @override
+  String get tooltip_change_phone => 'Đổi số điện thoại';
+
+  @override
+  String get err_create_pass_before_unlink_google =>
+      'Bạn cần tạo mật khẩu (Vào mục Đổi mật khẩu) trước khi hủy liên kết Google để có thể đăng nhập.';
+
+  @override
+  String get err_create_pass_before_unlink_phone =>
+      'Bạn cần tạo mật khẩu (Vào mục Đổi mật khẩu) trước khi hủy liên kết SĐT để đảm bảo vẫn có thể đăng nhập.';
+
+  @override
+  String get btn_leave => 'Rời khỏi';
+
+  @override
+  String get btn_stay => 'Ở lại';
+
+  @override
+  String get register_sms_otp_hint =>
+      'Mã OTP xác thực sẽ được gửi qua SMS để kích hoạt tài khoản của bạn.';
+
+  @override
+  String get register_btn_get_otp => 'Tiếp tục nhận mã OTP';
+
+  @override
+  String register_verified_phone(Object phone) {
+    return 'Đã xác thực: $phone';
+  }
+
+  @override
+  String err_reauth_select_google(Object email) {
+    return 'Vui lòng chọn đúng tài khoản Google ($email) để xác thực!';
+  }
+
+  @override
+  String err_google_auth_failed(Object err) {
+    return 'Lỗi xác thực Google: $err';
+  }
+
+  @override
+  String get role_co_owner_full => 'Đồng chủ nhà (Co-Owner)';
+
+  @override
+  String device_count_label(Object count) {
+    return '$count thiết bị';
+  }
+
+  @override
+  String get relay_device_title => 'Relay / Thiết bị';
+
+  @override
+  String switching_to_home(Object name) {
+    return 'Đang chuyển sang $name...';
+  }
+
+  @override
+  String switched_to_home(Object name) {
+    return 'Đã kết nối với $name';
+  }
+
+  @override
+  String get update_confirm_cancel_title => 'Xác nhận hủy tải';
+
+  @override
+  String get update_confirm_cancel_desc =>
+      'Bạn có chắc chắn muốn hủy quá trình tải bản cập nhật này không? Mọi tiến trình tải về sẽ bị dừng lại.';
+
+  @override
+  String get update_keep_downloading => 'Tiếp tục tải';
+
+  @override
+  String get update_btn_cancel_download => 'Hủy tải';
+
+  @override
+  String get update_download_failed_title => 'Tải cập nhật không thành công';
+
+  @override
+  String get update_troubleshoot_title => 'Bảng kiểm tra sự cố & Thử lại';
+
+  @override
+  String get update_troubleshoot_step1 =>
+      '• Đảm bảo điện thoại và máy tính chạy ZenHome cùng kết nối chung một mạng Wi-Fi.';
+
+  @override
+  String update_troubleshoot_step2(Object ip) {
+    return '• Kiểm tra máy chủ ZenHome Server (IP: $ip) có đang hoạt động.';
+  }
+
+  @override
+  String get update_troubleshoot_step3 =>
+      '• Nếu không tải được tự động trong app, bạn có thể tải trực tiếp file APK qua Trình duyệt.';
+
+  @override
+  String get update_btn_browser => 'Trình duyệt';
+
+  @override
+  String update_cannot_open_link(Object url) {
+    return 'Không thể mở liên kết: $url';
+  }
+
+  @override
+  String get update_direct_failed => 'Không thể tải file tự động';
+
+  @override
+  String update_time_remaining_s(Object sec) {
+    return 'còn ~${sec}s';
+  }
+
+  @override
+  String update_time_remaining_ms(Object min, Object sec) {
+    return 'còn ~${min}p ${sec}s';
+  }
+
+  @override
+  String get update_speed_connecting => 'Đang kết nối...';
+
+  @override
+  String get wifi_scan_esp_btn => 'Dò quét tín hiệu ESP32';
+
+  @override
+  String get wifi_scanning_signal =>
+      'Đang dò quét sóng tín hiệu ESP32 gần bạn...';
+
+  @override
+  String wifi_detected_esp_title(Object count) {
+    return 'Tín hiệu ESP32 tìm thấy ($count)';
+  }
+
+  @override
+  String get wifi_no_esp_found =>
+      'Chưa phát hiện tín hiệu ESP32 nào gần bạn. Hãy đảm bảo bo mạch đã cấp nguồn và đèn LED đang nhấp nháy báo chế độ cài đặt.';
+
+  @override
+  String wifi_connect_esp_title(Object ssid) {
+    return 'Kết nối vào $ssid';
+  }
+
+  @override
+  String get wifi_connect_esp_subtitle =>
+      'Nhập mật khẩu phát sóng của ESP32 (để trống nếu là mạng mở không mật khẩu):';
+
+  @override
+  String get wifi_esp_pass_label => 'Mật khẩu Wi-Fi ESP32';
+
+  @override
+  String get wifi_esp_pass_hint =>
+      'Để trống nếu mạng mở, hoặc nhập mật khẩu AP';
+
+  @override
+  String get wifi_btn_connect_now => 'Xác nhận & Kết nối ngay';
+
+  @override
+  String wifi_connecting_in_app(Object ssid) {
+    return 'Đang kết nối vào $ssid...';
+  }
+
+  @override
+  String wifi_connect_success(Object ssid) {
+    return 'Đã kết nối thành công vào $ssid!';
+  }
+
+  @override
+  String wifi_connect_failed(Object ssid) {
+    return 'Không thể kết nối vào $ssid. Vui lòng thử lại hoặc mở Cài đặt Wi-Fi.';
+  }
+
+  @override
+  String get wifi_open_settings_shortcut => 'Mở Cài đặt Wi-Fi máy';
+
+  @override
+  String wifi_signal_quality(Object quality, Object rssi) {
+    return 'Tín hiệu: $rssi dBm ($quality)';
+  }
+
+  @override
+  String get wifi_signal_strong => 'Mạnh';
+
+  @override
+  String get wifi_signal_medium => 'Tốt';
+
+  @override
+  String get wifi_signal_weak => 'Yếu';
+
+  @override
+  String get wifi_scan_nearby_home_btn => 'Chọn mạng Wi-Fi có sẵn';
+
+  @override
+  String get wifi_select_home_wifi_title => 'Chọn mạng Wi-Fi gia đình (2.4GHz)';
+
+  @override
+  String get wifi_scanning_home => 'Đang tìm kiếm mạng Wi-Fi gia đình...';
+
+  @override
+  String get wifi_current_status_title => 'Trạng thái Wi-Fi hiện tại';
+
+  @override
+  String wifi_current_connected_to(Object ssid) {
+    return 'Đang kết nối: $ssid';
+  }
+
+  @override
+  String get wifi_current_disconnected => 'Chưa kết nối Wi-Fi';
+
+  @override
+  String get wifi_current_esp_connected => 'ĐÃ BẮT ĐƯỢC SÓNG ESP32';
+
+  @override
+  String get wifi_current_esp_desc =>
+      'Điện thoại đã bắt được Wi-Fi của thiết bị. Hãy bấm Bắt tay ngay để kiểm tra phản hồi.';
+
+  @override
+  String get wifi_gps_disabled_warning =>
+      'Dịch vụ Vị trí (GPS) đang tắt. Android yêu cầu bật Vị trí để quét tìm sóng Wi-Fi xung quanh.';
+
+  @override
+  String get wifi_btn_turn_on_gps => 'Bật Vị trí (GPS)';
+
+  @override
+  String get wifi_adapter_disabled_warning =>
+      'Wi-Fi trên điện thoại đang tắt. Vui lòng bật Wi-Fi để tìm ESP32.';
+
+  @override
+  String get wifi_btn_turn_on_wifi => 'Bật Wi-Fi';
+
+  @override
+  String get wifi_progress_modal_title => 'Tiến trình kết nối ESP32';
+
+  @override
+  String wifi_progress_step1_req(Object ssid) {
+    return 'Gửi yêu cầu kết nối Wi-Fi ($ssid)...';
+  }
+
+  @override
+  String get wifi_progress_step2_route =>
+      'Cấu hình ưu tiên kết nối Wi-Fi nội bộ...';
+
+  @override
+  String wifi_progress_step3_handshake(Object retry) {
+    return 'Đang bắt tay xác thực với ESP32 ($retry/6)...';
+  }
+
+  @override
+  String get wifi_progress_step4_success => 'Bắt sóng & Kết nối thành công!';
+
+  @override
+  String wifi_progress_step4_desc(Object mac) {
+    return 'Đã nhận diện phần cứng ESP32 (MAC: $mac). Đang chuyển tiếp bước cấu hình...';
+  }
+
+  @override
+  String get wifi_progress_step4_failed =>
+      'Không thể bắt sóng hoặc kết nối với ESP32';
+
+  @override
+  String get wifi_progress_failed_reason =>
+      'Nguyên nhân có thể: Thiết bị ở quá xa, sai mật mã hoặc điện thoại từ chối mạng không có Internet.';
+
+  @override
+  String get wifi_btn_retry_connect => 'Thử lại kết nối';
+
+  @override
+  String get wifi_handshake_now_btn => 'Bắt tay & Kiểm tra ngay';
+
+  @override
+  String wifi_handshake_success(Object mac) {
+    return 'Bắt tay thành công với ESP32 (MAC: $mac)!';
+  }
+
+  @override
+  String get wifi_handshake_failed =>
+      'ESP32 chưa phản hồi tại 192.168.4.1. Vui lòng thử lại!';
+
+  @override
+  String get restart_hub_title => 'Khởi động lại Hub ESP32';
+
+  @override
+  String get restart_hub_desc =>
+      'Gửi tín hiệu khởi động lại vi điều khiển từ xa';
+
+  @override
+  String get restart_hub_confirm_title => 'Khởi động lại Hub ESP32?';
+
+  @override
+  String get restart_hub_confirm_desc =>
+      'Hệ thống sẽ gửi tín hiệu khởi động lại ESP32 từ xa. Các kết nối và thiết bị có thể gián đoạn trong 5-10 giây.';
+
+  @override
+  String get restart_hub_offline_err =>
+      'Hub ESP32 hiện đang ngoại tuyến. Không thể nhận lệnh khởi động lại từ xa.';
+
+  @override
+  String get restart_hub_success_title => 'Đã gửi lệnh khởi động lại';
+
+  @override
+  String get restart_hub_success_desc =>
+      'Hub ESP32 đã nhận lệnh và đang khởi động lại. Hệ thống sẽ tự động kết nối lại khi Hub sẵn sàng.';
+
+  @override
+  String get unlink_hub_menu_title => 'Hủy liên kết Hub';
+
+  @override
+  String get unlink_hub_confirm_title => 'Xác nhận xóa & Hủy liên kết Hub?';
+
+  @override
+  String get unlink_hub_confirm_desc =>
+      'Lệnh này sẽ gửi tín hiệu xóa toàn bộ file cấu hình (/config.json) trên ESP32, tắt toàn bộ relay và khởi động lại ESP32 vào chế độ phát AP cài đặt.';
+
+  @override
+  String get unlink_hub_offline_warning =>
+      'Hub ESP32 đang ngoại tuyến. Để đảm bảo an toàn và gửi lệnh xóa sạch dữ liệu trên chip (Factory Reset), Hub cần phải Online.';
+
+  @override
+  String get unlink_hub_success_title => 'Đã hủy liên kết Hub thành công';
+
+  @override
+  String get unlink_hub_success_desc =>
+      'Đã gửi lệnh Reset từ xa tới ESP32. Thiết bị đã xóa cấu hình và đang khởi động lại về chế độ AP Setup.';
+
+  @override
+  String err_duplicate_gpio(Object name, Object pin) {
+    return 'Chân GPIO $pin đã được gán cho thiết bị \'$name\'. Vui lòng chọn chân khác!';
+  }
+
+  @override
+  String err_duplicate_name_room(Object name, Object room) {
+    return 'Tên thiết bị \'$name\' đã tồn tại trong $room. Vui lòng đổi tên để tránh nhầm lẫn!';
+  }
+
+  @override
+  String get mapping_saved_title => 'Đã lưu cấu hình thiết bị';
+
+  @override
+  String get mapping_saved_desc =>
+      'Toàn bộ danh sách phân bổ thiết bị, phòng và chân GPIO đã được đồng bộ xuống Cloud và gửi lệnh nạp lại tới Hub ESP32.';
 }

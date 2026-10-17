@@ -1,17 +1,19 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
-import 'package:zenhome_app/core/utils/constants.dart';
 import 'package:zenhome_app/core/utils/helpers.dart'; 
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/premium_dialog.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
+import 'package:zenhome_app/core/widgets/bouncing_button.dart';
 
 class SceneSection extends ConsumerStatefulWidget {
   const SceneSection({super.key});
@@ -28,11 +30,67 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
   ];
   
   List<Map<String, dynamic>> _customScenes = [];
+  StreamSubscription<QuerySnapshot>? _scenesSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadScenesFromDisk();
+    _subscribeToFirestoreScenes();
+  }
+
+  @override
+  void dispose() {
+    _scenesSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToFirestoreScenes() {
+    _scenesSubscription?.cancel();
+    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+    String targetId = activeConfig.userId;
+    if (targetId.isEmpty || targetId == 'guest') return;
+
+    _scenesSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(targetId)
+        .collection('scenes')
+        .snapshots()
+        .listen((snap) async {
+      final prefs = await SharedPreferences.getInstance();
+      String? data = prefs.getString('custom_scenes_data_$targetId');
+      List<dynamic> localScenes = (data != null) ? jsonDecode(data) : [];
+      List<dynamic> firestoreScenes = snap.docs.map((doc) => doc.data()).toList();
+
+      List<Map<String, dynamic>> combined = [];
+      combined.addAll(localScenes.map((e) => Map<String, dynamic>.from(e)));
+      combined.addAll(firestoreScenes.map((e) => Map<String, dynamic>.from(e)));
+
+      Map<String, Map<String, dynamic>> uniqueMap = {};
+      for (var item in combined) {
+        if (item['id'] != null) {
+          uniqueMap[item['id']] = item;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _customScenes = uniqueMap.values.map((item) => {
+            'id': item['id'],
+            'name': item['name'],
+            'icon': _iconFromName(item['iconName'] ?? 'auto_awesome'),
+            'color': Color(item['colorValue'] ?? 0xFF10B981),
+            'actions': Map<String, String>.from(item['actions'] ?? {}),
+            'isShared': item['isShared'] ?? false,
+            'order': item['order'] ?? 0,
+            'authorUid': item['authorUid'] ?? '',
+          }).toList();
+          _customScenes.sort((a, b) => (a['order'] as int).compareTo(b['order'] as int));
+        });
+      }
+    }, onError: (err) {
+      debugPrint("Lỗi stream scenes: $err");
+    });
   }
 
   IconData _iconFromName(String name) {
@@ -260,7 +318,7 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                           onTap: () => setModalState(() => selectedIcon = icon),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200), width: 60, margin: const EdgeInsets.only(right: 15),
-                            decoration: BoxDecoration(color: isSelected ? const Color(0xFF2A3A7C) : (isDark ? Colors.grey.shade800 : Colors.grey.shade100), shape: BoxShape.circle, border: isSelected ? Border.all(color: Colors.white, width: 2) : null, boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF2A3A7C).withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))] : null),
+                            decoration: BoxDecoration(color: isSelected ? const Color(0xFF0F766E) : (isDark ? Colors.grey.shade800 : Colors.grey.shade100), shape: BoxShape.circle, border: isSelected ? Border.all(color: Colors.white, width: 2) : null, boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF0F766E).withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))] : null),
                             child: Icon(icon, color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black54), size: 28),
                           ),
                         );
@@ -302,7 +360,7 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                       Checkbox(
                         value: _shareWithAll,
                         onChanged: (val) => setModalState(() => _shareWithAll = val ?? false),
-                        activeColor: const Color(0xFF2A3A7C),
+                        activeColor: const Color(0xFF0F766E),
                       ),
                       Expanded(child: Text(context.tr('share_with_all'))),
                     ],
@@ -311,7 +369,7 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                   SizedBox(
                     width: double.infinity, height: 55,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2A3A7C), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
                       onPressed: () {
                         if (newSceneName.trim().isEmpty) { 
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('err_empty_name')), backgroundColor: Colors.red)); 
@@ -403,29 +461,109 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Section Header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(context.tr('scene_title'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            IconButton(onPressed: () => _showAddSceneBottomSheet(), icon: const Icon(Icons.add_circle, color: Color(0xFF2A3A7C), size: 30)),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.purpleGlow.withOpacity(0.2), AppColors.primaryLight.withOpacity(0.1)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.auto_awesome_rounded, color: AppColors.purpleGlow, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Text(context.tr('scene_title'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+                if (_customScenes.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${_customScenes.length}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            BouncingButton(
+              onTap: () => _showAddSceneBottomSheet(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: AppColors.navPillGradient,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryLight.withOpacity(0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.add_rounded, color: Colors.white, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      context.tr('btn_add') ?? 'Add',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 15),
+        const SizedBox(height: 14),
         
         if (_customScenes.isEmpty)
-          Center(child: Padding(padding: const EdgeInsets.symmetric(vertical: 20), child: Text(context.tr('schedule_empty'), style: TextStyle(color: Colors.grey.shade500))))
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCard : AppColors.lightCard,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+              ),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.auto_awesome_outlined, size: 36, color: (isDark ? Colors.white : Colors.black).withOpacity(0.25)),
+                  const SizedBox(height: 10),
+                  Text(context.tr('scene_empty'), style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                ],
+              ),
+            ),
+          )
         else
           SizedBox(
-            height: 140,
+            height: 152,
             child: ReorderableListView.builder(
-              scrollDirection: Axis.horizontal, itemCount: _customScenes.length,
+              scrollDirection: Axis.horizontal,
+              itemCount: _customScenes.length,
               proxyDecorator: (Widget child, int index, Animation<double> animation) {
                 HapticFeedback.heavyImpact();
                 return AnimatedBuilder(
                   animation: animation,
                   builder: (BuildContext context, Widget? child) {
                     final double animValue = Curves.easeInOut.transform(animation.value);
-                    final double scale = 1.0 + (0.08 * animValue);
+                    final double scale = 1.0 + (0.06 * animValue);
                     
                     return Transform.scale(
                       scale: scale,
@@ -447,7 +585,6 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                   final Map<String, dynamic> item = _customScenes.removeAt(oldIndex);
                   _customScenes.insert(newIndex, item);
                   
-                  // Update order field
                   for (int i = 0; i < _customScenes.length; i++) {
                     _customScenes[i]['order'] = i;
                   }
@@ -466,117 +603,202 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
               },
               itemBuilder: (context, index) {
                 final scene = _customScenes[index];
-                return GestureDetector(
+                final Color sceneColor = scene['color'] as Color;
+                final int actionCount = (scene['actions'] as Map?)?.length ?? 0;
+
+                return BouncingButton(
                   key: ValueKey(scene['id']),
-                  onTap: () => _executeCustomScene(scene),
-                  child: Stack(
-                      children: [
-                        Container(
-                          width: 120, margin: const EdgeInsets.only(right: 15, bottom: 5), padding: const EdgeInsets.all(15),
-                          decoration: BoxDecoration(color: isDark ? const Color(0xFF121827) : Colors.white, borderRadius: BorderRadius.circular(20), border: isDark ? Border.all(color: Colors.grey.shade800) : null, boxShadow: [if (!isDark) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))]),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: (scene['color'] as Color).withOpacity(0.2), shape: BoxShape.circle), child: Icon(scene['icon'], color: scene['color'], size: 24)),
-                              const Spacer(),
-                              Text(_getSceneName(scene), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
-                            ],
-                          ),
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    _executeCustomScene(scene);
+                  },
+                  child: Container(
+                    width: 136,
+                    margin: const EdgeInsets.only(right: 14, bottom: 4),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                      gradient: LinearGradient(
+                        colors: isDark
+                            ? [sceneColor.withOpacity(0.14), AppColors.darkCard]
+                            : [sceneColor.withOpacity(0.08), Colors.white],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: sceneColor.withOpacity(isDark ? 0.3 : 0.2),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: sceneColor.withOpacity(isDark ? 0.15 : 0.08),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
                         ),
-                        Positioned(
-                          top: 10,
-                          right: 15,
-                          child: Row(
-                            children: [
-                              Icon(scene['isShared'] == true ? Icons.public : Icons.lock_outline, size: 16, color: Colors.grey.withOpacity(0.5)),
-                              const SizedBox(width: 4),
-                              GestureDetector(
-                                onTap: () {
-                                  showModalBottomSheet(
-                                    context: context, backgroundColor: Colors.transparent,
-                                    builder: (ctx) => Container(
-                                      padding: const EdgeInsets.only(top: 20, bottom: 40, left: 20, right: 20),
-                                      decoration: BoxDecoration(color: isDark ? const Color(0xFF121827) : Colors.white, borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20))),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
-                                          const SizedBox(height: 20), 
-                                          Text('${context.tr('scene_options')}: ${_getSceneName(scene)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), 
-                                          const SizedBox(height: 20),
-                                          if (scene['isShared'] != true || ref.read(homeConfigProvider).activeConfig.role != 'member' || ref.read(homeConfigProvider).activeConfig.canEditAutomation || scene['authorUid'] == FirebaseAuth.instance.currentUser?.uid) ...[
-                                            ListTile(
-                                              leading: const Icon(Icons.edit, color: Colors.blue), 
-                                              title: Text(context.tr('scene_edit')), 
-                                              onTap: () { 
-                                                Navigator.pop(ctx); 
-                                                _showAddSceneBottomSheet(editScene: scene); 
-                                              }
-                                            ),
-                                            ListTile(
-                                              leading: const Icon(Icons.delete, color: Colors.red), 
-                                              title: Text(context.tr('scene_delete'), style: const TextStyle(color: Colors.red)), 
-                                              onTap: () { 
-                                                  Navigator.pop(ctx);
-                                                  
-                                                  showPremiumConfirmDialog(
-                                                    context: context,
-                                                    title: context.tr('confirm_title'),
-                                                    message: context.tr('confirm_delete_scene') ?? 'Bạn có chắc chắn muốn xóa ngữ cảnh này không?',
-                                                    confirmText: context.tr('btn_delete'),
-                                                    cancelText: context.tr('btn_cancel'),
-                                                    isDanger: true,
-                                                    icon: Icons.delete_forever,
-                                                    onConfirm: () {
-                                                      setState(() => _customScenes.removeAt(index)); 
-                                                      final activeConfig = ref.read(homeConfigProvider).activeConfig;
-                                                      String targetId = activeConfig.userId;
-                                                      if (scene['isShared'] == true && targetId.isNotEmpty && targetId != 'guest') {
-                                                        FirebaseFirestore.instance.collection('users').doc(targetId).collection('scenes').doc(scene['id']).delete();
-                                                        
-                                                        if (activeConfig.role != 'owner' && FirebaseAuth.instance.currentUser != null) {
-                                                          String name = FirebaseAuth.instance.currentUser!.displayName ?? FirebaseAuth.instance.currentUser!.email ?? context.tr('a_member') ?? 'Một thành viên';
-                                                          FirebaseFirestore.instance.collection('users').doc(targetId).collection('alerts').add({
-                                                            'type': 'automation_edit',
-                                                            'author': name,
-                                                            'actionName': context.tr('act_delete_scene') ?? 'vừa xóa một ngữ cảnh',
-                                                            'timestamp': FieldValue.serverTimestamp(),
-                                                          });
-                                                        }
-                                                      }
-                                                      _saveScenesToDisk();
-                                                      showFloatingToast(context, context.tr('msg_deleted_title'), context.tr('msg_scene_deleted') ?? 'Đã xóa ngữ cảnh thành công!');
-                                                    }
-                                                  );
-                                                }
-                                            ),
-                                          ] else ...[
-                                            ListTile(
-                                              leading: const Icon(Icons.info, color: Colors.orange), 
-                                              title: Text(context.tr('err_no_permission_scene'), style: const TextStyle(color: Colors.orange, fontSize: 14)), 
-                                            ),
-                                          ]
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  child: Icon(Icons.more_vert, size: 18, color: Colors.grey.withOpacity(0.7)),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
                       ],
                     ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Top row: Icon & Status / Menu
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(9),
+                              decoration: BoxDecoration(
+                                color: sceneColor.withOpacity(isDark ? 0.22 : 0.14),
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: sceneColor.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(scene['icon'], color: sceneColor, size: 22),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  scene['isShared'] == true ? Icons.public : Icons.lock_outline,
+                                  size: 14,
+                                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.4),
+                                ),
+                                const SizedBox(width: 2),
+                                GestureDetector(
+                                  onTap: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (ctx) => Container(
+                                        padding: const EdgeInsets.only(top: 20, bottom: 40, left: 20, right: 20),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? AppColors.darkCardElevated : Colors.white,
+                                          borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(10))),
+                                            const SizedBox(height: 18), 
+                                            Text(
+                                              '${context.tr('scene_options')}: ${_getSceneName(scene)}',
+                                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                            ), 
+                                            const SizedBox(height: 16),
+                                            if (scene['isShared'] != true || ref.read(homeConfigProvider).activeConfig.role != 'member' || ref.read(homeConfigProvider).activeConfig.canEditAutomation || scene['authorUid'] == FirebaseAuth.instance.currentUser?.uid) ...[
+                                              ListTile(
+                                                leading: Container(
+                                                  padding: const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle),
+                                                  child: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                                                ),
+                                                title: Text(context.tr('scene_edit'), style: const TextStyle(fontWeight: FontWeight.w600)), 
+                                                onTap: () { 
+                                                  Navigator.pop(ctx); 
+                                                  _showAddSceneBottomSheet(editScene: scene); 
+                                                }
+                                              ),
+                                              ListTile(
+                                                leading: Container(
+                                                  padding: const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), shape: BoxShape.circle),
+                                                  child: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                                ),
+                                                title: Text(context.tr('scene_delete'), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)), 
+                                                onTap: () { 
+                                                    Navigator.pop(ctx);
+                                                    
+                                                    showPremiumConfirmDialog(
+                                                      context: context,
+                                                      title: context.tr('confirm_title'),
+                                                      message: context.tr('confirm_delete_scene') ?? 'Bạn có chắc chắn muốn xóa ngữ cảnh này không?',
+                                                      confirmText: context.tr('btn_delete'),
+                                                      cancelText: context.tr('btn_cancel'),
+                                                      isDanger: true,
+                                                      icon: Icons.delete_forever,
+                                                      onConfirm: () {
+                                                        setState(() => _customScenes.removeAt(index)); 
+                                                        final activeConfig = ref.read(homeConfigProvider).activeConfig;
+                                                        String targetId = activeConfig.userId;
+                                                        if (scene['isShared'] == true && targetId.isNotEmpty && targetId != 'guest') {
+                                                          FirebaseFirestore.instance.collection('users').doc(targetId).collection('scenes').doc(scene['id']).delete();
+                                                          
+                                                          if (activeConfig.role != 'owner' && FirebaseAuth.instance.currentUser != null) {
+                                                            String name = FirebaseAuth.instance.currentUser!.displayName ?? FirebaseAuth.instance.currentUser!.email ?? context.tr('a_member') ?? 'Một thành viên';
+                                                            FirebaseFirestore.instance.collection('users').doc(targetId).collection('alerts').add({
+                                                              'type': 'automation_edit',
+                                                              'author': name,
+                                                              'actionName': context.tr('act_delete_scene') ?? 'vừa xóa một ngữ cảnh',
+                                                              'timestamp': FieldValue.serverTimestamp(),
+                                                            });
+                                                          }
+                                                        }
+                                                        _saveScenesToDisk();
+                                                        showFloatingToast(context, context.tr('msg_deleted_title'), context.tr('msg_scene_deleted') ?? 'Đã xóa ngữ cảnh thành công!');
+                                                      }
+                                                    );
+                                                  }
+                                              ),
+                                            ] else ...[
+                                              ListTile(
+                                                leading: const Icon(Icons.info, color: Colors.orange), 
+                                                title: Text(context.tr('err_no_permission_scene'), style: const TextStyle(color: Colors.orange, fontSize: 14)), 
+                                              ),
+                                            ]
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Icon(Icons.more_vert, size: 18, color: (isDark ? Colors.white : Colors.black).withOpacity(0.5)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const Spacer(),
+                        // Bottom info: Scene Name and Action Count
+                        Text(
+                          _getSceneName(scene),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppColors.darkText : AppColors.lightText,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$actionCount ${context.tr('action')}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 );
               },
             ),
           ),
-        const SizedBox(height: 5),
-        if (_customScenes.isNotEmpty) Text(context.tr('tip_scene'), style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontStyle: FontStyle.italic)),
+        const SizedBox(height: 6),
+        if (_customScenes.isNotEmpty)
+          Text(
+            context.tr('tip_scene'),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+          ),
       ],
     );
   }

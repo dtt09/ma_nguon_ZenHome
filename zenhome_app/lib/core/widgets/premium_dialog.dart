@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
@@ -27,8 +27,8 @@ Future<bool?> showPremiumConfirmDialog({
     pageBuilder: (ctx, anim1, anim2) => const SizedBox(),
     transitionBuilder: (ctx, anim1, anim2, child) {
       bool isDark = Theme.of(context).brightness == Brightness.dark;
-      Color confirmColor = isDanger ? Colors.redAccent : (isDark ? const Color(0xFF5C8CFF) : const Color(0xFF2A3A7C));
-      Color iconColor = isDanger ? Colors.redAccent : (isDark ? const Color(0xFF5C8CFF) : const Color(0xFF2A3A7C));
+      Color confirmColor = isDanger ? Colors.redAccent : (isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E));
+      Color iconColor = isDanger ? Colors.redAccent : (isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E));
 
       return Transform.scale(
         scale: 0.8 + (anim1.value * 0.2),
@@ -132,3 +132,5 @@ Future<bool?> showPremiumConfirmDialog({
     },
   );
 }
+
+

@@ -65,56 +65,59 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.admin_panel_settings, size: 80, color: Color(0xFF2A3A7C)),
-              const SizedBox(height: 20),
-              Text(context.tr('admin_login_title'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              Text(context.tr('admin_login_desc'), style: TextStyle(color: Colors.grey.shade500), textAlign: TextAlign.center),
-              const SizedBox(height: 30),
-              
-              // Đã sửa thành OutlineInputBorder
-              TextField(
-                controller: _passController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: context.tr('password'),
-                  errorText: ref.watch(adminLoginProvider).isError ? context.tr('admin_pass_incorrect') : null,
-                  prefixIcon: const Icon(Icons.lock),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide(color: Colors.grey.shade400),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide(color: Colors.grey.shade400),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: const BorderSide(color: Color(0xFF2A3A7C), width: 2),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.admin_panel_settings, size: 80, color: Color(0xFF0F766E)),
+                const SizedBox(height: 20),
+                Text(context.tr('admin_login_title'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                Text(context.tr('admin_login_desc'), style: TextStyle(color: Colors.grey.shade500), textAlign: TextAlign.center),
+                const SizedBox(height: 30),
+                
+                // Đã sửa thành OutlineInputBorder
+                TextField(
+                  controller: _passController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: context.tr('password'),
+                    errorText: ref.watch(adminLoginProvider).isError ? context.tr('admin_pass_incorrect') : null,
+                    prefixIcon: const Icon(Icons.lock),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide(color: Colors.grey.shade400),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide(color: Colors.grey.shade400),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: const BorderSide(color: Color(0xFF0F766E), width: 2),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2A3A7C),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F766E),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    ),
+                    onPressed: _login,
+                    child: Text(context.tr('btn_confirm'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
-                  onPressed: _login,
-                  child: Text(context.tr('btn_confirm'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ),
-              )
-            ],
+                )
+              ],
+            ),
           ),
         ),
       ),

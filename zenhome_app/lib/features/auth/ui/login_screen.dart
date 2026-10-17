@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -10,6 +10,7 @@ import 'package:zenhome_app/core/widgets/loading_overlay.dart';
 import 'package:zenhome_app/core/providers/theme_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zenhome_app/features/auth/ui/phone_registration_screen.dart';
+import 'package:zenhome_app/features/auth/ui/register_screen.dart';
 
 import 'package:zenhome_app/features/auth/logic/login_logic_mixin.dart';
 
@@ -38,7 +39,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with LoginLogicMixin 
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     String currentLang = ref.watch(localeNotifierProvider).languageCode;
-    Color primaryColor = isDark ? const Color(0xFF5C8CFF) : const Color(0xFF2A3A7C);
+    Color primaryColor = isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E);
     Color textColor = isDark ? Colors.white : Colors.black87;
     
     return Scaffold(
@@ -67,9 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with LoginLogicMixin 
                     child: InkWell(
                       onTap: () async {
                         String newLang = currentLang == 'vi' ? 'en' : 'vi';
-                        ref.read(localeNotifierProvider.notifier).setLocale(newLang);
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setString('app_lang', newLang);
+                        await ref.read(localeNotifierProvider.notifier).setLocale(newLang);
                       },
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
@@ -209,11 +208,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with LoginLogicMixin 
                             height: 55,
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2A3A7C),
+                                backgroundColor: const Color(0xFF0F766E),
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                                 elevation: 5,
-                                shadowColor: const Color(0xFF2A3A7C).withOpacity(0.5),
+                                shadowColor: const Color(0xFF0F766E).withOpacity(0.5),
                               ),
                               onPressed: isLoading ? null : () {
                                 HapticFeedback.lightImpact();
@@ -230,7 +229,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with LoginLogicMixin 
                               Text(context.tr('no_account'), style: TextStyle(color: textColor.withOpacity(0.7))),
                               TextButton(
                                 onPressed: () {
-                                   Navigator.push(context, MaterialPageRoute(builder: (context) => const PhoneRegistrationScreen()));
+                                   Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
                                 },
                                 child: Text(context.tr('register_now'), style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor)),
                               ),
@@ -283,4 +282,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with LoginLogicMixin 
     );
   }
 }
+
+
 

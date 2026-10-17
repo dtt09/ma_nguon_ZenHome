@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class UserAvatar extends StatelessWidget {
@@ -28,7 +28,7 @@ class UserAvatar extends StatelessWidget {
           : 'U';
       avatarWidget = CircleAvatar(
         radius: radius,
-        backgroundColor: const Color(0xFF2A3A7C),
+        backgroundColor: const Color(0xFF0F766E),
         child: Text(
           firstLetter,
           style: TextStyle(
@@ -50,3 +50,4 @@ class UserAvatar extends StatelessWidget {
     return avatarWidget;
   }
 }
+

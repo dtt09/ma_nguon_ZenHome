@@ -1,4 +1,4 @@
-import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
+﻿import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
 import 'dart:async'; 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,6 +25,7 @@ import 'package:zenhome_app/core/widgets/user_avatar.dart';
 import 'package:zenhome_app/features/home/ui/home_switcher_sheet.dart';
 import 'package:zenhome_app/features/home/ui/room_tab.dart';
 import 'package:zenhome_app/features/notifications/ui/notification_badge.dart';
+import 'package:zenhome_app/features/home/ui/scene_section.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -80,11 +81,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _onRefresh() async {
+    // 1. Đồng bộ trực tiếp 100% dữ liệu tài khoản, thiết bị từ Cloud Firestore
+    await ref.read(homeConfigProvider).syncFromFirestore();
+
+    // 2. Tái kết nối MQTT với danh sách topic thiết bị mới nhất
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
     ref.read(mqttRepositoryProvider).disconnect();
-    await Future.delayed(const Duration(milliseconds: 500)); // Chờ TCP socket đóng hoàn toàn
-    ref.read(mqttRepositoryProvider).connect(userId: activeConfig.userId, mqttServer: activeConfig.mqttServer, mqttPrefix: activeConfig.mqttPrefix, dynamicTopics: getDynamicDeviceTopicsList(activeConfig), mqttUser: activeConfig.mqttUser, mqttPass: activeConfig.mqttPass);
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(milliseconds: 300));
+    ref.read(mqttRepositoryProvider).connect(
+      userId: activeConfig.userId,
+      mqttServer: activeConfig.mqttServer,
+      mqttPrefix: activeConfig.mqttPrefix,
+      dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
+      mqttUser: activeConfig.mqttUser,
+      mqttPass: activeConfig.mqttPass,
+    );
+    await Future.delayed(const Duration(milliseconds: 500));
   }
 
   void _toggleDevice(String devId, String roomId, bool currentState) {
@@ -187,6 +199,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
     List<String> roomTabs = activeConfig.devices.map((e) => e.room).toSet().toList();
     roomTabs.sort((a, b) => context.tr(a).compareTo(context.tr(b)));
+    if ((_selectedRoomCode.isEmpty || !roomTabs.contains(_selectedRoomCode)) && roomTabs.isNotEmpty) {
+      _selectedRoomCode = roomTabs.first;
+    }
     
     final mqttState = ref.watch(mqttConnectionStateProvider);
     final isOnline = ref.watch(espOnlineStateProvider);
@@ -196,13 +211,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       bottom: false,
       child: RefreshIndicator(
         onRefresh: _onRefresh,
-        color: const Color(0xFF2A3A7C),
+        color: const Color(0xFF0F766E),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header cao cấp: Logo + Lời chào + Chọn nhà + Nút thông báo/Avatar
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -211,92 +227,165 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Lời chào + Role badge
                         Row(
                           children: [
-                            ClipOval(
-                              child: Image.asset('public/zenhome_logo_padded.png', width: 22, height: 22, fit: BoxFit.contain),
+                            Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(0.08)
+                                    : const Color(0xFFF1F5F9),
+                              ),
+                              child: ClipOval(
+                                child: Image.asset('public/zenhome_logo_padded.png', width: 22, height: 22, fit: BoxFit.contain),
+                              ),
                             ),
                             const SizedBox(width: 8),
-                            Flexible(child: Text(_getDynamicGreeting(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey.shade500, letterSpacing: 0.5), overflow: TextOverflow.ellipsis)),
+                            Flexible(
+                              child: Text(
+                                _getDynamicGreeting(),
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
+                                  letterSpacing: 0.3,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                             const SizedBox(width: 8),
                             Builder(
                               builder: (context) {
-                                String roleName = activeConfig.role == 'owner' ? (context.tr('owner_role') ?? 'Chủ nhà') : (activeConfig.role == 'co_owner' ? (context.tr('co_owner') ?? 'Phó chủ nhà') : (context.tr('member_role') ?? 'Thành viên'));
-                                Color roleColor = activeConfig.role == 'owner' ? Colors.purple : (activeConfig.role == 'co_owner' ? Colors.blue : Colors.teal);
+                                String roleName = activeConfig.role == 'owner'
+                                    ? (context.tr('owner_role') ?? 'Chủ nhà')
+                                    : (activeConfig.role == 'co_owner'
+                                        ? (context.tr('co_owner') ?? 'Phó chủ nhà')
+                                        : (context.tr('member_role') ?? 'Thành viên'));
+                                Color roleColor = activeConfig.role == 'owner'
+                                    ? const Color(0xFF8B5CF6)
+                                    : (activeConfig.role == 'co_owner'
+                                        ? const Color(0xFF3B82F6)
+                                        : const Color(0xFF10B981));
                                 return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                                   decoration: BoxDecoration(
-                                    color: roleColor.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: roleColor.withOpacity(0.3), width: 1)
+                                    color: roleColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: roleColor.withOpacity(0.25), width: 1),
                                   ),
-                                  child: Text(roleName, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: roleColor)),
+                                  child: Text(
+                                    roleName,
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: roleColor),
+                                  ),
                                 );
-                              }
+                              },
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
+                        // Tên Nhà (Home Selector Capsule) + Trạng thái ESP32
                         Row(
                           children: [
                             Flexible(
                               child: GestureDetector(
                                 onTap: () => showHomeSwitcherBottomSheet(context, ref),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        activeConfig.homeName,
-                                        style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black, letterSpacing: -0.5),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          activeConfig.homeName,
+                                          style: TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w800,
+                                            color: Theme.of(context).brightness == Brightness.dark
+                                                ? const Color(0xFFF8FAFC)
+                                                : const Color(0xFF0F172A),
+                                            letterSpacing: -0.5,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey),
-                                  ],
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: Theme.of(context).brightness == Brightness.dark
+                                            ? Colors.white70
+                                            : Colors.black54,
+                                        size: 22,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Builder(
-                            builder: (context) { 
-                              bool isOnline = ref.watch(espOnlineStateProvider);
-                              bool isUnlinked = activeConfig.macAddress == 'unknown_mac' || activeConfig.macAddress.isEmpty;
-                              
-                              String statusText = isUnlinked ? (context.tr('unlinked') ?? 'Chưa l.kết') : (isOnline ? 'Online' : 'Offline');
-                              Color statusColor = isUnlinked ? Colors.orange : (isOnline ? Colors.green : Colors.red);
-                              
-                              return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: statusColor.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: statusColor.withOpacity(0.5), width: 1)
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 6, height: 6,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: statusColor,
-                                        boxShadow: [BoxShadow(color: statusColor.withOpacity(0.5), blurRadius: 4)]
+                              builder: (context) {
+                                bool isOnline = ref.watch(espOnlineStateProvider);
+                                bool isUnlinked = activeConfig.macAddress == 'unknown_mac' || activeConfig.macAddress.isEmpty;
+
+                                String statusText = isUnlinked
+                                    ? (context.tr('unlinked') ?? 'Chưa l.kết')
+                                    : (isOnline ? 'Online' : 'Offline');
+                                Color statusColor = isUnlinked
+                                    ? const Color(0xFFF59E0B)
+                                    : (isOnline ? const Color(0xFF10B981) : const Color(0xFFEF4444));
+
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: statusColor.withOpacity(0.3), width: 1),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: statusColor,
+                                          boxShadow: isOnline
+                                              ? [
+                                                  BoxShadow(
+                                                    color: statusColor.withOpacity(0.6),
+                                                    blurRadius: 6,
+                                                    spreadRadius: 1,
+                                                  )
+                                                ]
+                                              : [],
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(statusText, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor)),
-                                  ],
-                                ),
-                              );
-                            }
-                          )
-                        ],
-                      ),
-                    ],
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        statusText,
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: statusColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  // Nút Thông báo & Avatar góc phải
                   Row(
                     children: [
                       NotificationBadge(
@@ -305,23 +394,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           await Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationHistoryScreen()));
                         },
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       UserAvatar(
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
                         },
                       ),
                     ],
-                  )
+                  ),
                 ],
-              ).animate().slideY(begin: -0.2, end: 0, curve: Curves.easeOutQuad),
-              const SizedBox(height: 15),
+              ).animate().slideY(begin: -0.15, end: 0, curve: Curves.easeOutCubic),
+              const SizedBox(height: 18),
               
               AnimatedOpacity(
                 opacity: isConnected ? 1.0 : 0.5,
                 duration: const Duration(milliseconds: 300),
                 child: const WeatherCard().animate().scale(begin: const Offset(0.95, 0.95)),
               ),
+              
+              const SizedBox(height: 22),
+
+              // 1-touch Quick Scene section
+              AbsorbPointer(
+                absorbing: !isConnected,
+                child: const SceneSection(),
+              ).animate(delay: 50.ms).fade(duration: 400.ms).slideY(begin: 0.08, duration: 400.ms, curve: Curves.easeOutQuart),
               
               const SizedBox(height: 25),
               

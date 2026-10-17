@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:zenhome_app/features/settings/data/settings_repository.dart';
 
@@ -32,9 +34,9 @@ class ThemeModeNotifier extends _$ThemeModeNotifier {
 class LocaleNotifier extends _$LocaleNotifier {
   @override
   Locale build() {
-    // FIX 3: Tương tự như Theme
     Future.microtask(() => _loadLocale());
-    return const Locale('en'); // default
+    final deviceLang = PlatformDispatcher.instance.locale.languageCode;
+    return Locale(deviceLang == 'vi' ? 'vi' : 'en');
   }
 
   Future<void> _loadLocale() async {
@@ -45,5 +47,16 @@ class LocaleNotifier extends _$LocaleNotifier {
   Future<void> setLocale(String lang) async {
     await ref.read(settingsRepositoryProvider).setLanguage(lang);
     state = Locale(lang);
+    try {
+      final messaging = FirebaseMessaging.instance;
+      await messaging.subscribeToTopic('all_users');
+      if (lang == 'en') {
+        await messaging.subscribeToTopic('all_users_en');
+        await messaging.unsubscribeFromTopic('all_users_vi');
+      } else {
+        await messaging.subscribeToTopic('all_users_vi');
+        await messaging.unsubscribeFromTopic('all_users_en');
+      }
+    } catch (_) {}
   }
 }

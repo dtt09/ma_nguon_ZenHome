@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -20,6 +20,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   void initState() {
     super.initState();
     
+    // Tự động đồng bộ dữ liệu mới nhất từ Firestore ngay khi mở app
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final activeConfig = ref.read(homeConfigProvider).activeConfig;
+      if (activeConfig.userId != 'guest' && activeConfig.userId.isNotEmpty) {
+        ref.read(homeConfigProvider).syncFromFirestore().catchError((e) {
+          debugPrint("Lỗi sync ngầm khi mở app: $e");
+          return false;
+        });
+      }
+    });
+
     // Reduce splash time to 2.5s for a snappier, modern feel
     Timer(const Duration(milliseconds: 2500), () async {
       final prefs = await SharedPreferences.getInstance();
@@ -52,7 +63,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color brandColor = isDark ? Colors.white : const Color(0xFF2A3A7C);
+    Color brandColor = isDark ? Colors.white : const Color(0xFF0F766E);
     
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF090C15) : Colors.white, 
@@ -119,8 +130,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   blendMode: BlendMode.srcIn,
                   shaderCallback: (bounds) => LinearGradient(
                     colors: isDark 
-                        ? [const Color(0xFF5C8CFF), const Color(0xFF8BAAFF)]
-                        : [const Color(0xFF2A3A7C), const Color(0xFF5C8CFF)],
+                        ? [const Color(0xFF14B8A6), const Color(0xFF2DD4BF)]
+                        : [const Color(0xFF0F766E), const Color(0xFF14B8A6)],
                   ).createShader(bounds),
                   child: const Text(
                     'STEM 2026',
@@ -141,3 +152,5 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     );
   }
 }
+
+
