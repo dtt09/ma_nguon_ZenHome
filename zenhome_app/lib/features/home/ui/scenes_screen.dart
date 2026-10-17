@@ -12,6 +12,8 @@ import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/utils/helpers.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/features/setup/ui/wifi_setup_screen.dart';
+import 'package:zenhome_app/core/services/local_network_service.dart';
+import 'package:zenhome_app/core/providers/local_network_provider.dart';
 
 class ScenesScreen extends ConsumerStatefulWidget {
   const ScenesScreen({super.key});
@@ -26,23 +28,27 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> {
   @override
   Widget build(BuildContext context) {
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
+    final isLocalAvailable = ref.watch(isLocalNetworkAvailableProvider).value ?? ref.watch(localNetworkServiceProvider).isLocalAvailable;
     final mqttState = ref.watch(mqttConnectionStateProvider);
     final isOnline = ref.watch(espOnlineStateProvider);
     final isUnlinked = activeConfig.macAddress == 'unknown_mac' || activeConfig.macAddress.isEmpty;
-    final isConnected = mqttState == 2 && isOnline && !isUnlinked;
+    final isConnected = (isLocalAvailable || (mqttState == 2 && isOnline)) && !isUnlinked;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Status chip configuration
     String statusLabel;
     Color statusColor;
     if (isUnlinked) {
-      statusLabel = context.tr('unlinked');
+      statusLabel = context.tr('unlinked') ?? 'Chưa l.kết';
       statusColor = const Color(0xFFF59E0B);
-    } else if (isConnected) {
-      statusLabel = context.tr('online');
-      statusColor = AppColors.emeraldGlow;
+    } else if (isLocalAvailable) {
+      statusLabel = 'Local ⚡';
+      statusColor = const Color(0xFF10B981);
+    } else if (mqttState == 2 && isOnline) {
+      statusLabel = 'Cloud';
+      statusColor = const Color(0xFF0EA5E9);
     } else {
-      statusLabel = context.tr('offline');
+      statusLabel = context.tr('offline') ?? 'Offline';
       statusColor = const Color(0xFFEF4444);
     }
 
@@ -58,6 +64,7 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> {
               onRefresh: () async {
                 await ref.read(homeConfigProvider).syncFromFirestore();
                 final activeConfig = ref.read(homeConfigProvider).activeConfig;
+                ref.read(localNetworkServiceProvider).checkConnectivity();
                 ref.read(mqttRepositoryProvider).disconnect();
                 await Future.delayed(const Duration(milliseconds: 300));
                 ref.read(mqttRepositoryProvider).connect(
@@ -470,6 +477,7 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> {
                                     MaterialPageRoute(builder: (context) => const WifiSetupScreen()),
                                   );
                                 } else {
+                                  ref.read(localNetworkServiceProvider).discoverHub(force: true);
                                   ref.read(mqttRepositoryProvider).disconnect();
                                   ref.read(mqttRepositoryProvider).connect(
                                     userId: activeConfig.userId,

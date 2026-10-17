@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'dart:async';
@@ -14,6 +14,8 @@ import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/premium_dialog.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
+import 'package:zenhome_app/core/services/local_network_service.dart';
+import 'package:zenhome_app/core/providers/local_network_provider.dart';
 
 class SceneSection extends ConsumerStatefulWidget {
   const SceneSection({super.key});
@@ -232,9 +234,12 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
       return;
     }
 
+    final localService = ref.read(localNetworkServiceProvider);
+    final isLocalAvailable = localService.isLocalAvailable;
     final mqttState = ref.read(mqttConnectionStateProvider);
     final isOnline = ref.read(espOnlineStateProvider);
-    if (mqttState != 2 || !isOnline) {
+
+    if (!isLocalAvailable && (mqttState != 2 || !isOnline)) {
       showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
       return;
     }
@@ -244,8 +249,22 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
     HapticFeedback.heavyImpact(); // Rung mạnh khi kích hoạt ngữ cảnh
 
     Map<String, String> actions = scene['actions'];
-    actions.forEach((topic, command) => ref.read(mqttRepositoryProvider).publishCmd('$topic/cmd', command));
-    showFloatingToast(context, context.tr('toast_activated'), _getSceneName(scene));
+
+    // 1. Ưu tiên thực thi qua Mạng nội bộ (Local LAN) nếu đang kết nối
+    if (isLocalAvailable) {
+      final currentStates = Map<String, bool>.from(ref.read(globalDeviceStatesProvider));
+      actions.forEach((topic, command) {
+        String devId = topic.split('/').last;
+        localService.sendLocalControl(devId: devId, cmd: command);
+        currentStates[devId] = (command == '1');
+      });
+      ref.read(globalDeviceStatesProvider.notifier).state = currentStates;
+      showFloatingToast(context, context.tr('toast_activated'), '${_getSceneName(scene)} (Local ⚡)');
+    } else {
+      // 2. Gửi qua Cloud MQTT nếu không ở mạng Local
+      actions.forEach((topic, command) => ref.read(mqttRepositoryProvider).publishCmd('$topic/cmd', command));
+      showFloatingToast(context, context.tr('toast_activated'), '${_getSceneName(scene)} (Cloud)');
+    }
 
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {

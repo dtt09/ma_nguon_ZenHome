@@ -169,7 +169,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           showFloatingToast(
             context,
             context.tr('toast_success'),
-            '${!currentState ? context.tr('toast_turn_on') : context.tr('toast_turn_off')} (Mạng LAN ⚡)',
+            '${!currentState ? context.tr('toast_turn_on') : context.tr('toast_turn_off')} (Local ⚡)',
           );
           _logHistoryToFirebase(devId, actionText);
         } else {
@@ -266,6 +266,331 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
 
+  void _showConnectionDetailSheet(BuildContext context, SmartConfig activeConfig) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final localService = ref.read(localNetworkServiceProvider);
+        final isLocalAvailable = ref.watch(isLocalNetworkAvailableProvider).value ?? localService.isLocalAvailable;
+        final localIp = ref.watch(localHubIpProvider).value ?? localService.cachedHubIp;
+        final isEspOnline = ref.watch(espOnlineStateProvider);
+        final isUnlinked = activeConfig.macAddress == 'unknown_mac' || activeConfig.macAddress.isEmpty;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isLocalAvailable
+                          ? const Color(0xFF10B981).withOpacity(0.15)
+                          : const Color(0xFF0EA5E9).withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isLocalAvailable ? Icons.bolt_rounded : Icons.cloud_rounded,
+                      color: isLocalAvailable ? const Color(0xFF10B981) : const Color(0xFF0EA5E9),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Trạng thái kết nối Hub',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Ưu tiên Local ⚡ để phản hồi tức thì',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: isDark ? Colors.white60 : Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Thẻ kênh ưu tiên hiện tại
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isLocalAvailable
+                        ? [const Color(0xFF065F46), const Color(0xFF047857)]
+                        : isEspOnline
+                            ? [const Color(0xFF075985), const Color(0xFF0284C7)]
+                            : [const Color(0xFF7F1D1D), const Color(0xFF991B1B)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isUnlinked
+                              ? 'CHƯA LIÊN KẾT HUB'
+                              : isLocalAvailable
+                                  ? 'ĐANG KẾT NỐI: LOCAL ⚡'
+                                  : isEspOnline
+                                      ? 'ĐANG KẾT NỐI: CLOUD ☁'
+                                      : 'NGOẠI TUYẾN (OFFLINE)',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            isLocalAvailable ? 'Độ trễ ~5ms' : isEspOnline ? 'Độ trễ ~200ms' : 'Mất liên lạc',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      isUnlinked
+                          ? 'Vui lòng thực hiện liên kết phần cứng ESP32 trong phần Cài đặt.'
+                          : isLocalAvailable
+                              ? 'Mọi lệnh điều khiển thiết bị & ngữ cảnh được thực thi trực tiếp qua Wi-Fi nội bộ, không cần qua Cloud hay Internet.'
+                              : isEspOnline
+                                  ? 'Đang điều khiển qua MQTT Cloud do không cùng mạng Wi-Fi với Hub. Độ trễ phụ thuộc tốc độ Internet.'
+                                  : 'Không tìm thấy Hub qua mạng nội bộ lẫn Cloud. Vui lòng kiểm tra nguồn điện và Wi-Fi của Hub.',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              // Bảng thông số 2 kênh
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    // Kênh Local
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.wifi_rounded,
+                            size: 20,
+                            color: isLocalAvailable ? const Color(0xFF10B981) : Colors.grey,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Mạng nội bộ (Local)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  localIp != null ? 'IP Hub: $localIp (Port 80)' : 'Chưa phát hiện IP Hub',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: isDark ? Colors.white60 : Colors.black54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isLocalAvailable
+                                  ? const Color(0xFF10B981).withOpacity(0.15)
+                                  : Colors.grey.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              isLocalAvailable ? 'Sẵn sàng ⚡' : 'Không có',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isLocalAvailable ? const Color(0xFF10B981) : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Divider(height: 1, color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06)),
+                    // Kênh Cloud
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.cloud_outlined,
+                            size: 20,
+                            color: isEspOnline ? const Color(0xFF0EA5E9) : Colors.grey,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Đám mây (Cloud MQTT)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  activeConfig.mqttServer.isNotEmpty
+                                      ? activeConfig.mqttServer
+                                      : 'Chưa cấu hình broker',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: isDark ? Colors.white60 : Colors.black54,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isEspOnline
+                                  ? const Color(0xFF0EA5E9).withOpacity(0.15)
+                                  : Colors.grey.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              isEspOnline ? 'Kết nối' : 'Ngoại tuyến',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isEspOnline ? const Color(0xFF0EA5E9) : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Nút quét lại mạng Local
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    showFloatingToast(context, 'Mạng Local', 'Đang quét dò tìm Hub trong mạng Wi-Fi...');
+                    await localService.discoverHub(force: true);
+                    if (context.mounted) {
+                      if (localService.isLocalAvailable) {
+                        showFloatingToast(context, 'Thành công', 'Đã tìm thấy Hub tại IP: ${localService.cachedHubIp} ⚡');
+                      } else {
+                        showFloatingToast(context, 'Mạng Local', 'Không tìm thấy Hub qua Wi-Fi, tiếp tục dùng Cloud.', isError: true);
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.radar_rounded, size: 18),
+                  label: const Text(
+                    'Quét lại mạng Local (LAN)',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
@@ -275,9 +600,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _selectedRoomCode = roomTabs.first;
     }
     
+    final localService = ref.watch(localNetworkServiceProvider);
+    final isLocalAvailable = ref.watch(isLocalNetworkAvailableProvider).value ?? localService.isLocalAvailable;
     final mqttState = ref.watch(mqttConnectionStateProvider);
     final isOnline = ref.watch(espOnlineStateProvider);
-    final isConnected = mqttState == 2 && isOnline;
+    final isConnected = isLocalAvailable || (mqttState == 2 && isOnline);
 
     return SafeArea(
       bottom: false,
@@ -414,11 +741,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   statusColor = const Color(0xFFF59E0B);
                                   statusIcon = Icons.link_off_rounded;
                                 } else if (isLocalAvailable) {
-                                  statusText = 'Mạng LAN ⚡';
+                                  statusText = 'Local ⚡';
                                   statusColor = const Color(0xFF10B981);
                                   statusIcon = Icons.bolt_rounded;
                                 } else if (isOnline) {
-                                  statusText = 'Cloud MQTT';
+                                  statusText = 'Cloud';
                                   statusColor = const Color(0xFF0EA5E9);
                                   statusIcon = Icons.cloud_done_rounded;
                                 } else {
@@ -427,27 +754,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   statusIcon = Icons.cloud_off_rounded;
                                 }
 
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withOpacity(0.12),
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => _showConnectionDetailSheet(context, activeConfig),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: statusColor.withOpacity(0.3), width: 1),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(statusIcon, size: 12, color: statusColor),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        statusText,
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: statusColor,
-                                        ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: statusColor.withOpacity(0.3), width: 1),
                                       ),
-                                    ],
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(statusIcon, size: 12, color: statusColor),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            statusText,
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: statusColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 );
                               },
