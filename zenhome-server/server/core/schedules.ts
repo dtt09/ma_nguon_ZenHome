@@ -1,11 +1,11 @@
-const cron = require('node-cron');
-const { db } = require('./firebase.cjs');
-const state = require('./state.cjs');
+import cron from 'node-cron';
+import { db } from './firebase';
+import { state } from './state';
 
 // ==========================================
 // TIỆN ÍCH THỜI GIAN & NGÀY TUẦN (VIỆT NAM)
 // ==========================================
-function getCurrentVietnamTimeInfo(customDate = null) {
+export function getCurrentVietnamTimeInfo(customDate: Date | null = null) {
     const now = customDate ? new Date(customDate) : new Date();
     const formatterTime = new Intl.DateTimeFormat('en-US', {
         timeZone: 'Asia/Ho_Chi_Minh',
@@ -30,7 +30,7 @@ function getCurrentVietnamTimeInfo(customDate = null) {
 
     // App day map: 0 = Mon (Thứ 2), ..., 6 = Sun (Chủ nhật)
     const dayStr = formatterDay.format(now);
-    const dayMap = { 'Mon': 0, 'Tue': 1, 'Wed': 2, 'Thu': 3, 'Fri': 4, 'Sat': 5, 'Sun': 6 };
+    const dayMap: Record<string, number> = { 'Mon': 0, 'Tue': 1, 'Wed': 2, 'Thu': 3, 'Fri': 4, 'Sat': 5, 'Sun': 6 };
     const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
     const appDayIndex = dayMap[dayStr] ?? 0;
 
@@ -44,11 +44,7 @@ function getCurrentVietnamTimeInfo(customDate = null) {
     };
 }
 
-/**
- * Kiểm tra xem ngày cụ thể có được kích hoạt trong cấu hình lịch trình hay không
- * Hỗ trợ chuỗi nhị phân "1111111", danh sách chuỗi "0,1,2,3,4,5,6", hoặc mảng boolean [true, ...]
- */
-function isDayActive(days, dayIndex) {
+export function isDayActive(days: any, dayIndex: number): boolean {
     if (days === undefined || days === null || days === '') return true;
     if (typeof days === 'string') {
         if (days.length === 7 && /^[01]+$/.test(days)) {
@@ -63,24 +59,24 @@ function isDayActive(days, dayIndex) {
     return true;
 }
 
-const formatTime = (t) => t ? t.split(':').map(x => x.padStart(2, '0')).join(':') : null;
+const formatTime = (t?: string | null) => t ? t.split(':').map(x => x.padStart(2, '0')).join(':') : null;
 
 // ==========================================
 // TÍNH TOÁN LỊCH TRÌNH TIẾP THEO (COUNTDOWN)
 // ==========================================
-function getNextUpcomingSchedule() {
+export function getNextUpcomingSchedule() {
     const { hour, minute, appDayIndex } = getCurrentVietnamTimeInfo();
     const currentTotalMin = parseInt(hour, 10) * 60 + parseInt(minute, 10);
     const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
 
-    let closestSchedule = null;
+    let closestSchedule: any = null;
     let minDeltaMinutes = Infinity;
 
     for (const [key, schedule] of Object.entries(state.activeSchedules || {})) {
         const timeOnFormatted = formatTime(schedule.timeOn);
         const timeOffFormatted = formatTime(schedule.timeOff);
 
-        const actions = [];
+        const actions: { time: string; action: string; stateVal: string }[] = [];
         if (timeOnFormatted) actions.push({ time: timeOnFormatted, action: 'BẬT', stateVal: '1' });
         if (timeOffFormatted) actions.push({ time: timeOffFormatted, action: 'TẮT', stateVal: '0' });
 
@@ -95,7 +91,6 @@ function getNextUpcomingSchedule() {
                 let deltaMinutes = (dayOffset * 24 * 60) + (targetTotalMin - currentTotalMin);
                 if (deltaMinutes <= 0) {
                     if (dayOffset === 0) {
-                        // Đã qua trong ngày hôm nay, lần tiếp theo của ngày này là tuần sau (7 ngày)
                         deltaMinutes += 7 * 24 * 60;
                     } else {
                         continue;
@@ -128,12 +123,14 @@ function getNextUpcomingSchedule() {
 // ==========================================
 // CƠ CHẾ HỎI - TRẢ LỜI LỊCH TRÌNH (QUESTION - ANSWER ENGINE)
 // ==========================================
-/**
- * Hàm Hỏi - Trả lời lịch trình:
- * Thay vì quét liên tục và spam log, hàm này tiếp nhận câu "Hỏi" (thời gian, ngày, topic, thực thi)
- * và "Trả lời" kết quả kiểm tra tương ứng.
- */
-function askScheduleStatus(options = {}) {
+export function askScheduleStatus(options: {
+    targetTime?: string;
+    targetDayIndex?: number;
+    execute?: boolean;
+    sendCommandFn?: (baseTopic: string, stateStr: string, source: string) => void;
+    filterTopic?: string | null;
+    callerTag?: string;
+} = {}) {
     const defaultTimeInfo = getCurrentVietnamTimeInfo();
     const targetTime = options.targetTime || defaultTimeInfo.currentTime;
     const targetDayIndex = options.targetDayIndex !== undefined ? options.targetDayIndex : defaultTimeInfo.appDayIndex;
@@ -144,7 +141,7 @@ function askScheduleStatus(options = {}) {
     const filterTopic = options.filterTopic || null;
     const callerTag = options.callerTag || '[CRON-QA]';
 
-    const matchedSchedules = [];
+    const matchedSchedules: any[] = [];
 
     for (const [scheduleKey, schedule] of Object.entries(state.activeSchedules || {})) {
         const baseTopic = schedule.baseTopic;
@@ -171,7 +168,7 @@ function askScheduleStatus(options = {}) {
                     schedule.isTriggeredOn = true;
                 }
             } else {
-                schedule.isTriggeredOn = false; // Tự động xóa cờ khi qua phút khác
+                schedule.isTriggeredOn = false;
             }
 
             // So sánh giờ TẮT
@@ -226,13 +223,13 @@ function askScheduleStatus(options = {}) {
 // ==========================================
 // ĐỒNG BỘ LỊCH TRÌNH VỚI FIREBASE
 // ==========================================
-async function loadSchedulesFromFirebase() {
+export async function loadSchedulesFromFirebase() {
     try {
         const snapshot = await db.collection('server_schedules').get();
         let loadedCount = 0;
         let garbageCount = 0;
-        const validUsers = new Set();
-        const invalidUsers = new Set();
+        const validUsers = new Set<string>();
+        const invalidUsers = new Set<string>();
 
         for (const doc of snapshot.docs) {
             const docId = doc.id;
@@ -261,7 +258,7 @@ async function loadSchedulesFromFirebase() {
                 continue;
             }
 
-            state.activeSchedules[docId] = doc.data();
+            state.activeSchedules[docId] = doc.data() as any;
             state.activeSchedules[docId].isTriggeredOn = false;
             state.activeSchedules[docId].isTriggeredOff = false;
             loadedCount++;
@@ -275,7 +272,7 @@ async function loadSchedulesFromFirebase() {
     }
 }
 
-async function saveScheduleToFirebase(baseTopic, scheduleData) {
+export async function saveScheduleToFirebase(baseTopic: string, scheduleData: any) {
     try {
         const docId = baseTopic.replace(/\//g, '___');
         await db.collection('server_schedules').doc(docId).set(scheduleData);
@@ -287,7 +284,7 @@ async function saveScheduleToFirebase(baseTopic, scheduleData) {
     }
 }
 
-async function deleteScheduleFromFirebase(baseTopic) {
+export async function deleteScheduleFromFirebase(baseTopic: string) {
     try {
         const docId = baseTopic.replace(/\//g, '___');
         await db.collection('server_schedules').doc(docId).delete();
@@ -300,7 +297,7 @@ async function deleteScheduleFromFirebase(baseTopic) {
 // ==========================================
 // THỰC THI THÔNG MINH - HỎI TRẢ LỜI ĐỊNH KỲ (YÊN LẶNG KHI RỖNG)
 // ==========================================
-function startCronJob(sendCommandWithRetry) {
+export function startCronJob(sendCommandWithRetry: (baseTopic: string, stateStr: string, source: string) => void) {
     if (!state.cronStatus) {
         state.cronStatus = {
             active: true,
@@ -311,18 +308,14 @@ function startCronJob(sendCommandWithRetry) {
         };
     }
 
-    // Cron job chạy mỗi phút nhưng HOÀN TOÀN YÊN LẶNG (Silent),
-    // KHÔNG IN LOG QUÉT MÙ MỜ NẾU KHÔNG CÓ SỰ KIỆN KÍCH HOẠT.
     cron.schedule('* * * * *', () => {
         state.cronStatus.lastRunAt = new Date().toISOString();
 
-        // 1. Nếu không có lịch trình nào trong RAM thì bỏ qua hoàn toàn, không spam log
         const activeCount = Object.keys(state.activeSchedules || {}).length;
         if (activeCount === 0) {
             return;
         }
 
-        // 2. Thực thi kiểm tra bằng cơ chế Hỏi - Trả lời
         const { currentTime, dayName, appDayIndex } = getCurrentVietnamTimeInfo();
 
         const qaResult = askScheduleStatus({
@@ -333,7 +326,6 @@ function startCronJob(sendCommandWithRetry) {
             callerTag: '[CRON-QA]'
         });
 
-        // 3. Chỉ in log khi thực sự có lịch trình được hỏi & khớp giờ kích hoạt!
         if (qaResult.answer.matchedCount > 0) {
             console.log(`[CRON-QA] ❓ Hỏi: Đã đến ${currentTime} (${dayName}), có lịch trình nào cần kích hoạt?`);
             for (const item of qaResult.answer.matchedSchedules) {
@@ -344,14 +336,3 @@ function startCronJob(sendCommandWithRetry) {
 
     console.log('[CRON-QA] 🚀 Cơ chế Lịch trình Thông minh (Hỏi - Trả lời) đã kích hoạt: Tự động giữ yên lặng khi không có sự kiện.');
 }
-
-module.exports = {
-    loadSchedulesFromFirebase,
-    saveScheduleToFirebase,
-    deleteScheduleFromFirebase,
-    startCronJob,
-    askScheduleStatus,
-    getCurrentVietnamTimeInfo,
-    isDayActive,
-    getNextUpcomingSchedule
-};

@@ -61,6 +61,8 @@ int relayCount = 0;
 
 bool isConfigured = false;
 bool shouldReboot = false;
+unsigned long rebootScheduledAt = 0;
+
 
 // ---------------------------------------------------------
 // BIẾN ĐỊNH THỜI (NON-BLOCKING)
@@ -167,12 +169,12 @@ void setup() {
 }
 
 void loop() {
-  if (shouldReboot) {
-    delay(2000);
+  unsigned long currentMillis = millis();
+
+  if (shouldReboot && (currentMillis - rebootScheduledAt >= 1000)) {
     ESP.restart();
   }
 
-  unsigned long currentMillis = millis();
 
   // ---------------------------------------------------------
   // KIỂM TRA NÚT RESET CỨNG (Nhấn giữ 5 giây để xóa config)
@@ -312,8 +314,9 @@ void loop() {
     }
   }
 
-  delay(50);
+  delay(5);
 }
+
 
 bool loadConfig() {
   if (!LittleFS.exists("/config.json")) return false;
@@ -530,9 +533,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     mqttClient.publish(systemRebootTopic.c_str(), "", true);
     mqttClient.publish(systemRestartTopic.c_str(), "", true);
     Serial.println("ESP32 sẽ khởi động lại sau 1 giây...");
-    delay(1000);
+    rebootScheduledAt = millis();
     shouldReboot = true;
     return;
+
   }
 
   // Kiểm tra lệnh reset hệ thống từ Backend
@@ -619,8 +623,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             outFile.close();
             Serial.println("Đã lưu cấu hình mới vào /config.json thành công!");
             Serial.println("ESP32 sẽ tự khởi động lại sau 1 giây để áp dụng...");
-            delay(1000);
+            rebootScheduledAt = millis();
             shouldReboot = true;
+
           } else {
             Serial.println("Lỗi mở /config.json để ghi!");
           }

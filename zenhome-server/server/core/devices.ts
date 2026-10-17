@@ -1,21 +1,21 @@
-const { db, FieldValue } = require('./firebase.cjs');
-const client = require('./mqtt.cjs');
-const state = require('./state.cjs');
-const { notifyOffline, sendPushToUserTokens } = require('./notifications.cjs');
+import { db, FieldValue } from './firebase';
+import { client } from './mqtt';
+import { state } from './state';
+import { notifyOffline, sendPushToUserTokens } from './notifications';
 
 const MAX_RETRY = 10;
 
 // ==========================================
 // BỘ GỬI LỆNH CÓ RETRY (Timeout chống rò rỉ bộ nhớ)
 // ==========================================
-function sendCommandWithRetry(baseTopic, stateStr, source = 'action') {
+export function sendCommandWithRetry(baseTopic: string, stateStr: string, source: string = 'action') {
     const cmdTopic = `${baseTopic}/cmd`;
     const stateTopic = `${baseTopic}/state`;
 
     client.publish(cmdTopic, stateStr);
     console.log(`[SEND] 🚀 Bắn lệnh: ${cmdTopic} -> ${stateStr} (Nguồn: ${source})`);
 
-    if (state.pendingTasks[stateTopic]) {
+    if (state.pendingTasks[stateTopic]?.intervalId) {
         clearInterval(state.pendingTasks[stateTopic].intervalId);
     }
 
@@ -57,16 +57,16 @@ function sendCommandWithRetry(baseTopic, stateStr, source = 'action') {
     };
 }
 
-async function handleEspPowerRestored(userId, macAddress) {
+export async function handleEspPowerRestored(userId: string, macAddress: string) {
     try {
-        let targetEmail = null;
-        let devices = [];
+        let targetEmail: string | null = null;
+        let devices: any[] = [];
         let language = 'vi';
 
         const userDoc = await db.collection('users').doc(userId).get();
         if (userDoc.exists) {
             targetEmail = userDoc.id;
-            const data = userDoc.data();
+            const data = userDoc.data() || {};
             if (data.language) language = data.language;
             devices = data.devices || [];
         }
@@ -79,7 +79,6 @@ async function handleEspPowerRestored(userId, macAddress) {
         devices.forEach(dev => {
             if (dev.room && dev.id) {
                 const baseTopic = `${userId}/${macAddress}/${dev.room}/${dev.id}`;
-                
                 // Gọi sendCommandWithRetry để đảm bảo ESP nhận được lệnh và tự phản hồi state
                 sendCommandWithRetry(baseTopic, '0');
             }
@@ -109,8 +108,3 @@ async function handleEspPowerRestored(userId, macAddress) {
         console.error("[FIREBASE ERROR] ❌ Lỗi khi xử lý ESP online:", error);
     }
 }
-
-module.exports = {
-    sendCommandWithRetry,
-    handleEspPowerRestored
-};

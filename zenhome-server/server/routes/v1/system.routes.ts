@@ -2,8 +2,11 @@ import { Router, Request, Response } from 'express';
 import { state, serverLogs, addLog } from '../../zenhomeState';
 import { cleanJunkAccounts, sendCommandWithRetry } from '../../zenhomeWorker';
 import { getCurrentServerConfig, syncServerConfigToFirestore } from '../../core/networkSync';
+import { db } from '../../core/firebase';
+import { sendAppVersionUpdateFCM } from '../../core/notifications';
 
 export const systemRouter = Router();
+
 
 /**
  * @route   GET /api/v1/system/server-config
@@ -163,9 +166,6 @@ let appVersionData = {
  */
 systemRouter.get('/app-version', async (req: Request, res: Response) => {
   try {
-    const { createRequire } = await import('module');
-    const reqModule = createRequire(import.meta.url);
-    const { db } = reqModule('../../core/firebase.cjs');
     if (db) {
       const snap = await db.collection('system_config').doc('app_version').get();
       if (snap.exists && snap.data()) {
@@ -178,6 +178,7 @@ systemRouter.get('/app-version', async (req: Request, res: Response) => {
 
   res.json({ success: true, data: appVersionData });
 });
+
 
 /**
  * @route   POST /api/v1/system/app-version
@@ -212,21 +213,18 @@ systemRouter.post('/app-version', async (req: Request, res: Response) => {
   appVersionData.publishedAt = new Date().toISOString();
 
   try {
-    const { createRequire } = await import('module');
-    const reqModule = createRequire(import.meta.url);
-    const { db } = reqModule('../../core/firebase.cjs');
-    const { sendAppVersionUpdateFCM } = reqModule('../../core/notifications.cjs');
-    
     if (db) {
       await db.collection('system_config').doc('app_version').set(appVersionData, { merge: true });
     }
 
+
     if (sendAppVersionUpdateFCM) {
       // Gửi ngầm thông báo FCM đa ngôn ngữ để không chặn response
-      sendAppVersionUpdateFCM(appVersionData).catch(err => {
+      sendAppVersionUpdateFCM(appVersionData).catch((err: any) => {
         console.error('[FCM ERROR]', err);
       });
     }
+
   } catch (e) {
     // ignored
   }

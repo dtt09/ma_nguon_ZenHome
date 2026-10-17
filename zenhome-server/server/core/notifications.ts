@@ -1,26 +1,34 @@
-const { db, FieldValue, getMessaging } = require('./firebase.cjs');
-const state = require('./state.cjs');
-const { deleteScheduleFromFirebase } = require('./schedules.cjs');
+import { db, FieldValue, getMessaging } from './firebase';
+import { state } from './state';
+import { deleteScheduleFromFirebase } from './schedules';
 
 // ==========================================
 // HÀM GỬI PUSH THEO TOKEN THAY VÌ TOPIC
 // ==========================================
-async function sendPushToUserTokens(userId, messageContentVi, messageContentEn, isEn, trustedOnly = false, category = 'other', homeId = null) {
+export async function sendPushToUserTokens(
+    userId: string,
+    messageContentVi: { title: string; body: string },
+    messageContentEn: { title: string; body: string },
+    isEn: boolean = false,
+    trustedOnly: boolean = false,
+    category: string = 'other',
+    homeId: string | null = null
+) {
     try {
         const actualHomeId = homeId || userId;
         const userDoc = await db.collection('users').doc(userId).get();
         if (!userDoc.exists) return;
 
         let targetUsernames = [userId];
-        const userData = userDoc.data();
+        const userData = userDoc.data() || {};
         const disabledMembers = Array.isArray(userData.disabledMembers) ? userData.disabledMembers : [];
         if (userData.sharedWith && Array.isArray(userData.sharedWith)) {
-            const activeMembers = userData.sharedWith.filter(m => !disabledMembers.includes(m));
+            const activeMembers = userData.sharedWith.filter((m: string) => !disabledMembers.includes(m));
             targetUsernames = targetUsernames.concat(activeMembers);
         }
 
-        const tokensVi = [];
-        const tokensEn = [];
+        const tokensVi: string[] = [];
+        const tokensEn: string[] = [];
 
         for (const targetUser of targetUsernames) {
             let userLang = 'vi';
@@ -28,12 +36,12 @@ async function sendPushToUserTokens(userId, messageContentVi, messageContentEn, 
                 userLang = userData.language || 'vi';
             } else {
                 const tuDoc = await db.collection('users').doc(targetUser).get();
-                if (tuDoc.exists && tuDoc.data().language) {
-                    userLang = tuDoc.data().language;
+                if (tuDoc.exists && tuDoc.data()?.language) {
+                    userLang = tuDoc.data()?.language;
                 }
             }
 
-            let query = db.collection('users').doc(targetUser).collection('sessions').where('isActive', '==', true);
+            let query: FirebaseFirestore.Query = db.collection('users').doc(targetUser).collection('sessions').where('isActive', '==', true);
             if (trustedOnly) {
                 query = query.where('isTrusted', '==', true);
             }
@@ -50,7 +58,7 @@ async function sendPushToUserTokens(userId, messageContentVi, messageContentEn, 
             });
         }
 
-        const promises = [];
+        const promises: Promise<any>[] = [];
 
         if (tokensVi.length > 0) {
             promises.push(getMessaging().sendEachForMulticast({
@@ -74,19 +82,19 @@ async function sendPushToUserTokens(userId, messageContentVi, messageContentEn, 
     }
 }
 
-async function logHistoryAndNotify(userId, devId, actionText, source) {
+export async function logHistoryAndNotify(userId: string, devId: string, actionText: string, source: string) {
     try {
-        let targetEmail = null;
+        let targetEmail: string | null = null;
         let deviceName = `Thiết bị ${devId}`;
         let language = 'vi';
 
         const userDoc = await db.collection('users').doc(userId).get();
         if (userDoc.exists) {
             targetEmail = userDoc.id;
-            const data = userDoc.data();
+            const data = userDoc.data() || {};
             if (data.language) language = data.language;
             const devices = data.devices || [];
-            const dev = devices.find(d => d.id === devId);
+            const dev = devices.find((d: any) => d.id === devId);
             if (dev) deviceName = dev.name;
         }
 
@@ -133,19 +141,19 @@ async function logHistoryAndNotify(userId, devId, actionText, source) {
     }
 }
 
-async function notifyOffline(userId, devId) {
+export async function notifyOffline(userId: string, devId: string) {
     try {
-        let targetEmail = null;
+        let targetEmail: string | null = null;
         let deviceName = `Thiết bị ${devId}`;
         let language = 'vi';
 
         const userDoc = await db.collection('users').doc(userId).get();
         if (userDoc.exists) {
             targetEmail = userDoc.id;
-            const data = userDoc.data();
+            const data = userDoc.data() || {};
             if (data.language) language = data.language;
             const devices = data.devices || [];
-            const dev = devices.find(d => d.id === devId);
+            const dev = devices.find((d: any) => d.id === devId);
             if (dev) deviceName = dev.name;
         }
 
@@ -178,7 +186,9 @@ async function notifyOffline(userId, devId) {
             });
             Object.keys(state.pendingTasks).forEach(topic => {
                 if (topic.startsWith(`${userId}/`)) {
-                    clearInterval(state.pendingTasks[topic].intervalId);
+                    if (state.pendingTasks[topic]?.intervalId) {
+                        clearInterval(state.pendingTasks[topic].intervalId);
+                    }
                     delete state.pendingTasks[topic];
                 }
             });
@@ -209,15 +219,12 @@ async function notifyOffline(userId, devId) {
     }
 }
 
-// ==========================================
-// BẮT SỰ KIỆN CẢNH BÁO BẢO MẬT (FCM BACKGROUND)
-// ==========================================
-async function processAlert(data, userEmail, userId) {
+export async function processAlert(data: any, userEmail: string, userId: string) {
     try {
         let language = 'vi';
         const userDoc = await db.collection('users').doc(userEmail).get();
-        if (userDoc.exists && userDoc.data().language) {
-            language = userDoc.data().language;
+        if (userDoc.exists && userDoc.data()?.language) {
+            language = userDoc.data()?.language;
         }
         const isEn = language === 'en';
 
@@ -285,12 +292,7 @@ async function processAlert(data, userEmail, userId) {
     }
 }
 
-/**
- * ==============================================================================
- * GỬI THÔNG BÁO ĐẨY FCM ĐA NGÔN NGỮ (VIE / ENG) CHO BẢN CẬP NHẬT PHIÊN BẢN MỚI
- * ==============================================================================
- */
-async function sendAppVersionUpdateFCM(versionData) {
+export async function sendAppVersionUpdateFCM(versionData: any) {
     try {
         const {
             latestVersion,
@@ -307,14 +309,13 @@ async function sendAppVersionUpdateFCM(versionData) {
         const vTitleVi = titleVi || `🚀 Bản Cập Nhật ZenHome v${latestVersion}`;
         const vTitleEn = titleEn || `🚀 ZenHome Update v${latestVersion}`;
         
-        // Trích dòng đầu tiên làm body tóm tắt dễ đọc trên Notification Bar
         const rawNoteVi = releaseNotesVi ? String(releaseNotesVi).split('\n')[0].replace(/^[•\-\*]\s*/, '').trim() : '';
         const vBodyVi = rawNoteVi ? `${rawNoteVi} (Build ${latestBuildNumber})` : `Phiên bản mới v${latestVersion} (Build ${latestBuildNumber}) đã sẵn sàng. Nhấn để nâng cấp!`;
 
         const rawNoteEn = releaseNotesEn ? String(releaseNotesEn).split('\n')[0].replace(/^[•\-\*]\s*/, '').trim() : '';
         const vBodyEn = rawNoteEn ? `${rawNoteEn} (Build ${latestBuildNumber})` : `New version v${latestVersion} (Build ${latestBuildNumber}) is available. Tap to update!`;
 
-        const payloadData = {
+        const payloadData: Record<string, string> = {
             category: 'app_update',
             type: 'version_update',
             version: String(latestVersion || '1.7.0'),
@@ -328,7 +329,6 @@ async function sendAppVersionUpdateFCM(versionData) {
         console.log(`[FCM BROADCAST] 🚀 Bắt đầu phát sóng thông báo v${latestVersion} (Build ${latestBuildNumber}) tới toàn bộ thiết bị...`);
 
         // 1. Gửi qua FCM Topics
-        // Tiếng Việt
         const pVi = getMessaging().send({
             topic: 'all_users_vi',
             notification: {
@@ -342,7 +342,6 @@ async function sendAppVersionUpdateFCM(versionData) {
         }).then(() => console.log('[FCM TOPIC] ✅ Đã gửi tới topic all_users_vi'))
           .catch(err => console.warn('[FCM TOPIC] all_users_vi:', err.message));
 
-        // Tiếng Anh
         const pEn = getMessaging().send({
             topic: 'all_users_en',
             notification: {
@@ -356,7 +355,6 @@ async function sendAppVersionUpdateFCM(versionData) {
         }).then(() => console.log('[FCM TOPIC] ✅ Đã gửi tới topic all_users_en'))
           .catch(err => console.warn('[FCM TOPIC] all_users_en:', err.message));
 
-        // Topic all_users chung (Fallback tương thích ngược)
         const pAll = getMessaging().send({
             topic: 'all_users',
             notification: {
@@ -370,12 +368,12 @@ async function sendAppVersionUpdateFCM(versionData) {
         }).then(() => console.log('[FCM TOPIC] ✅ Đã gửi tới topic all_users'))
           .catch(err => console.warn('[FCM TOPIC] all_users:', err.message));
 
-        // 2. Gửi trực tiếp Multicast tới Tokens của các thiết bị có Session đang hoạt động
+        // 2. Gửi trực tiếp Multicast tới Tokens
         const pTokens = (async () => {
             try {
                 const usersSnap = await db.collection('users').get();
-                const tokensVi = [];
-                const tokensEn = [];
+                const tokensVi: string[] = [];
+                const tokensEn: string[] = [];
 
                 for (const userDoc of usersSnap.docs) {
                     const userData = userDoc.data() || {};
@@ -397,7 +395,7 @@ async function sendAppVersionUpdateFCM(versionData) {
                 const uniqueVi = [...new Set(tokensVi)];
                 const uniqueEn = [...new Set(tokensEn)];
 
-                const directSends = [];
+                const directSends: Promise<any>[] = [];
                 if (uniqueVi.length > 0) {
                     directSends.push(
                         getMessaging().sendEachForMulticast({
@@ -433,7 +431,7 @@ async function sendAppVersionUpdateFCM(versionData) {
                 }
 
                 await Promise.all(directSends);
-            } catch (err) {
+            } catch (err: any) {
                 console.warn('[FCM DIRECT TOKENS] Lỗi thu thập sessions:', err.message);
             }
         })();
@@ -441,16 +439,8 @@ async function sendAppVersionUpdateFCM(versionData) {
         await Promise.all([pVi, pEn, pAll, pTokens]);
         console.log(`[FCM BROADCAST] 🌟 Đã hoàn tất gửi thông báo phiên bản mới v${latestVersion} đa ngôn ngữ.`);
         return { success: true };
-    } catch (err) {
+    } catch (err: any) {
         console.error('[FCM BROADCAST ERROR] ❌ Lỗi phát hành thông báo:', err);
         return { success: false, error: err.message };
     }
 }
-
-module.exports = {
-    sendPushToUserTokens,
-    logHistoryAndNotify,
-    notifyOffline,
-    processAlert,
-    sendAppVersionUpdateFCM
-};

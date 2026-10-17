@@ -45,7 +45,7 @@ usersRouter.get('/', async (req: Request, res: Response) => {
  */
 usersRouter.get('/:userId', async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = String(req.params.userId);
     const user = await findUser(userId);
 
     if (!user) {
@@ -62,11 +62,12 @@ usersRouter.get('/:userId', async (req: Request, res: Response) => {
     let sessions: any[] = [];
     try {
       const sessSnap = await user.ref.collection('sessions').get();
-      sessions = sessSnap.docs.map(s => ({
+      sessions = sessSnap.docs.map((s: any) => ({
         sessionId: s.id,
         ...s.data(),
       }));
     } catch (err) {
+
       // Bỏ qua nếu chưa có subcollection
     }
 
@@ -99,10 +100,11 @@ usersRouter.get('/:userId', async (req: Request, res: Response) => {
  */
 usersRouter.put('/:userId', async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = String(req.params.userId);
     const { displayName, phoneNumber, macAddress, birthday, language } = req.body;
 
     const user = await findUser(userId);
+
     if (!user) {
       return res.status(404).json({
         success: false,

@@ -25,10 +25,11 @@ scenesRouter.get('/', async (req: Request, res: Response) => {
     }
 
     const snap = await user.ref.collection('scenes').get();
-    const scenes = snap.docs.map(doc => ({
+    const scenes = snap.docs.map((doc: any) => ({
       id: doc.id,
       ...doc.data(),
     }));
+
 
     res.json({
       success: true,

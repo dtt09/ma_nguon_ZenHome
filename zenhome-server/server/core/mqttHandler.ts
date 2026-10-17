@@ -1,23 +1,23 @@
-const { db, FieldValue } = require('./firebase.cjs');
-const client = require('./mqtt.cjs');
-const state = require('./state.cjs');
-const { logHistoryAndNotify, sendPushToUserTokens } = require('./notifications.cjs');
-const { handleEspPowerRestored, sendCommandWithRetry } = require('./devices.cjs');
-const { saveScheduleToFirebase, deleteScheduleFromFirebase } = require('./schedules.cjs');
-const { setTimer } = require('./timers.cjs');
+import { db, FieldValue } from './firebase';
+import { client } from './mqtt';
+import { state } from './state';
+import { logHistoryAndNotify, sendPushToUserTokens } from './notifications';
+import { handleEspPowerRestored, sendCommandWithRetry } from './devices';
+import { saveScheduleToFirebase, deleteScheduleFromFirebase } from './schedules';
+import { setTimer } from './timers';
 
-function setupMqttHandlers() {
+export function setupMqttHandlers() {
     client.on('connect', () => {
-        if (!state.mqttStatus) state.mqttStatus = { connected: true, broker: 'HiveMQ Cloud TLS 8883', reconnectCount: 0 };
+        if (!state.mqttStatus) state.mqttStatus = { connected: true, broker: 'HiveMQ Cloud TLS 8883', reconnectCount: 0, lastConnectedAt: null, lastMessageAt: null };
         state.mqttStatus.connected = true;
         state.mqttStatus.lastConnectedAt = new Date().toISOString();
         console.log(`🔌 Background Worker NodeJS đã kết nối thành công vào MQTT Broker!`);
         client.subscribe('+/+/+/#');
     });
 
-    client.on('error', (err) => {
+    client.on('error', (err: any) => {
         if (state.mqttStatus) state.mqttStatus.connected = false;
-        console.error(`❌ Lỗi kết nối MQTT: ${err.message || err}`);
+        console.error(`❌ Lỗi kết nối MQTT: ${err?.message || err}`);
     });
 
     client.on('reconnect', () => {
@@ -36,7 +36,7 @@ function setupMqttHandlers() {
         if (state.mqttStatus) state.mqttStatus.connected = false;
     });
 
-    client.on('message', (topic, message, packet) => {
+    client.on('message', (topic: string, message: Buffer, packet: any) => {
         if (state.mqttStatus) state.mqttStatus.lastMessageAt = new Date().toISOString();
         const payload = message.toString();
         
@@ -53,11 +53,11 @@ function setupMqttHandlers() {
             db.collection('users').doc(userId).get().then(userDoc => {
                 if (!userDoc.exists) {
                     console.log(`[CLEANUP] 🗑️ Đã xóa bản ghi MQTT tồn đọng của user đã xóa: ${userId}`);
-                    client.publish(topic, "", { retain: true }); // Xóa retained message cũ trên Broker
+                    client.publish(topic, "", { retain: true });
                     return;
                 }
 
-                const userData = userDoc.data();
+                const userData = userDoc.data() || {};
                 const expectedMac = userData.macAddress;
 
                 // Xóa tin nhắn rác nếu MAC không khớp
@@ -80,7 +80,6 @@ function setupMqttHandlers() {
                         return;
                     }
 
-                    // Nếu ESP32 kết nối lại trong thời gian ân hạn (< 35s), hủy cảnh báo offline giả mạo
                     if (state.offlineDebounceTimers && state.offlineDebounceTimers[userId]) {
                         clearTimeout(state.offlineDebounceTimers[userId]);
                         delete state.offlineDebounceTimers[userId];
@@ -99,7 +98,6 @@ function setupMqttHandlers() {
                         return;
                     }
 
-                    // Hủy hẹn giờ cũ nếu có trước đó
                     if (!state.offlineDebounceTimers) state.offlineDebounceTimers = {};
                     if (state.offlineDebounceTimers[userId]) {
                         clearTimeout(state.offlineDebounceTimers[userId]);
@@ -107,7 +105,6 @@ function setupMqttHandlers() {
 
                     console.log(`[ESP] ⏳ ESP32 ${macAddress} (user ${userId}) ngắt kết nối. Đặt thời gian ân hạn 35s trước khi báo mất điện/mạng...`);
 
-                    // Bộ đếm ân hạn 35 giây: Tránh báo động giả khi router WiFi khởi động lại hoặc sóng chập chờn
                     state.offlineDebounceTimers[userId] = setTimeout(async () => {
                         delete state.offlineDebounceTimers[userId];
                         console.log(`[ESP] ⚠️ ESP32 ${macAddress} của user ${userId} offline thực sự (>35s). Kích hoạt cảnh báo hệ thống.`);
@@ -149,11 +146,10 @@ function setupMqttHandlers() {
                 state.espOnlineStatus[userId] = { isOnline: true, lastSeen: new Date().toISOString() };
             }
 
-            if (temp >= 50.0) { // Ngưỡng an toàn (50°C cảnh báo cháy)
+            if (temp >= 50.0) {
                 const now = Date.now();
                 if (!state.lastTempAlert) state.lastTempAlert = {};
                 
-                // Tránh spam thông báo (chỉ gửi 1 lần mỗi 5 phút)
                 if (!state.lastTempAlert[userId] || (now - state.lastTempAlert[userId] > 5 * 60 * 1000)) {
                     state.lastTempAlert[userId] = now;
                     console.log(`[ALERT] 🔥 Nhiệt độ nhà của user ${userId} quá cao: ${temp}°C`);
@@ -178,10 +174,10 @@ function setupMqttHandlers() {
         const action = topicParts.pop();
         const baseTopic = topicParts.join('/');
 
-        // 1. ESP32 LÀM XONG -> GHI LỊCH SỬ & BẮN THÔNG BÁO PUSH (Hỗ trợ cả Raw String '1'/'0' và JSON Payload)
+        // 1. ESP32 LÀM XONG -> GHI LỊCH SỬ & BẮN THÔNG BÁO PUSH
         if (action === 'state') {
             let actualState = payload;
-            let ackData = null;
+            let ackData: any = null;
 
             if (payload.startsWith('{') && payload.endsWith('}')) {
                 try {
@@ -203,7 +199,9 @@ function setupMqttHandlers() {
 
                 logHistoryAndNotify(userId, devId, actionText, source);
 
-                clearInterval(state.pendingTasks[topic].intervalId);
+                if (state.pendingTasks[topic]?.intervalId) {
+                    clearInterval(state.pendingTasks[topic].intervalId);
+                }
                 delete state.pendingTasks[topic];
             }
             return;
@@ -253,10 +251,9 @@ function setupMqttHandlers() {
             const userId = topicParts[0];
             console.log(`[RESET] 🚨 Nhận tín hiệu Factory Reset cứng từ ESP32 của user ${userId}`);
             
-            // Xóa MAC và devices để hủy liên kết trong App
             db.collection('users').doc(userId).update({
                 macAddress: FieldValue.delete(),
-                devices: [] // Trống danh sách thiết bị
+                devices: []
             }).then(() => {
                 console.log(`[RESET] ✅ Đã hủy liên kết thiết bị cho user ${userId}`);
                 
@@ -274,4 +271,4 @@ function setupMqttHandlers() {
     });
 }
 
-module.exports = setupMqttHandlers;
+export default setupMqttHandlers;

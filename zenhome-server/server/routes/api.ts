@@ -18,10 +18,9 @@ import { state, serverLogs, addLog, storedBackups, addBackup, BackupRecord } fro
 import { cleanJunkAccounts, sendCommandWithRetry, executeDeleteAccountRequest } from '../zenhomeWorker';
 import { requireAdminAuth } from '../middlewares/auth';
 import { apiLimiter, actionLimiter } from '../middlewares/rateLimiter';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const mqttClient = require('../core/mqtt.cjs');
+import { client as mqttClient } from '../core/mqtt';
 import { getCpuMetrics, getRamMetrics, getDiskMetrics, formatUptimeString } from '../core/systemTelemetry';
+
 
 export const apiRouter = Router();
 

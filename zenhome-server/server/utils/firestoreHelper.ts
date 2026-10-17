@@ -1,7 +1,5 @@
-import { createRequire } from 'module';
+import { db, FieldValue } from '../core/firebase';
 
-const require = createRequire(import.meta.url);
-const { db, FieldValue } = require('../core/firebase.cjs');
 
 export interface UserLookupResult {
   id: string;

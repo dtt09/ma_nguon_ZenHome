@@ -1,22 +1,17 @@
-import { createRequire } from 'module';
 import { addLog } from './zenhomeState';
-
-const require = createRequire(import.meta.url);
-
-// Import old backend core logic
-const setupMqttHandlers = require('./core/mqttHandler.cjs');
-const { loadSchedulesFromFirebase, startCronJob } = require('./core/schedules.cjs');
-const { sendCommandWithRetry: realSendCommandWithRetry } = require('./core/devices.cjs');
-const { startListeningToAlerts, startListeningToDeleteRequests, startListeningToUnlinkRequests } = require('./core/listeners.cjs');
-const { loadTimersFromFirebase } = require('./core/timers.cjs');
-const { startJunkAccountCleanupCron, cleanJunkAccounts: realCleanJunkAccounts } = require('./core/cleanup.cjs');
-const { db } = require('./core/firebase.cjs');
+import { setupMqttHandlers } from './core/mqttHandler';
+import { loadSchedulesFromFirebase, startCronJob } from './core/schedules';
+import { sendCommandWithRetry as realSendCommandWithRetry } from './core/devices';
+import { startListeningToAlerts, startListeningToDeleteRequests, startListeningToUnlinkRequests } from './core/listeners';
+import { loadTimersFromFirebase } from './core/timers';
+import { startJunkAccountCleanupCron, cleanJunkAccounts as realCleanJunkAccounts } from './core/cleanup';
+import { db } from './core/firebase';
+import { setupLoggerHook } from './loggerHook';
 
 let isWorkerRunning = false;
 
 // 1. Bridge for sendCommandWithRetry (Used by Admin Dashboard UI)
 export function sendCommandWithRetry(baseTopic: string, stateStr: string, source: string = 'action') {
-    // The old implementation accepts (topic, stateVal, source)
     realSendCommandWithRetry(baseTopic, stateStr, source);
 }
 
@@ -29,7 +24,6 @@ export async function cleanJunkAccounts() {
 export async function executeDeleteAccountRequest(username: string, uid: string, macAddress: string) {
     try {
         addLog('[BACKEND]', `Nhận lệnh xóa tài khoản: ${username}. Chuyển giao cho Firestore Worker...`, 'info');
-        // Just create a document in delete_requests collection, and let the REAL listener from `listeners.cjs` handle the ESP32 reset and cleanup!
         await db.collection('delete_requests').doc(username).set({
             uid: uid || 'NO_UID',
             username: username,
@@ -40,8 +34,6 @@ export async function executeDeleteAccountRequest(username: string, uid: string,
         addLog('[ERROR]', 'Lỗi khi tạo yêu cầu xóa: ' + e.message, 'error');
     }
 }
-
-import { setupLoggerHook } from './loggerHook';
 
 // 4. Initialize real backend
 export function initZenHomeWorker() {
@@ -56,7 +48,6 @@ export function initZenHomeWorker() {
     addLog('[SYSTEM]', `========================================================`, 'info');
 
     try {
-        // Run original real functions
         setupMqttHandlers();
         loadSchedulesFromFirebase();
         loadTimersFromFirebase();
@@ -65,7 +56,7 @@ export function initZenHomeWorker() {
         startListeningToDeleteRequests();
         startListeningToUnlinkRequests();
         startJunkAccountCleanupCron();
-        addLog('[SYSTEM]', `✅ Tích hợp module backend cũ thành công!`, 'success');
+        addLog('[SYSTEM]', `✅ Tích hợp module backend TypeScript thành công!`, 'success');
     } catch (e: any) {
         addLog('[ERROR]', `❌ Lỗi khởi chạy core module: ${e.message}`, 'error');
     }

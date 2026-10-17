@@ -1,18 +1,16 @@
 import { Router, Request, Response } from 'express';
 import { state, addLog } from '../../zenhomeState';
 import { sendCommandWithRetry } from '../../zenhomeWorker';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const {
+import {
   saveScheduleToFirebase,
   deleteScheduleFromFirebase,
   askScheduleStatus,
   getCurrentVietnamTimeInfo,
   getNextUpcomingSchedule,
-} = require('../../core/schedules.cjs');
+} from '../../core/schedules';
 
 export const schedulesRouter = Router();
+
 
 /**
  * @route   GET /api/v1/schedules
@@ -162,11 +160,12 @@ schedulesRouter.post('/', async (req: Request, res: Response) => {
  */
 schedulesRouter.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
 
     if (state.activeSchedules[id]) {
       delete state.activeSchedules[id];
     }
+
 
     await deleteScheduleFromFirebase(id);
 

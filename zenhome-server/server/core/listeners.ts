@@ -1,16 +1,16 @@
-const { db, getAuth, FieldValue } = require('./firebase.cjs');
-const client = require('./mqtt.cjs');
-const state = require('./state.cjs');
-const { processAlert } = require('./notifications.cjs');
-const { deleteScheduleFromFirebase } = require('./schedules.cjs');
+import { db, getAuth, FieldValue } from './firebase';
+import { client } from './mqtt';
+import { state } from './state';
+import { processAlert } from './notifications';
+import { deleteScheduleFromFirebase } from './schedules';
 
-const userAlertsUnsubscribers = {};
+const userAlertsUnsubscribers: Record<string, () => void> = {};
 
-function startListeningToAlerts() {
+export function startListeningToAlerts() {
     console.log(`[FIREBASE] 🛡️ Đang khởi chạy trình lắng nghe Cảnh báo bảo mật...`);
     db.collection('users').onSnapshot(snapshot => {
         snapshot.docChanges().forEach(async change => {
-            const userEmail = change.doc.id; // Document ID là username
+            const userEmail = change.doc.id;
             const userId = userEmail;
 
             if (change.type === 'added') {
@@ -43,7 +43,6 @@ function startListeningToAlerts() {
                 const isOwner = userData ? (!userData.role || userData.role === 'owner') : true;
 
                 if (isOwner) {
-                    // Xóa toàn bộ subcollections (history, sessions, alerts, timers, scenes, schedules)
                     const subcollections = ['history', 'sessions', 'alerts', 'timers', 'scenes', 'schedules'];
                     for (const sub of subcollections) {
                         try {
@@ -106,7 +105,7 @@ function startListeningToAlerts() {
 
                     // Dọn dẹp members (xóa liên kết khỏi nhà ảo)
                     if (userData && userData.sharedWith && Array.isArray(userData.sharedWith)) {
-                        userData.sharedWith.forEach(async (memberUsername) => {
+                        userData.sharedWith.forEach(async (memberUsername: string) => {
                             try {
                                 await db.collection('users').doc(memberUsername).update({
                                     ownerUsername: FieldValue.delete(),
@@ -140,7 +139,7 @@ function startListeningToAlerts() {
     });
 }
 
-function startListeningToDeleteRequests() {
+export function startListeningToDeleteRequests() {
     console.log(`[FIREBASE] 🗑️ Đang khởi chạy trình lắng nghe lệnh xóa tài khoản...`);
     db.collection('delete_requests').onSnapshot(snapshot => {
         snapshot.docChanges().forEach(async change => {
@@ -155,7 +154,7 @@ function startListeningToDeleteRequests() {
                     // 1. Gửi lệnh Factory Reset tới ESP32 (nếu có liên kết)
                     const userDoc = await db.collection('users').doc(username).get();
                     if (userDoc.exists) {
-                        const userData = userDoc.data();
+                        const userData = userDoc.data() || {};
                         const isOwner = (!userData.role || userData.role === 'owner');
                         const macAddress = userData.macAddress;
                         
@@ -167,12 +166,12 @@ function startListeningToDeleteRequests() {
                     }
 
                     // 2. Xóa Firebase Auth User
-                    if (uid) {
+                    if (uid && uid !== 'NO_UID') {
                         try {
                             await getAuth().deleteUser(uid);
                             console.log(`[BACKEND] ✅ Đã xóa tài khoản Auth của ${username}`);
-                        } catch (e) {
-                            console.error(`[BACKEND ERROR] ❌ Lỗi xóa Auth của ${username}:`, e);
+                        } catch (e: any) {
+                            console.error(`[BACKEND ERROR] ❌ Lỗi xóa Auth của ${username}:`, e.message || e);
                         }
                     }
                     
@@ -192,13 +191,12 @@ function startListeningToDeleteRequests() {
     });
 }
 
-function startListeningToUnlinkRequests() {
+export function startListeningToUnlinkRequests() {
     console.log(`[FIREBASE] 🔓 Đang khởi chạy trình lắng nghe Lệnh hủy liên kết (Free Email/Phone)...`);
     db.collection('unlink_requests').onSnapshot(snapshot => {
         snapshot.docChanges().forEach(async change => {
             if (change.type === 'added') {
                 const data = change.doc.data();
-                const requestId = change.doc.id;
                 const uid = data.uid;
                 const fallbackEmail = data.fallbackEmail;
                 
@@ -210,7 +208,6 @@ function startListeningToUnlinkRequests() {
                         console.log(`[BACKEND] ✅ Đã cập nhật email thành ${fallbackEmail} để giải phóng email thật cho ${uid}`);
                     }
                     
-                    // Xóa request
                     await change.doc.ref.delete();
                 } catch (err) {
                     console.error(`[BACKEND ERROR] ❌ Lỗi khi xử lý lệnh giải phóng cho ${uid}:`, err);
@@ -222,9 +219,3 @@ function startListeningToUnlinkRequests() {
         console.error('[FIREBASE ERROR] ❌ Lỗi lắng nghe unlink_requests:', err);
     });
 }
-
-module.exports = {
-    startListeningToAlerts,
-    startListeningToDeleteRequests,
-    startListeningToUnlinkRequests
-};

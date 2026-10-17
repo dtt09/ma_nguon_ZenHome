@@ -29,6 +29,17 @@ zenhome-server/public/downloads/*.apk
 **/.env
 **/.env.*
 !**/.env.example
+**/firebase-key.json
+!**/firebase-key.example.json
+**/*serviceAccount*.json
+**/key.properties
+**/local.properties
+**/*.keystore
+**/*.jks
+
+# Server runtime data
+zenhome-server/server/data/*.json
+!zenhome-server/server/data/.gitkeep
 
 # OS / IDE
 .DS_Store
@@ -37,3 +48,4 @@ Thumbs.db
 **/.idea/
 *.iml
 .tmp.driveupload/
+

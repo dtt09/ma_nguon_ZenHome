@@ -1,10 +1,8 @@
 import os from 'os';
 import net from 'net';
-import { createRequire } from 'module';
 import { addLog } from '../zenhomeState';
+import { db, FieldValue } from './firebase';
 
-const require = createRequire(import.meta.url);
-const { db, FieldValue } = require('./firebase.cjs');
 
 export interface ServerNetworkInfo {
   localIp: string;

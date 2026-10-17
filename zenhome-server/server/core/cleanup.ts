@@ -1,7 +1,7 @@
-const cron = require('node-cron');
-const { db, getAuth } = require('./firebase.cjs');
+import cron from 'node-cron';
+import { db, getAuth } from './firebase';
 
-async function cleanJunkAccounts() {
+export async function cleanJunkAccounts() {
   console.log("[CLEANUP] 🧹 Bắt đầu dọn dẹp tài khoản rác...");
   
   let deletedFirestoreDocs = 0;
@@ -10,7 +10,7 @@ async function cleanJunkAccounts() {
   try {
     // 1. Quét Firestore 'users' collection
     const usersSnapshot = await db.collection('users').get();
-    const validUidsInDb = new Set();
+    const validUidsInDb = new Set<string>();
     
     for (const doc of usersSnapshot.docs) {
       const data = doc.data();
@@ -28,7 +28,7 @@ async function cleanJunkAccounts() {
 
     // 2. Quét toàn bộ Firebase Auth
     const auth = getAuth();
-    let pageToken;
+    let pageToken: string | undefined = undefined;
     let hasMoreUsers = true;
 
     while (hasMoreUsers) {
@@ -52,12 +52,14 @@ async function cleanJunkAccounts() {
     console.log("[CLEANUP] ✅ Dọn dẹp hoàn tất!");
     console.log(`[CLEANUP] - Đã xóa ${deletedFirestoreDocs} username rác trong Firestore.`);
     console.log(`[CLEANUP] - Đã xóa ${deletedAuthUsers} tài khoản rác trong Firebase Auth.`);
+    return { deletedFirestoreDocs, deletedAuthUsers };
   } catch (error) {
     console.error("[CLEANUP] ❌ Lỗi trong quá trình dọn dẹp:", error);
+    return { error };
   }
 }
 
-function startJunkAccountCleanupCron() {
+export function startJunkAccountCleanupCron() {
   // Chạy vào lúc 03:00 sáng mỗi ngày
   cron.schedule('0 3 * * *', () => {
     console.log('[CRON] ⏰ Khởi chạy tác vụ dọn dẹp tài khoản rác định kỳ...');
@@ -65,5 +67,3 @@ function startJunkAccountCleanupCron() {
   });
   console.log('⏰ Đã thiết lập Cron Job: Dọn dẹp tài khoản rác (03:00 sáng hàng ngày).');
 }
-
-module.exports = { startJunkAccountCleanupCron, cleanJunkAccounts };

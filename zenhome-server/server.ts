@@ -13,9 +13,8 @@ import { serverLogs, logListeners, addLog, state } from './server/zenhomeState';
 import { initZenHomeWorker, sendCommandWithRetry } from './server/zenhomeWorker';
 import { apiRouter } from './server/routes/api';
 import { syncServerConfigToFirestore, startNetworkSyncWatcher } from './server/core/networkSync';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const mqttClient = require('./server/core/mqtt.cjs');
+import { client as mqttClient } from './server/core/mqtt';
+
 
 const serverStartTime = new Date();
 

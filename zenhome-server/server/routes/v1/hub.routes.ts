@@ -1,12 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { addLog, state } from '../../zenhomeState';
 import { findUser } from '../../utils/firestoreHelper';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const client = require('../../core/mqtt.cjs');
+import { client } from '../../core/mqtt';
 
 export const hubRouter = Router();
+
 
 /**
  * @route   GET /api/v1/hub/status

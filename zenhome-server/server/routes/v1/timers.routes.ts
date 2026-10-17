@@ -1,11 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { state, addLog } from '../../zenhomeState';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const { setTimer } = require('../../core/timers.cjs');
+import { setTimer } from '../../core/timers';
 
 export const timersRouter = Router();
+
 
 /**
  * @route   GET /api/v1/timers
@@ -73,9 +71,10 @@ timersRouter.post('/', (req: Request, res: Response) => {
  */
 timersRouter.delete('/:timerKey', (req: Request, res: Response) => {
   try {
-    const { timerKey } = req.params;
+    const timerKey = String(req.params.timerKey);
     const baseTopic = timerKey.replace(/_(on|off)$/, '');
     const action = timerKey.endsWith('_on') ? '1' : '0';
+
 
     // mins = 0 để hủy timer trong core timers.cjs
     setTimer(baseTopic, action, 0);

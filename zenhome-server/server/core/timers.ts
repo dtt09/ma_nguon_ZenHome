@@ -1,9 +1,8 @@
-const { db } = require('./firebase.cjs');
-const state = require('./state.cjs');
-const { sendCommandWithRetry } = require('./devices.cjs');
+import { db } from './firebase';
+import { state } from './state';
+import { sendCommandWithRetry } from './devices';
 
-// Hàm load timers từ Firebase khi khởi động
-async function loadTimersFromFirebase() {
+export async function loadTimersFromFirebase() {
     try {
         const snapshot = await db.collection('server_timers').get();
         let loaded = 0;
@@ -23,7 +22,6 @@ async function loadTimersFromFirebase() {
                 }, remaining);
                 loaded++;
             } else {
-                // Đã quá hạn trong lúc server down, thực thi luôn và xóa
                 console.log(`[TIMER] ⏱️ Hẹn giờ ${timerKey} đã quá hạn, thực thi bắn lệnh ngay...`);
                 sendCommandWithRetry(baseTopic, action, 'timer');
                 deleteTimerFromFirebase(timerKey);
@@ -35,7 +33,7 @@ async function loadTimersFromFirebase() {
     }
 }
 
-async function saveTimerToFirebase(timerKey, baseTopic, action, triggerAt) {
+export async function saveTimerToFirebase(timerKey: string, baseTopic: string, action: string, triggerAt: number) {
     try {
         const docId = timerKey.replace(/\//g, '___');
         await db.collection('server_timers').doc(docId).set({ baseTopic, action, triggerAt });
@@ -44,7 +42,7 @@ async function saveTimerToFirebase(timerKey, baseTopic, action, triggerAt) {
     }
 }
 
-async function deleteTimerFromFirebase(timerKey) {
+export async function deleteTimerFromFirebase(timerKey: string) {
     try {
         const docId = timerKey.replace(/\//g, '___');
         await db.collection('server_timers').doc(docId).delete();
@@ -53,10 +51,9 @@ async function deleteTimerFromFirebase(timerKey) {
     }
 }
 
-function setTimer(baseTopic, action, mins) {
+export function setTimer(baseTopic: string, action: string, mins: number) {
     const timerKey = `${baseTopic}_${action === '1' ? 'on' : 'off'}`;
     
-    // Clear cũ nếu có
     if (state.activeTimers[timerKey]) {
         clearTimeout(state.activeTimers[timerKey]);
         delete state.activeTimers[timerKey];
@@ -75,14 +72,7 @@ function setTimer(baseTopic, action, mins) {
         
         saveTimerToFirebase(timerKey, baseTopic, action, triggerAt);
     } else {
-        // Hủy hẹn giờ
         console.log(`[TIMER] ⏱️ Hủy hẹn giờ ${action === '1' ? 'BẬT' : 'TẮT'} cho ${baseTopic}`);
         deleteTimerFromFirebase(timerKey);
     }
 }
-
-module.exports = {
-    loadTimersFromFirebase,
-    setTimer,
-    deleteTimerFromFirebase
-};
