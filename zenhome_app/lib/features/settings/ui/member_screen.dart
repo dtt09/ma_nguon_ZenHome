@@ -192,6 +192,183 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
     );
   }
 
+  void _cancelSentInvite(String targetUsername) async {
+    final result = await ref.read(memberControllerProvider.notifier).cancelSentInvite(targetUsername);
+    if (!mounted) return;
+
+    if (result.success) {
+      showFloatingToast(context, context.tr('toast_success'), 'Đã thu hồi lời mời tới $targetUsername');
+    } else {
+      showFloatingToast(context, context.tr('error'), result.errorMessage ?? context.tr('error'), isError: true);
+    }
+  }
+
+  void _showDevicePermissionsDialog(String memberUsername, List<dynamic>? currentAllowedList) {
+    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+    final allDevices = activeConfig.devices;
+    
+    // Nếu currentAllowedList == null, nghĩa là toàn quyền (all allowed)
+    bool isCustom = currentAllowedList != null;
+    final Set<String> selectedIds = currentAllowedList != null
+        ? currentAllowedList.map((e) => e.toString()).toSet()
+        : allDevices.map((e) => e.id).toSet();
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return AlertDialog(
+              backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.tune_rounded, color: AppColors.primaryLight, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Quyền điều khiển thiết bị',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        Text(
+                          memberUsername,
+                          style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Toggle Cho phép tất cả vs Chọn lọc
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withOpacity(0.04) : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                isCustom ? 'Chỉ thiết bị được chọn' : 'Toàn quyền (Tất cả thiết bị)',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isCustom ? Colors.amber.shade700 : AppColors.primaryLight,
+                                ),
+                              ),
+                            ),
+                            Switch(
+                              value: !isCustom,
+                              activeColor: AppColors.primaryLight,
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  isCustom = !val;
+                                  if (!isCustom) {
+                                    selectedIds.clear();
+                                    selectedIds.addAll(allDevices.map((e) => e.id));
+                                  }
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      if (isCustom) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Chọn thiết bị được bật/tắt (${selectedIds.length}/${allDevices.length}):',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...allDevices.map((dev) {
+                          final bool isSelected = selectedIds.contains(dev.id);
+                          return CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            activeColor: AppColors.primaryLight,
+                            title: Text(dev.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                            subtitle: Text(dev.room, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                            value: isSelected,
+                            onChanged: (checked) {
+                              setDialogState(() {
+                                if (checked == true) {
+                                  selectedIds.add(dev.id);
+                                } else {
+                                  selectedIds.remove(dev.id);
+                                }
+                              });
+                            },
+                          );
+                        }),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: Text(context.tr('btn_cancel')),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(dialogCtx);
+                    final List<String> toSave = isCustom ? selectedIds.toList() : [];
+                    final res = await ref.read(memberControllerProvider.notifier).updateDevicePermissions(memberUsername, toSave);
+                    if (!mounted) return;
+                    if (res.success) {
+                      showFloatingToast(context, context.tr('toast_success'), res.message ?? 'Đã cập nhật quyền thiết bị');
+                    } else {
+                      showFloatingToast(context, context.tr('error'), res.errorMessage ?? 'Lỗi cập nhật', isError: true);
+                    }
+                  },
+                  child: Text(context.tr('btn_save_changes')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -223,6 +400,7 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
 
                 final data = (snapshot.data?.exists ?? false) ? snapshot.data!.data() as Map<String, dynamic> : {};
                 final List<dynamic> pendingInvites = data.containsKey('pendingInvitations') ? data['pendingInvitations'] : [];
+                final List<dynamic> sentInvites = data.containsKey('sentInvitations') ? data['sentInvitations'] : [];
                 final List<dynamic> sharedMembers = data.containsKey('sharedWith') ? data['sharedWith'] : [];
                 final List<dynamic> disabledMembers = data.containsKey('disabledMembers') ? data['disabledMembers'] : [];
 
@@ -449,6 +627,73 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                             const SizedBox(height: 15),
                           ],
 
+                          // Danh sách lời mời đã gửi (Sent Invitations)
+                          if (sentInvites.isNotEmpty) ...[
+                            Row(
+                              children: [
+                                const Icon(Icons.outbox_rounded, size: 18, color: Colors.blueAccent),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Lời mời đã gửi (${sentInvites.length}):',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.blueAccent),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            ...sentInvites.map((targetUsername) {
+                              final String target = targetUsername.toString();
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: Colors.blue.shade300.withOpacity(0.5)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor: Colors.blue.shade600,
+                                      radius: 20,
+                                      child: const Icon(Icons.person_search_rounded, color: Colors.white, size: 20),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            target,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Đang chờ người nhận xác nhận...',
+                                            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.redAccent,
+                                        side: const BorderSide(color: Colors.redAccent, width: 1.2),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                      icon: const Icon(Icons.undo_rounded, size: 16),
+                                      label: const Text('Thu hồi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                      onPressed: () => _cancelSentInvite(target),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            const SizedBox(height: 15),
+                            Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                            const SizedBox(height: 15),
+                          ],
+
                           // Thêm thành viên mới (Invite Bar)
                           Text(
                             context.tr('add_new_member'), 
@@ -562,6 +807,11 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                   : 'member';
                               final bool isCoOwner = currentRole == 'co_owner';
                               final bool canEditAuto = (data['automationEditors'] as List<dynamic>?)?.contains(email) ?? false;
+                              final Map<String, dynamic> allDevPerms = data.containsKey('memberDevicePermissions')
+                                  ? Map<String, dynamic>.from(data['memberDevicePermissions'] ?? {})
+                                  : {};
+                              final List<dynamic>? memberAllowedDevs = allDevPerms[email];
+                              final bool hasCustomDevs = memberAllowedDevs != null;
 
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 14),
@@ -647,6 +897,24 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                                         color: isDisabled ? Colors.grey : Colors.green,
                                                       ),
                                                     ),
+                                                    if (hasCustomDevs) ...[
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.blue.withOpacity(0.15),
+                                                          borderRadius: BorderRadius.circular(8),
+                                                        ),
+                                                        child: Text(
+                                                          '${memberAllowedDevs.length} thiết bị',
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.bold,
+                                                            color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ],
                                                 ),
                                               ],
@@ -657,7 +925,13 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                             icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
                                             tooltip: context.tr('tooltip_permission'),
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                            onSelected: (val) => _changeRole(email, val),
+                                            onSelected: (val) {
+                                              if (val == 'device_perm') {
+                                                _showDevicePermissionsDialog(email, memberAllowedDevs);
+                                              } else {
+                                                _changeRole(email, val);
+                                              }
+                                            },
                                             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                                               PopupMenuItem<String>(
                                                 value: 'member',
@@ -679,6 +953,17 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                                   ],
                                                 ),
                                               ),
+                                              const PopupMenuDivider(),
+                                              const PopupMenuItem<String>(
+                                                value: 'device_perm',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.tune_rounded, size: 18, color: Colors.blueAccent),
+                                                    SizedBox(width: 10),
+                                                    Text('Phân quyền thiết bị'),
+                                                  ],
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ],
@@ -688,7 +973,7 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                       Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
                                       const SizedBox(height: 10),
 
-                                      // Switches & Kick button
+                                      // Switches & Action buttons
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
@@ -714,10 +999,10 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                             ],
                                           ),
 
-                                          // Automation toggle for regular members
-                                          if (!isCoOwner)
-                                            Row(
-                                              children: [
+                                          Row(
+                                            children: [
+                                              // Automation toggle for regular members
+                                              if (!isCoOwner) ...[
                                                 Icon(
                                                   Icons.auto_awesome_rounded,
                                                   size: 16,
@@ -729,14 +1014,27 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                                   activeColor: Colors.purple,
                                                   onChanged: (val) => _toggleAutomationEditor(email, val),
                                                 ),
+                                                const SizedBox(width: 6),
                                               ],
-                                            ),
 
-                                          // Kick / Revoke
-                                          IconButton(
-                                            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
-                                            tooltip: context.tr('btn_kick'),
-                                            onPressed: () => _confirmRemoveMember(email),
+                                              // Device permissions shortcut
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.tune_rounded, 
+                                                  color: hasCustomDevs ? Colors.blueAccent : Colors.grey, 
+                                                  size: 20
+                                                ),
+                                                tooltip: 'Phân quyền thiết bị',
+                                                onPressed: () => _showDevicePermissionsDialog(email, memberAllowedDevs),
+                                              ),
+
+                                              // Kick / Revoke
+                                              IconButton(
+                                                icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                                                tooltip: context.tr('btn_kick'),
+                                                onPressed: () => _confirmRemoveMember(email),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),

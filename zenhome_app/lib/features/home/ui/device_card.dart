@@ -12,6 +12,7 @@ class DeviceCard extends StatelessWidget {
   final IconData icon;
   final bool isOn;
   final bool isCooldown;
+  final bool isRestricted;
   final VoidCallback onTap;
 
   const DeviceCard({
@@ -21,6 +22,7 @@ class DeviceCard extends StatelessWidget {
     required this.icon,
     required this.isOn,
     this.isCooldown = false,
+    this.isRestricted = false,
     required this.onTap,
   });
 
@@ -163,7 +165,20 @@ class DeviceCard extends StatelessWidget {
                 ),
 
                 // Trạng thái / Đang xử lý
-                if (isCooldown)
+                if (isRestricted)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.amber.withOpacity(0.18) : Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.lock_rounded, 
+                      size: 14, 
+                      color: isDark ? Colors.amber.shade300 : Colors.amber.shade800
+                    ),
+                  )
+                else if (isCooldown)
                   LogoLoadingIndicator(color: primaryTextColor, size: 22)
                 else
                   // Capsule switch toggle sang trọng

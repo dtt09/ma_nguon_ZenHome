@@ -42,6 +42,7 @@ class SmartConfig {
   String homeName;
   String? ownerEmail;
   bool canEditAutomation;
+  List<String>? allowedDevices;
 
   SmartConfig({
     required this.userId,
@@ -55,6 +56,7 @@ class SmartConfig {
     this.homeName = 'My Home',
     this.ownerEmail,
     this.canEditAutomation = false,
+    this.allowedDevices,
   });
 
   String get mqttPrefix => '$userId/$macAddress';
@@ -70,6 +72,7 @@ class SmartConfig {
         'homeName': homeName,
         'ownerEmail': ownerEmail,
         'canEditAutomation': canEditAutomation,
+        'allowedDevices': allowedDevices,
         'devices': devices.map((e) => e.toJson()).toList(),
       };
 
@@ -87,5 +90,8 @@ class SmartConfig {
             ? (json['devices'] as List).map((e) => DeviceConfig.fromJson(e)).cast<DeviceConfig>().toList()
             : [],
         canEditAutomation: json['canEditAutomation'] ?? false,
+        allowedDevices: json['allowedDevices'] != null
+            ? List<String>.from(json['allowedDevices'])
+            : null,
       );
 }

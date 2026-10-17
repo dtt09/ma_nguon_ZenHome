@@ -3,21 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:mqtt_client/mqtt_client.dart';
-import 'dart:math';
 
 import 'package:wifi_scan/wifi_scan.dart';
-import 'package:wifi_iot/wifi_iot.dart';
 import 'package:zenhome_app/features/setup/logic/wifi_provisioning_service.dart';
-import 'package:zenhome_app/features/setup/logic/esp_api_service.dart';
-import 'package:zenhome_app/core/utils/helpers.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/features/admin/ui/device_mapping_screen.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
-import 'package:zenhome_app/core/providers/mqtt_provider.dart' hide MqttConnectionState;
 import 'package:zenhome_app/features/setup/logic/wifi_setup_wizard_controller.dart';
 
 class WifiSetupScreen extends ConsumerStatefulWidget {

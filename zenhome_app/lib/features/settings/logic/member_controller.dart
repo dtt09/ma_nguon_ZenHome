@@ -99,6 +99,11 @@ class MemberController extends StateNotifier<bool> {
         'pendingInvitations': FieldValue.arrayUnion([currentUsername])
       }, SetOptions(merge: true));
 
+      // Lưu lại lời mời đã gửi trên tài khoản người mời để có thể theo dõi và thu hồi
+      await FirebaseFirestore.instance.collection('users').doc(currentUsername).set({
+        'sentInvitations': FieldValue.arrayUnion([trimmed])
+      }, SetOptions(merge: true));
+
       // Bắn Alert để Server kích hoạt thông báo Push FCM
       final inviterName = FirebaseAuth.instance.currentUser?.displayName ?? currentUsername ?? 'Ai đó';
       await FirebaseFirestore.instance.collection('users').doc(trimmed).collection('alerts').add({
@@ -111,6 +116,35 @@ class MemberController extends StateNotifier<bool> {
       return MemberOperationResult(
         success: true,
         message: 'Đã gửi lời mời tới $trimmed',
+      );
+    } catch (e) {
+      state = false;
+      return MemberOperationResult(
+        success: false,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  /// Thu hồi / Hủy lời mời đã gửi trước đó
+  Future<MemberOperationResult> cancelSentInvite(String targetUsername) async {
+    if (currentUsername == null) await loadCurrentUsername();
+    state = true;
+    try {
+      // 1. Gỡ khỏi pendingInvitations của đối phương
+      await FirebaseFirestore.instance.collection('users').doc(targetUsername).update({
+        'pendingInvitations': FieldValue.arrayRemove([currentUsername])
+      });
+
+      // 2. Gỡ khỏi sentInvitations của chính mình
+      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
+        'sentInvitations': FieldValue.arrayRemove([targetUsername])
+      });
+
+      state = false;
+      return MemberOperationResult(
+        success: true,
+        message: 'Đã thu hồi lời mời tới $targetUsername',
       );
     } catch (e) {
       state = false;
@@ -149,6 +183,13 @@ class MemberController extends StateNotifier<bool> {
         'pendingInvitations': FieldValue.arrayRemove([ownerUsername])
       });
 
+      // Đồng thời dọn dẹp khỏi sentInvitations của chủ nhà
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(ownerUsername).update({
+          'sentInvitations': FieldValue.arrayRemove([currentUsername])
+        });
+      } catch (_) {}
+
       // 4. Lấy dữ liệu nhà chủ và chuyển không gian làm việc
       final targetDoc = await FirebaseFirestore.instance.collection('users').doc(ownerUsername).get();
       if (targetDoc.exists) {
@@ -164,6 +205,12 @@ class MemberController extends StateNotifier<bool> {
           assignedRole = data['memberRoles'][currentUsername];
         }
 
+        List<String>? allowedDevs;
+        if (data['memberDevicePermissions'] != null &&
+            data['memberDevicePermissions'][currentUsername] != null) {
+          allowedDevs = List<String>.from(data['memberDevicePermissions'][currentUsername]);
+        }
+
         final newConfig = SmartConfig(
           userId: ownerUsername,
           macAddress: data['macAddress'] ?? 'unknown_mac',
@@ -174,6 +221,7 @@ class MemberController extends StateNotifier<bool> {
           role: assignedRole,
           homeName: 'Nhà của $ownerName',
           ownerEmail: ownerUsername,
+          allowedDevices: allowedDevs,
         );
 
         await _ref.read(homeConfigProvider).saveConfigToStorage(newConfig);
@@ -204,6 +252,11 @@ class MemberController extends StateNotifier<bool> {
       await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
         'pendingInvitations': FieldValue.arrayRemove([ownerUsername])
       });
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(ownerUsername).update({
+          'sentInvitations': FieldValue.arrayRemove([currentUsername])
+        });
+      } catch (_) {}
       return MemberOperationResult(success: true, message: 'Đã từ chối lời mời từ $ownerUsername');
     } catch (e) {
       return MemberOperationResult(success: false, errorMessage: e.toString());
@@ -219,12 +272,38 @@ class MemberController extends StateNotifier<bool> {
         'automationEditors': FieldValue.arrayRemove([memberUsername]),
         'disabledMembers': FieldValue.arrayRemove([memberUsername]),
         'memberRoles.$memberUsername': FieldValue.delete(),
+        'memberDevicePermissions.$memberUsername': FieldValue.delete(),
       });
       await FirebaseFirestore.instance.collection('users').doc(memberUsername).update({
         'ownerUsername': FieldValue.delete(),
         'ownerEmail': FieldValue.delete()
       });
       return MemberOperationResult(success: true, message: 'Đã gỡ quyền truy cập của $memberUsername');
+    } catch (e) {
+      return MemberOperationResult(success: false, errorMessage: e.toString());
+    }
+  }
+
+  /// Cập nhật quyền truy cập thiết bị cụ thể cho thành viên
+  Future<MemberOperationResult> updateDevicePermissions(String memberUsername, List<String> allowedDevices) async {
+    if (currentUsername == null) await loadCurrentUsername();
+    try {
+      if (allowedDevices.isEmpty) {
+        // Cho phép toàn bộ thiết bị (xóa giới hạn riêng)
+        await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
+          'memberDevicePermissions.$memberUsername': FieldValue.delete(),
+        });
+      } else {
+        await FirebaseFirestore.instance.collection('users').doc(currentUsername).set({
+          'memberDevicePermissions': {
+            memberUsername: allowedDevices,
+          }
+        }, SetOptions(merge: true));
+      }
+      return MemberOperationResult(
+        success: true,
+        message: 'Đã cập nhật quyền thiết bị cho $memberUsername',
+      );
     } catch (e) {
       return MemberOperationResult(success: false, errorMessage: e.toString());
     }

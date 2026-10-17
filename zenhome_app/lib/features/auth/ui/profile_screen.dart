@@ -630,15 +630,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (confirm1 != true) return;
 
     if (!mounted) return;
-    String? currentUsername = _currentUsername;
+    String currentUsername = ref.read(profileControllerProvider).username;
     if (currentUsername.isEmpty) {
-      final query = await FirebaseFirestore.instance.collection('users').where('uid', isEqualTo: user.uid).get();
-      if (query.docs.isNotEmpty) {
-        currentUsername = query.docs.first.id;
-      } else {
-        showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_user_not_found') ?? 'Không tìm thấy tài khoản', isError: true);
-        return;
-      }
+      currentUsername = user.email?.split('@')[0] ?? 'user';
     }
 
     final TextEditingController usernameConfirmController = TextEditingController();

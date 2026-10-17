@@ -1,4 +1,4 @@
-﻿import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
+import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
 import 'dart:async'; 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -110,6 +110,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
 
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
+
+    // Kiểm tra quyền điều khiển thiết bị của thành viên
+    if (activeConfig.role == 'member' &&
+        activeConfig.allowedDevices != null &&
+        !activeConfig.allowedDevices!.contains(devId)) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        'Bạn không có quyền điều khiển thiết bị này',
+        isError: true,
+      );
+      return;
+    }
+
     String cmd = !currentState ? '1' : '0';
     String actionText = !currentState ? context.tr('status_on') : context.tr('status_off');
     String topicCmd = '${activeConfig.mqttPrefix}/$roomId/$devId/cmd';
@@ -453,6 +467,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   List<Widget> activeDevices = sortedDevices.map((dev) {
                         bool isOn = states[dev.id] ?? false;
                         bool isCooldown = _cooldowns[dev.id] ?? false; 
+                        bool isRestricted = activeConfig.role == 'member' &&
+                            activeConfig.allowedDevices != null &&
+                            !activeConfig.allowedDevices!.contains(dev.id);
 
                         return DeviceCard(
                           deviceName: dev.name, 
@@ -460,6 +477,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           icon: _getIconData(dev.icon),
                           isOn: isOn,
                           isCooldown: isCooldown, 
+                          isRestricted: isRestricted,
                           onTap: () => _toggleDevice(dev.id, dev.room, isOn),
                         );
                       }).toList();

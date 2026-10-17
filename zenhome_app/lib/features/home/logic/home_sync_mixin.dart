@@ -141,6 +141,21 @@ mixin HomeSyncMixin on ConsumerState<MainLayout> {
           configChanged = true;
         }
       }
+
+      if (data.containsKey('memberDevicePermissions')) {
+        Map<String, dynamic> devPerms = Map<String, dynamic>.from(data['memberDevicePermissions'] ?? {});
+        if (devPerms.containsKey(cachedUsername)) {
+          List<dynamic> allowedList = devPerms[cachedUsername] ?? [];
+          activeConfig.allowedDevices = allowedList.map((e) => e.toString()).toList();
+          configChanged = true;
+        } else if (activeConfig.allowedDevices != null) {
+          activeConfig.allowedDevices = null;
+          configChanged = true;
+        }
+      } else if (activeConfig.allowedDevices != null) {
+        activeConfig.allowedDevices = null;
+        configChanged = true;
+      }
     }
 
     // Đồng bộ danh sách thiết bị
