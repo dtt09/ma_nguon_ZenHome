@@ -93,3 +93,91 @@ backupRouter.post('/delete-request', requireAdminAuth, async (req: Request, res:
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+/**
+ * @route   GET /api/v1/backup/device-states
+ * @desc    Lấy toàn bộ trạng thái thiết bị được lưu trữ trong Mini Server Backup
+ */
+backupRouter.get('/device-states', async (req: Request, res: Response) => {
+  try {
+    const { getAllDeviceBackupStates } = await import('../../core/deviceStateBackup');
+    const allStates = getAllDeviceBackupStates();
+    res.json({
+      success: true,
+      totalUsers: Object.keys(allStates).length,
+      data: allStates,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @route   GET /api/v1/backup/device-states/:userId
+ * @desc    Lấy trạng thái thiết bị của một gia chủ cụ thể
+ */
+backupRouter.get('/device-states/:userId', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { getUserDeviceBackup } = await import('../../core/deviceStateBackup');
+    const userBackup = getUserDeviceBackup(String(userId));
+    if (!userBackup) {
+      return res.status(404).json({ success: false, message: 'Chưa có bản ghi backup nào cho user này' });
+    }
+    res.json({
+      success: true,
+      userId,
+      backup: userBackup,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @route   POST /api/v1/backup/device-states/sync
+ * @desc    Kích hoạt đồng bộ trạng thái từ Server Backup xuống ESP32
+ */
+backupRouter.post('/device-states/sync', async (req: Request, res: Response) => {
+  try {
+    const { userId, macAddress } = req.body;
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'Thiếu tham số userId' });
+    }
+    const { syncDeviceStatesToEsp } = await import('../../core/deviceStateBackup');
+    const result = await syncDeviceStatesToEsp(String(userId), String(macAddress || 'unknown'));
+    res.json({
+      success: true,
+      message: `Đã kích hoạt đồng bộ ${result.syncedCount} thiết bị xuống ESP32 thành công`,
+      syncedCount: result.syncedCount,
+      states: result.states,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @route   POST /api/v1/backup/device-states/save
+ * @desc    Lưu thủ công trạng thái thiết bị vào Server Backup
+ */
+backupRouter.post('/device-states/save', async (req: Request, res: Response) => {
+  try {
+    const { baseTopic, state, source } = req.body;
+    if (!baseTopic || (state !== '0' && state !== '1')) {
+      return res.status(400).json({ success: false, error: 'Cần baseTopic và state (0 hoặc 1)' });
+    }
+    const { recordDeviceState } = await import('../../core/deviceStateBackup');
+    await recordDeviceState(String(baseTopic), state, source || 'manual_api');
+    res.json({
+      success: true,
+      message: `Đã lưu trạng thái thiết bị [${baseTopic}] -> ${state} vào Server Backup`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});

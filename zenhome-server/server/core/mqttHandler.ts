@@ -5,6 +5,7 @@ import { logHistoryAndNotify, sendPushToUserTokens } from './notifications';
 import { handleEspPowerRestored, sendCommandWithRetry } from './devices';
 import { saveScheduleToFirebase, deleteScheduleFromFirebase } from './schedules';
 import { setTimer } from './timers';
+import { recordDeviceState, recordEspOffline } from './deviceStateBackup';
 
 export function setupMqttHandlers() {
     client.on('connect', () => {
@@ -108,6 +109,7 @@ export function setupMqttHandlers() {
                     state.offlineDebounceTimers[userId] = setTimeout(async () => {
                         delete state.offlineDebounceTimers[userId];
                         console.log(`[ESP] ⚠️ ESP32 ${macAddress} của user ${userId} offline thực sự (>35s). Kích hoạt cảnh báo hệ thống.`);
+                        recordEspOffline(userId, macAddress);
 
                         const notificationVi = {
                             title: '⚠️ Cảnh báo Hệ Thống',
@@ -189,6 +191,9 @@ export function setupMqttHandlers() {
                 } catch (e) {}
             }
 
+            // Luôn ghi nhận trạng thái thực tế vào Server Backup Engine
+            recordDeviceState(baseTopic, actualState === '1' ? '1' : '0', 'mqtt_state');
+
             if (state.pendingTasks[topic] && state.pendingTasks[topic].targetState === actualState) {
                 console.log(`[SUCCESS] ✅ ESP32 đã BẬT/TẮT xong: ${baseTopic} -> ${actualState === '1' ? 'BẬT' : 'TẮT'}${ackData && ackData.cmdId ? ` (ACK cmdId: ${ackData.cmdId})` : ''}`);
 
@@ -204,6 +209,23 @@ export function setupMqttHandlers() {
                 }
                 delete state.pendingTasks[topic];
             }
+            return;
+        }
+
+        // 1.5 BÁO CÁO ĐỒNG BỘ TRẠNG THÁI TỪ ESP32 KHI CÓ MẠNG LẠI (BULK SYNC REPORT)
+        if (action === 'report' && topicParts[topicParts.length - 1] === 'sync') {
+            try {
+                const reportData = JSON.parse(payload);
+                if (Array.isArray(reportData.relays)) {
+                    reportData.relays.forEach((item: any) => {
+                        if (item.id && item.state !== undefined) {
+                            const devTopic = `${baseTopic}/${item.room || 'default'}/${item.id}`;
+                            recordDeviceState(devTopic, item.state === '1' ? '1' : '0', 'esp_sync_report');
+                        }
+                    });
+                    console.log(`[BACKUP SYNC] 📥 Đã lưu báo cáo đồng bộ trạng thái thực tế từ ESP32 (${reportData.relays.length} thiết bị).`);
+                }
+            } catch (e) {}
             return;
         }
 

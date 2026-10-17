@@ -67,6 +67,7 @@ String mqtt_pass = "DTC_ZenHome2103";
 
 struct RelayDev {
   String id;
+  String room;
   int pin;
   String state; // "0" hoặc "1"
 };
@@ -134,6 +135,8 @@ void syncTime(); // Thêm hàm đồng bộ thời gian
 void setupStationWebServer();
 void setupUdpDiscovery();
 void checkUdpDiscovery();
+void saveRelayStatesToFS();
+void loadRelayStatesFromFS();
 
 void setup() {
   Serial.begin(115200);
@@ -409,6 +412,7 @@ bool loadConfig() {
       break;
     }
     myRelays[relayCount].id = dev["id"].as<String>();
+    myRelays[relayCount].room = dev.containsKey("room") ? dev["room"].as<String>() : "living_room";
     myRelays[relayCount].pin = dev["pin"].as<int>();
     myRelays[relayCount].state = "0"; // Mặc định tắt (Active-Low)
     
@@ -424,7 +428,55 @@ bool loadConfig() {
     }
     relayCount++;
   }
+  // Khôi phục trạng thái Bật/Tắt lần cuối từ flash LittleFS (nếu có)
+  loadRelayStatesFromFS();
   return true;
+}
+
+// ---------------------------------------------------------
+// LƯU TRỮ VÀ KHÔI PHỤC TRẠNG THÁI RELAY VÀO FLASH (LITTLEFS)
+// Đảm bảo trạng thái thiết bị được duy trì khi mất mạng hoặc khởi động lại
+// ---------------------------------------------------------
+void saveRelayStatesToFS() {
+  DynamicJsonDocument doc(1024);
+  JsonArray arr = doc.createNestedArray("relays");
+  for (int i = 0; i < relayCount; i++) {
+    JsonObject obj = arr.createNestedObject();
+    obj["id"] = myRelays[i].id;
+    obj["state"] = myRelays[i].state;
+    obj["room"] = myRelays[i].room;
+  }
+  File f = LittleFS.open("/relay_states.json", "w");
+  if (f) {
+    serializeJson(doc, f);
+    f.close();
+    Serial.println("[BACKUP-FS] Đã lưu trạng thái thiết bị lần cuối vào LittleFS");
+  }
+}
+
+void loadRelayStatesFromFS() {
+  if (!LittleFS.exists("/relay_states.json")) return;
+  File f = LittleFS.open("/relay_states.json", "r");
+  if (!f) return;
+  DynamicJsonDocument doc(1024);
+  DeserializationError err = deserializeJson(doc, f);
+  f.close();
+  if (err) return;
+
+  JsonArray arr = doc["relays"].as<JsonArray>();
+  for (JsonObject obj : arr) {
+    String devId = obj["id"].as<String>();
+    String st = obj["state"].as<String>();
+    for (int i = 0; i < relayCount; i++) {
+      if (myRelays[i].id == devId) {
+        myRelays[i].state = st;
+        if (st == "1") safeSetRelayPin(myRelays[i].pin, LOW);
+        else safeSetRelayPin(myRelays[i].pin, HIGH);
+        break;
+      }
+    }
+  }
+  Serial.println("[BACKUP-FS] OK: Đã khôi phục trạng thái Bật/Tắt lần cuối từ LittleFS!");
 }
 
 void setupAPMode() {
@@ -543,6 +595,26 @@ void connectMQTT() {
     
     // Gửi tín hiệu online ngay khi kết nối
     mqttClient.publish(statusTopic.c_str(), "online", true);
+
+    // Đồng bộ trạng thái thực tế của toàn bộ relay lên MQTT Broker & Server Backup
+    DynamicJsonDocument syncDoc(1024);
+    syncDoc["mac"] = mac;
+    JsonArray relayArr = syncDoc.createNestedArray("relays");
+    for (int i = 0; i < relayCount; i++) {
+      String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
+      String stateTopic = mqtt_prefix + "/" + rName + "/" + myRelays[i].id + "/state";
+      mqttClient.publish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
+
+      JsonObject rObj = relayArr.createNestedObject();
+      rObj["id"] = myRelays[i].id;
+      rObj["state"] = myRelays[i].state;
+      rObj["room"] = rName;
+    }
+    String syncPayload;
+    serializeJson(syncDoc, syncPayload);
+    String syncReportTopic = mqtt_prefix + "/sync/report";
+    mqttClient.publish(syncReportTopic.c_str(), syncPayload.c_str(), false);
+    Serial.println("[SYNC] Đã đồng bộ trạng thái thực tế lên MQTT Broker & Server Backup!");
 
     // Bắt đầu lắng nghe lệnh điều khiển từ ứng dụng
     String listenTopic = mqtt_prefix + "/+/+/cmd";
@@ -729,6 +801,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       if (targetState == "1") safeSetRelayPin(myRelays[i].pin, LOW);
       else if (targetState == "0") safeSetRelayPin(myRelays[i].pin, HIGH);
       
+      saveRelayStatesToFS(); // Lưu trạng thái mới vào LittleFS
+
       // Đồng bộ lại trạng thái cho ứng dụng di động
       String stateTopic = topicStr;
       stateTopic.replace("/cmd", "/state"); 
@@ -810,9 +884,12 @@ void setupStationWebServer() {
           safeSetRelayPin(myRelays[i].pin, HIGH); // Active-Low TẮT
         }
 
+        saveRelayStatesToFS(); // Lưu trạng thái mới vào LittleFS
+
         // Nếu MQTT đang kết nối, đồng bộ ngay lập tức lên Cloud Broker
         if (mqttClient.connected()) {
-          String stateTopic = mqtt_prefix + "/room/" + devId + "/state";
+          String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
+          String stateTopic = mqtt_prefix + "/" + rName + "/" + devId + "/state";
           mqttClient.publish(stateTopic.c_str(), targetState.c_str(), true);
         }
         break;

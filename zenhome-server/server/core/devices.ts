@@ -75,35 +75,9 @@ export async function handleEspPowerRestored(userId: string, macAddress: string)
 
         const isEn = language === 'en';
 
-        // Đồng bộ công tắc trên app và Gửi lệnh 0 (TẮT) thiết bị (an toàn điện)
-        devices.forEach(dev => {
-            if (dev.room && dev.id) {
-                const baseTopic = `${userId}/${macAddress}/${dev.room}/${dev.id}`;
-                // Gọi sendCommandWithRetry để đảm bảo ESP nhận được lệnh và tự phản hồi state
-                sendCommandWithRetry(baseTopic, '0');
-            }
-        });
-
-        // Ghi lịch sử
-        await db.collection('users').doc(targetEmail).collection('history').add({
-            deviceName: isEn ? 'Power System' : 'Hệ thống Điện',
-            action: isEn ? 'Power restored. All devices auto-turned off for safety' : 'Có điện trở lại, Tự động Tắt tất cả thiết bị để an toàn',
-            timestamp: FieldValue.serverTimestamp(),
-        });
-
-        const notificationVi = {
-            title: '⚡ Thông Báo Nguồn Điện',
-            body: 'Hệ thống vừa có điện trở lại. Toàn bộ thiết bị đã được tắt để đảm bảo an toàn!'
-        };
-
-        const notificationEn = {
-            title: '⚡ Power Supply Notification',
-            body: 'The system has just regained power. All devices have been turned off to ensure safety!'
-        };
-
-        await sendPushToUserTokens(userId, notificationVi, notificationEn, isEn, false, 'important');
-        console.log(`[FIREBASE] 🔔 Đã bắn Push báo Có điện cho user: ${userId}`);
-
+        // Tự động khôi phục và đồng bộ trạng thái Bật/Tắt lần cuối từ Mini Backup Server
+        const { syncDeviceStatesToEsp } = await import('./deviceStateBackup');
+        await syncDeviceStatesToEsp(userId, macAddress, devices, isEn);
     } catch (error) {
         console.error("[FIREBASE ERROR] ❌ Lỗi khi xử lý ESP online:", error);
     }

@@ -7,6 +7,7 @@ import { loadTimersFromFirebase } from './core/timers';
 import { startJunkAccountCleanupCron, cleanJunkAccounts as realCleanJunkAccounts } from './core/cleanup';
 import { db } from './core/firebase';
 import { setupLoggerHook } from './loggerHook';
+import { initDeviceStateBackup } from './core/deviceStateBackup';
 
 let isWorkerRunning = false;
 
@@ -49,6 +50,7 @@ export function initZenHomeWorker() {
 
     try {
         setupMqttHandlers();
+        initDeviceStateBackup();
         loadSchedulesFromFirebase();
         loadTimersFromFirebase();
         startCronJob(realSendCommandWithRetry);
