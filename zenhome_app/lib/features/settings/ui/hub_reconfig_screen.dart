@@ -1,8 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:wifi_scan/wifi_scan.dart';
 
 import 'package:zenhome_app/core/utils/haptic_helper.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
@@ -11,12 +8,12 @@ import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
 import 'package:zenhome_app/core/widgets/zalopay_status_dialog.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
-import 'package:zenhome_app/features/setup/logic/wifi_provisioning_service.dart';
+import 'package:zenhome_app/features/settings/logic/hub_reconfig_controller.dart';
+import 'package:zenhome_app/features/settings/ui/wifi_picker_bottom_sheet.dart';
 import 'package:zenhome_app/features/setup/ui/wifi_setup_screen.dart';
-import 'package:zenhome_app/core/utils/helpers.dart';
 
 /// Màn hình Cấu hình lại Wi-Fi kết nối và MQTT Broker cho Hub ESP32
-/// Yêu cầu mật khẩu quản trị trước khi truy cập.
+/// Đã tách biệt Tầng Giao Diện (UI) và Tầng Nghiệp Vụ (HubReconfigController).
 class HubReconfigScreen extends ConsumerStatefulWidget {
   const HubReconfigScreen({super.key});
 
@@ -37,7 +34,6 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
   bool _obscureWifiPass = true;
   bool _obscureMqttPass = true;
   bool _obscureAdminPass = true;
-  bool _isScanningWifi = false;
 
   @override
   void initState() {
@@ -66,116 +62,20 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
   }
 
   Future<void> _openWifiPicker() async {
-    setState(() => _isScanningWifi = true);
     HapticHelper.light();
+    final list = await ref.read(hubReconfigProvider.notifier).scanWifi();
+    if (!mounted) return;
 
-    try {
-      final results = await WifiProvisioningService.scanNearbyWifi(espOnly: false);
-      if (!mounted) return;
-      setState(() => _isScanningWifi = false);
-
-      final homeAps = results.where((ap) {
-        final s = ap.ssid.toLowerCase();
-        return !s.startsWith('zenhome') && !s.contains('setup') && ap.ssid.isNotEmpty;
-      }).toList();
-
-      final uniqueMap = <String, WiFiAccessPoint>{};
-      for (final ap in homeAps) {
-        if (!uniqueMap.containsKey(ap.ssid) || ap.level > uniqueMap[ap.ssid]!.level) {
-          uniqueMap[ap.ssid] = ap;
-        }
-      }
-      final uniqueList = uniqueMap.values.toList();
-
-      if (uniqueList.isEmpty) {
-        showFloatingToast(context, context.tr('info'), 'Không tìm thấy mạng Wi-Fi nào khả dụng');
-        return;
-      }
-
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (ctx) {
-          final isDark = Theme.of(ctx).brightness == Brightness.dark;
-          return SafeArea(
-            child: Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(ctx).size.height * 0.65,
-              ),
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF131B2E) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                border: Border.all(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Icon(Icons.wifi_rounded, color: Color(0xFF0F766E)),
-                      const SizedBox(width: 10),
-                      Text(
-                        context.tr('wifi_select_home_wifi_title'),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Expanded(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: uniqueList.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
-                      itemBuilder: (context, i) {
-                        final ap = uniqueList[i];
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          leading: Icon(
-                            ap.level >= -65 ? Icons.wifi : Icons.wifi_2_bar_rounded,
-                            color: ap.level >= -65 ? const Color(0xFF10B981) : Colors.amber,
-                          ),
-                          title: Text(ap.ssid, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          subtitle: Text(
-                            '${WifiProvisioningService.getSignalQuality(ap.level)} (${ap.level} dBm)',
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                          onTap: () {
-                            _ssidController.text = ap.ssid;
-                            Navigator.pop(ctx);
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isScanningWifi = false);
-        showFloatingToast(context, context.tr('error'), 'Lỗi quét Wi-Fi: $e', isError: true);
-      }
+    if (list.isEmpty) {
+      showFloatingToast(context, context.tr('info'), 'Không tìm thấy mạng Wi-Fi nào khả dụng');
+      return;
     }
+
+    WifiPickerBottomSheet.show(
+      context,
+      wifiList: list,
+      onWifiSelected: (ssid) => _ssidController.text = ssid,
+    );
   }
 
   Future<void> _handleApplyConfig() async {
@@ -185,12 +85,6 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
     }
 
     final newSsid = _ssidController.text.trim();
-    final newWifiPass = _wifiPassController.text.trim();
-    final newServer = _mqttServerController.text.trim();
-    final newUser = _mqttUserController.text.trim();
-    final newPass = _mqttPassController.text.trim();
-    final newAdminPass = _adminPassController.text.trim();
-
     if (newSsid.isEmpty) {
       showFloatingToast(context, context.tr('error'), 'Vui lòng nhập hoặc chọn Tên Wi-Fi (SSID)', isError: true);
       return;
@@ -198,7 +92,6 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
 
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
     final isEspOnline = ref.read(mqttRepositoryProvider).isEspOnline;
-
     HapticHelper.medium();
 
     // Xác nhận trước khi áp dụng
@@ -206,113 +99,47 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
       context,
       title: 'Xác nhận đổi Wi-Fi & MQTT',
       warningText: 'Hub ESP32 sẽ lưu cấu hình mới và tự động khởi động lại để kết nối vào mạng Wi-Fi và Broker MQTT mới.',
-      cautionDetails: 'Wi-Fi mới: $newSsid\nMQTT Broker: $newServer\nMAC Hub: ${activeConfig.macAddress}',
+      cautionDetails: 'Wi-Fi mới: $newSsid\nMQTT Broker: ${_mqttServerController.text.trim()}\nMAC Hub: ${activeConfig.macAddress}',
       confirmText: isEspOnline ? 'Bắn cấu hình OTA ngay' : 'Lưu cấu hình Cloud',
       cancelText: 'Xem lại',
       isDanger: false,
     );
-    if (!confirm) return;
-    if (!mounted) return;
+    if (!confirm || !mounted) return;
 
     LoadingOverlay.show(context);
 
-    try {
-      // 1. Nếu Hub Online qua MQTT: Bắn gói JSON OTA tới topic ${mqttPrefix}/system/config
-      if (isEspOnline) {
-        final payload = jsonEncode({
-          'wifi_ssid': newSsid,
-          'wifi_pass': newWifiPass,
-          'mqtt_server': newServer,
-          if (newUser.isNotEmpty) 'mqtt_user': newUser,
-          if (newPass.isNotEmpty) 'mqtt_pass': newPass,
-          'mqtt_prefix': activeConfig.mqttPrefix,
-          'admin_pass': newAdminPass,
-        });
+    // Kích hoạt logic nghiệp vụ qua Controller
+    final result = await ref.read(hubReconfigProvider.notifier).applyConfig(
+      newSsid: newSsid,
+      newWifiPass: _wifiPassController.text.trim(),
+      newServer: _mqttServerController.text.trim(),
+      newUser: _mqttUserController.text.trim(),
+      newPass: _mqttPassController.text.trim(),
+      newAdminPass: _adminPassController.text.trim(),
+    );
 
-        ref.read(mqttRepositoryProvider).publishCmd(
-          '${activeConfig.mqttPrefix}/system/config',
-          payload,
-        );
+    LoadingOverlay.hide();
+    if (!mounted) return;
 
-        // Đợi 800ms để gói tin gửi trọn vẹn qua MQTT TLS
-        await Future.delayed(const Duration(milliseconds: 800));
-      }
-
-      // 2. Cập nhật cấu hình trên Local Storage của App
-      final oldServer = activeConfig.mqttServer;
-      final oldUser = activeConfig.mqttUser;
-      final oldPass = activeConfig.mqttPass;
-
-      activeConfig.mqttServer = newServer;
-      activeConfig.mqttUser = newUser;
-      activeConfig.mqttPass = newPass;
-      activeConfig.adminPass = newAdminPass;
-
-      await ref.read(homeConfigProvider).saveConfigToStorage(activeConfig);
-
-      // 3. Cập nhật trên Cloud Firestore nếu đã đăng nhập
-      if (activeConfig.userId != 'guest' && activeConfig.userId.isNotEmpty) {
-        try {
-          await FirebaseFirestore.instance.collection('users').doc(activeConfig.userId).set({
-            'mqttServer': newServer,
-            'mqttUser': newUser,
-            'mqttPass': newPass,
-            'adminPass': newAdminPass,
-            'lastWifiSsid': newSsid,
-          }, SetOptions(merge: true));
-        } catch (e) {
-          debugPrint('Lỗi cập nhật Firestore khi reconfig: $e');
-        }
-      }
-
-      // 4. Nếu thông số Broker MQTT thay đổi, tự động reconnect client của App
-      final mqttChanged = oldServer != newServer || oldUser != newUser || oldPass != newPass;
-      if (mqttChanged) {
-        final mqttRepo = ref.read(mqttRepositoryProvider);
-        mqttRepo.disconnect();
-        mqttRepo.connect(
-          userId: activeConfig.userId,
-          mqttServer: newServer,
-          mqttPrefix: activeConfig.mqttPrefix,
-          dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
-          mqttUser: newUser,
-          mqttPass: newPass,
-        );
-      }
-
-      LoadingOverlay.hide();
-
-      if (!mounted) return;
-
-      // 5. Hiển thị thông báo ZaloPay hoàn tất
+    if (result.success) {
       await showZaloPaySuccessDialog(
         context,
         title: 'Cập nhật cấu hình thành công',
-        message: isEspOnline
+        message: result.isEspOnline
             ? 'Đã gửi cấu hình Wi-Fi & MQTT mới sang Hub ESP32 qua mạng OTA thành công! Bo mạch đang khởi động lại và kết nối vào mạng mới.'
             : 'Đã lưu cấu hình mới lên tài khoản Cloud. Do Hub đang offline, bạn có thể nạp trực tiếp qua cổng AP hoặc chờ thiết bị vào mạng.',
-        details: {
-          'Tên Wi-Fi mới': newSsid,
-          'MQTT Server': newServer,
-          'Mã MAC': activeConfig.macAddress,
-          'Phương thức': isEspOnline ? 'Bắn lệnh Cloud OTA (Thành công)' : 'Đã lưu trên Cloud (Hub Offline)',
-          'Thời gian': DateTime.now().toLocal().toString().substring(0, 19),
-        },
+        details: result.details,
         buttonText: 'Hoàn tất',
       );
-
       if (mounted) {
         Navigator.pop(context);
       }
-    } catch (e) {
-      LoadingOverlay.hide();
-      if (mounted) {
-        showZaloPayWarningDialog(
-          context,
-          title: 'Lỗi áp dụng cấu hình',
-          message: 'Không thể cập nhật cấu hình: $e',
-        );
-      }
+    } else {
+      showZaloPayWarningDialog(
+        context,
+        title: 'Lỗi áp dụng cấu hình',
+        message: result.errorMessage ?? 'Không thể cập nhật cấu hình',
+      );
     }
   }
 
@@ -321,6 +148,7 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
     final isEspOnline = ref.watch(mqttRepositoryProvider).isEspOnline;
+    final isScanningWifi = ref.watch(hubReconfigProvider).isScanningWifi;
 
     final primaryColor = const Color(0xFF0F766E);
     final cardBg = isDark ? const Color(0xFF131B2E) : Colors.white;
@@ -493,7 +321,7 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                           hintText: 'Nhập tên Wi-Fi 2.4GHz',
                           prefixIcon: const Icon(Icons.wifi, color: Color(0xFF0F766E), size: 20),
                           suffixIcon: IconButton(
-                            icon: _isScanningWifi
+                            icon: isScanningWifi
                                 ? const SizedBox(
                                     width: 18,
                                     height: 18,

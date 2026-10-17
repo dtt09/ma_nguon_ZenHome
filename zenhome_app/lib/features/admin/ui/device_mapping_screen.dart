@@ -2,18 +2,16 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:zenhome_app/core/models/smart_config.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
-import 'package:zenhome_app/core/widgets/premium_dialog.dart';
 import 'package:zenhome_app/core/widgets/zalopay_status_dialog.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
+import 'package:zenhome_app/features/admin/logic/device_mapping_controller.dart';
 import 'package:zenhome_app/features/setup/ui/wifi_setup_screen.dart';
-import 'package:mqtt_client/mqtt_client.dart' as mqtt;
 
 class DeviceMappingScreen extends ConsumerStatefulWidget {
   const DeviceMappingScreen({super.key});
@@ -24,7 +22,6 @@ class DeviceMappingScreen extends ConsumerStatefulWidget {
 
 class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
   List<DeviceConfig> _tempDevices = [];
-  bool _isSyncing = false;
 
   final List<String> _iconOptions = [
     'lightbulb_rounded',
@@ -54,122 +51,65 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
       return;
     }
 
-    // --- KIỂM TRA TOÀN DIỆN TRÁNH TRÙNG CHÂN GPIO ---
-    final Map<int, List<String>> pinToDevices = {};
-    for (var dev in _tempDevices) {
-      pinToDevices.putIfAbsent(dev.pin, () => []).add(dev.name);
-    }
-    for (var entry in pinToDevices.entries) {
-      if (entry.value.length > 1) {
-        showZaloPayErrorDialog(
-          context,
-          title: 'Xung đột phần cứng GPIO',
-          message: 'Chân GPIO ${entry.key} đang bị gán trùng cho nhiều thiết bị: "${entry.value.join('", "')}". Mỗi thiết bị phải kết nối một chân GPIO độc lập.',
-          details: {
-            'Chân GPIO': '${entry.key}',
-            'Thiết bị trùng': entry.value.join(', '),
-            'Yêu cầu': 'Thay đổi chân GPIO trước khi lưu',
-          },
-        );
-        return;
-      }
+    final controller = ref.read(deviceMappingProvider.notifier);
+
+    // 1. KIỂM TRA TOÀN DIỆN TRÁNH TRÙNG CHÂN GPIO QUA CONTROLLER
+    final gpioConflict = controller.checkGpioConflict(_tempDevices);
+    if (gpioConflict != null) {
+      showZaloPayErrorDialog(
+        context,
+        title: 'Xung đột phần cứng GPIO',
+        message: 'Chân GPIO ${gpioConflict.pin} đang bị gán trùng cho nhiều thiết bị: "${gpioConflict.deviceNames.join('", "')}". Mỗi thiết bị phải kết nối một chân GPIO độc lập.',
+        details: {
+          'Chân GPIO': '${gpioConflict.pin}',
+          'Thiết bị trùng': gpioConflict.deviceNames.join(', '),
+          'Yêu cầu': 'Thay đổi chân GPIO trước khi lưu',
+        },
+      );
+      return;
     }
 
-    // --- KIỂM TRA TOÀN DIỆN TRÁNH TRÙNG TÊN THIẾT BỊ TRONG CÙNG PHÒNG ---
-    final Map<String, List<String>> roomNameToDevices = {};
-    for (var dev in _tempDevices) {
-      final key = '${dev.room}::${dev.name.trim().toLowerCase()}';
-      roomNameToDevices.putIfAbsent(key, () => []).add(dev.name);
-    }
-    for (var entry in roomNameToDevices.entries) {
-      if (entry.value.length > 1) {
-        final parts = entry.key.split('::');
-        final roomTitle = context.tr(parts[0]);
-        showZaloPayErrorDialog(
-          context,
-          title: 'Trùng tên thiết bị trong phòng',
-          message: 'Trong "$roomTitle" có nhiều thiết bị cùng mang tên "${entry.value.first}". Vui lòng đặt tên khác nhau để tránh nhầm lẫn.',
-          details: {
-            'Khu vực': roomTitle,
-            'Tên xung đột': entry.value.first,
-            'Yêu cầu': 'Đổi tên thiết bị trước khi lưu',
-          },
-        );
-        return;
-      }
+    // 2. KIỂM TRA TRÙNG TÊN THIẾT BỊ TRONG PHÒNG QUA CONTROLLER
+    final nameConflict = controller.checkRoomNameConflict(_tempDevices);
+    if (nameConflict != null) {
+      final roomTitle = context.tr(nameConflict.roomKey);
+      showZaloPayErrorDialog(
+        context,
+        title: 'Trùng tên thiết bị trong phòng',
+        message: 'Trong "$roomTitle" có nhiều thiết bị cùng mang tên "${nameConflict.deviceName}". Vui lòng đặt tên khác nhau để tránh nhầm lẫn.',
+        details: {
+          'Khu vực': roomTitle,
+          'Tên xung đột': nameConflict.deviceName,
+          'Yêu cầu': 'Đổi tên thiết bị trước khi lưu',
+        },
+      );
+      return;
     }
 
-    setState(() => _isSyncing = true);
-    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+    // 3. THỰC THI ĐỒNG BỘ CẤU HÌNH QUA CONTROLLER
+    final result = await controller.saveMapping(_tempDevices);
+    if (!mounted) return;
 
-    // Lưu local trước để đảm bảo tính năng Offline hoạt động
-    activeConfig.devices = _tempDevices;
-    await ref.read(homeConfigProvider).saveConfigToStorage(activeConfig);
-
-    try {
-      if (activeConfig.userId != 'guest' && activeConfig.userId.isNotEmpty) {
-        await FirebaseFirestore.instance.collection('users').doc(activeConfig.userId).set({
-          'devices': _tempDevices.map((e) => e.toJson()).toList(),
-          'mqttServer': activeConfig.mqttServer,
-          'mqttUser': activeConfig.mqttUser,
-          'mqttPass': activeConfig.mqttPass,
-          'macAddress': activeConfig.macAddress,
-        }, SetOptions(merge: true));
-      }
-
-      // Đồng bộ thiết bị mới xuống thẳng ESP32 qua MQTT để ESP32 cập nhật lại cấu hình Relay
-      try {
-        String devicesJson = jsonEncode(_tempDevices.map((e) => e.toJson()).toList());
-        String configTopic = '${activeConfig.mqttPrefix}/system/config';
-        ref.read(mqttRepositoryProvider).publishCmd(configTopic, devicesJson);
-
-        // Gửi lệnh restart cho ESP32
-        String restartTopic = '${activeConfig.mqttPrefix}/system/restart';
-        ref.read(mqttRepositoryProvider).publishCmd(restartTopic, '1');
-
-        // Đăng ký nhận bản tin state cho các thiết bị vừa thêm để app không bị timeout
-        final mqttRepo = ref.read(mqttRepositoryProvider);
-        if (mqttRepo.client?.connectionStatus?.state == mqtt.MqttConnectionState.connected) {
-          for (var dev in _tempDevices) {
-            String stateTopic = '${activeConfig.mqttPrefix}/${dev.room}/${dev.id}/state';
-            mqttRepo.client?.subscribe(stateTopic, mqtt.MqttQos.atLeastOnce);
-          }
-        }
-      } catch (e) {
-        debugPrint('Lỗi publish config mqtt: $e');
-      }
-
-      setState(() => _isSyncing = false);
-      if (mounted) {
-        await showZaloPaySuccessDialog(
-          context,
-          title: context.tr('mapping_saved_title'),
-          message: context.tr('mapping_saved_desc'),
-          details: {
-            'Số lượng thiết bị': '${_tempDevices.length} thiết bị',
-            'Đồng bộ Cloud': 'Firestore thành công',
-            'Đồng bộ ESP32': 'Đã gửi qua MQTT (${activeConfig.mqttPrefix})',
-            'Thời gian': DateTime.now().toLocal().toString().substring(0, 19),
-          },
-          buttonText: 'Hoàn tất',
-        );
-        if (mounted) Navigator.pop(context);
-      }
-    } catch (e) {
-      debugPrint('Lỗi đồng bộ: $e');
-      setState(() => _isSyncing = false);
-      if (mounted) {
-        await showZaloPayErrorDialog(
-          context,
-          title: 'Lưu ngoại tuyến',
-          message: '${context.tr('msg_sync_offline')}\nChi tiết: $e',
-          details: {
-            'Chế độ': 'Lưu tạm cục bộ (Offline)',
-            'Lỗi': e.toString(),
-          },
-        );
-        if (mounted) Navigator.pop(context);
-      }
+    if (!result.isOffline) {
+      await showZaloPaySuccessDialog(
+        context,
+        title: context.tr('mapping_saved_title'),
+        message: context.tr('mapping_saved_desc'),
+        details: result.details,
+        buttonText: 'Hoàn tất',
+      );
+      if (mounted) Navigator.pop(context);
+    } else {
+      await showZaloPayErrorDialog(
+        context,
+        title: 'Lưu ngoại tuyến',
+        message: '${context.tr('msg_sync_offline')}\nChi tiết: ${result.errorMessage}',
+        details: {
+          'Chế độ': 'Lưu tạm cục bộ (Offline)',
+          'Lỗi': result.errorMessage ?? '',
+        },
+      );
+      if (mounted) Navigator.pop(context);
     }
   }
 
@@ -690,6 +630,7 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
     final bool isEspOnline = ref.watch(espOnlineStateProvider);
+    final bool isSyncing = ref.watch(deviceMappingProvider);
 
     bool isUnlinked = activeConfig.macAddress == 'unknown_mac' ||
         activeConfig.macAddress.isEmpty ||
@@ -821,7 +762,7 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
               padding: const EdgeInsets.only(right: 16),
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: _isSyncing ? null : _saveMapping,
+                onTap: isSyncing ? null : _saveMapping,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
@@ -835,7 +776,7 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                       ),
                     ],
                   ),
-                  child: _isSyncing
+                  child: isSyncing
                       ? const SizedBox(
                           width: 20,
                           height: 20,
