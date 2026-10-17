@@ -1,14 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { db, findUser } from '../../utils/firestoreHelper';
 import { addLog } from '../../zenhomeState';
+import { requireAdminAuth } from '../../middlewares/auth';
 
 export const usersRouter = Router();
 
 /**
  * @route   GET /api/v1/users
- * @desc    Lấy danh sách tất cả tài khoản người dùng thực tế trong hệ thống Firestore
+ * @desc    Lấy danh sách tất cả tài khoản người dùng thực tế trong hệ thống Firestore (Yêu cầu Admin Auth)
  */
-usersRouter.get('/', async (req: Request, res: Response) => {
+usersRouter.get('/', requireAdminAuth, async (req: Request, res: Response) => {
   try {
     const snap = await db.collection('users').get();
     const users = snap.docs.map(doc => {

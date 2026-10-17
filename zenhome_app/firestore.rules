@@ -6,12 +6,64 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
-    
-    // Cho phép tất cả người dùng ĐƯỢC ĐỌC (để hỗ trợ tra cứu username lúc đăng nhập)
-    // và CHỈ ĐƯỢC GHI khi đã đăng nhập
-    match /{document=**} {
+
+    // Kiểm tra có phải chủ sở hữu tài khoản hoặc UID khớp
+    function isUserOwner(userId) {
+      return isSignedIn() && (
+        request.auth.uid == userId ||
+        (resource != null && resource.data.uid == request.auth.uid) ||
+        (request.resource != null && request.resource.data.uid == request.auth.uid)
+      );
+    }
+
+    // Cho phép đọc thông tin cơ bản để tra cứu lúc đăng nhập (email / phone / username)
+    // Nhưng CHỈ cho phép ghi khi chính chủ sở hữu tài khoản đó
+    match /users/{userId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.uid ||
+        (resource.data.sharedWith is list && resource.data.sharedWith.hasAny([request.auth.token.email, request.auth.uid]))
+      );
+      allow delete: if isUserOwner(userId);
+
+      // Subcollections của từng người dùng (history, sessions, alerts, timers, scenes, schedules)
+      match /{subcollection}/{docId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && (
+          get(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid ||
+          request.auth.uid == userId
+        );
+      }
+    }
+
+    // Cấu hình hệ thống (app_version, server_config): Chỉ đọc công khai, chỉ Backend Admin được ghi
+    match /system_config/{configId} {
+      allow read: if true;
+      allow write: if false; // Chỉ Firebase Admin SDK trên Server mới được sửa
+    }
+
+    // Yêu cầu xóa tài khoản: User chỉ được tạo request cho chính mình, không được sửa/xóa/đọc trộm của người khác
+    match /delete_requests/{userId} {
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
+      allow read, update, delete: if false; // Chỉ Backend Worker xử lý
+    }
+
+    // Yêu cầu giải phóng định danh / email ảo: Chỉ user sở hữu UID mới được gửi
+    match /unlink_requests/{userId} {
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
+      allow read, update, delete: if false; // Chỉ Backend Worker xử lý
+    }
+
+    // Server-only collections: Khóa hoàn toàn khỏi client SDK di động
+    match /server_schedules/{docId} {
+      allow read, write: if false;
+    }
+    match /server_timers/{docId} {
+      allow read, write: if false;
+    }
+    match /system_backups/{docId} {
+      allow read, write: if false;
     }
   }
 }

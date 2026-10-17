@@ -21,12 +21,9 @@ export async function findUser(userId?: string): Promise<UserLookupResult | null
     throw new Error('Kết nối Firestore chưa được khởi tạo.');
   }
 
-  // 1. Nếu không truyền userId, tìm người dùng đầu tiên trong collection 'users'
+  // 1. Bắt buộc phải có userId, không tự ý fallback về tài khoản đầu tiên
   if (!userId || userId.trim() === '') {
-    const snap = await db.collection('users').limit(1).get();
-    if (snap.empty) return null;
-    const doc = snap.docs[0];
-    return { id: doc.id, ref: doc.ref, data: doc.data() };
+    return null;
   }
 
   const cleanId = userId.trim();

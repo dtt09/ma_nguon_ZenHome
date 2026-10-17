@@ -2,6 +2,9 @@ import { db } from './firebase';
 import { state } from './state';
 import { sendCommandWithRetry } from './devices';
 
+const MAX_TIMER_MINS = 35000; // ~24.3 ngày (giới hạn an toàn trong phạm vi 32-bit signed int cho setTimeout)
+const MAX_TIMEOUT_MS = 2147483647; // 2^31 - 1
+
 export async function loadTimersFromFirebase() {
     try {
         const snapshot = await db.collection('server_timers').get();
@@ -15,11 +18,12 @@ export async function loadTimersFromFirebase() {
             
             const remaining = triggerAt - now;
             if (remaining > 0) {
+                const safeRemaining = Math.min(remaining, MAX_TIMEOUT_MS);
                 state.activeTimers[timerKey] = setTimeout(() => {
                     sendCommandWithRetry(baseTopic, action, 'timer');
                     delete state.activeTimers[timerKey];
                     deleteTimerFromFirebase(timerKey);
-                }, remaining);
+                }, safeRemaining);
                 loaded++;
             } else {
                 console.log(`[TIMER] ⏱️ Hẹn giờ ${timerKey} đã quá hạn, thực thi bắn lệnh ngay...`);
@@ -60,9 +64,14 @@ export function setTimer(baseTopic: string, action: string, mins: number) {
     }
     
     if (mins > 0) {
-        const ms = mins * 60000;
+        const safeMins = Math.min(mins, MAX_TIMER_MINS);
+        if (mins > MAX_TIMER_MINS) {
+            console.warn(`[TIMER WARNING] ⚠️ Hẹn giờ ${mins} phút vượt quá giới hạn 32-bit của Node.js, tự động giới hạn ở ${MAX_TIMER_MINS} phút (~24.3 ngày).`);
+        }
+
+        const ms = safeMins * 60000;
         const triggerAt = Date.now() + ms;
-        console.log(`[TIMER] ⏱️ Hẹn giờ ${action === '1' ? 'BẬT' : 'TẮT'} ${baseTopic} sau ${mins} phút (Lưu Firebase)`);
+        console.log(`[TIMER] ⏱️ Hẹn giờ ${action === '1' ? 'BẬT' : 'TẮT'} ${baseTopic} sau ${safeMins} phút (Lưu Firebase)`);
         
         state.activeTimers[timerKey] = setTimeout(() => {
             sendCommandWithRetry(baseTopic, action, 'timer');

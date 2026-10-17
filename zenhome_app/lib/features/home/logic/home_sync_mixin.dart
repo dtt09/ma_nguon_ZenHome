@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,6 +15,7 @@ import 'package:zenhome_app/features/home/ui/main_layout.dart';
 mixin HomeSyncMixin on ConsumerState<MainLayout> {
   StreamSubscription<DocumentSnapshot>? userDocSubscription;
   StreamSubscription<DocumentSnapshot>? ownerUpdateSubscription;
+  Timer? _reconnectDebounceTimer;
   String? cachedUsername;
   bool isDisabled = false;
 
@@ -181,15 +182,19 @@ mixin HomeSyncMixin on ConsumerState<MainLayout> {
     }
 
     if (needReconnect) {
-      ref.read(mqttRepositoryProvider).disconnect();
-      ref.read(mqttRepositoryProvider).connect(
-        userId: activeConfig.userId,
-        mqttServer: activeConfig.mqttServer,
-        mqttPrefix: activeConfig.mqttPrefix,
-        dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
-        mqttUser: activeConfig.mqttUser,
-        mqttPass: activeConfig.mqttPass,
-      );
+      _reconnectDebounceTimer?.cancel();
+      _reconnectDebounceTimer = Timer(const Duration(milliseconds: 600), () {
+        if (!mounted) return;
+        ref.read(mqttRepositoryProvider).disconnect();
+        ref.read(mqttRepositoryProvider).connect(
+          userId: activeConfig.userId,
+          mqttServer: activeConfig.mqttServer,
+          mqttPrefix: activeConfig.mqttPrefix,
+          dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
+          mqttUser: activeConfig.mqttUser,
+          mqttPass: activeConfig.mqttPass,
+        );
+      });
     }
   }
 
@@ -214,8 +219,8 @@ mixin HomeSyncMixin on ConsumerState<MainLayout> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: Text(context.tr('error') ?? 'Thông báo', style: const TextStyle(fontWeight: FontWeight.bold)),
-          content: Text(context.tr('msg_kicked_desc') ?? 'Bạn đã bị thu hồi quyền truy cập khỏi nhà này. Hệ thống sẽ tự động chuyển về không gian làm việc mặc định.'),
+          title: Text(context.tr('error'), style: const TextStyle(fontWeight: FontWeight.bold)),
+          content: Text(context.tr('msg_kicked_desc')),
           actions: [
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
@@ -225,7 +230,7 @@ mixin HomeSyncMixin on ConsumerState<MainLayout> {
                   MaterialPageRoute(builder: (context) => const MainLayout()),
                 );
               },
-              child: Text(context.tr('btn_agree') ?? 'Đồng ý'),
+              child: Text(context.tr('btn_agree')),
             )
           ],
         ),
@@ -234,6 +239,7 @@ mixin HomeSyncMixin on ConsumerState<MainLayout> {
   }
 
   void disposeHomeSync() {
+    _reconnectDebounceTimer?.cancel();
     userDocSubscription?.cancel();
     ownerUpdateSubscription?.cancel();
   }

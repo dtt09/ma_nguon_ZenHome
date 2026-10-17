@@ -246,27 +246,42 @@ export function setupMqttHandlers() {
             }
         }
 
-        // 5. NGHE TÍN HIỆU HARDWARE RESET TỪ ESP32
+        // 5. NGHE TÍN HIỆU HARDWARE RESET TỪ ESP32 (Kiểm tra MAC xác thực)
         else if (action === 'hardware_reset' && payload === '1') {
             const userId = topicParts[0];
-            console.log(`[RESET] 🚨 Nhận tín hiệu Factory Reset cứng từ ESP32 của user ${userId}`);
+            const incomingMac = topicParts.length > 1 ? topicParts[1] : 'unknown';
+            console.log(`[RESET] 🚨 Nhận tín hiệu Factory Reset cứng từ ESP32 (MAC: ${incomingMac}) của user ${userId}`);
             
-            db.collection('users').doc(userId).update({
-                macAddress: FieldValue.delete(),
-                devices: []
-            }).then(() => {
-                console.log(`[RESET] ✅ Đã hủy liên kết thiết bị cho user ${userId}`);
-                
-                const notificationVi = {
-                    title: 'Hủy liên kết Thiết Bị',
-                    body: 'Hub trung tâm đã được khôi phục cài đặt gốc bằng phím cứng và đã bị hủy liên kết khỏi tài khoản của bạn.'
-                };
-                const notificationEn = {
-                    title: 'Device Unlinked',
-                    body: 'The central hub has been factory reset via hardware button and unlinked from your account.'
-                };
-                sendPushToUserTokens(userId, notificationVi, notificationEn, false, false, 'important').catch(e => console.error(e));
-            }).catch(e => console.error("[RESET ERROR]", e));
+            db.collection('users').doc(userId).get().then(userDoc => {
+                if (!userDoc.exists) {
+                    console.warn(`[RESET] ⚠️ Bỏ qua: User ${userId} không tồn tại.`);
+                    return;
+                }
+                const userData = userDoc.data() || {};
+                const expectedMac = userData.macAddress;
+
+                if (!expectedMac || incomingMac !== expectedMac || incomingMac === 'unknown') {
+                    console.warn(`[RESET BLOCKED] ⛔ Từ chối hardware_reset: MAC gửi lên (${incomingMac}) không khớp với MAC đã đăng ký (${expectedMac}) của user ${userId}`);
+                    return;
+                }
+
+                userDoc.ref.update({
+                    macAddress: FieldValue.delete(),
+                    devices: []
+                }).then(() => {
+                    console.log(`[RESET] ✅ Đã xác thực MAC hợp lệ và hủy liên kết thiết bị cho user ${userId}`);
+                    
+                    const notificationVi = {
+                        title: 'Hủy liên kết Thiết Bị',
+                        body: 'Hub trung tâm đã được khôi phục cài đặt gốc bằng phím cứng và đã bị hủy liên kết khỏi tài khoản của bạn.'
+                    };
+                    const notificationEn = {
+                        title: 'Device Unlinked',
+                        body: 'The central hub has been factory reset via hardware button and unlinked from your account.'
+                    };
+                    sendPushToUserTokens(userId, notificationVi, notificationEn, false, false, 'important').catch(e => console.error(e));
+                }).catch(e => console.error("[RESET ERROR]", e));
+            }).catch(e => console.error("[RESET FETCH ERROR]", e));
         }
     });
 }

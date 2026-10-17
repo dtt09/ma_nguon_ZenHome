@@ -151,8 +151,10 @@ export function askScheduleStatus(options: {
         const timeOffFormatted = formatTime(schedule.timeOff);
 
         if (isDayActive(schedule.days, targetDayIndex)) {
-            // So sánh giờ BẬT
-            if (timeOnFormatted === targetTime) {
+            const hasConflict = timeOnFormatted && timeOffFormatted && (timeOnFormatted === timeOffFormatted);
+
+            // So sánh giờ BẬT (Nếu trùng giờ bật/tắt thì bỏ qua BẬT để ưu tiên an toàn TẮT)
+            if (timeOnFormatted === targetTime && !hasConflict) {
                 matchedSchedules.push({
                     scheduleId: scheduleKey,
                     baseTopic,
@@ -173,6 +175,9 @@ export function askScheduleStatus(options: {
 
             // So sánh giờ TẮT
             if (timeOffFormatted === targetTime) {
+                if (hasConflict) {
+                    console.warn(`[SCHEDULE WARNING] ⚠️ Lịch trình ${scheduleKey} có giờ Bật và Tắt trùng nhau (${timeOnFormatted}). Tự động kích hoạt trạng thái TẮT để đảm bảo an toàn.`);
+                }
                 matchedSchedules.push({
                     scheduleId: scheduleKey,
                     baseTopic,

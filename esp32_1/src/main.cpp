@@ -587,6 +587,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             // Tương thích ngược: Gói tin gửi mảng devices từ màn hình gán chân GPIO
             doc["devices"] = newConfigDoc.as<JsonArray>();
           } else if (newConfigDoc.is<JsonObject>()) {
+            // Xác thực mật khẩu quản trị trước khi cho phép cập nhật cấu hình hệ thống
+            String currentAdminPass = doc.containsKey("admin_pass") ? doc["admin_pass"].as<String>() : "admin";
+            String sentAdminPass = newConfigDoc.containsKey("admin_pass") ? newConfigDoc["admin_pass"].as<String>() : "";
+
+            if (currentAdminPass.length() > 0 && sentAdminPass != currentAdminPass) {
+              Serial.println("\n[!] BẢO MẬT: Sai mật khẩu quản trị! Từ chối ghi đè cấu hình ESP32.");
+              return;
+            }
+
             // Cập nhật cấu hình Wi-Fi, MQTT hoặc toàn bộ hệ thống
             if (newConfigDoc.containsKey("wifi_ssid")) {
               String s = newConfigDoc["wifi_ssid"].as<String>();

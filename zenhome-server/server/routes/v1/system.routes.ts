@@ -4,6 +4,7 @@ import { cleanJunkAccounts, sendCommandWithRetry } from '../../zenhomeWorker';
 import { getCurrentServerConfig, syncServerConfigToFirestore } from '../../core/networkSync';
 import { db } from '../../core/firebase';
 import { sendAppVersionUpdateFCM } from '../../core/notifications';
+import { requireAdminAuth } from '../../middlewares/auth';
 
 export const systemRouter = Router();
 
@@ -21,9 +22,9 @@ systemRouter.get('/server-config', (req: Request, res: Response) => {
 
 /**
  * @route   POST /api/v1/system/sync-ip
- * @desc    Chủ động kích hoạt đồng bộ IP máy chủ lên Database ngay lập tức
+ * @desc    Chủ động kích hoạt đồng bộ IP máy chủ lên Database ngay lập tức (Yêu cầu Admin Auth)
  */
-systemRouter.post('/sync-ip', async (req: Request, res: Response) => {
+systemRouter.post('/sync-ip', requireAdminAuth, async (req: Request, res: Response) => {
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
   const config = await syncServerConfigToFirestore(PORT);
   res.json({
@@ -100,9 +101,9 @@ systemRouter.get('/logs', (req: Request, res: Response) => {
 
 /**
  * @route   POST /api/v1/system/clear-logs
- * @desc    Xóa trắng bộ đệm nhật ký hệ thống
+ * @desc    Xóa trắng bộ đệm nhật ký hệ thống (Yêu cầu Admin Auth)
  */
-systemRouter.post('/clear-logs', (req: Request, res: Response) => {
+systemRouter.post('/clear-logs', requireAdminAuth, (req: Request, res: Response) => {
   serverLogs.length = 0;
   addLog('[BACKEND]', 'Đã xóa trắng nhật ký màn hình thông qua API.', 'info');
   res.json({
@@ -114,9 +115,9 @@ systemRouter.post('/clear-logs', (req: Request, res: Response) => {
 
 /**
  * @route   POST /api/v1/system/action
- * @desc    Kích hoạt hành động bảo trì hệ thống (clean_junk, restart_server)
+ * @desc    Kích hoạt hành động bảo trì hệ thống (clean_junk, restart_server) (Yêu cầu Admin Auth)
  */
-systemRouter.post('/action', async (req: Request, res: Response) => {
+systemRouter.post('/action', requireAdminAuth, async (req: Request, res: Response) => {
   const { action, payload } = req.body;
 
   if (action === 'clean_junk') {
@@ -182,9 +183,9 @@ systemRouter.get('/app-version', async (req: Request, res: Response) => {
 
 /**
  * @route   POST /api/v1/system/app-version
- * @desc    Cập nhật và phát hành phiên bản mới từ Web Admin
+ * @desc    Cập nhật và phát hành phiên bản mới từ Web Admin (Yêu cầu Admin Auth)
  */
-systemRouter.post('/app-version', async (req: Request, res: Response) => {
+systemRouter.post('/app-version', requireAdminAuth, async (req: Request, res: Response) => {
   const { 
     latestVersion, 
     latestBuildNumber, 

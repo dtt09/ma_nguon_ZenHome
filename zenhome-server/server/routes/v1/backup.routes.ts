@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { storedBackups, addBackup, BackupRecord, addLog } from '../../zenhomeState';
 import { executeDeleteAccountRequest } from '../../zenhomeWorker';
+import { requireAdminAuth } from '../../middlewares/auth';
 
 export const backupRouter = Router();
 
@@ -31,9 +32,9 @@ backupRouter.get('/status', (req: Request, res: Response) => {
 
 /**
  * @route   POST /api/v1/backup/trigger
- * @desc    Khởi tạo một bản Snapshot sao lưu dữ liệu toàn hệ thống lưu vào Disk
+ * @desc    Khởi tạo một bản Snapshot sao lưu dữ liệu toàn hệ thống lưu vào Disk (Yêu cầu Admin Auth)
  */
-backupRouter.post('/trigger', (req: Request, res: Response) => {
+backupRouter.post('/trigger', requireAdminAuth, (req: Request, res: Response) => {
   try {
     const backupId = `ZENHOME_BACKUP_${new Date().toISOString().replace(/[:.]/g, '-')}`;
     const record: BackupRecord = {
@@ -73,9 +74,9 @@ backupRouter.get('/list', (req: Request, res: Response) => {
 
 /**
  * @route   POST /api/v1/backup/delete-request
- * @desc    Tiếp nhận yêu cầu dọn dẹp và xóa triệt để tài khoản (Tuân thủ GDPR)
+ * @desc    Tiếp nhận yêu cầu dọn dẹp và xóa triệt để tài khoản (Yêu cầu Admin Auth)
  */
-backupRouter.post('/delete-request', async (req: Request, res: Response) => {
+backupRouter.post('/delete-request', requireAdminAuth, async (req: Request, res: Response) => {
   try {
     const { targetUser, targetUid, macAddress } = req.body;
 
