@@ -215,31 +215,25 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> {
                                     child: Container(
                                       margin: const EdgeInsets.all(4),
                                       decoration: BoxDecoration(
-                                        gradient: isDark
-                                            ? LinearGradient(
-                                                colors: [
-                                                  AppColors.primaryLight.withOpacity(0.28),
-                                                  AppColors.primaryAccent.withOpacity(0.14),
-                                                ],
+                                        gradient: _selectedTabIndex == 0
+                                            ? const LinearGradient(
+                                                colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
                                                 begin: Alignment.topLeft,
                                                 end: Alignment.bottomRight,
                                               )
-                                            : LinearGradient(
-                                                colors: [
-                                                  AppColors.primary.withOpacity(0.14),
-                                                  AppColors.primaryLight.withOpacity(0.08),
-                                                ],
+                                            : const LinearGradient(
+                                                colors: [Color(0xFF0D9488), Color(0xFF059669)],
                                                 begin: Alignment.topLeft,
                                                 end: Alignment.bottomRight,
                                               ),
                                         borderRadius: BorderRadius.circular(26),
                                         border: Border.all(
-                                          color: (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.3),
+                                          color: (_selectedTabIndex == 0 ? const Color(0xFF8B5CF6) : const Color(0xFF0D9488)).withOpacity(0.35),
                                           width: 1,
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: AppColors.primary.withOpacity(0.15),
+                                            color: (_selectedTabIndex == 0 ? const Color(0xFF8B5CF6) : const Color(0xFF0D9488)).withOpacity(0.35),
                                             blurRadius: 10,
                                             offset: const Offset(0, 2),
                                           ),

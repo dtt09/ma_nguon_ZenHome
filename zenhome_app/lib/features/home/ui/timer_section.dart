@@ -22,16 +22,22 @@ class TimerSection extends ConsumerStatefulWidget {
   ConsumerState<TimerSection> createState() => _TimerSectionState();
 }
 
-class _TimerSectionState extends ConsumerState<TimerSection> {
+class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerProviderStateMixin {
   String? _timerDevice;
   String _timerAction = 'delay_off';
   double _timerMinutes = 30;
   List<Map<String, dynamic>> _timerHistory = [];
   StreamSubscription<QuerySnapshot>? _timersSubscription;
+  late AnimationController _sliderAnimController;
+  Animation<double>? _sliderAnimation;
 
   @override
   void initState() {
     super.initState();
+    _sliderAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
     final dynamicDeviceTopicsList = getSortedDeviceTopicsList(context, ref.read(homeConfigProvider).activeConfig);
     if (dynamicDeviceTopicsList.isNotEmpty) {
       _timerDevice = dynamicDeviceTopicsList.first;
@@ -43,8 +49,22 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
     _subscribeToFirestoreTimers();
   }
 
+  void _animateToMinutes(double targetMinutes) {
+    _sliderAnimController.stop();
+    final double start = _timerMinutes;
+    _sliderAnimation = Tween<double>(begin: start, end: targetMinutes).animate(
+      CurvedAnimation(parent: _sliderAnimController, curve: Curves.easeOutCubic),
+    )..addListener(() {
+        setState(() {
+          _timerMinutes = _sliderAnimation!.value;
+        });
+      });
+    _sliderAnimController.forward(from: 0.0);
+  }
+
   @override
   void dispose() {
+    _sliderAnimController.dispose();
     _timersSubscription?.cancel();
     super.dispose();
   }
@@ -551,12 +571,19 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                         key: ValueKey<int>(_timerMinutes.toInt()),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                         decoration: BoxDecoration(
-                          color: (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.12),
+                          color: AppColors.amberGlow.withOpacity(0.14),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.25),
+                            color: AppColors.amberGlow.withOpacity(0.35),
                             width: 1,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.amberGlow.withOpacity(0.18),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -565,11 +592,11 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                           children: [
                             Text(
                               '${_timerMinutes.toInt()}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 26,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.5,
-                                color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                color: AppColors.amberGlow,
                               ),
                             ),
                             const SizedBox(width: 4),
@@ -578,7 +605,7 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                color: AppColors.amberGlow.withOpacity(0.85),
                               ),
                             ),
                           ],
@@ -589,13 +616,13 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                 ),
                 const SizedBox(height: 10),
 
-                // Slider with custom theme and haptic clicks
+                // Slider with custom warm amber theme and smooth haptic clicks
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: isDark ? AppColors.primaryLight : AppColors.primary,
+                    activeTrackColor: AppColors.amberGlow,
                     inactiveTrackColor: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
-                    thumbColor: isDark ? AppColors.primaryLight : AppColors.primary,
-                    overlayColor: (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.18),
+                    thumbColor: AppColors.amberGlow,
+                    overlayColor: AppColors.amberGlow.withOpacity(0.18),
                     trackHeight: 6,
                     trackShape: const RoundedRectSliderTrackShape(),
                     thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 4),
@@ -606,6 +633,7 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                     min: 1,
                     max: 120,
                     onChanged: (val) {
+                      _sliderAnimController.stop();
                       if (val.round() != _timerMinutes.round()) {
                         HapticFeedback.selectionClick();
                       }
@@ -615,7 +643,7 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                 ),
                 const SizedBox(height: 6),
 
-                // Quick Minutes Chips
+                // Quick Minutes Chips with smooth gliding animation
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [15, 30, 45, 60, 90, 120].map((mins) {
@@ -623,7 +651,7 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                     return GestureDetector(
                       onTap: () {
                         HapticFeedback.selectionClick();
-                        setState(() => _timerMinutes = mins.toDouble());
+                        _animateToMinutes(mins.toDouble());
                       },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -631,19 +659,19 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? (isDark ? AppColors.primaryLight.withOpacity(0.22) : AppColors.primary.withOpacity(0.12))
+                              ? AppColors.amberGlow.withOpacity(0.2)
                               : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03)),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSelected
-                                ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                ? AppColors.amberGlow
                                 : Colors.transparent,
                             width: 1.2,
                           ),
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.25),
+                                    color: AppColors.amberGlow.withOpacity(0.3),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   )
@@ -656,7 +684,7 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                             fontSize: 12,
                             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                             color: isSelected
-                                ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                ? AppColors.amberGlow
                                 : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                           ),
                         ),

@@ -28,52 +28,82 @@ class DeviceCard extends StatelessWidget {
 
   /// Xác định dải màu ánh sáng thông minh tùy theo loại thiết bị
   LinearGradient _getDeviceGradient(bool isDark) {
-    // 1. Nhóm đèn / chiếu sáng: Sắc vàng cam ấm cúng (Warm Amber)
-    if (icon == Icons.lightbulb_rounded || icon == Icons.bedtime_rounded || icon == Icons.lightbulb_outline) {
+    // 1. Nhóm đèn / chiếu sáng: Sắc vàng cam ấm cúng (Warm Amber / Sun Gold)
+    if (icon == Icons.lightbulb_rounded || icon == Icons.lightbulb_outline || icon == Icons.highlight || icon == Icons.tungsten) {
       return const LinearGradient(
         colors: [Color(0xFFF59E0B), Color(0xFFEA580C)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
     }
-    // 2. Nhóm quạt / điều hòa: Sắc xanh băng thanh mát (Cool Cyan / Azure)
-    if (icon == Icons.mode_fan_off || icon == Icons.air_rounded || icon == Icons.wind_power) {
+    // 2. Nhóm đèn ngủ / thư giãn ban đêm: Tím oải hương / Indigo huyền ảo
+    if (icon == Icons.bedtime_rounded || icon == Icons.nightlight_round || icon == Icons.nights_stay || icon == Icons.bed_rounded) {
+      return const LinearGradient(
+        colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
+    // 3. Nhóm quạt / điều hòa / làm mát: Xanh băng thanh khiết (Cool Cyan / Azure)
+    if (icon == Icons.mode_fan_off || icon == Icons.air_rounded || icon == Icons.wind_power || icon == Icons.toys_outlined) {
       return const LinearGradient(
         colors: [Color(0xFF06B6D4), Color(0xFF0284C7)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
     }
-    // 3. Nhóm nước / bình nóng lạnh: Xanh biển sâu (Ocean Sapphire)
-    if (icon == Icons.water_drop || icon == Icons.waves) {
+    // 4. Nhóm nước / bình nóng lạnh / máy bơm: Xanh biển sâu (Ocean Sapphire)
+    if (icon == Icons.water_drop || icon == Icons.waves || icon == Icons.hot_tub_rounded || icon == Icons.opacity) {
       return const LinearGradient(
         colors: [Color(0xFF0EA5E9), Color(0xFF2563EB)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
     }
-    // 4. Mặc định: Sắc xanh tím tương lai (Cyber Sapphire)
-    return isDark
-        ? const LinearGradient(
-            colors: [Color(0xFF4F46E5), Color(0xFF2563EB)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          )
-        : const LinearGradient(
-            colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          );
+    // 5. Nhóm ổ cắm / công tắc / nguồn điện: Xanh ngọc lục bảo (Emerald Energy)
+    if (icon == Icons.power_rounded || icon == Icons.outlet_rounded || icon == Icons.bolt_rounded) {
+      return const LinearGradient(
+        colors: [Color(0xFF10B981), Color(0xFF059669)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
+    // 6. Nhóm TV / Âm thanh / Giải trí: San hô rực rỡ (Neon Coral / Rose)
+    if (icon == Icons.tv_rounded || icon == Icons.speaker_rounded || icon == Icons.music_note || icon == Icons.sports_esports) {
+      return const LinearGradient(
+        colors: [Color(0xFFF43F5E), Color(0xFFE11D48)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
+    // 7. Mặc định: Xanh chàm công nghệ (Cyber Indigo)
+    return const LinearGradient(
+      colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
   }
 
   Color _getGlowColor() {
-    if (icon == Icons.lightbulb_rounded || icon == Icons.bedtime_rounded) {
+    if (icon == Icons.lightbulb_rounded || icon == Icons.lightbulb_outline || icon == Icons.highlight || icon == Icons.tungsten) {
       return const Color(0xFFF59E0B);
     }
-    if (icon == Icons.mode_fan_off) {
+    if (icon == Icons.bedtime_rounded || icon == Icons.nightlight_round || icon == Icons.nights_stay || icon == Icons.bed_rounded) {
+      return const Color(0xFF8B5CF6);
+    }
+    if (icon == Icons.mode_fan_off || icon == Icons.air_rounded || icon == Icons.wind_power || icon == Icons.toys_outlined) {
       return const Color(0xFF06B6D4);
     }
-    return const Color(0xFF3B82F6);
+    if (icon == Icons.water_drop || icon == Icons.waves || icon == Icons.hot_tub_rounded || icon == Icons.opacity) {
+      return const Color(0xFF0EA5E9);
+    }
+    if (icon == Icons.power_rounded || icon == Icons.outlet_rounded || icon == Icons.bolt_rounded) {
+      return const Color(0xFF10B981);
+    }
+    if (icon == Icons.tv_rounded || icon == Icons.speaker_rounded || icon == Icons.music_note || icon == Icons.sports_esports) {
+      return const Color(0xFFF43F5E);
+    }
+    return const Color(0xFF6366F1);
   }
 
   @override
@@ -105,15 +135,15 @@ class DeviceCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(28),
             color: isDark ? const Color(0xFF131B2E) : Colors.white,
             border: Border.all(
-              color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE2E8F0),
+              color: isDark ? glowColor.withOpacity(0.18) : glowColor.withOpacity(0.14),
               width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: isDark ? Colors.black.withOpacity(0.25) : const Color(0xFF0F172A).withOpacity(0.04),
-                blurRadius: 16,
+                color: glowColor.withOpacity(isDark ? 0.08 : 0.04),
+                blurRadius: 14,
                 spreadRadius: 0,
-                offset: const Offset(0, 6),
+                offset: const Offset(0, 4),
               ),
             ],
           );
@@ -128,7 +158,7 @@ class DeviceCard extends StatelessWidget {
 
     final Color iconColor = isOn
         ? Colors.white
-        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569));
+        : (isDark ? glowColor.withOpacity(0.9) : glowColor);
 
     final Widget card = AnimatedContainer(
       duration: const Duration(milliseconds: 320),
@@ -145,14 +175,14 @@ class DeviceCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Icon hộp tròn với hiệu ứng nổi
+                // Icon hộp tròn với hiệu ứng nổi và màu nhận diện loại thiết bị
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: isOn
                         ? Colors.white.withOpacity(0.22)
-                        : (isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFF1F5F9)),
+                        : glowColor.withOpacity(isDark ? 0.15 : 0.09),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -181,7 +211,7 @@ class DeviceCard extends StatelessWidget {
                 else if (isCooldown)
                   LogoLoadingIndicator(color: primaryTextColor, size: 22)
                 else
-                  // Capsule switch toggle sang trọng
+                  // Capsule switch toggle sang trọng với viền màu nhận diện khi tắt
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
@@ -193,6 +223,7 @@ class DeviceCard extends StatelessWidget {
                       color: isOn
                           ? Colors.white.withOpacity(0.3)
                           : (isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFCBD5E1)),
+                      border: isOn ? null : Border.all(color: glowColor.withOpacity(0.25), width: 1),
                     ),
                     child: AnimatedAlign(
                       duration: const Duration(milliseconds: 250),

@@ -38,10 +38,74 @@ class RoomTabWidget extends StatelessWidget {
     return Icons.meeting_room_rounded;
   }
 
+  LinearGradient _getRoomGradient(String code) {
+    final lower = code.toLowerCase();
+    if (lower.contains('khach') || lower.contains('living')) {
+      return const LinearGradient(
+        colors: [Color(0xFFF59E0B), Color(0xFFEA580C)], // Warm Amber / Sunset
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
+    if (lower.contains('ngu') || lower.contains('bed')) {
+      return const LinearGradient(
+        colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)], // Lavender / Indigo
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
+    if (lower.contains('bep') || lower.contains('kitchen')) {
+      return const LinearGradient(
+        colors: [Color(0xFFF97316), Color(0xFFE11D48)], // Warm Coral / Flame
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
+    if (lower.contains('tam') || lower.contains('bath')) {
+      return const LinearGradient(
+        colors: [Color(0xFF06B6D4), Color(0xFF0284C7)], // Azure / Ocean
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
+    if (lower.contains('cong') || lower.contains('balcony') || lower.contains('san')) {
+      return const LinearGradient(
+        colors: [Color(0xFF10B981), Color(0xFF059669)], // Emerald Garden
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
+    if (lower.contains('lam_viec') || lower.contains('work') || lower.contains('office')) {
+      return const LinearGradient(
+        colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)], // Sapphire
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+    }
+    return const LinearGradient(
+      colors: [Color(0xFF0D9488), Color(0xFF0F766E)], // Teal Zen
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+  }
+
+  Color _getRoomGlow(String code) {
+    final lower = code.toLowerCase();
+    if (lower.contains('khach') || lower.contains('living')) return const Color(0xFFF59E0B);
+    if (lower.contains('ngu') || lower.contains('bed')) return const Color(0xFF8B5CF6);
+    if (lower.contains('bep') || lower.contains('kitchen')) return const Color(0xFFF97316);
+    if (lower.contains('tam') || lower.contains('bath')) return const Color(0xFF06B6D4);
+    if (lower.contains('cong') || lower.contains('balcony') || lower.contains('san')) return const Color(0xFF10B981);
+    if (lower.contains('lam_viec') || lower.contains('work') || lower.contains('office')) return const Color(0xFF3B82F6);
+    return const Color(0xFF0D9488);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final IconData roomIcon = _getRoomIcon(roomCode);
+    final LinearGradient roomGradient = _getRoomGradient(roomCode);
+    final Color roomColor = _getRoomGlow(roomCode);
 
     return BouncingButton(
       onTap: onTap,
@@ -53,16 +117,12 @@ class RoomTabWidget extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
         decoration: isSelected
             ? BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: roomGradient,
                 borderRadius: BorderRadius.circular(22),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF3B82F6).withOpacity(0.35),
-                    blurRadius: 12,
+                    color: roomColor.withOpacity(0.4),
+                    blurRadius: 14,
                     spreadRadius: 0,
                     offset: const Offset(0, 4),
                   ),
@@ -72,12 +132,16 @@ class RoomTabWidget extends StatelessWidget {
                 color: isDark ? const Color(0xFF131B2E) : Colors.white,
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(
-                  color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE2E8F0),
+                  color: isDark
+                      ? roomColor.withOpacity(0.18)
+                      : roomColor.withOpacity(0.12),
                   width: 1.2,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: isDark ? Colors.black.withOpacity(0.12) : const Color(0xFF0F172A).withOpacity(0.03),
+                    color: isDark
+                        ? Colors.black.withOpacity(0.15)
+                        : const Color(0xFF0F172A).withOpacity(0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -91,7 +155,7 @@ class RoomTabWidget extends StatelessWidget {
               size: 17,
               color: isSelected
                   ? Colors.white
-                  : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  : (isDark ? roomColor.withOpacity(0.9) : roomColor),
             ),
             const SizedBox(width: 7),
             Text(

@@ -27,7 +27,7 @@ async function updateVersion() {
     directApkUrl: `http://${localIp}:5000/public/downloads/zenhome-app-release.apk`,
     serverBaseUrl: `http://${localIp}:5000`,
     isForceUpdate: false,
-    fileSizeBytes: 67959593,
+    fileSizeBytes: 67960421,
     publishedAt: new Date().toISOString(),
     lastServerSyncAt: new Date().toISOString(),
   };
