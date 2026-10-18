@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zenhome_app/core/services/logger_service.dart';
@@ -14,6 +18,19 @@ class LocalNetworkService {
 
   static const int udpDiscoveryPort = 4210;
   static const int hubHttpPort = 80;
+
+  static final BigInt _dhPrime = BigInt.parse(
+    'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1'
+    '29024E088A67CC74020BBEA63B139B22514A08798E3404DD'
+    'EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245'
+    'E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED'
+    'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381'
+    'FFFFFFFFFFFFFFFF',
+    radix: 16,
+  );
+  static final BigInt _dhGenerator = BigInt.from(2);
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  String? _inMemoryLocalKey;
 
   String? _cachedHubIp;
   bool _isLocalAvailable = false;
@@ -210,8 +227,107 @@ class LocalNetworkService {
     return false;
   }
 
+  String _generateRandomNonce(int byteLength) {
+    final rng = Random.secure();
+    return List.generate(byteLength, (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+  }
+
+  /// Trao đổi và đồng bộ khóa bảo mật Zero-Knowledge giữa App và ESP32
+  /// Cơ chế: Diffie-Hellman 1536-bit (RFC 3526 MODP Group 5)
+  /// Không ai biết khóa này, kể cả Server và quản trị viên ZenHome.
+  Future<String?> getOrNegotiateLocalKey({
+    required String hubIp,
+    required String mac,
+    bool forceRefresh = false,
+  }) async {
+    final cleanMac = _cleanMac(mac);
+    final storageKey = 'local_sec_key_$cleanMac';
+
+    if (!forceRefresh) {
+      if (_inMemoryLocalKey != null && _inMemoryLocalKey!.isNotEmpty) {
+        return _inMemoryLocalKey;
+      }
+      try {
+        final saved = await _secureStorage.read(key: storageKey);
+        if (saved != null && saved.isNotEmpty) {
+          _inMemoryLocalKey = saved;
+          return saved;
+        }
+      } catch (_) {}
+    }
+
+    // Tiến hành trao đổi khóa tự động theo giao thức Zero-Knowledge Diffie-Hellman
+    try {
+      final rng = Random.secure();
+      final privateBytes = Uint8List(32);
+      for (int i = 0; i < 32; i++) {
+        privateBytes[i] = rng.nextInt(256);
+      }
+      final a = BigInt.parse(
+        privateBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(),
+        radix: 16,
+      );
+
+      // Tính khóa công khai A = g^a mod p
+      final A = _dhGenerator.modPow(a, _dhPrime);
+      final aHex = A.toRadixString(16).toLowerCase();
+
+      final exchangeUri = Uri.parse('http://$hubIp/api/auth/key-exchange');
+      final res = await http.post(
+        exchangeUri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'clientPublicKey': aHex,
+          'mac': cleanMac,
+        }),
+      ).timeout(const Duration(milliseconds: 3000));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is Map && data['status'] == 'ok' && data['serverPublicKey'] != null) {
+          final bHex = (data['serverPublicKey'] as String).toLowerCase();
+          final proof = (data['proof'] as String?)?.toLowerCase();
+          final B = BigInt.parse(bHex, radix: 16);
+
+          // Tính khóa chia sẻ chung S = B^a mod p
+          final S = B.modPow(a, _dhPrime);
+          var sHex = S.toRadixString(16).toLowerCase();
+          if (sHex.length % 2 != 0) sHex = '0$sHex';
+
+          final sBytes = <int>[];
+          for (int i = 0; i < sHex.length; i += 2) {
+            sBytes.add(int.parse(sHex.substring(i, i + 2), radix: 16));
+          }
+          final derivedKey = sha256.convert(sBytes).toString().toLowerCase();
+
+          // Xác thực Proof = HMAC(K, clientPub + ":" + serverPub)
+          final keyBytes = <int>[];
+          for (int i = 0; i < derivedKey.length; i += 2) {
+            keyBytes.add(int.parse(derivedKey.substring(i, i + 2), radix: 16));
+          }
+          final expectedProof = Hmac(sha256, keyBytes)
+              .convert(utf8.encode('$aHex:$bHex'))
+              .toString()
+              .toLowerCase();
+
+          if (proof != null && proof == expectedProof) {
+            _inMemoryLocalKey = derivedKey;
+            await _secureStorage.write(key: storageKey, value: derivedKey);
+            LoggerService.i('[LocalSec] 🔐 Đã tự động trao đổi & đồng bộ khóa Zero-Knowledge với Hub ($mac) thành công!');
+            return derivedKey;
+          } else {
+            LoggerService.w('[LocalSec] ❌ Xác thực Proof chữ ký trao đổi khóa thất bại!');
+          }
+        }
+      }
+    } catch (e) {
+      LoggerService.w('[LocalSec] Lỗi trao đổi khóa Zero-Knowledge với Hub: $e');
+    }
+    return null;
+  }
+
   /// Điều khiển Relay trực tiếp qua mạng LAN (HTTP POST /api/control)
-  /// Trả về true nếu thành công trong vòng vài mili-giây
+  /// Tự động xác thực chữ ký HMAC-SHA256 theo chuẩn bảo mật Zero-Knowledge
   Future<bool> sendLocalControl({required String devId, required String cmd}) async {
     if (_cachedHubIp == null || !_isLocalAvailable) return false;
 
@@ -222,11 +338,60 @@ class LocalNetworkService {
         'cmd': cmd,
       });
 
-      final res = await http.post(
+      // Lấy hoặc tự động trao đổi khóa bảo mật với ESP32
+      String? localKey;
+      if (_monitoredMac != null && _monitoredMac!.isNotEmpty) {
+        localKey = await getOrNegotiateLocalKey(hubIp: _cachedHubIp!, mac: _monitoredMac!);
+      }
+
+      Map<String, String> headers = {'Content-Type': 'application/json'};
+
+      if (localKey != null && localKey.isNotEmpty) {
+        final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
+        final nonce = _generateRandomNonce(8);
+        final signPayload = '$devId:$cmd:$timestamp:$nonce';
+        final keyBytes = <int>[];
+        for (int i = 0; i < localKey.length; i += 2) {
+          keyBytes.add(int.parse(localKey.substring(i, i + 2), radix: 16));
+        }
+        final signature = Hmac(sha256, keyBytes).convert(utf8.encode(signPayload)).toString();
+
+        headers['X-ZenHome-Signature'] = signature;
+        headers['X-ZenHome-Timestamp'] = timestamp;
+        headers['X-ZenHome-Nonce'] = nonce;
+      }
+
+      var res = await http.post(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: body,
       ).timeout(const Duration(milliseconds: 2000));
+
+      // Nếu bị từ chối 401 (khóa lệch hoặc ESP32 mới nạp lại), tự động tái trao đổi khóa 1 lần
+      if (res.statusCode == 401 && _monitoredMac != null) {
+        LoggerService.w('[LocalSec] ⚠️ Khóa bảo mật bị từ chối (401). Đang tự động tái đồng bộ khóa mới...');
+        localKey = await getOrNegotiateLocalKey(hubIp: _cachedHubIp!, mac: _monitoredMac!, forceRefresh: true);
+        if (localKey != null && localKey.isNotEmpty) {
+          final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
+          final nonce = _generateRandomNonce(8);
+          final signPayload = '$devId:$cmd:$timestamp:$nonce';
+          final keyBytes = <int>[];
+          for (int i = 0; i < localKey.length; i += 2) {
+            keyBytes.add(int.parse(localKey.substring(i, i + 2), radix: 16));
+          }
+          final signature = Hmac(sha256, keyBytes).convert(utf8.encode(signPayload)).toString();
+
+          headers['X-ZenHome-Signature'] = signature;
+          headers['X-ZenHome-Timestamp'] = timestamp;
+          headers['X-ZenHome-Nonce'] = nonce;
+
+          res = await http.post(
+            uri,
+            headers: headers,
+            body: body,
+          ).timeout(const Duration(milliseconds: 2000));
+        }
+      }
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);

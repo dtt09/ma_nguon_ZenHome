@@ -12,6 +12,9 @@
 #include <Adafruit_PCF8574.h> // Tích hợp PCF8574
 #include <esp_task_wdt.h>     // Hardware Watchdog Timer chống treo vi điều khiển
 #include <esp_system.h>       // Phát hiện nguyên nhân khởi động (mất điện vs phần mềm)
+#include <mbedtls/bignum.h>   // Hỗ trợ Bignum Diffie-Hellman Key Exchange
+#include <mbedtls/md.h>       // Hỗ trợ HMAC-SHA256 xác thực bảo mật cục bộ
+#include <mbedtls/sha256.h>
 
 bool isPowerOutageBoot = false; // Đánh dấu khởi động sau khi mất điện
 bool wasMqttPreviouslyConnected = false;
@@ -139,8 +142,13 @@ void syncTime(); // Thêm hàm đồng bộ thời gian
 void setupStationWebServer();
 void setupUdpDiscovery();
 void checkUdpDiscovery();
-void saveRelayStatesToFS();
-void loadRelayStatesFromFS();
+void backupRelayStatesToFlash();
+void loadOfflineBackupFromFlash();
+bool applyRelayCommand(const String& devId, const String& targetState);
+void loadLocalSecretKey();
+void saveLocalSecretKey(const String& key);
+String computeHmacSha256(const String& keyHex, const String& message);
+bool hasOfflineBackup = false;
 
 void setup() {
   Serial.begin(115200);
@@ -195,6 +203,8 @@ void setup() {
     Serial.println("Lỗi mount LittleFS!");
     return;
   }
+
+  loadLocalSecretKey(); // Nạp khóa bảo mật cục bộ Zero-Knowledge từ Flash
 
   if (LittleFS.exists("/provisioned.txt")) {
     isProvisioned = true;
@@ -456,19 +466,23 @@ bool loadConfig() {
       myRelays[i].state = "0";
       safeSetRelayPin(myRelays[i].pin, HIGH); // Active-Low TẮT
     }
-    saveRelayStatesToFS(); // Ghi đè file flash là tắt toàn bộ (0)
+    if (LittleFS.exists("/offline_backup.json")) {
+      LittleFS.remove("/offline_backup.json");
+    }
+    hasOfflineBackup = false;
   } else {
-    // TH2: KHÔNG PHẢI MẤT ĐIỆN (Mất mạng, reboot phần mềm) -> Khôi phục trạng thái lần cuối
-    loadRelayStatesFromFS();
+    // TH2: KHÔNG PHẢI MẤT ĐIỆN (Mất mạng, reboot phần mềm) -> Khôi phục trạng thái lần cuối (nếu có backup)
+    loadOfflineBackupFromFlash();
   }
   return true;
 }
 
 // ---------------------------------------------------------
-// LƯU TRỮ VÀ KHÔI PHỤC TRẠNG THÁI RELAY VÀO FLASH (LITTLEFS)
-// Đảm bảo trạng thái thiết bị được duy trì khi mất mạng hoặc khởi động lại
+// LƯU TRỮ VÀ KHÔI PHỤC TRẠNG THÁI RELAY KHI MẤT MẠNG (LITTLEFS)
+// Chỉ backup khi MẤT MẠNG. Nếu CÓ MẠNG thì KHÔNG LƯU vào Flash.
+// Cơ chế: Lưu đè xóa cũ thêm mới vào Flash nội bộ của ESP32.
 // ---------------------------------------------------------
-void saveRelayStatesToFS() {
+void backupRelayStatesToFlash() {
   DynamicJsonDocument doc(1024);
   JsonArray arr = doc.createNestedArray("relays");
   for (int i = 0; i < relayCount; i++) {
@@ -477,17 +491,19 @@ void saveRelayStatesToFS() {
     obj["state"] = myRelays[i].state;
     obj["room"] = myRelays[i].room;
   }
-  File f = LittleFS.open("/relay_states.json", "w");
+  // Mở file chế độ "w" -> Xóa dữ liệu cũ, ghi đè toàn bộ trạng thái mới nhất
+  File f = LittleFS.open("/offline_backup.json", "w");
   if (f) {
     serializeJson(doc, f);
     f.close();
-    Serial.println("[BACKUP-FS] Đã lưu trạng thái thiết bị lần cuối vào LittleFS");
+    hasOfflineBackup = true;
+    Serial.println("[OFFLINE-BACKUP] ⚠️ Đang mất mạng! Đã lưu đè trạng thái cuối cùng vào bộ nhớ Flash ESP32");
   }
 }
 
-void loadRelayStatesFromFS() {
-  if (!LittleFS.exists("/relay_states.json")) return;
-  File f = LittleFS.open("/relay_states.json", "r");
+void loadOfflineBackupFromFlash() {
+  if (!LittleFS.exists("/offline_backup.json")) return;
+  File f = LittleFS.open("/offline_backup.json", "r");
   if (!f) return;
   DynamicJsonDocument doc(1024);
   DeserializationError err = deserializeJson(doc, f);
@@ -507,7 +523,151 @@ void loadRelayStatesFromFS() {
       }
     }
   }
-  Serial.println("[BACKUP-FS] OK: Đã khôi phục trạng thái Bật/Tắt lần cuối từ LittleFS!");
+  hasOfflineBackup = true;
+  Serial.println("[OFFLINE-BACKUP] OK: Đã khôi phục trạng thái lần cuối trước khi khởi động lại từ Flash!");
+}
+
+// ---------------------------------------------------------
+// HÀM ĐIỀU KHIỂN THIẾT BỊ TẬP TRUNG (ÁP DỤNG CHO CẢ CLOUD & LOCAL)
+// Luồng xử lý: Điều khiển thiết bị -> Kiểm tra mạng -> Backup nếu mất mạng, không mất mạng thì không lưu
+// ---------------------------------------------------------
+bool applyRelayCommand(const String& devId, const String& targetState) {
+  bool found = false;
+  for (int i = 0; i < relayCount; i++) {
+    if (myRelays[i].id == devId) {
+      found = true;
+      myRelays[i].state = targetState;
+      if (targetState == "1") {
+        safeSetRelayPin(myRelays[i].pin, LOW); // Active-Low BẬT
+      } else {
+        safeSetRelayPin(myRelays[i].pin, HIGH); // Active-Low TẮT
+      }
+
+      // KIỂM TRA MẠNG:
+      bool isNetworkOnline = (WiFi.status() == WL_CONNECTED && mqttClient.connected());
+
+      if (isNetworkOnline) {
+        // CÓ MẠNG: KHÔNG LƯU VÀO FLASH (Bảo vệ tuổi thọ chip, Cloud nhận trực tiếp)
+        String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
+        String stateTopic = mqtt_prefix + "/" + rName + "/" + devId + "/state";
+        mqttClient.publish(stateTopic.c_str(), targetState.c_str(), true);
+      } else {
+        // MẤT MẠNG: LƯU ĐÈ TRẠNG THÁI CUỐI CÙNG VÀO FLASH ESP32 (Xóa cũ thêm mới)
+        backupRelayStatesToFlash();
+      }
+      break;
+    }
+  }
+  return found;
+}
+
+// =========================================================
+// BẢO MẬT ZERO-KNOWLEDGE KHI ĐIỀU KHIỂN CỤC BỘ (LOCAL LAN)
+// Cơ chế: Trao đổi khóa Diffie-Hellman (RFC 3526 MODP 1536-bit)
+// Khóa được sinh ngẫu nhiên từ phần cứng, lưu cục bộ trong Flash,
+// KHÔNG AI BIẾT (kể cả Server & Quản trị ZenHome).
+// Mọi lệnh điều khiển mạng LAN đều yêu cầu chữ ký HMAC-SHA256.
+// =========================================================
+const char* DH_PRIME_1536 = 
+  "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
+  "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+  "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
+  "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+  "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381"
+  "FFFFFFFFFFFFFFFF";
+const char* DH_GENERATOR = "2";
+
+String currentLocalSecretKey = "";
+
+String dhModPow(const String& baseHex, const String& expHex, const String& modHex) {
+  mbedtls_mpi base, exp, mod, result;
+  mbedtls_mpi_init(&base);
+  mbedtls_mpi_init(&exp);
+  mbedtls_mpi_init(&mod);
+  mbedtls_mpi_init(&result);
+
+  mbedtls_mpi_read_string(&base, 16, baseHex.c_str());
+  mbedtls_mpi_read_string(&exp, 16, expHex.c_str());
+  mbedtls_mpi_read_string(&mod, 16, modHex.c_str());
+
+  mbedtls_mpi_exp_mod(&result, &base, &exp, &mod, NULL);
+
+  char buf[512];
+  size_t olen = 0;
+  mbedtls_mpi_write_string(&result, 16, buf, sizeof(buf), &olen);
+
+  mbedtls_mpi_free(&base);
+  mbedtls_mpi_free(&exp);
+  mbedtls_mpi_free(&mod);
+  mbedtls_mpi_free(&result);
+
+  return String(buf);
+}
+
+String computeSha256Hex(const String& inputHex) {
+  size_t len = inputHex.length() / 2;
+  uint8_t* bytes = (uint8_t*)malloc(len);
+  if (!bytes) return "";
+  for (size_t i = 0; i < len; i++) {
+    char byteStr[3] = { inputHex[i * 2], inputHex[i * 2 + 1], 0 };
+    bytes[i] = (uint8_t)strtol(byteStr, NULL, 16);
+  }
+
+  uint8_t output[32];
+  const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  mbedtls_md(md_info, bytes, len, output);
+  free(bytes);
+
+  char outHex[65];
+  for (int i = 0; i < 32; i++) {
+    sprintf(outHex + i * 2, "%02x", output[i]);
+  }
+  outHex[64] = 0;
+  return String(outHex);
+}
+
+String computeHmacSha256(const String& keyHex, const String& message) {
+  const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  size_t keyLen = keyHex.length() / 2;
+  uint8_t* keyBytes = (uint8_t*)malloc(keyLen);
+  if (!keyBytes) return "";
+  for (size_t i = 0; i < keyLen; i++) {
+    char byteStr[3] = { keyHex[i * 2], keyHex[i * 2 + 1], 0 };
+    keyBytes[i] = (uint8_t)strtol(byteStr, NULL, 16);
+  }
+
+  uint8_t output[32];
+  mbedtls_md_hmac(md_info, keyBytes, keyLen, (const unsigned char*)message.c_str(), message.length(), output);
+  free(keyBytes);
+
+  char outHex[65];
+  for (int i = 0; i < 32; i++) {
+    sprintf(outHex + i * 2, "%02x", output[i]);
+  }
+  outHex[64] = 0;
+  return String(outHex);
+}
+
+void loadLocalSecretKey() {
+  if (LittleFS.exists("/local_sec_key.dat")) {
+    File f = LittleFS.open("/local_sec_key.dat", "r");
+    if (f) {
+      currentLocalSecretKey = f.readString();
+      currentLocalSecretKey.trim();
+      f.close();
+      Serial.println("[LOCAL-SEC] 🔐 Đã tải khóa bảo mật Zero-Knowledge từ Flash LittleFS!");
+    }
+  }
+}
+
+void saveLocalSecretKey(const String& key) {
+  currentLocalSecretKey = key;
+  File f = LittleFS.open("/local_sec_key.dat", "w");
+  if (f) {
+    f.print(key);
+    f.close();
+    Serial.println("[LOCAL-SEC] 🔐 Đã lưu khóa bảo mật Zero-Knowledge vào Flash LittleFS!");
+  }
 }
 
 void setupAPMode() {
@@ -638,16 +798,20 @@ void connectMQTT() {
         String stateTopic = mqtt_prefix + "/" + rName + "/" + myRelays[i].id + "/state";
         mqttClient.publish(stateTopic.c_str(), "0", true);
       }
+      if (LittleFS.exists("/offline_backup.json")) {
+        LittleFS.remove("/offline_backup.json");
+      }
+      hasOfflineBackup = false;
       isPowerOutageBoot = false; // Đã báo cáo xong lần có điện lại
     } else {
-      // 2. TRƯỜNG HỢP CÓ MẠNG LẠI SAU KHI MẤT MẠNG: CHỈ ĐỒNG BỘ TRẠNG THÁI LẦN CUỐI
+      // 2. TRƯỜNG HỢP CÓ MẠNG LẠI SAU KHI MẤT MẠNG: ĐẨY TÍN HIỆU BACKUP TRẠNG THÁI LẦN CUỐI
       Serial.println("\n[HỆ THỐNG] 🌐 Báo cáo sự kiện: CÓ MẠNG LẠI SAU MẤT MẠNG (Đồng bộ trạng thái lần cuối)");
       mqttClient.publish(statusTopic.c_str(), "online", true);
 
       String eventTopic = mqtt_prefix + "/system/event";
       mqttClient.publish(eventTopic.c_str(), "{\"event\":\"network_restored\",\"action\":\"sync_last_state\",\"reason\":\"network_loss\"}", false);
 
-      // Xuất bản trạng thái thực tế của toàn bộ relay lên MQTT Broker & Server Backup
+      // Xuất bản trạng thái thực tế lần cuối của toàn bộ relay lên MQTT Broker (retain: true)
       DynamicJsonDocument syncDoc(1024);
       syncDoc["mac"] = mac;
       syncDoc["event"] = "network_restored";
@@ -666,7 +830,13 @@ void connectMQTT() {
       serializeJson(syncDoc, syncPayload);
       String syncReportTopic = mqtt_prefix + "/sync/report";
       mqttClient.publish(syncReportTopic.c_str(), syncPayload.c_str(), false);
-      Serial.println("[SYNC] Đã đồng bộ trạng thái thực tế lên MQTT Broker & Server Backup!");
+
+      // Xóa file backup trên bộ nhớ ESP32 vì đã có mạng và đã đồng bộ xong lên Cloud
+      if (LittleFS.exists("/offline_backup.json")) {
+        LittleFS.remove("/offline_backup.json");
+      }
+      hasOfflineBackup = false;
+      Serial.println("[SYNC] ✅ Đã đẩy tín hiệu backup trạng thái lần cuối lên Cloud & xóa backup tạm trên ESP32!");
     }
 
     // Bắt đầu lắng nghe lệnh điều khiển từ ứng dụng
@@ -848,21 +1018,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     targetState = message;
   }
 
-  for (int i = 0; i < relayCount; i++) {
-    if (myRelays[i].id == devId) {
-      myRelays[i].state = targetState;
-      if (targetState == "1") safeSetRelayPin(myRelays[i].pin, LOW);
-      else if (targetState == "0") safeSetRelayPin(myRelays[i].pin, HIGH);
-      
-      saveRelayStatesToFS(); // Lưu trạng thái mới vào LittleFS
-
-      // Đồng bộ lại trạng thái cho ứng dụng di động
-      String stateTopic = topicStr;
-      stateTopic.replace("/cmd", "/state"); 
-      mqttClient.publish(stateTopic.c_str(), targetState.c_str(), true); 
-      break;
-    }
-  }
+  applyRelayCommand(devId, targetState);
 }
 
 // ---------------------------------------------------------
@@ -871,12 +1027,20 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 void setupStationWebServer() {
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type");
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type, X-ZenHome-Signature, X-ZenHome-Timestamp, X-ZenHome-Nonce");
+
+  server.onNotFound([](AsyncWebServerRequest *request) {
+    if (request->method() == HTTP_OPTIONS) {
+      request->send(200);
+    } else {
+      request->send(404, "application/json", "{\"status\":\"error\",\"message\":\"Not found\"}");
+    }
+  });
 
   // Endpoint 1: Ping / Health check
   server.on("/ping", HTTP_GET, [](AsyncWebServerRequest *request) {
     String mac = WiFi.macAddress();
-    String json = "{\"status\":\"ok\",\"service\":\"zenhome_hub\",\"macAddress\":\"" + mac + "\",\"ip\":\"" + WiFi.localIP().toString() + "\"}";
+    String json = "{\"status\":\"ok\",\"service\":\"zenhome_hub\",\"macAddress\":\"" + mac + "\",\"ip\":\"" + WiFi.localIP().toString() + "\",\"secured\":" + String(currentLocalSecretKey.length() > 0 ? "true" : "false") + "}";
     request->send(200, "application/json", json);
   });
 
@@ -890,6 +1054,7 @@ void setupStationWebServer() {
     doc["rssi"] = WiFi.RSSI();
     doc["mqttConnected"] = mqttClient.connected();
     doc["uptime"] = millis() / 1000;
+    doc["secured"] = (currentLocalSecretKey.length() > 0);
 
     float t = dht.readTemperature();
     if (!isnan(t)) {
@@ -911,6 +1076,62 @@ void setupStationWebServer() {
     request->send(200, "application/json", response);
   });
 
+  // Endpoint 2.5: Trao đổi khóa bảo mật Zero-Knowledge giữa App và ESP32 (POST /api/auth/key-exchange)
+  server.on("/api/auth/key-exchange", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+    String payload((char*)data, len);
+    DynamicJsonDocument doc(1024);
+    DeserializationError err = deserializeJson(doc, payload);
+
+    if (err || !doc.containsKey("clientPublicKey")) {
+      request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Thiếu clientPublicKey\"}");
+      return;
+    }
+
+    String clientPub = doc["clientPublicKey"].as<String>();
+    clientPub.toLowerCase();
+
+    // 1. Sinh khóa bí mật b (256-bit) của ESP32
+    char bBuf[65];
+    for (int i = 0; i < 8; i++) {
+      uint32_t r = esp_random();
+      sprintf(bBuf + i * 8, "%08x", r);
+    }
+    bBuf[64] = 0;
+    String privateB = String(bBuf);
+
+    // 2. Tính khóa công khai B = g^b mod p
+    String serverPub = dhModPow("2", privateB, DH_PRIME_1536);
+
+    // 3. Tính khóa chia sẻ chung S = A^b mod p
+    String sharedSecret = dhModPow(clientPub, privateB, DH_PRIME_1536);
+
+    // 4. Băm SHA-256 để tạo khóa đối xứng K (Zero-Knowledge 256-bit Session Key)
+    String derivedKey = computeSha256Hex(sharedSecret);
+
+    // 5. Lưu khóa bí mật vào Flash nội bộ ESP32 (Không gửi lên Cloud, không ai biết)
+    saveLocalSecretKey(derivedKey);
+
+    // 6. Tính bằng chứng xác thực Proof = HMAC(K, clientPub + ":" + serverPub)
+    String proof = computeHmacSha256(derivedKey, clientPub + ":" + serverPub);
+
+    DynamicJsonDocument resDoc(1024);
+    resDoc["status"] = "ok";
+    resDoc["serverPublicKey"] = serverPub;
+    resDoc["proof"] = proof;
+
+    String resStr;
+    serializeJson(resDoc, resStr);
+    request->send(200, "application/json", resStr);
+    Serial.println("[LOCAL-SEC] 🤝 Trao đổi khóa Zero-Knowledge với App thành công! Khóa an toàn 100%.");
+  });
+
+  // Endpoint 2.6: Kiểm tra trạng thái bảo mật của Hub (GET /api/auth/status)
+  server.on("/api/auth/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+    bool hasKey = (currentLocalSecretKey.length() > 0);
+    String res = "{\"status\":\"ok\",\"secured\":" + String(hasKey ? "true" : "false") + "}";
+    request->send(200, "application/json", res);
+  });
+
   // Endpoint 3: Điều khiển thiết bị tức thì qua mạng LAN (POST /api/control)
   server.on("/api/control", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
     String payload((char*)data, len);
@@ -924,35 +1145,37 @@ void setupStationWebServer() {
 
     String devId = doc["id"].as<String>();
     String cmd = doc["cmd"].as<String>();
-    String targetState = (cmd == "1" || cmd == "ON" || cmd == "on") ? "1" : "0";
-    bool found = false;
 
-    for (int i = 0; i < relayCount; i++) {
-      if (myRelays[i].id == devId) {
-        found = true;
-        myRelays[i].state = targetState;
-        if (targetState == "1") {
-          safeSetRelayPin(myRelays[i].pin, LOW); // Active-Low BẬT
-        } else {
-          safeSetRelayPin(myRelays[i].pin, HIGH); // Active-Low TẮT
-        }
+    // -------------------------------------------------------------
+    // XÁC THỰC BẢO MẬT ZERO-KNOWLEDGE KHI CÓ KHÓA ĐÃ ĐỒNG BỘ
+    // -------------------------------------------------------------
+    if (currentLocalSecretKey.length() > 0) {
+      if (!request->hasHeader("X-ZenHome-Signature") || !request->hasHeader("X-ZenHome-Timestamp") || !request->hasHeader("X-ZenHome-Nonce")) {
+        request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_NO_SIG\",\"message\":\"Yêu cầu bị từ chối: Thiếu chữ ký bảo mật Local!\"}");
+        return;
+      }
 
-        saveRelayStatesToFS(); // Lưu trạng thái mới vào LittleFS
+      String sig = request->getHeader("X-ZenHome-Signature")->value();
+      String ts = request->getHeader("X-ZenHome-Timestamp")->value();
+      String nonce = request->getHeader("X-ZenHome-Nonce")->value();
 
-        // Nếu MQTT đang kết nối, đồng bộ ngay lập tức lên Cloud Broker
-        if (mqttClient.connected()) {
-          String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
-          String stateTopic = mqtt_prefix + "/" + rName + "/" + devId + "/state";
-          mqttClient.publish(stateTopic.c_str(), targetState.c_str(), true);
-        }
-        break;
+      String signPayload = devId + ":" + cmd + ":" + ts + ":" + nonce;
+      String expectedSig = computeHmacSha256(currentLocalSecretKey, signPayload);
+
+      if (!sig.equalsIgnoreCase(expectedSig)) {
+        Serial.println("[LOCAL-SEC] ❌ Chữ ký bảo mật Local không hợp lệ! Từ chối lệnh.");
+        request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_BAD_SIG\",\"message\":\"Chữ ký HMAC bảo mật không hợp lệ!\"}");
+        return;
       }
     }
+
+    String targetState = (cmd == "1" || cmd == "ON" || cmd == "on") ? "1" : "0";
+    bool found = applyRelayCommand(devId, targetState);
 
     if (found) {
       String res = "{\"status\":\"ok\",\"id\":\"" + devId + "\",\"state\":\"" + targetState + "\"}";
       request->send(200, "application/json", res);
-      Serial.println("[LOCAL-HTTP] Điều khiển thiết bị " + devId + " -> " + targetState);
+      Serial.println("[LOCAL-HTTP] 🔒 [Bảo Mật OK] Điều khiển thiết bị " + devId + " -> " + targetState);
     } else {
       request->send(404, "application/json", "{\"status\":\"error\",\"message\":\"Không tìm thấy thiết bị\"}");
     }

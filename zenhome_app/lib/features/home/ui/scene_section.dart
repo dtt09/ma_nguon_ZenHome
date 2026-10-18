@@ -30,6 +30,17 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
     Icons.nights_stay, Icons.work, Icons.music_note, Icons.fitness_center,
     Icons.coffee, Icons.local_bar, Icons.directions_run, Icons.home_filled,
   ];
+
+  final List<Color> _availableColors = [
+    const Color(0xFF0D9488), // Teal
+    const Color(0xFF10B981), // Emerald
+    const Color(0xFF3B82F6), // Blue
+    const Color(0xFF8B5CF6), // Purple
+    const Color(0xFFF59E0B), // Amber
+    const Color(0xFFF97316), // Orange
+    const Color(0xFFF43F5E), // Rose
+    const Color(0xFF06B6D4), // Cyan
+  ];
   
   List<Map<String, dynamic>> _customScenes = [];
   StreamSubscription<QuerySnapshot>? _scenesSubscription;
@@ -327,24 +338,88 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                   Text(context.tr('select_icon'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 10),
                   SizedBox(
-                    height: 60,
+                    height: 56,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal, itemCount: _availableIcons.length,
                       itemBuilder: (context, index) {
                         IconData icon = _availableIcons[index]; 
                         bool isSelected = selectedIcon == icon;
                         return GestureDetector(
-                          onTap: () => setModalState(() => selectedIcon = icon),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setModalState(() => selectedIcon = icon);
+                          },
                           child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200), width: 60, margin: const EdgeInsets.only(right: 15),
-                            decoration: BoxDecoration(color: isSelected ? const Color(0xFF0F766E) : (isDark ? Colors.grey.shade800 : Colors.grey.shade100), shape: BoxShape.circle, border: isSelected ? Border.all(color: Colors.white, width: 2) : null, boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF0F766E).withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))] : null),
-                            child: Icon(icon, color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black54), size: 28),
+                            duration: const Duration(milliseconds: 200), width: 56, margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected ? selectedColor : (isDark ? Colors.grey.shade800 : Colors.grey.shade100), 
+                              shape: BoxShape.circle, 
+                              border: isSelected ? Border.all(color: Colors.white, width: 2) : null, 
+                              boxShadow: isSelected ? [BoxShadow(color: selectedColor.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 3))] : null
+                            ),
+                            child: Icon(icon, color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black54), size: 26),
                           ),
                         );
                       },
                     ),
                   ),
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 20),
+                  
+                  // Color selection palette
+                  const Text('Chọn màu sắc', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 48,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _availableColors.length,
+                      itemBuilder: (context, index) {
+                        Color col = _availableColors[index];
+                        bool isSelected = selectedColor.value == col.value;
+                        return GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setModalState(() => selectedColor = col);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeOutCubic,
+                            width: 44,
+                            height: 44,
+                            margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              color: col,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected ? Colors.white : Colors.transparent,
+                                width: isSelected ? 2.5 : 0,
+                              ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: col.withOpacity(0.55),
+                                        blurRadius: 10,
+                                        spreadRadius: 1,
+                                        offset: const Offset(0, 2),
+                                      )
+                                    ]
+                                  : [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
+                                      )
+                                    ],
+                            ),
+                            child: isSelected
+                                ? const Center(child: Icon(Icons.check_rounded, color: Colors.white, size: 20))
+                                : null,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   
                   Text(context.tr('set_actions'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 10),
@@ -362,9 +437,40 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                               Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)), const SizedBox(height: 10),
                               Row(
                                 children: [
-                                  Expanded(child: ChoiceChip(label: Center(child: Text(context.tr('action_ignore'))), selected: currentAction == null, onSelected: (val) => setModalState(() => newActions[topic] = null))), const SizedBox(width: 8),
-                                  Expanded(child: ChoiceChip(label: Center(child: Text(context.tr('action_on'))), selectedColor: Colors.green.shade200, selected: currentAction == '1', onSelected: (val) => setModalState(() => newActions[topic] = '1'))), const SizedBox(width: 8),
-                                  Expanded(child: ChoiceChip(label: Center(child: Text(context.tr('action_off'))), selectedColor: Colors.red.shade200, selected: currentAction == '0', onSelected: (val) => setModalState(() => newActions[topic] = '0'))),
+                                  Expanded(
+                                    child: ChoiceChip(
+                                      label: Center(child: Text(context.tr('action_ignore'))),
+                                      selected: currentAction == null,
+                                      onSelected: (val) {
+                                        HapticFeedback.selectionClick();
+                                        setModalState(() => newActions[topic] = null);
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: ChoiceChip(
+                                      label: Center(child: Text(context.tr('action_on'))),
+                                      selectedColor: Colors.green.shade200,
+                                      selected: currentAction == '1',
+                                      onSelected: (val) {
+                                        HapticFeedback.selectionClick();
+                                        setModalState(() => newActions[topic] = '1');
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: ChoiceChip(
+                                      label: Center(child: Text(context.tr('action_off'))),
+                                      selectedColor: Colors.red.shade200,
+                                      selected: currentAction == '0',
+                                      onSelected: (val) {
+                                        HapticFeedback.selectionClick();
+                                        setModalState(() => newActions[topic] = '0');
+                                      },
+                                    ),
+                                  ),
                                 ],
                               )
                             ],

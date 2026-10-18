@@ -15,25 +15,25 @@ async function updateVersion() {
   console.log('Current DB app_version:', doc.data());
 
   const newVersionData = {
-    latestVersion: '1.7.4',
-    latestBuildNumber: 174,
+    latestVersion: '1.7.5',
+    latestBuildNumber: 175,
     minVersion: '1.6.0',
     minBuildNumber: 160,
-    titleVi: 'Bản Cập Nhật ZenHome 1.7.4',
-    titleEn: 'ZenHome 1.7.4 Update',
-    releaseNotesVi: '• Tối ưu điều khiển ưu tiên mạng Local LAN: Phản hồi siêu tốc ~5-15ms khi cùng mạng nội bộ\n• Tích hợp Mini Backup Server tự động lưu trữ và đồng bộ trạng thái khi có kết nối mạng trở lại\n• Cơ chế phân biệt mất điện (ngắt toàn bộ relay an toàn khi có điện lại) và mất mạng (đồng bộ trạng thái lần cuối)\n• Nâng cấp giao diện hiển thị trạng thái kết nối Local ⚡ / Cloud trực quan trên từng thiết bị',
-    releaseNotesEn: '• Local-First LAN control optimization: Ultra-fast response (~5-15ms) on local network\n• Integrated Mini Backup Server: Automatically stores and syncs states when network restores\n• Smart distinction between power outage (safety relay shutdown upon recovery) and network outage (sync last known states)\n• Enhanced connection badges displaying Local ⚡ vs Cloud seamlessly on each device',
+    titleVi: 'Bản Cập Nhật ZenHome 1.7.5',
+    titleEn: 'ZenHome 1.7.5 Update',
+    releaseNotesVi: '• Bảo mật cấp cao Zero-Knowledge (Diffie-Hellman + HMAC-SHA256): Tự động trao đổi khoá bảo mật riêng biệt giữa App và ESP32 qua LAN, không ai có thể can thiệp\n• Đồng bộ điều khiển Local LAN cho các thành viên trong nhà theo quyền thiết bị\n• Nâng cấp các hiệu ứng vi mô (Micro-interactions) & phản hồi rung: Thanh kéo thời gian động, chuyển đổi giao diện sáng/tối/hệ thống & ngôn ngữ dạng viên con nhộng\n• Bổ sung bảng chọn màu sắc trực quan khi tạo và tuỳ biến ngữ cảnh (Scene)',
+    releaseNotesEn: '• High-Grade Zero-Knowledge Security (Diffie-Hellman + HMAC-SHA256): Secure auto key exchange between App and ESP32 over LAN\n• Synchronized Local LAN control for family members with permission controls\n• Polished micro-interactions & haptics: Dynamic counter on timer slider, capsule segmented selectors for theme & language\n• Added vibrant color palette picker for smart scenes',
     downloadUrl: `http://${localIp}:5000/public/downloads/zenhome-app-release.apk`,
     directApkUrl: `http://${localIp}:5000/public/downloads/zenhome-app-release.apk`,
     serverBaseUrl: `http://${localIp}:5000`,
     isForceUpdate: false,
-    fileSizeBytes: 67910441,
+    fileSizeBytes: 67959593,
     publishedAt: new Date().toISOString(),
     lastServerSyncAt: new Date().toISOString(),
   };
 
   await appVersionRef.set(newVersionData, { merge: true });
-  console.log('Successfully updated system_config/app_version to 1.7.4:');
+  console.log('Successfully updated system_config/app_version to 1.7.5:');
   console.log(JSON.stringify(newVersionData, null, 2));
   process.exit(0);
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -267,27 +268,108 @@ class SettingsScreen extends ConsumerWidget {
                                 ),
                               ),
                               title: Text(context.tr('theme_mode'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                              trailing: ToggleButtons(
-                                borderRadius: BorderRadius.circular(12),
-                                constraints: const BoxConstraints(minHeight: 35, minWidth: 40),
-                                isSelected: [
-                                  currentThemeMode == ThemeMode.light,
-                                  currentThemeMode == ThemeMode.system,
-                                  currentThemeMode == ThemeMode.dark,
-                                ],
-                                fillColor: Colors.purple.withOpacity(0.1),
-                                selectedColor: Colors.purple,
-                                color: isDark ? Colors.white54 : Colors.black54,
-                                onPressed: (index) {
-                                  if (index == 0) _setTheme(ThemeMode.light, ref);
-                                  else if (index == 1) _setTheme(ThemeMode.system, ref);
-                                  else _setTheme(ThemeMode.dark, ref);
-                                },
-                                children: const [
-                                  Tooltip(message: 'Light', child: Icon(Icons.light_mode_rounded, size: 20)),
-                                  Tooltip(message: 'Auto', child: Icon(Icons.brightness_auto_rounded, size: 20)),
-                                  Tooltip(message: 'Dark', child: Icon(Icons.dark_mode_rounded, size: 20)),
-                                ],
+                              trailing: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0x1AFFFFFF) : const Color(0x0C000000),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isDark ? const Color(0x12FFFFFF) : const Color(0x0A000000),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.mediumImpact();
+                                        _setTheme(ThemeMode.light, ref);
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 220),
+                                        curve: Curves.easeOutCubic,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                        decoration: BoxDecoration(
+                                          color: currentThemeMode == ThemeMode.light ? const Color(0xFFF59E0B) : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(13),
+                                          boxShadow: currentThemeMode == ThemeMode.light
+                                              ? [
+                                                  BoxShadow(
+                                                    color: const Color(0xFFF59E0B).withOpacity(0.35),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 2),
+                                                  )
+                                                ]
+                                              : [],
+                                        ),
+                                        child: Icon(
+                                          Icons.light_mode_rounded,
+                                          size: 18,
+                                          color: currentThemeMode == ThemeMode.light ? Colors.white : (isDark ? Colors.white54 : Colors.black45),
+                                        ),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.mediumImpact();
+                                        _setTheme(ThemeMode.system, ref);
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 220),
+                                        curve: Curves.easeOutCubic,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                        decoration: BoxDecoration(
+                                          color: currentThemeMode == ThemeMode.system ? const Color(0xFF0D9488) : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(13),
+                                          boxShadow: currentThemeMode == ThemeMode.system
+                                              ? [
+                                                  BoxShadow(
+                                                    color: const Color(0xFF0D9488).withOpacity(0.35),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 2),
+                                                  )
+                                                ]
+                                              : [],
+                                        ),
+                                        child: Icon(
+                                          Icons.brightness_auto_rounded,
+                                          size: 18,
+                                          color: currentThemeMode == ThemeMode.system ? Colors.white : (isDark ? Colors.white54 : Colors.black45),
+                                        ),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.mediumImpact();
+                                        _setTheme(ThemeMode.dark, ref);
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 220),
+                                        curve: Curves.easeOutCubic,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                        decoration: BoxDecoration(
+                                          color: currentThemeMode == ThemeMode.dark ? const Color(0xFF8B5CF6) : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(13),
+                                          boxShadow: currentThemeMode == ThemeMode.dark
+                                              ? [
+                                                  BoxShadow(
+                                                    color: const Color(0xFF8B5CF6).withOpacity(0.35),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 2),
+                                                  )
+                                                ]
+                                              : [],
+                                        ),
+                                        child: Icon(
+                                          Icons.dark_mode_rounded,
+                                          size: 18,
+                                          color: currentThemeMode == ThemeMode.dark ? Colors.white : (isDark ? Colors.white54 : Colors.black45),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                             
@@ -304,21 +386,101 @@ class SettingsScreen extends ConsumerWidget {
                                 child: const Icon(Icons.translate_rounded, color: Colors.blue, size: 22),
                               ),
                               title: Text(context.tr('language'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                              trailing: ToggleButtons(
-                                borderRadius: BorderRadius.circular(12),
-                                constraints: const BoxConstraints(minHeight: 35, minWidth: 40),
-                                isSelected: [!isEng, isEng],
-                                fillColor: const Color(0xFF0F766E).withOpacity(0.1),
-                                selectedColor: const Color(0xFF0F766E),
-                                color: isDark ? Colors.white54 : Colors.black54,
-                                onPressed: (index) async {
-                                  String newLang = index == 0 ? 'vi' : 'en';
-                                  await ref.read(localeNotifierProvider.notifier).setLocale(newLang);
-                                },
-                                children: const [
-                                  Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('VN', style: TextStyle(fontWeight: FontWeight.bold))),
-                                  Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('EN', style: TextStyle(fontWeight: FontWeight.bold))),
-                                ],
+                              trailing: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0x1AFFFFFF) : const Color(0x0C000000),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isDark ? const Color(0x12FFFFFF) : const Color(0x0A000000),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () async {
+                                        if (!isEng) return;
+                                        HapticFeedback.selectionClick();
+                                        await ref.read(localeNotifierProvider.notifier).setLocale('vi');
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 220),
+                                        curve: Curves.easeOutCubic,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: !isEng ? const Color(0xFF0F766E) : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(13),
+                                          boxShadow: !isEng
+                                              ? [
+                                                  BoxShadow(
+                                                    color: const Color(0xFF0F766E).withOpacity(0.35),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 2),
+                                                  )
+                                                ]
+                                              : [],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Text('🇻🇳', style: TextStyle(fontSize: 13)),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'VN',
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: !isEng ? FontWeight.w800 : FontWeight.w600,
+                                                color: !isEng ? Colors.white : (isDark ? Colors.white54 : Colors.black45),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () async {
+                                        if (isEng) return;
+                                        HapticFeedback.selectionClick();
+                                        await ref.read(localeNotifierProvider.notifier).setLocale('en');
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 220),
+                                        curve: Curves.easeOutCubic,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: isEng ? const Color(0xFF0F766E) : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(13),
+                                          boxShadow: isEng
+                                              ? [
+                                                  BoxShadow(
+                                                    color: const Color(0xFF0F766E).withOpacity(0.35),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 2),
+                                                  )
+                                                ]
+                                              : [],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Text('🇬🇧', style: TextStyle(fontSize: 13)),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'EN',
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: isEng ? FontWeight.w800 : FontWeight.w600,
+                                                color: isEng ? Colors.white : (isDark ? Colors.white54 : Colors.black45),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],

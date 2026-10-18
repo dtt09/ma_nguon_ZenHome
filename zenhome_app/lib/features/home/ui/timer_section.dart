@@ -528,8 +528,7 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                 // Digital Timer Display
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
                       context.tr('time_on_label') ?? 'Duration',
@@ -539,47 +538,79 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                         color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                       ),
                     ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          '${_timerMinutes.toInt()}',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                            color: isDark ? AppColors.primaryLight : AppColors.primary,
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: ScaleTransition(
+                          scale: Tween<double>(begin: 0.9, end: 1.0).animate(anim),
+                          child: child,
+                        ),
+                      ),
+                      child: Container(
+                        key: ValueKey<int>(_timerMinutes.toInt()),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.25),
+                            width: 1,
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          context.tr('minutes'),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              '${_timerMinutes.toInt()}',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                                color: isDark ? AppColors.primaryLight : AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              context.tr('minutes'),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? AppColors.primaryLight : AppColors.primary,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 10),
 
-                // Slider
+                // Slider with custom theme and haptic clicks
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     activeTrackColor: isDark ? AppColors.primaryLight : AppColors.primary,
                     inactiveTrackColor: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
                     thumbColor: isDark ? AppColors.primaryLight : AppColors.primary,
-                    overlayColor: (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.15),
-                    trackHeight: 4,
+                    overlayColor: (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.18),
+                    trackHeight: 6,
+                    trackShape: const RoundedRectSliderTrackShape(),
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 4),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 22),
                   ),
                   child: Slider(
                     value: _timerMinutes,
                     min: 1,
                     max: 120,
-                    onChanged: (val) => setState(() => _timerMinutes = val),
+                    onChanged: (val) {
+                      if (val.round() != _timerMinutes.round()) {
+                        HapticFeedback.selectionClick();
+                      }
+                      setState(() => _timerMinutes = val);
+                    },
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -595,24 +626,35 @@ class _TimerSectionState extends ConsumerState<TimerSection> {
                         setState(() => _timerMinutes = mins.toDouble());
                       },
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOutBack,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? (isDark ? AppColors.primaryLight.withOpacity(0.2) : AppColors.primary.withOpacity(0.1))
+                              ? (isDark ? AppColors.primaryLight.withOpacity(0.22) : AppColors.primary.withOpacity(0.12))
                               : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03)),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSelected
-                                ? (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.4)
+                                ? (isDark ? AppColors.primaryLight : AppColors.primary)
                                 : Colors.transparent,
+                            width: 1.2,
                           ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ]
+                              : [],
                         ),
                         child: Text(
                           '${mins}m',
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                             color: isSelected
                                 ? (isDark ? AppColors.primaryLight : AppColors.primary)
                                 : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
