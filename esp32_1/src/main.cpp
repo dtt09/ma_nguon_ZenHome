@@ -627,7 +627,7 @@ void connectMQTT() {
     if (isPowerOutageBoot) {
       // 1. TRƯỜNG HỢP CÓ ĐIỆN LẠI SAU KHI MẤT ĐIỆN: TẮT TOÀN BỘ THIẾT BỊ
       Serial.println("\n[HỆ THỐNG] ⚡ Báo cáo sự kiện: CÓ ĐIỆN LẠI SAU MẤT ĐIỆN (Tắt toàn bộ thiết bị)");
-      mqttClient.publish(statusTopic.c_str(), "online_power_restored", true);
+      mqttClient.publish(statusTopic.c_str(), "online", true);
 
       String eventTopic = mqtt_prefix + "/system/event";
       mqttClient.publish(eventTopic.c_str(), "{\"event\":\"power_restored\",\"action\":\"all_off\",\"reason\":\"power_outage\"}", false);
@@ -642,7 +642,7 @@ void connectMQTT() {
     } else {
       // 2. TRƯỜNG HỢP CÓ MẠNG LẠI SAU KHI MẤT MẠNG: CHỈ ĐỒNG BỘ TRẠNG THÁI LẦN CUỐI
       Serial.println("\n[HỆ THỐNG] 🌐 Báo cáo sự kiện: CÓ MẠNG LẠI SAU MẤT MẠNG (Đồng bộ trạng thái lần cuối)");
-      mqttClient.publish(statusTopic.c_str(), "online_network_restored", true);
+      mqttClient.publish(statusTopic.c_str(), "online", true);
 
       String eventTopic = mqtt_prefix + "/system/event";
       mqttClient.publish(eventTopic.c_str(), "{\"event\":\"network_restored\",\"action\":\"sync_last_state\",\"reason\":\"network_loss\"}", false);

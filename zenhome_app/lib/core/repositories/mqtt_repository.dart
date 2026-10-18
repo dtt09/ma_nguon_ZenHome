@@ -111,7 +111,8 @@ class MqttRepository {
         
         if (currentTopic.startsWith(mqttPrefix)) {
           if (currentTopic == '$mqttPrefix/esp_status') {
-            _isEspOnline = (payload.trim() == 'online');
+            final clean = payload.trim().toLowerCase();
+            _isEspOnline = (clean == 'online' || clean.startsWith('online'));
             _espOnlineController.add(_isEspOnline);
           } else {
             _isEspOnline = true;

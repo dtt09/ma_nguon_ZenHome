@@ -72,7 +72,7 @@ export function setupMqttHandlers() {
 
                 if (!state.espOnlineStatus) state.espOnlineStatus = {};
 
-                if (payload === 'online' || payload === 'online_power_restored' || payload === 'online_network_restored') {
+                if (payload === 'online' || payload === 'online_power_restored' || payload === 'online_network_restored' || payload.startsWith('online')) {
                     state.espOnlineStatus[macAddress] = { isOnline: true, lastSeen: new Date().toISOString() };
                     state.espOnlineStatus[userId] = { isOnline: true, lastSeen: new Date().toISOString() };
 
