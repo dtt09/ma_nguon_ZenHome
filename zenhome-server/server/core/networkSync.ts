@@ -39,7 +39,49 @@ let syncIntervalTimer: NodeJS.Timeout | null = null;
  * 2. Fallback: Quét danh sách adapter mạng, ưu tiên Ethernet/Wi-Fi và lọc bỏ card ảo/hotspot
  */
 export async function detectActiveLocalIp(): Promise<string> {
-  // Phương pháp 1: Thăm dò bảng định tuyến hệ điều hành (chính xác tuyệt đối)
+  // Phương pháp 1: Quét danh sách network interfaces của máy tính trước, ưu tiên Wi-Fi/Ethernet vật lý
+  try {
+    const interfaces = os.networkInterfaces();
+    const candidates: { name: string; address: string; score: number }[] = [];
+
+    for (const [name, addrs] of Object.entries(interfaces)) {
+      if (!addrs) continue;
+      const lowerName = name.toLowerCase();
+      const isVirtual = /vethernet|virtualbox|vmware|hyper-v|wsl|loopback|teredo|bluetooth|cloudflare|warp|vpn|tap|tun|wireguard|local area connection/i.test(lowerName);
+      const isPreferred = /wi-?fi|wlan|wireless|ethernet|lan|en0|eth0|wlan0/i.test(lowerName);
+
+      for (const iface of addrs) {
+        const isIpv4 = iface.family === 'IPv4' || (iface.family as any) === 4;
+        if (isIpv4 && !iface.internal && !iface.address.startsWith('169.254') && iface.address !== '127.0.0.1') {
+          let score = 0;
+          if (isPreferred && !isVirtual) score += 100;
+          if (isVirtual) score -= 100;
+          // Windows Mobile Hotspot mặc định thường có dải 192.168.137.x
+          if (iface.address.startsWith('192.168.137.')) score -= 30;
+          // Dải mạng LAN gia đình phổ biến (ưu tiên 192.168.x.x và 10.x.x.x hơn 172.x)
+          if (iface.address.startsWith('192.168.')) {
+            score += 50;
+          } else if (iface.address.startsWith('10.')) {
+            score += 40;
+          } else if (iface.address.startsWith('172.')) {
+            score += 10;
+          }
+          candidates.push({ name, address: iface.address, score });
+        }
+      }
+    }
+
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => b.score - a.score);
+      if (candidates[0].score > 0) {
+        return candidates[0].address;
+      }
+    }
+  } catch (err) {
+    // fallback
+  }
+
+  // Phương pháp 2: Thăm dò bảng định tuyến hệ điều hành nếu không tìm thấy card vật lý
   try {
     const routeIp = await new Promise<string>((resolve, reject) => {
       const socket = net.createConnection({ host: '8.8.8.8', port: 53 });
@@ -64,43 +106,7 @@ export async function detectActiveLocalIp(): Promise<string> {
     });
     if (routeIp) return routeIp;
   } catch (err) {
-    // Tiếp tục fallback quét network interfaces
-  }
-
-  // Phương pháp 2: Quét toàn bộ network interfaces của máy tính
-  try {
-    const interfaces = os.networkInterfaces();
-    const candidates: { name: string; address: string; score: number }[] = [];
-
-    for (const [name, addrs] of Object.entries(interfaces)) {
-      if (!addrs) continue;
-      const lowerName = name.toLowerCase();
-      const isVirtual = /vethernet|virtualbox|vmware|hyper-v|wsl|loopback|teredo|bluetooth|local area connection/i.test(lowerName);
-      const isPreferred = /wi-?fi|wlan|wireless|ethernet|lan|en0|eth0|wlan0/i.test(lowerName);
-
-      for (const iface of addrs) {
-        const isIpv4 = iface.family === 'IPv4' || (iface.family as any) === 4;
-        if (isIpv4 && !iface.internal && !iface.address.startsWith('169.254') && iface.address !== '127.0.0.1') {
-          let score = 0;
-          if (isPreferred) score += 60;
-          if (isVirtual) score -= 40;
-          // Windows Mobile Hotspot mặc định thường có dải 192.168.137.x
-          if (iface.address.startsWith('192.168.137.')) score -= 30;
-          // Dải mạng LAN gia đình phổ biến
-          if (iface.address.startsWith('192.168.') || iface.address.startsWith('10.') || iface.address.startsWith('172.')) {
-            score += 25;
-          }
-          candidates.push({ name, address: iface.address, score });
-        }
-      }
-    }
-
-    if (candidates.length > 0) {
-      candidates.sort((a, b) => b.score - a.score);
-      return candidates[0].address;
-    }
-  } catch (err) {
-    // fallback
+    // Tiếp tục fallback
   }
 
   if (lastSyncedIp && lastSyncedIp !== '127.0.0.1') {
