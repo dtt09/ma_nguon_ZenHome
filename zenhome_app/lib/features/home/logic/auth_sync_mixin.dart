@@ -48,7 +48,7 @@ mixin AuthSyncMixin on ConsumerState<MainLayout> {
 
     String currentDeviceId = await SessionManager.getUniqueDeviceId();
     
-    sessionSubscription = FirebaseFirestore.instance
+        sessionSubscription = FirebaseFirestore.instance
         .collection('users')
         .doc(username)
         .collection('sessions')
@@ -65,6 +65,8 @@ mixin AuthSyncMixin on ConsumerState<MainLayout> {
           await FirebaseAuth.instance.signOut();
         }
       }
+    }, onError: (err) {
+      debugPrint("Lỗi theo dõi trạng thái phiên đăng nhập: $err");
     });
   }
 
@@ -115,6 +117,8 @@ mixin AuthSyncMixin on ConsumerState<MainLayout> {
           }
         }
       }
+    }, onError: (err) {
+      debugPrint("Lỗi theo dõi cảnh báo alerts: $err");
     });
   }
 

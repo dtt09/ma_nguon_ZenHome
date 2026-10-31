@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
@@ -12,9 +12,13 @@ import 'package:zenhome_app/features/admin/ui/device_mapping_screen.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/features/setup/logic/wifi_setup_wizard_controller.dart';
+import 'package:zenhome_app/core/utils/masking_helper.dart';
+import 'package:zenhome_app/core/models/smart_config.dart';
+import 'package:zenhome_app/core/utils/home_helper.dart';
 
 class WifiSetupScreen extends ConsumerStatefulWidget {
-  const WifiSetupScreen({super.key});
+  final SmartConfig? targetHome;
+  const WifiSetupScreen({super.key, this.targetHome});
 
   @override
   ConsumerState<WifiSetupScreen> createState() => _WifiSetupScreenState();
@@ -67,15 +71,21 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     if (Platform.isAndroid) {
       FlutterWindowManagerPlus.addFlags(FlutterWindowManagerPlus.FLAG_SECURE);
     }
-    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+    // Đảm bảo đồng bộ với ngôi nhà mục tiêu được truyền vào nếu có
+    if (widget.targetHome != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(homeConfigProvider).switchActiveHome(widget.targetHome!.userId);
+      });
+    }
+    final activeConfig = widget.targetHome ?? ref.read(homeConfigProvider).activeConfig;
     final defaultServer = dotenv.env['DEFAULT_MQTT_SERVER'] ?? 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
     final defaultUser = dotenv.env['DEFAULT_MQTT_USER'] ?? 'DTC_ZenHome';
     final defaultPass = dotenv.env['DEFAULT_MQTT_PASS'] ?? 'DTC_ZenHome2103';
 
-    _mqttServerController.text = activeConfig.mqttServer.isEmpty || activeConfig.mqttServer == 'broker.emqx.io'
-        ? defaultServer
-        : activeConfig.mqttServer;
-    _mqttUserController.text = (activeConfig.mqttUser != null && activeConfig.mqttUser!.isNotEmpty)
+    _mqttServerController.text = (activeConfig.mqttServer.isNotEmpty && activeConfig.mqttServer != 'broker.emqx.io')
+        ? activeConfig.mqttServer
+        : defaultServer;
+    _mqttUserController.text = (activeConfig.mqttUser != null && activeConfig.mqttUser!.isNotEmpty && !activeConfig.mqttUser!.startsWith('user_'))
         ? activeConfig.mqttUser!
         : defaultUser;
     _mqttPassController.text = (activeConfig.mqttPass != null && activeConfig.mqttPass!.isNotEmpty)
@@ -137,6 +147,15 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
 
   @override
   void dispose() {
+    // Nếu màn hình bị đóng khi chưa hoàn tất toàn bộ bước ghép nối, reset MAC để tránh liên kết ảo
+    if (_currentStep != 3) {
+      final activeConfig = ref.read(homeConfigProvider).activeConfig;
+      if (activeConfig.macAddress.isNotEmpty) {
+        activeConfig.macAddress = '';
+        ref.read(homeConfigProvider).saveConfigToStorage(activeConfig);
+        debugPrint("[SETUP-DISPOSE] 🛑 Đã dọn dẹp và reset MAC về rỗng do người dùng thoát trước khi hoàn tất.");
+      }
+    }
     _wifiMonitorTimer?.cancel();
     WifiProvisioningService.releaseWifiUsage();
     if (Platform.isAndroid) {
@@ -229,7 +248,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
+                backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -273,7 +292,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
+                backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -394,7 +413,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                           height: 50,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0F766E),
+                              backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             ),
@@ -467,7 +486,10 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                       if (Navigator.canPop(modalCtx)) {
                         Navigator.pop(modalCtx);
                       }
-                      if (mounted) setState(() => _currentStep = 1);
+                      if (mounted) {
+                        ref.read(wifiSetupWizardProvider.notifier).setStep(1);
+                        setState(() => _currentStep = 1);
+                      }
                     });
                   } else if (newStep == EspConnectStep.failed) {
                     setState(() {
@@ -635,7 +657,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                         Expanded(
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0F766E),
+                              backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -884,6 +906,130 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     }
   }
 
+  /// Bắt buộc xác thực kết nối tới Hub ESP32 trước khi cho phép chuyển sang Step 1 (Setup WiFi)
+  Future<void> _proceedToStep1WithVerification() async {
+    // 1. Nếu đã xác thực được kết nối với ESP32 từ trước
+    if (_detectedEspMac != null && _detectedEspMac!.isNotEmpty) {
+      if (mounted) {
+        ref.read(wifiSetupWizardProvider.notifier).setStep(1);
+        setState(() => _currentStep = 1);
+      }
+      return;
+    }
+
+    // 2. Nếu chưa có, chủ động thực hiện ping bắt tay với ESP32 tại 192.168.4.1
+    setState(() => _isCheckingEsp = true);
+    try {
+      final espMac = await WifiProvisioningService.pingEspQuick();
+      if (!mounted) return;
+      setState(() => _isCheckingEsp = false);
+
+      if (espMac != null && espMac.isNotEmpty) {
+        ref.read(wifiSetupWizardProvider.notifier).setStep(1);
+        setState(() {
+          _detectedEspMac = espMac;
+          _currentStep = 1;
+        });
+        showFloatingToast(
+          context,
+          context.tr('toast_success'),
+          context.tr('wifi_handshake_success').replaceAll('{mac}', espMac),
+        );
+      } else {
+        _showEspNotConnectedDialog();
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isCheckingEsp = false);
+        _showEspNotConnectedDialog();
+      }
+    }
+  }
+
+  void _showEspNotConnectedDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        backgroundColor: isDark ? const Color(0xFF131B2E) : Colors.white,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.wifi_off_rounded, color: Colors.amber, size: 24),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Chưa kết nối với Hub ESP32',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Để cấu hình mạng Wi-Fi và liên kết tài khoản, điện thoại bắt buộc phải kết nối với sóng Wi-Fi phát ra từ Hub ESP32 trước.',
+              style: TextStyle(
+                fontSize: 13.5,
+                height: 1.45,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(context.tr('setup_steps_title'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Text(context.tr('setup_step_1'), style: const TextStyle(fontSize: 12.5)),
+                  const SizedBox(height: 4),
+                  Text(context.tr('setup_step_2'), style: const TextStyle(fontSize: 12.5)),
+                  const SizedBox(height: 4),
+                  Text(context.tr('setup_step_3'), style: const TextStyle(fontSize: 12.5)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('btn_understood'), style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _checkEspConnection();
+            },
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: Text(context.tr('btn_retry_connection'), style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCurrentWifiBanner(bool isDark) {
     final ssid = _currentConnectedSsid;
     final isEsp = ssid != null &&
@@ -1038,6 +1184,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
   }
 
   Future<void> _executePairingWorkflow() async {
+    final activeConfig = widget.targetHome ?? ref.read(homeConfigProvider).activeConfig;
     final defaultServer = dotenv.env['DEFAULT_MQTT_SERVER'] ?? 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
     final defaultUser = dotenv.env['DEFAULT_MQTT_USER'] ?? 'DTC_ZenHome';
     final defaultPass = dotenv.env['DEFAULT_MQTT_PASS'] ?? 'DTC_ZenHome2103';
@@ -1052,6 +1199,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
       defaultServer: defaultServer,
       defaultUser: defaultUser,
       defaultPass: defaultPass,
+      targetHomeId: activeConfig.userId,
     );
 
     final pState = ref.read(wifiSetupWizardProvider);
@@ -1296,7 +1444,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                 height: 48,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E),
+                    backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
@@ -1395,7 +1543,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                             height: 36,
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0F766E),
+                                backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1531,16 +1679,21 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
           height: 52,
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F766E),
+              backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               elevation: 2,
             ),
-            onPressed: () => setState(() => _currentStep = 1),
+            onPressed: _isCheckingEsp ? null : _proceedToStep1WithVerification,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(context.tr('wifi_btn_continue_config'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  _detectedEspMac != null
+                      ? 'Đã kết nối (${MaskingHelper.maskMac(_detectedEspMac)}) • Tiếp tục'
+                      : 'Kiểm tra kết nối Hub & Tiếp tục',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(width: 8),
                 const Icon(Icons.arrow_forward_rounded, size: 20),
               ],
@@ -1814,7 +1967,10 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  onPressed: () => setState(() => _currentStep = 0),
+                  onPressed: () {
+                    ref.read(wifiSetupWizardProvider.notifier).setStep(0);
+                    setState(() => _currentStep = 0);
+                  },
                   child: Text(context.tr('wifi_btn_back')),
                 ),
               ),
@@ -1826,7 +1982,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                 height: 52,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E),
+                    backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 2,
@@ -1851,6 +2007,11 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
 
   // --- STEP 2: Đang ghép nối & nạp cấu hình ---
   Widget _buildStep2Pairing(bool isDark) {
+    final remainingSecs = ref.watch(wifiSetupWizardProvider.select((s) => s.remainingTimeoutSeconds));
+    final mins = remainingSecs ~/ 60;
+    final secs = remainingSecs % 60;
+    final timeFormatted = '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
       decoration: BoxDecoration(
@@ -1917,6 +2078,26 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                 height: 1.5,
               ),
             ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F766E).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF0F766E).withOpacity(0.2)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.timer_outlined, size: 16, color: Color(0xFF0F766E)),
+                  const SizedBox(width: 6),
+                  Text(
+                    context.tr('wifi_time_remaining').replaceAll('{time}', timeFormatted),
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF0F766E)),
+                  ),
+                ],
+              ),
+            ),
           ] else ...[
             Container(
               width: 80,
@@ -1951,7 +2132,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    onPressed: () => setState(() => _currentStep = 1),
+                    onPressed: _isCheckingEsp ? null : _proceedToStep1WithVerification,
                     child: Text(context.tr('wifi_btn_change_wifi_pass')),
                   ),
                 ),
@@ -1960,7 +2141,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: const Color(0xFF0F766E),
+                      backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
@@ -2048,7 +2229,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
             height: 52,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
+                backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 2,
@@ -2084,35 +2265,176 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     );
   }
 
+  Widget _buildTargetHomeBanner(bool isDark, SmartConfig home) {
+    final themeColor = HomeHelper.getThemeColor(home.homeColor);
+    final iconData = HomeHelper.getIconData(home.homeIcon);
+    final typeName = HomeHelper.getHomeTypeLabel(home.homeType, context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: themeColor.withOpacity(isDark ? 0.16 : 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: themeColor.withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: themeColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(iconData, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Đang cài đặt cho: ',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      ),
+                    ),
+                    Flexible(
+                      child: Text(
+                        home.homeName,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$typeName • Hub ESP32 sẽ liên kết độc quyền với nhà này',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: themeColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.lock_outline_rounded, size: 16, color: themeColor),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<WifiSetupWizardState>(wifiSetupWizardProvider, (previous, next) {
+      if (mounted) {
+        setState(() {
+          if (next.currentStep != previous?.currentStep) {
+            _currentStep = next.currentStep;
+          }
+          _pairingProgress = next.pairingProgress;
+          _pairingFailed = next.pairingFailed;
+          _pairingErrorMessage = next.pairingErrorMessage;
+          _pairingMessage = next.pairingMessage;
+          if (next.detectedEspMac != null) {
+            _detectedEspMac = next.detectedEspMac;
+          }
+        });
+
+        // Hoàn thành thiết lập -> Tự động chuyển sang Thêm thiết bị (Device Mapping)
+        if (next.currentStep == 3 && previous?.currentStep != 3) {
+          Future.delayed(const Duration(milliseconds: 1200), () {
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const DeviceMappingScreen()),
+              );
+            }
+          });
+        }
+      }
+    });
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF6F8FB),
-      appBar: AppBar(
-        title: Text(
-          context.tr('wifi_setup_title'),
-          style: const TextStyle(fontWeight: FontWeight.bold),
+    return PopScope(
+      canPop: _currentStep != 2,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldCancel = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 28),
+                const SizedBox(width: 8),
+                Expanded(child: Text(context.tr('wifi_cancel_pairing_title'))),
+              ],
+            ),
+            content: Text(context.tr('wifi_cancel_pairing_desc')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(context.tr('btn_cancel')),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(context.tr('btn_understood')),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldCancel == true && context.mounted) {
+          await ref.read(wifiSetupWizardProvider.notifier).cancelSetupWorkflow();
+          if (context.mounted) Navigator.pop(context);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF6F8FB),
+        appBar: AppBar(
+          title: Text(
+            context.tr('wifi_setup_title'),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Column(
-          children: [
-            _buildStepperHeader(isDark),
-            const SizedBox(height: 24),
-            if (_currentStep == 0) _buildStep0Prepare(isDark),
-            if (_currentStep == 1) _buildStep1Configure(isDark),
-            if (_currentStep == 2) _buildStep2Pairing(isDark),
-            if (_currentStep == 3) _buildStep3Complete(isDark),
-            const SizedBox(height: 40),
-          ],
+        body: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Column(
+            children: [
+              _buildTargetHomeBanner(isDark, widget.targetHome ?? ref.watch(homeConfigProvider).activeConfig),
+              _buildStepperHeader(isDark),
+              const SizedBox(height: 24),
+              if (_currentStep == 0) _buildStep0Prepare(isDark),
+              if (_currentStep == 1) _buildStep1Configure(isDark),
+              if (_currentStep == 2) _buildStep2Pairing(isDark),
+              if (_currentStep == 3) _buildStep3Complete(isDark),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );

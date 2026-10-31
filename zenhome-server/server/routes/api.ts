@@ -10,17 +10,19 @@ import { timersRouter } from './v1/timers.routes';
 import { alertsRouter } from './v1/alerts.routes';
 import { hubRouter } from './v1/hub.routes';
 import { backupRouter } from './v1/backup.routes';
-import { systemRouter } from './v1/system.routes';
+import { systemRouter, invalidateDashboardCache } from './v1/system.routes';
 import { usersRouter } from './v1/users.routes';
+import { authRouter } from './v1/auth.routes';
 
 // Existing state & worker imports for backwards compatibility
 import { state, serverLogs, addLog, storedBackups, addBackup, BackupRecord } from '../zenhomeState';
 import { cleanJunkAccounts, sendCommandWithRetry, executeDeleteAccountRequest } from '../zenhomeWorker';
-import { requireAdminAuth } from '../middlewares/auth';
+import { requireAdminAuth, requireAuth } from '../middlewares/auth';
 import { apiLimiter, actionLimiter } from '../middlewares/rateLimiter';
 import { client as mqttClient } from '../core/mqtt';
 import { getCpuMetrics, getRamMetrics, getDiskMetrics, formatUptimeString } from '../core/systemTelemetry';
-import { createRealDatabaseBackup } from '../core/backupEngine';
+import { createRealDatabaseBackup, getBackupFilePath, restoreDatabaseFromBackup } from '../core/backupEngine';
+import path from 'path';
 
 
 export const apiRouter = Router();
@@ -49,11 +51,12 @@ apiRouter.use('/v1/hub', apiLimiter, hubRouter);
 apiRouter.use('/v1/users', apiLimiter, usersRouter);
 apiRouter.use('/v1/backup', apiLimiter, backupRouter);
 apiRouter.use('/v1/system', apiLimiter, systemRouter);
+apiRouter.use('/v1/auth', authRouter);
 
 // ==========================================
 // TƯƠNG THÍCH NGƯỢC CHO GIAO DIỆN WEB CŨ (BACKWARD COMPATIBILITY)
 // ==========================================
-apiRouter.get('/node-server/state', apiLimiter, (req: Request, res: Response) => {
+apiRouter.get('/node-server/state', requireAuth, apiLimiter, (req: Request, res: Response) => {
   const sanitizedPendingTasks: Record<string, any> = {};
   for (const [key, item] of Object.entries(state.pendingTasks || {})) {
     sanitizedPendingTasks[key] = {
@@ -117,12 +120,16 @@ apiRouter.get('/node-server/state', apiLimiter, (req: Request, res: Response) =>
   });
 });
 
-apiRouter.get('/node-server/logs', apiLimiter, (req: Request, res: Response) => {
+apiRouter.get('/node-server/logs', requireAdminAuth, apiLimiter, (req: Request, res: Response) => {
   res.json({ logs: serverLogs });
 });
 
 apiRouter.post('/node-server/action', requireAdminAuth, actionLimiter, async (req: Request, res: Response) => {
   const { action, payload } = req.body;
+
+  if (action === 'check_auth' || action === 'verify_admin') {
+    return res.json({ success: true, message: 'Xác thực Quản trị viên hợp lệ.' });
+  }
 
   if (action === 'clean_junk') {
     cleanJunkAccounts();
@@ -153,12 +160,21 @@ apiRouter.post('/node-server/action', requireAdminAuth, actionLimiter, async (re
   res.status(400).json({ error: 'Hành động không hợp lệ' });
 });
 
-apiRouter.post('/backup-server/proxy-ping', async (req: Request, res: Response) => {
+apiRouter.post('/backup-server/proxy-ping', requireAdminAuth, actionLimiter, async (req: Request, res: Response) => {
   const { serverUrl } = req.body;
-  if (!serverUrl) {
+  if (!serverUrl || typeof serverUrl !== 'string') {
     return res.status(400).json({ connected: false, error: 'Thiếu serverUrl' });
   }
   try {
+    const parsed = new URL(serverUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return res.status(400).json({ connected: false, error: 'Giao thức serverUrl không hợp lệ (chỉ chấp nhận http hoặc https)' });
+    }
+    const host = parsed.hostname.toLowerCase();
+    // Chống SSRF: cấm truy cập dải địa chỉ metadata và loopback
+    if (host === '169.254.169.254' || host === 'metadata.google.internal' || host === '0.0.0.0') {
+      return res.status(400).json({ connected: false, error: 'Địa chỉ IP nội bộ không được phép (Chống SSRF)' });
+    }
     const target = serverUrl.replace(/\/+$/, '') + '/render-heartbeat';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
@@ -237,6 +253,7 @@ apiRouter.post('/backup-server/delete-request', requireAdminAuth, actionLimiter,
   }
   const transactionId = `DEL-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
   executeDeleteAccountRequest(targetUser, targetUid, macAddress);
+  invalidateDashboardCache();
   res.json({
     success: true,
     transactionId,
@@ -261,6 +278,24 @@ apiRouter.post('/backup-server/trigger-backup', requireAdminAuth, actionLimiter,
   }
 });
 
-apiRouter.get('/backup-server/backups', apiLimiter, (req: Request, res: Response) => {
+apiRouter.get('/backup-server/backups', requireAdminAuth, apiLimiter, (req: Request, res: Response) => {
   res.json({ backups: storedBackups });
+});
+
+apiRouter.get('/backup-server/download/:backupId', requireAdminAuth, (req: Request, res: Response) => {
+  const backupId = String(req.params.backupId);
+  const filePath = getBackupFilePath(backupId);
+  if (!filePath) {
+    return res.status(404).json({ success: false, error: 'Không tìm thấy file sao lưu trên đĩa' });
+  }
+  res.download(filePath, path.basename(filePath));
+});
+apiRouter.post('/backup-server/restore/:backupId', requireAdminAuth, actionLimiter, async (req: Request, res: Response) => {
+  try {
+    const backupId = String(req.params.backupId);
+    const result = await restoreDatabaseFromBackup(backupId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });

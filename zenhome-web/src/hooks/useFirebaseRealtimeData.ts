@@ -2,24 +2,27 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   collection, 
   onSnapshot, 
-  getDocs,
-  getDoc,
-  doc,
-  updateDoc,
-  deleteDoc
+  getDocs, 
+  getDoc, 
+  doc, 
+  updateDoc, 
+  deleteDoc, 
+  addDoc, 
+  serverTimestamp 
 } from 'firebase/firestore';
 import { db, formatFirestoreTimestamp } from '../services/firebaseService';
+import { getAdminSecret } from '../services/backupServerService';
 import { 
   RealCustomerUser, 
   RealSessionDoc, 
   RealDeviceItem, 
   RealCrashLog, 
-  RealDatabaseDoc,
-  RealSystemStats,
+  RealDatabaseDoc, 
+  RealSystemStats, 
   RealBugReport 
 } from '../types/admin';
 
-export function useFirebaseRealtimeData() {
+export function useFirebaseRealtimeData(enabled: boolean = true) {
   const [customers, setCustomers] = useState<RealCustomerUser[]>([]);
   const [crashLogs, setCrashLogs] = useState<RealCrashLog[]>([]);
   const [bugReports, setBugReports] = useState<RealBugReport[]>([]);
@@ -29,9 +32,10 @@ export function useFirebaseRealtimeData() {
     totalSessions: 0,
     totalDevices: 0,
     totalCrashes: 0,
+    totalReports: 0,
     onlineEspCount: 0,
-    latestAppVersion: 'v1.5.0',
-    latestBuildNumber: 150,
+    latestAppVersion: 'v1.7.9',
+    latestBuildNumber: 179,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,11 +44,99 @@ export function useFirebaseRealtimeData() {
   const [pingMs, setPingMs] = useState<number>(24);
   const [syncCount, setSyncCount] = useState<number>(0);
   const [isLiveStreaming, setIsLiveStreaming] = useState<boolean>(true);
-  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(2); // 2s continuous interval
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(30); // 30s safe heartbeat interval
 
-  // Core full-sync function: Reads all users, sessions, and crash logs from Firestore
-  const performFullSync = useCallback(async () => {
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const snapshotDebounceTimerRef = useRef<any>(null);
+
+  // Core full-sync function: Reads all users, sessions, crash logs, and bug reports
+  const performFullSync = useCallback(async (isForced = false) => {
+    // 0. Khử xung đột: Nếu tính năng chưa bật hoặc chưa đăng nhập, hủy ngay tránh lỗi 401
+    const adminKey = getAdminSecret();
+    if (!enabled || !adminKey) {
+      setIsLoading(false);
+      return;
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const startTime = Date.now();
+
+    // 1. ƯU TIÊN SỐ 1: Đồng bộ qua Backend Unified API (với x-api-key Admin và Bearer Token)
+    // Server sử dụng Firebase Admin SDK (độc quyền service account) nên vượt qua hoàn toàn các hạn chế phân quyền client-side
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-api-key': adminKey,
+      'Authorization': `Bearer ${adminKey}`,
+    };
+
+    const url = isForced ? '/api/v1/system/dashboard-sync?force=true' : '/api/v1/system/dashboard-sync';
+
+    try {
+      const res = await fetch(url, { headers, signal: controller.signal });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          const sanitizedCustomers = (json.customers || []).map((c: any) => ({
+            ...c,
+            createdAt: formatFirestoreTimestamp(c.createdAt),
+            sessions: (c.sessions || []).map((s: any) => ({
+              ...s,
+              lastLogin: formatFirestoreTimestamp(s.lastLogin),
+              firstSeen: formatFirestoreTimestamp(s.firstSeen),
+              lastAccess: formatFirestoreTimestamp(s.lastAccess),
+            })),
+            crashLogs: (c.crashLogs || []).map((cr: any) => ({
+              ...cr,
+              timestamp: formatFirestoreTimestamp(cr.timestamp),
+            })),
+          }));
+
+          const sanitizedCrashLogs = (json.crashLogs || []).map((cr: any) => ({
+            ...cr,
+            timestamp: formatFirestoreTimestamp(cr.timestamp),
+          }));
+
+          const sanitizedBugReports = (json.bugReports || []).map((b: any) => ({
+            ...b,
+            createdAt: formatFirestoreTimestamp(b.createdAt),
+          }));
+
+          const sanitizedDatabaseDocs = (json.databaseDocs || []).map((d: any) => ({
+            ...d,
+            updatedAt: formatFirestoreTimestamp(d.updatedAt),
+          }));
+
+          setCustomers(sanitizedCustomers);
+          setCrashLogs(sanitizedCrashLogs);
+          setBugReports(sanitizedBugReports);
+          setDatabaseDocs(sanitizedDatabaseDocs);
+          if (json.stats) setStats(json.stats);
+
+          setPingMs(Math.max(12, Date.now() - startTime));
+          setSecondsAgo(0);
+          setLastSyncTime(new Date().toLocaleTimeString('vi-VN'));
+          setSyncCount(prev => prev + 1);
+          setIsLoading(false);
+          setError(null);
+          return;
+        }
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        // Yêu cầu bị hủy để nhường chỗ cho request mới nhất, không xử lý tiếp
+        return;
+      }
+      // Backend API offline hoặc gặp sự cố, chuyển tiếp xuống dự phòng Firestore client-side
+    }
+
+    // 2. DỰ PHÒNG: Thử đọc trực tiếp từ Firestore qua Client SDK
     try {
       const usersSnap = await getDocs(collection(db, 'users'));
       const fetchedCustomers: RealCustomerUser[] = [];
@@ -95,8 +187,8 @@ export function useFirebaseRealtimeData() {
               lastLogin: formatFirestoreTimestamp(sData.lastLogin),
               firstSeen: formatFirestoreTimestamp(sData.firstSeen),
               lastAccess: formatFirestoreTimestamp(sData.lastAccess),
-              appVersion: sData.appVersion || '1.5.0',
-              buildNumber: sData.buildNumber || 150,
+              appVersion: sData.appVersion || '1.7.9',
+              buildNumber: sData.buildNumber || 179,
               raw: sData,
             });
           });
@@ -115,27 +207,32 @@ export function useFirebaseRealtimeData() {
               id: cDoc.id,
               path: `users/${userId}/crash_logs/${cDoc.id}`,
               data: cData,
-              updatedAt: formatFirestoreTimestamp(cData.timestamp),
+              updatedAt: formatFirestoreTimestamp(cData.timestamp || cData.createdAt),
               sizeBytes: JSON.stringify(cData).length,
             });
 
             const crashItem: RealCrashLog = {
               id: cDoc.id,
+              path: `users/${userId}/crash_logs/${cDoc.id}`,
               userId,
               userName: uData.displayName || userId,
               userEmail: uData.email || '',
-              timestamp: formatFirestoreTimestamp(cData.timestamp),
+              timestamp: formatFirestoreTimestamp(cData.timestamp || cData.createdAt),
               errorTitle: cData.errorTitle || 'Ngoại lệ không xác định',
               errorMessage: cData.errorMessage || String(cData),
               severity: cData.severity || 'error',
               stackTrace: cData.stackTrace || '',
               deviceModel: cData.deviceModel || sessions[0]?.deviceName || 'Thiết bị di động',
               osVersion: cData.osVersion || sessions[0]?.os || 'OS',
+              appVersion: cData.appVersion || '1.7.9',
+              source: cData.source || 'flutter_app',
               isResolved: cData.isResolved ?? false,
               raw: cData,
             };
             userCrashes.push(crashItem);
-            allCrashes.push(crashItem);
+            if (!allCrashes.some(c => c.id === crashItem.id)) {
+              allCrashes.push(crashItem);
+            }
           });
         } catch (e) {}
 
@@ -177,26 +274,39 @@ export function useFirebaseRealtimeData() {
             id: cd.id,
             path: `crash_logs/${cd.id}`,
             data: cdData,
-            updatedAt: formatFirestoreTimestamp(cdData.timestamp),
+            updatedAt: formatFirestoreTimestamp(cdData.timestamp || cdData.createdAt),
             sizeBytes: JSON.stringify(cdData).length,
           });
 
-          allCrashes.push({
-            id: cd.id,
-            userId: cdData.userId || 'Hệ thống',
-            userName: cdData.userName || cdData.userId || 'Người dùng',
-            userEmail: cdData.userEmail || '',
-            timestamp: formatFirestoreTimestamp(cdData.timestamp),
-            errorTitle: cdData.errorTitle || 'Lỗi hệ thống',
-            errorMessage: cdData.errorMessage || '',
-            severity: cdData.severity || 'error',
-            stackTrace: cdData.stackTrace || '',
-            deviceModel: cdData.deviceModel || 'N/A',
-            isResolved: cdData.isResolved ?? false,
-            raw: cdData,
-          });
+          if (!allCrashes.some(c => c.id === cd.id)) {
+            allCrashes.push({
+              id: cd.id,
+              path: `crash_logs/${cd.id}`,
+              userId: cdData.userId || 'Hệ thống',
+              userName: cdData.userName || cdData.userId || 'Người dùng',
+              userEmail: cdData.userEmail || '',
+              timestamp: formatFirestoreTimestamp(cdData.timestamp || cdData.createdAt),
+              errorTitle: cdData.errorTitle || 'Lỗi hệ thống',
+              errorMessage: cdData.errorMessage || '',
+              severity: cdData.severity || 'error',
+              stackTrace: cdData.stackTrace || '',
+              deviceModel: cdData.deviceModel || 'N/A',
+              osVersion: cdData.osVersion || 'N/A',
+              appVersion: cdData.appVersion || '1.7.9',
+              source: cdData.source || 'flutter_app',
+              isResolved: cdData.isResolved ?? false,
+              raw: cdData,
+            });
+          }
         });
       } catch (e) {}
+
+      // Sắp xếp Crash Logs mới nhất lên đầu danh sách
+      allCrashes.sort((a, b) => {
+        const timeA = a.raw?.createdAt ? new Date(a.raw.createdAt).getTime() : 0;
+        const timeB = b.raw?.createdAt ? new Date(b.raw.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
 
       // Fetch top-level bug_reports
       const allReports: RealBugReport[] = [];
@@ -232,14 +342,14 @@ export function useFirebaseRealtimeData() {
       } catch (e) {}
 
       // Fetch latest app version config from Firestore
-      let latestAppVersion = '1.7.0';
-      let latestBuildNumber = 170;
+      let latestAppVersion = '1.7.9';
+      let latestBuildNumber = 179;
       try {
         const verSnap = await getDoc(doc(db, 'system_config', 'app_version'));
         if (verSnap.exists()) {
           const vData = verSnap.data();
-          latestAppVersion = vData.latestVersion || '1.7.0';
-          latestBuildNumber = Number(vData.latestBuildNumber) || 170;
+          latestAppVersion = vData.latestVersion || '1.7.9';
+          latestBuildNumber = Number(vData.latestBuildNumber) || 179;
         }
       } catch (_) {}
 
@@ -273,44 +383,90 @@ export function useFirebaseRealtimeData() {
     }
   }, []);
 
-  // 1. Initial immediate sync on mount
+  // 1. Initial immediate sync on mount (Chỉ chạy khi đã xác thực admin)
   useEffect(() => {
-    performFullSync();
-  }, [performFullSync]);
+    if (enabled && getAdminSecret()) {
+      performFullSync(false);
+    } else {
+      setIsLoading(false);
+    }
+  }, [enabled, performFullSync]);
 
-  // 2. Real-time Snapshot Listener on /users & /bug_reports
+  // 2. Real-time Snapshot Listener on /users, /bug_reports & /crash_logs
+  // Được Debounce 1.2s để tránh bão fetch khi nhiều documents thay đổi cùng lúc
   useEffect(() => {
+    if (!enabled || !getAdminSecret()) return;
+
+    const triggerDebouncedSync = () => {
+      if (snapshotDebounceTimerRef.current) {
+        clearTimeout(snapshotDebounceTimerRef.current);
+      }
+      snapshotDebounceTimerRef.current = setTimeout(() => {
+        performFullSync(false);
+      }, 1200);
+    };
+
     const usersColRef = collection(db, 'users');
     const reportsColRef = collection(db, 'bug_reports');
+    const crashesColRef = collection(db, 'crash_logs');
 
     const unsubUsers = onSnapshot(usersColRef, () => {
-      performFullSync();
+      triggerDebouncedSync();
     }, (err) => {
-      console.warn('Firestore snapshot warning:', err.message);
+      if (!err.message?.includes('insufficient permissions')) {
+        console.warn('Firestore users snapshot warning:', err.message);
+      }
     });
 
     const unsubReports = onSnapshot(reportsColRef, () => {
-      performFullSync();
+      triggerDebouncedSync();
     }, (err) => {
-      console.warn('Bug reports snapshot warning:', err.message);
+      if (!err.message?.includes('insufficient permissions')) {
+        console.warn('Bug reports snapshot warning:', err.message);
+      }
+    });
+
+    const unsubCrashes = onSnapshot(crashesColRef, () => {
+      triggerDebouncedSync();
+    }, (err) => {
+      if (!err.message?.includes('insufficient permissions')) {
+        console.warn('Crash logs snapshot warning:', err.message);
+      }
     });
 
     return () => {
+      if (snapshotDebounceTimerRef.current) {
+        clearTimeout(snapshotDebounceTimerRef.current);
+      }
       unsubUsers();
       unsubReports();
+      unsubCrashes();
     };
-  }, [performFullSync]);
+  }, [enabled, performFullSync]);
 
-  // 3. Continuous Active Polling Interval (every 2 seconds)
+  // 3. Tab Visibility Awareness: Tạm dừng polling khi tab bị ẩn, kích hoạt lại ngay khi quay lại tab
   useEffect(() => {
-    if (!isLiveStreaming) return;
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isLiveStreaming && enabled && getAdminSecret()) {
+        performFullSync(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [enabled, isLiveStreaming, performFullSync]);
+
+  // 4. Continuous Active Polling Interval (Chỉ chạy khi tab đang active & đã xác thực admin)
+  useEffect(() => {
+    if (!enabled || !isLiveStreaming || !getAdminSecret()) return;
 
     const intervalTimer = setInterval(() => {
-      performFullSync();
-    }, Math.max(1500, autoRefreshInterval * 1000));
+      if (!document.hidden) {
+        performFullSync(false);
+      }
+    }, Math.max(2000, autoRefreshInterval * 1000));
 
     return () => clearInterval(intervalTimer);
-  }, [isLiveStreaming, autoRefreshInterval, performFullSync]);
+  }, [enabled, isLiveStreaming, autoRefreshInterval, performFullSync]);
 
   // 4. Seconds counter tick
   useEffect(() => {
@@ -321,22 +477,142 @@ export function useFirebaseRealtimeData() {
   }, []);
 
   const updateReportStatus = async (reportId: string, status: 'open' | 'investigating' | 'resolved') => {
+    setBugReports(prev => prev.map(r => r.id === reportId ? { ...r, status } : r));
     try {
       await updateDoc(doc(db, 'bug_reports', reportId), { status });
-      setBugReports(prev => prev.map(r => r.id === reportId ? { ...r, status } : r));
     } catch (e: any) {
-      console.error('Lỗi cập nhật trạng thái báo cáo:', e);
-      throw e;
+      console.warn('Direct Firestore updateDoc failed, falling back to Backend API:', e);
+      try {
+        const adminKey = getAdminSecret();
+        await fetch(`/api/v1/system/bug-reports/${reportId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(adminKey ? { 'x-api-key': adminKey } : {}),
+          },
+          body: JSON.stringify({ status }),
+        });
+      } catch (err) {
+        console.error('Lỗi cập nhật trạng thái báo cáo:', err);
+        throw err;
+      }
     }
   };
 
   const deleteReport = async (reportId: string) => {
+    setBugReports(prev => prev.filter(r => r.id !== reportId));
     try {
       await deleteDoc(doc(db, 'bug_reports', reportId));
-      setBugReports(prev => prev.filter(r => r.id !== reportId));
     } catch (e: any) {
-      console.error('Lỗi xóa báo cáo:', e);
-      throw e;
+      console.warn('Direct Firestore deleteDoc failed, falling back to Backend API:', e);
+      try {
+        const adminKey = getAdminSecret();
+        await fetch(`/api/v1/system/bug-reports/${reportId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(adminKey ? { 'x-api-key': adminKey } : {}),
+          },
+        });
+      } catch (err) {
+        console.error('Lỗi xóa báo cáo:', err);
+        throw err;
+      }
+    }
+  };
+
+  // Cập nhật trạng thái giải quyết Crash Log (Đã xử lý / Mở lại)
+  const toggleCrashResolved = async (crashId: string, currentResolved: boolean, customPath?: string) => {
+    const newStatus = !currentResolved;
+    // Cập nhật Optimistic UI ngay lập tức
+    setCrashLogs(prev => prev.map(c => c.id === crashId ? { ...c, isResolved: newStatus } : c));
+
+    try {
+      const docPath = customPath || `crash_logs/${crashId}`;
+      await updateDoc(doc(db, docPath), { isResolved: newStatus });
+    } catch (e: any) {
+      console.warn('Direct Firestore updateDoc failed, falling back to Backend API:', e);
+      try {
+        const adminKey = getAdminSecret();
+        await fetch(`/api/v1/system/crash-logs/${crashId}/resolve`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(adminKey ? { 'x-api-key': adminKey } : {}),
+          },
+          body: JSON.stringify({ isResolved: newStatus, path: customPath }),
+        });
+      } catch (err) {
+        console.error('Lỗi cập nhật trạng thái lỗi:', err);
+        performFullSync();
+        throw err;
+      }
+    }
+  };
+
+  // Xóa bản ghi Crash Log
+  const deleteCrashLog = async (crashId: string, customPath?: string) => {
+    setCrashLogs(prev => prev.filter(c => c.id !== crashId));
+    setDatabaseDocs(prev => prev.filter(d => d.id !== crashId));
+
+    try {
+      const docPath = customPath || `crash_logs/${crashId}`;
+      await deleteDoc(doc(db, docPath));
+    } catch (e: any) {
+      console.warn('Direct Firestore deleteDoc failed, falling back to Backend API:', e);
+      try {
+        const adminKey = getAdminSecret();
+        await fetch(`/api/v1/system/crash-logs/${crashId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(adminKey ? { 'x-api-key': adminKey } : {}),
+          },
+          body: JSON.stringify({ path: customPath }),
+        });
+      } catch (err) {
+        console.error('Lỗi xóa crash log:', err);
+        performFullSync();
+        throw err;
+      }
+    }
+  };
+
+  // Tạo bản ghi lỗi kiểm thử (Test Crashlytics) để kiểm tra luồng Realtime
+  const sendTestCrash = async () => {
+    const testPayload = {
+      userId: 'admin_test',
+      userName: 'ZenHome Administrator',
+      userEmail: 'admin@zenhome.io',
+      errorTitle: 'ZenHomeTestException: Kiểm thử đồng bộ Crashlytics Realtime',
+      errorMessage: 'Lỗi mô phỏng từ Bảng điều khiển Web Admin để xác nhận luồng Crashlytics & Firestore hoạt động.',
+      severity: 'fatal',
+      stackTrace: '#0   AdminConsole.triggerTestCrash (admin_dashboard.ts:42)\n#1   FirebaseRealtimeData.sendTestCrash (useFirebaseRealtimeData.ts:285)\n#2   HTMLButtonElement.onClick (ErrorLogsView.tsx:65)',
+      deviceModel: 'ZenHome Web Admin Console',
+      osVersion: navigator.userAgent.includes('Windows') ? 'Windows 11' : 'Web Browser',
+      appVersion: '1.7.9',
+      buildNumber: 179,
+      isResolved: false,
+      source: 'web_admin_test',
+      createdAt: new Date().toISOString(),
+      timestamp: serverTimestamp(),
+    };
+
+    try {
+      await addDoc(collection(db, 'crash_logs'), testPayload);
+      await performFullSync();
+    } catch (e: any) {
+      console.warn('Direct Firestore addDoc failed, falling back to Backend API:', e);
+      try {
+        await fetch('/api/v1/system/crash-logs/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        await performFullSync();
+      } catch (err) {
+        console.error('Lỗi gửi test crash log:', err);
+        throw err;
+      }
     }
   };
 
@@ -356,9 +632,12 @@ export function useFirebaseRealtimeData() {
     setIsLiveStreaming,
     autoRefreshInterval,
     setAutoRefreshInterval,
-    triggerManualSync: performFullSync,
+    triggerManualSync: () => performFullSync(true),
     updateReportStatus,
     deleteReport,
+    toggleCrashResolved,
+    deleteCrashLog,
+    sendTestCrash,
     markCustomerDeleted: (userId: string) => {
       setCustomers(prev => prev.filter(c => c.id !== userId));
       setDatabaseDocs(prev => prev.filter(d => !d.path.startsWith(`users/${userId}`)));

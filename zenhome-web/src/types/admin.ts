@@ -53,6 +53,8 @@ export interface RealCrashLog {
   appVersion?: string;
   isResolved?: boolean;
   resolutionNote?: string;
+  path?: string;
+  source?: string;
   raw?: Record<string, any>;
 }
 

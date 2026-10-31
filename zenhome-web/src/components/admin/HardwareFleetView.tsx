@@ -6,9 +6,11 @@ import {
   Layers, 
   RotateCcw, 
   Smartphone,
-  ExternalLink 
+  ExternalLink,
+  UploadCloud 
 } from 'lucide-react';
 import { RealCustomerUser } from '../../types/admin';
+import { Esp32OtaModal } from './Esp32OtaModal';
 
 interface HardwareFleetViewProps {
   customers: RealCustomerUser[];
@@ -21,6 +23,7 @@ export const HardwareFleetView: React.FC<HardwareFleetViewProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [localSearch, setLocalSearch] = useState('');
+  const [isOtaModalOpen, setIsOtaModalOpen] = useState(false);
 
   const filtered = customers.filter(c => {
     return (
@@ -45,23 +48,33 @@ export const HardwareFleetView: React.FC<HardwareFleetViewProps> = ({
           </p>
         </div>
         
-        <div className="relative w-full md:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={localSearch}
-            onChange={(e) => setLocalSearch(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                setSearch(localSearch);
-              } else if (e.key === 'Escape') {
-                setLocalSearch('');
-                setSearch('');
-              }
-            }}
-            placeholder="Nhập từ khóa và nhấn Enter..."
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 text-slate-900 dark:text-slate-50 focus:outline-none focus:border-indigo-500 transition-colors shadow-sm"
-          />
+        <div className="flex items-center gap-2.5 w-full md:w-auto">
+          <button
+            onClick={() => setIsOtaModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-sm transition-all shrink-0"
+          >
+            <UploadCloud className="w-4 h-4" />
+            <span>Nâng Cấp Firmware (OTA)</span>
+          </button>
+
+          <div className="relative w-full md:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setSearch(localSearch);
+                } else if (e.key === 'Escape') {
+                  setLocalSearch('');
+                  setSearch('');
+                }
+              }}
+              placeholder="Nhập từ khóa và nhấn Enter..."
+              className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 text-slate-900 dark:text-slate-50 focus:outline-none focus:border-indigo-500 transition-colors shadow-sm"
+            />
+          </div>
         </div>
       </div>
 
@@ -89,73 +102,43 @@ export const HardwareFleetView: React.FC<HardwareFleetViewProps> = ({
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/20  text-indigo-700 dark:text-indigo-500 ">
+                  <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-500">
                     <Radio className="w-5 h-5 animate-pulse" />
                   </div>
                   <div>
-                    <div className="font-mono text-xs font-bold text-slate-900 dark:text-slate-50 ">
-                      {c.macAddress}
+                    <div className="font-mono text-xs font-bold text-slate-900 dark:text-slate-50">
+                      {c.macAddress || 'CHƯA GÁN MAC'}
                     </div>
-                    <div className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-500 ">
-                      {c.displayName}
+                    <div className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-500">
+                      {c.displayName || c.id}
                     </div>
                   </div>
                 </div>
 
-                {(() => {
-                  const hasError = c.crashLogs && c.crashLogs.length > 0;
-                  const isOnline = c.sessions && c.sessions.length > 0;
-                  
-                  if (hasError) {
-                    return (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400 font-bold border border-rose-200 dark:border-rose-800/50 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-                        LỖI HỆ THỐNG
-                      </span>
-                    );
-                  }
-                  
-                  if (isOnline) {
-                    return (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-800/50 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                        ONLINE
-                      </span>
-                    );
-                  }
-
-                  return (
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                      OFFLINE
-                    </span>
-                  );
-                })()}
+                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  ESP32
+                </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950  border border-slate-200 dark:border-slate-800/60/60  space-y-2 text-xs font-mono">
-                <div className="flex justify-between">
-                  <span className="font-sans text-slate-500 dark:text-slate-400">Chủ sở hữu:</span>
-                  <span className="text-slate-800 dark:text-slate-200 ">{c.displayName}</span>
+              <div className="space-y-1.5 text-xs">
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                  <span className="font-sans text-slate-500 dark:text-slate-400">Số lượng rơ le:</span>
+                  <span className="font-bold text-slate-900 dark:text-slate-100">{c.devices?.length || 0} thiết bị</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-sans text-slate-500 dark:text-slate-400">SĐT xác thực:</span>
-                  <span className="text-slate-800 dark:text-slate-200 ">{c.phoneNumber}</span>
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                  <span className="font-sans text-slate-500 dark:text-slate-400">Email:</span>
+                  <span className="truncate max-w-[160px] text-slate-800 dark:text-slate-200">{c.email}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-sans text-slate-500 dark:text-slate-400">Số rơ-le định cấu hình:</span>
-                  <strong className="text-indigo-700 dark:text-indigo-500 ">{c.devices.length} rơ-le</strong>
-                </div>
-                <div className="flex justify-between">
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
                   <span className="font-sans text-slate-500 dark:text-slate-400">Thiết bị App chạy:</span>
-                  <span className="text-slate-800 dark:text-slate-200 ">{c.sessions[0]?.deviceName || 'Chưa mở session'}</span>
+                  <span className="text-slate-800 dark:text-slate-200">{c.sessions[0]?.deviceName || 'Chưa mở session'}</span>
                 </div>
               </div>
 
-              <div className="pt-2 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 ">
+              <div className="pt-2 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
                 <button
                   onClick={() => onSelectCustomer(c)}
-                  className="text-xs font-semibold text-indigo-700 dark:text-indigo-500  hover:underline"
+                  className="text-xs font-semibold text-indigo-700 dark:text-indigo-500 hover:underline"
                 >
                   Xem chi tiết khách hàng
                 </button>
@@ -164,6 +147,13 @@ export const HardwareFleetView: React.FC<HardwareFleetViewProps> = ({
           ))}
         </div>
       )}
+
+      {/* ESP32 OTA Modal */}
+      <Esp32OtaModal
+        isOpen={isOtaModalOpen}
+        onClose={() => setIsOtaModalOpen(false)}
+        customers={customers}
+      />
 
     </div>
   );

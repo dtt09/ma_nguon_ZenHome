@@ -4,6 +4,10 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>ZenHome sử dụng Bluetooth để điều khiển thiết bị ngầm khi Router Wi-Fi ngoại tuyến.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>ZenHome sử dụng Bluetooth để giao tiếp trực tiếp với Hub thiết bị.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

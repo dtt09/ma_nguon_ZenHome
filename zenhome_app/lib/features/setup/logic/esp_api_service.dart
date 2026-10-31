@@ -11,6 +11,7 @@ class EspApiService {
     required String wifiPass,
     required String adminPass,
     required SmartConfig config,
+    String? serverUrl,
   }) async {
     try {
       final Map<String, dynamic> payload = {
@@ -18,7 +19,8 @@ class EspApiService {
         'wifi_pass': wifiPass,
         'admin_pass': adminPass,
         'mqtt_prefix': config.mqttPrefix,
-        'mqtt_server': config.mqttServer, 
+        'mqtt_server': config.mqttServer,
+        if (serverUrl != null && serverUrl.isNotEmpty) 'server_url': serverUrl,
         if (config.mqttUser != null && config.mqttUser!.isNotEmpty) 'mqtt_user': config.mqttUser,
         if (config.mqttPass != null && config.mqttPass!.isNotEmpty) 'mqtt_pass': config.mqttPass,
         'devices': config.devices.map((e) => e.toJson()).toList(),

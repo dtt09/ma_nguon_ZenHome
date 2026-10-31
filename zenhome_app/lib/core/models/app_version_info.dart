@@ -71,19 +71,20 @@ class AppVersionInfo {
 
   factory AppVersionInfo.fromJson(Map<String, dynamic> json) {
     return AppVersionInfo(
-      latestVersion: json['latestVersion']?.toString() ?? '1.4.0',
-      latestBuildNumber: int.tryParse(json['latestBuildNumber']?.toString() ?? '') ?? 140,
-      minVersion: json['minVersion']?.toString() ?? '1.3.0',
-      minBuildNumber: int.tryParse(json['minBuildNumber']?.toString() ?? '') ?? 130,
-      titleVi: json['titleVi']?.toString() ?? 'Bản Cập Nhật ZenHome Mới',
-      titleEn: json['titleEn']?.toString() ?? 'New ZenHome Update',
+      latestVersion: json['latestVersion']?.toString() ?? '1.8.11',
+      latestBuildNumber: int.tryParse(json['latestBuildNumber']?.toString() ?? '') ?? 197,
+      minVersion: json['minVersion']?.toString() ?? '1.8.0',
+      minBuildNumber: int.tryParse(json['minBuildNumber']?.toString() ?? '') ?? 180,
+      titleVi: json['titleVi']?.toString() ?? 'Bản Cập Nhật ZenHome v1.8.11',
+      titleEn: json['titleEn']?.toString() ?? 'New ZenHome Update v1.8.11',
       releaseNotesVi: json['releaseNotesVi']?.toString() ??
-          '• Đồng bộ dữ liệu Firestore thời gian thực 100%\n• Đăng nhập siêu tốc và mượt mà\n• Nâng cấp giao diện RESTful API mới\n• Tối ưu hóa hiệu năng và sửa lỗi',
+          '• Đồng bộ tải trực tiếp toàn cầu qua GitHub Releases CDN\n• Tối ưu hóa OTA Hub ESP32 không phụ thuộc IP máy chủ\n• Phản hồi công tắc tức thời 0ms & triệt tiêu hoàn toàn log thừa',
       releaseNotesEn: json['releaseNotesEn']?.toString() ??
-          '• 100% Realtime Firestore synchronization\n• Superfast and responsive login flow\n• Revamped RESTful API Console\n• Performance optimizations and bug fixes',
+          '• Global direct download via GitHub Releases CDN\n• Autonomous ESP32 OTA without local server\n• 0ms instant switch reaction & zero log spam',
       downloadUrl: json['downloadUrl']?.toString() ??
-          'https://github.com/dtthuat/zenhome/releases/latest',
-      directApkUrl: json['directApkUrl']?.toString(),
+          'https://github.com/dtt09/ma_nguon_ZenHome/releases/latest',
+      directApkUrl: json['directApkUrl']?.toString() ??
+          'https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk',
       isForceUpdate: json['isForceUpdate'] == true,
       publishedAt: json['publishedAt']?.toString(),
       fileSizeBytes: int.tryParse(json['fileSizeBytes']?.toString() ?? ''),

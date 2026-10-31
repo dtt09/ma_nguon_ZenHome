@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -78,6 +80,7 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
             'isActive': item['isActive'] ?? true,
             'isShared': item['isShared'] ?? false,
             'authorUid': item['authorUid'] ?? '',
+            'authorName': item['authorName'] ?? '',
           }).toList();
         });
       }
@@ -86,32 +89,69 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
     });
   }
 
-  Widget _buildSelector({required String title, required String valueText, required VoidCallback onTap}) {
+  Widget _buildSelector({required String title, required String valueText, required VoidCallback onTap, IconData icon = Icons.devices_rounded}) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05)),
+          color: isDark ? const Color(0x1AFFFFFF) : const Color(0x0A000000),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: isDark ? const Color(0x2238BDF8) : const Color(0x1F0D9488), width: 1.2),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primaryLight.withOpacity(0.2), AppColors.cyanGlow.withOpacity(0.1)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: isDark ? AppColors.primaryLight : AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                  const SizedBox(height: 4),
-                  Text(valueText, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+                  const SizedBox(height: 3),
+                  Text(
+                    valueText, 
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkText : AppColors.lightText), 
+                    maxLines: 1, 
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey),
+            Icon(Icons.keyboard_arrow_right_rounded, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPresetPill({required String label, required bool isDark, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: (isDark ? Colors.white : Colors.black).withOpacity(0.08)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+          ),
         ),
       ),
     );
@@ -163,11 +203,14 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
       _savedSchedules = uniqueMap.values.map((item) => {
         'id': item['id'],
         'topic': item['topic'],
+        'topics': item['topics'] != null ? List<String>.from(item['topics']) : (item['topic'] != null ? [item['topic']] : []),
         'timeOn': item['timeOn'],
         'timeOff': item['timeOff'],
         'days': List<bool>.from(item['days']),
         'isActive': item['isActive'],
         'isShared': item['isShared'] ?? false,
+        'authorUid': item['authorUid'] ?? '',
+        'authorName': item['authorName'] ?? '',
       }).toList();
     });
   }
@@ -179,6 +222,35 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
     String targetId = activeConfig.userId;
     await prefs.setString('schedules_data_$targetId', encodedData);
+  }
+
+  bool _canManageSchedule(Map<String, dynamic> schedule) {
+    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+    final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final bool isShared = schedule['isShared'] == true;
+    final String authorUid = schedule['authorUid'] ?? '';
+
+    // Lịch cá nhân: chỉ tác giả
+    if (!isShared) {
+      return authorUid.isEmpty || authorUid == currentUid;
+    }
+
+    // Chủ nhà & Phó chủ nhà: toàn quyền
+    if (activeConfig.role == 'owner' || activeConfig.role == 'co_owner') {
+      return true;
+    }
+
+    // Thành viên được cấp quyền tự động hóa
+    if (activeConfig.canEditAutomation) {
+      return true;
+    }
+
+    // Tác giả tự tạo lịch trình chia sẻ
+    if (authorUid.isNotEmpty && authorUid == currentUid) {
+      return true;
+    }
+
+    return false;
   }
 
   bool _checkConflict(List<String> newDevices, TimeOfDay timeOn, TimeOfDay timeOff, List<bool> newDays, String? ignoreId) {
@@ -216,9 +288,17 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
 
   void _showScheduleBottomSheet({Map<String, dynamic>? editSchedule}) {
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
-    final dynamicDeviceTopicsList = getSortedDeviceTopicsList(context, activeConfig);
+    final allTopics = getSortedDeviceTopicsList(context, activeConfig);
+    final dynamicDeviceTopicsList = allTopics.where((topic) {
+      if (activeConfig.role == 'owner' || activeConfig.role == 'co_owner' || activeConfig.allowedDevices == null) {
+        return true;
+      }
+      final devId = topic.split('/').last;
+      return activeConfig.allowedDevices!.contains(devId);
+    }).toList();
+
     if (dynamicDeviceTopicsList.isEmpty) {
-      showFloatingToast(context, context.tr('error'), context.tr('no_device'), isError: true);
+      showFloatingToast(context, context.tr('error'), 'Bạn không có quyền điều khiển thiết bị nào để tạo lịch trình.', isError: true);
       return;
     }
 
@@ -230,123 +310,648 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
     TimeOfDay timeOff = isEdit ? TimeOfDay(hour: int.parse(editSchedule['timeOff'].split(':')[0]), minute: int.parse(editSchedule['timeOff'].split(':')[1])) : const TimeOfDay(hour: 6, minute: 0);
     List<bool> selectedDays = isEdit ? List<bool>.from(editSchedule['days']) : [true, true, true, true, true, true, true];
     bool _shareWithAll = isEdit ? (editSchedule['isShared'] ?? false) : false;
-    final List<String> dayLabels = [context.tr('mon'), context.tr('tue'), context.tr('wed'), context.tr('thu'), context.tr('fri'), context.tr('sat'), context.tr('sun')];
+    final List<String> dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+    String calculateDuration(TimeOfDay on, TimeOfDay off) {
+      int start = on.hour * 60 + on.minute;
+      int end = off.hour * 60 + off.minute;
+      if (end <= start) end += 24 * 60;
+      int diff = end - start;
+      int h = diff ~/ 60;
+      int m = diff % 60;
+      if (m == 0) return '$h giờ';
+      return '$h giờ $m phút';
+    }
 
     showModalBottomSheet(
-      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
             bool isDark = Theme.of(context).brightness == Brightness.dark;
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.75, padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: isDark ? const Color(0xFF121827) : Colors.white, borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30))),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(child: Container(width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)))),
-                  const SizedBox(height: 20), Text(isEdit ? context.tr('schedule_edit') : context.tr('schedule_add'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), const SizedBox(height: 20),
-                  
-                  _buildSelector(
-                    title: context.tr('select_device'),
-                    valueText: newDevices.isEmpty 
-                      ? context.tr('select_device') 
-                      : newDevices.map((t) => getDeviceNameHelper(context, t, activeConfig)).join(', '),
-                    onTap: () {
-                      showCustomMultiSelectBottomSheetPicker(
-                        context: context,
-                        title: context.tr('select_device'),
-                        currentValues: newDevices,
-                        items: dynamicDeviceTopicsList.map((topic) => PickerItem(topic, getDeviceNameHelper(context, topic, activeConfig))).toList(),
-                        onSelected: (val) => setModalState(() => newDevices = val),
-                      );
-                    },
-                  ),
-                  
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(child: GestureDetector(onTap: () async { final picked = await showTimePicker(context: context, initialTime: timeOn); if (picked != null) setModalState(() => timeOn = picked); }, child: Container(padding: const EdgeInsets.symmetric(vertical: 15), decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.green)), child: Column(children: [Text(context.tr('schedule_turn_on'), style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)), Text(timeOn.format(context), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))])))),
-                      const SizedBox(width: 15),
-                      Expanded(child: GestureDetector(onTap: () async { final picked = await showTimePicker(context: context, initialTime: timeOff); if (picked != null) setModalState(() => timeOff = picked); }, child: Container(padding: const EdgeInsets.symmetric(vertical: 15), decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.red)), child: Column(children: [Text(context.tr('schedule_turn_off'), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), Text(timeOff.format(context), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))])))),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(context.tr('schedule_repeat'), style: const TextStyle(color: Colors.grey)), const SizedBox(height: 10),
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: List.generate(7, (index) { return GestureDetector(onTap: () => setModalState(() => selectedDays[index] = !selectedDays[index]), child: Container(width: 40, height: 40, decoration: BoxDecoration(color: selectedDays[index] ? const Color(0xFF0F766E) : (isDark ? Colors.grey.shade800 : Colors.grey.shade200), shape: BoxShape.circle), child: Center(child: Text(dayLabels[index], style: TextStyle(color: selectedDays[index] ? Colors.white : Colors.grey, fontWeight: FontWeight.bold))))); })),
-                  const SizedBox(height: 15),
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _shareWithAll,
-                        onChanged: (val) => setModalState(() => _shareWithAll = val ?? false),
-                        activeColor: const Color(0xFF0F766E),
-                      ),
-                      Expanded(child: Text(context.tr('share_with_all'))),
-                    ],
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity, height: 55,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-                      onPressed: () {
-                        if (newDevices.isEmpty) { Navigator.pop(context); showAlertDialogHelper(context, context.tr('error'), context.tr('err_select_device') ?? 'Vui lòng chọn thiết bị', isError: true); return; }
-                        if (!selectedDays.contains(true)) { Navigator.pop(context); showAlertDialogHelper(context, context.tr('error'), context.tr('err_select_day'), isError: true); return; }
-                        if (_checkConflict(newDevices, timeOn, timeOff, selectedDays, isEdit ? editSchedule['id'] : null)) { Navigator.pop(context); showAlertDialogHelper(context, context.tr('error'), context.tr('err_conflict'), isError: true); return; }
-                        
-                        final mqttState = ref.read(mqttConnectionStateProvider);
-                        final isOnline = ref.read(espOnlineStateProvider);
-                        if (mqttState != 2 || !isOnline) {
-                          Navigator.pop(context);
-                          showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
-                          return;
-                        }
+            final durationStr = calculateDuration(timeOn, timeOff);
 
-                        String hOn = timeOn.hour.toString().padLeft(2, '0'); String mOn = timeOn.minute.toString().padLeft(2, '0'); 
-                        String hOff = timeOff.hour.toString().padLeft(2, '0'); String mOff = timeOff.minute.toString().padLeft(2, '0'); 
-                        String daysBinary = selectedDays.map((d) => d ? '1' : '0').join('');
-                        String newId = isEdit ? editSchedule['id'] : DateTime.now().millisecondsSinceEpoch.toString();
-                        
-                        for (String dev in newDevices) {
-                          ref.read(mqttRepositoryProvider).publishCmd('$dev/schedule', '$newId|$hOn:$mOn|$hOff:$mOff|$daysBinary|1');
-                        }
-                        
-                        Map<String, dynamic> newSchedule = {'id': newId, 'topics': newDevices, 'timeOn': '$hOn:$mOn', 'timeOff': '$hOff:$mOff', 'days': List.from(selectedDays), 'isActive': true, 'isShared': _shareWithAll};
-                        
-                        setState(() {
-                          if (isEdit) {
-                            int idx = _savedSchedules.indexWhere((e) => e['id'] == editSchedule['id']);
-                            _savedSchedules[idx] = newSchedule;
-                          } else {
-                            _savedSchedules.add(newSchedule);
-                          }
-                        });
-                        
-                        final activeConfig = ref.read(homeConfigProvider).activeConfig;
-                        String targetId = activeConfig.userId;
-                        if (_shareWithAll && targetId.isNotEmpty && targetId != 'guest') {
-                          FirebaseFirestore.instance.collection('users').doc(targetId).collection('schedules').doc(newId).set(newSchedule);
-                          
-                          if (activeConfig.role != 'owner' && FirebaseAuth.instance.currentUser != null) {
-                            String name = FirebaseAuth.instance.currentUser!.displayName ?? FirebaseAuth.instance.currentUser!.email ?? context.tr('a_member') ?? 'Một thành viên';
-                            FirebaseFirestore.instance.collection('users').doc(targetId).collection('alerts').add({
-                              'type': 'automation_edit',
-                              'author': name,
-                              'actionName': isEdit ? (context.tr('act_edit_schedule') ?? 'vừa sửa một lịch trình') : (context.tr('act_add_schedule') ?? 'vừa thêm một lịch trình mới'),
-                              'timestamp': FieldValue.serverTimestamp(),
-                            });
-                          }
-                        } else {
-                          _saveSchedulesToDisk();
-                        }
-                        Navigator.pop(context);
-                        showAlertDialogHelper(context, context.tr('msg_saved_title'), context.tr('msg_schedule_saved'));
-                      },
-                      child: Text(context.tr('schedule_save'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    ),
-                  )
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.90,
+              ),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF101626) : Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(32),
+                  topRight: Radius.circular(32),
+                ),
+                border: Border.all(
+                  color: isDark ? const Color(0x3338BDF8) : const Color(0x1F0D9488),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 30,
+                    offset: const Offset(0, -10),
+                  ),
                 ],
+              ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(32),
+                  topRight: Radius.circular(32),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: 14,
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                    ),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 44,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: (isDark ? Colors.white : Colors.black).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+
+                          Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF06B6D4), Color(0xFF0D9488)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF06B6D4).withOpacity(0.35),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(Icons.schedule_rounded, color: Colors.white, size: 24),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isEdit ? context.tr('schedule_edit') : context.tr('schedule_add'),
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? AppColors.darkText : AppColors.lightText,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      context.tr('schedule_auto_desc'),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.close_rounded, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          _buildSelector(
+                            title: context.tr('select_device'),
+                            valueText: newDevices.isEmpty 
+                              ? context.tr('select_device') 
+                              : newDevices.map((t) => getDeviceNameHelper(context, t, activeConfig)).join(', '),
+                            icon: Icons.devices_rounded,
+                            onTap: () {
+                              showCustomMultiSelectBottomSheetPicker(
+                                context: context,
+                                title: context.tr('select_device'),
+                                currentValues: newDevices,
+                                items: dynamicDeviceTopicsList.map((topic) => PickerItem(topic, getDeviceNameHelper(context, topic, activeConfig))).toList(),
+                                onSelected: (val) => setModalState(() => newDevices = val),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 18),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    HapticFeedback.lightImpact();
+                                    final picked = await showTimePicker(
+                                      context: context,
+                                      initialTime: timeOn,
+                                    );
+                                    if (picked != null) setModalState(() => timeOn = picked);
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: isDark 
+                                          ? [const Color(0x30F59E0B), const Color(0x15D97706)] 
+                                          : [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: const Color(0xFFF59E0B).withOpacity(isDark ? 0.45 : 0.6),
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFFF59E0B).withOpacity(isDark ? 0.15 : 0.08),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF59E0B).withOpacity(0.2),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.wb_sunny_rounded, color: Color(0xFFD97706), size: 14),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              context.tr('schedule_turn_on'),
+                                              style: TextStyle(
+                                                color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309),
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                                letterSpacing: 0.8,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          timeOn.format(context),
+                                          style: TextStyle(
+                                            fontSize: 26,
+                                            fontWeight: FontWeight.w800,
+                                            color: isDark ? Colors.white : const Color(0xFF78350F),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          context.tr('schedule_tap_to_change'),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? Colors.white54 : Colors.brown.shade400,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    HapticFeedback.lightImpact();
+                                    final picked = await showTimePicker(
+                                      context: context,
+                                      initialTime: timeOff,
+                                    );
+                                    if (picked != null) setModalState(() => timeOff = picked);
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: isDark 
+                                          ? [const Color(0x306366F1), const Color(0x154338CA)] 
+                                          : [const Color(0xFFEEF2FF), const Color(0xFFE0E7FF)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: const Color(0xFF6366F1).withOpacity(isDark ? 0.45 : 0.6),
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF6366F1).withOpacity(isDark ? 0.15 : 0.08),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF6366F1).withOpacity(0.2),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.nightlight_round, color: Color(0xFF4F46E5), size: 14),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              context.tr('schedule_turn_off'),
+                                              style: TextStyle(
+                                                color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF3730A3),
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                                letterSpacing: 0.8,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          timeOff.format(context),
+                                          style: TextStyle(
+                                            fontSize: 26,
+                                            fontWeight: FontWeight.w800,
+                                            color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          context.tr('schedule_tap_to_change'),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? Colors.white54 : Colors.indigo.shade400,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.timelapse_rounded, size: 14, color: AppColors.cyanGlow),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${context.tr('schedule_activity_duration')}: $durationStr',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? AppColors.darkText : AppColors.lightText,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                context.tr('schedule_repeat'),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: isDark ? AppColors.darkText : AppColors.lightText,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  _buildPresetPill(
+                                    label: context.tr('schedule_preset_all'),
+                                    isDark: isDark,
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setModalState(() {
+                                        for (int i = 0; i < 7; i++) selectedDays[i] = true;
+                                      });
+                                    },
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _buildPresetPill(
+                                    label: context.tr('schedule_preset_weekdays'),
+                                    isDark: isDark,
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setModalState(() {
+                                        for (int i = 0; i < 5; i++) selectedDays[i] = true;
+                                        selectedDays[5] = false;
+                                        selectedDays[6] = false;
+                                      });
+                                    },
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _buildPresetPill(
+                                    label: context.tr('schedule_preset_weekends'),
+                                    isDark: isDark,
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setModalState(() {
+                                        for (int i = 0; i < 5; i++) selectedDays[i] = false;
+                                        selectedDays[5] = true;
+                                        selectedDays[6] = true;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: List.generate(7, (index) {
+                              final isSelected = selectedDays[index];
+                              return GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setModalState(() => selectedDays[index] = !selectedDays[index]);
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeInOut,
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    gradient: isSelected
+                                      ? const LinearGradient(
+                                          colors: [Color(0xFF0D9488), Color(0xFF10B981)],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        )
+                                      : null,
+                                    color: isSelected
+                                      ? null
+                                      : (isDark ? const Color(0x1AFFFFFF) : const Color(0x0A000000)),
+                                    borderRadius: BorderRadius.circular(13),
+                                    border: Border.all(
+                                      color: isSelected
+                                        ? const Color(0xFF34D399)
+                                        : (isDark ? Colors.white12 : Colors.black12),
+                                      width: isSelected ? 1.5 : 1.0,
+                                    ),
+                                    boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: const Color(0xFF10B981).withOpacity(0.35),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ]
+                                      : null,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      dayLabels[index],
+                                      style: TextStyle(
+                                        color: isSelected
+                                          ? Colors.white
+                                          : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                          const SizedBox(height: 18),
+
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0x12FFFFFF) : const Color(0x06000000),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.people_alt_rounded, color: Colors.blue, size: 18),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        context.tr('share_with_all'),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                          color: isDark ? AppColors.darkText : AppColors.lightText,
+                                        ),
+                                      ),
+                                      Text(
+                                        context.tr('schedule_shared_hint'),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch(
+                                  value: _shareWithAll,
+                                  onChanged: (val) => setModalState(() => _shareWithAll = val),
+                                  activeColor: const Color(0xFF10B981),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          BouncingButton(
+                            onTap: () {
+                              if (newDevices.isEmpty) {
+                                Navigator.pop(context);
+                                showAlertDialogHelper(context, context.tr('error'), context.tr('err_select_device'), isError: true);
+                                return;
+                              }
+                              if (!selectedDays.contains(true)) {
+                                Navigator.pop(context);
+                                showAlertDialogHelper(context, context.tr('error'), context.tr('err_select_day'), isError: true);
+                                return;
+                              }
+                              if (_checkConflict(newDevices, timeOn, timeOff, selectedDays, isEdit ? editSchedule['id'] : null)) {
+                                Navigator.pop(context);
+                                showAlertDialogHelper(context, context.tr('error'), context.tr('err_conflict'), isError: true);
+                                return;
+                              }
+
+                              final mqttState = ref.read(mqttConnectionStateProvider);
+                              final isOnline = ref.read(espOnlineStateProvider);
+                              if (mqttState != 2 || !isOnline) {
+                                Navigator.pop(context);
+                                showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
+                                return;
+                              }
+
+                              HapticFeedback.mediumImpact();
+
+                              String hOn = timeOn.hour.toString().padLeft(2, '0');
+                              String mOn = timeOn.minute.toString().padLeft(2, '0'); 
+                              String hOff = timeOff.hour.toString().padLeft(2, '0');
+                              String mOff = timeOff.minute.toString().padLeft(2, '0'); 
+                              String daysBinary = selectedDays.map((d) => d ? '1' : '0').join('');
+                              String newId = isEdit ? editSchedule['id'] : DateTime.now().millisecondsSinceEpoch.toString();
+
+                              for (String dev in newDevices) {
+                                ref.read(mqttRepositoryProvider).publishCmd('$dev/schedule', '$newId|$hOn:$mOn|$hOff:$mOff|$daysBinary|1');
+                              }
+
+                              final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+                              final currentName = FirebaseAuth.instance.currentUser?.displayName ?? 
+                                                  FirebaseAuth.instance.currentUser?.email ?? 'Thành viên';
+                              final authorUid = isEdit ? (editSchedule['authorUid'] ?? currentUid) : currentUid;
+                              final authorName = isEdit ? (editSchedule['authorName'] ?? currentName) : currentName;
+
+                              Map<String, dynamic> newSchedule = {
+                                'id': newId, 
+                                'topics': newDevices, 
+                                'timeOn': '$hOn:$mOn', 
+                                'timeOff': '$hOff:$mOff', 
+                                'days': List.from(selectedDays), 
+                                'isActive': true, 
+                                'isShared': _shareWithAll,
+                                'authorUid': authorUid,
+                                'authorName': authorName,
+                              };
+
+                              setState(() {
+                                if (isEdit) {
+                                  int idx = _savedSchedules.indexWhere((e) => e['id'] == editSchedule['id']);
+                                  if (idx != -1) _savedSchedules[idx] = newSchedule;
+                                } else {
+                                  _savedSchedules.add(newSchedule);
+                                }
+                              });
+
+                              final activeConfig = ref.read(homeConfigProvider).activeConfig;
+                              String targetId = activeConfig.userId;
+                              if (_shareWithAll && targetId.isNotEmpty && targetId != 'guest') {
+                                FirebaseFirestore.instance.collection('users').doc(targetId).collection('schedules').doc(newId).set(newSchedule);
+
+                                if (activeConfig.role != 'owner' && FirebaseAuth.instance.currentUser != null) {
+                                  String name = FirebaseAuth.instance.currentUser!.displayName ?? FirebaseAuth.instance.currentUser!.email ?? context.tr('a_member') ?? 'Một thành viên';
+                                  FirebaseFirestore.instance.collection('users').doc(targetId).collection('alerts').add({
+                                    'type': 'automation_edit',
+                                    'author': name,
+                                    'actionName': isEdit ? (context.tr('act_edit_schedule') ?? 'vừa sửa một lịch trình') : (context.tr('act_add_schedule') ?? 'vừa thêm một lịch trình mới'),
+                                    'timestamp': FieldValue.serverTimestamp(),
+                                  });
+                                }
+                              } else {
+                                _saveSchedulesToDisk();
+                              }
+                              Navigator.pop(context);
+                              showAlertDialogHelper(context, context.tr('msg_saved_title'), context.tr('msg_schedule_saved'));
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              height: 54,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF0D9488), Color(0xFF059669)],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                ),
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF0D9488).withOpacity(0.4),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    context.tr('schedule_save'),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             );
           },
@@ -365,35 +970,100 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
       builder: (BuildContext context) {
         bool isDark = Theme.of(context).brightness == Brightness.dark;
         return Container(
-          height: MediaQuery.of(context).size.height * 0.5, padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: isDark ? const Color(0xFF121827) : Colors.white, borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30))),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF101626) : Colors.white,
+            borderRadius: const BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
+            border: Border.all(color: isDark ? const Color(0x3338BDF8) : const Color(0x1F0D9488), width: 1.2),
+          ),
+          padding: const EdgeInsets.all(24),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(child: Container(width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)))),
+              Center(child: Container(width: 44, height: 5, decoration: BoxDecoration(color: (isDark ? Colors.white : Colors.black).withOpacity(0.2), borderRadius: BorderRadius.circular(10)))),
               const SizedBox(height: 20),
-              Text(context.tr('schedule_view_only'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [Colors.blue.withOpacity(0.2), Colors.cyan.withOpacity(0.1)]),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.remove_red_eye_rounded, color: Colors.blue, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(context.tr('schedule_view_only'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                ],
+              ),
               const SizedBox(height: 20),
-              Text('${context.tr('device_label')} $deviceNames', style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 10),
-              Text('${context.tr('time_on_label')} ${schedule['timeOn']}', style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 10),
-              Text('${context.tr('time_off_label')} ${schedule['timeOff']}', style: const TextStyle(fontSize: 16)),
+              _buildDetailRow(Icons.devices_rounded, context.tr('device_label'), deviceNames, isDark),
+              const SizedBox(height: 12),
+              _buildDetailRow(Icons.wb_sunny_rounded, context.tr('time_on_label'), schedule['timeOn'] ?? '', isDark),
+              const SizedBox(height: 12),
+              _buildDetailRow(Icons.nightlight_round, context.tr('time_off_label'), schedule['timeOff'] ?? '', isDark),
+              if (schedule['authorName'] != null && schedule['authorName'].toString().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildDetailRow(Icons.person_rounded, context.tr('schedule_author'), schedule['authorName'], isDark),
+              ],
               const SizedBox(height: 20),
-              Text(context.tr('err_no_permission_schedule'), style: const TextStyle(color: Colors.red, fontStyle: FontStyle.italic)),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity, height: 55,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(context.tr('btn_close'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber.withOpacity(0.3)),
                 ),
-              )
-            ]
-          )
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Colors.amber, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        context.tr('err_no_permission_schedule'),
+                        style: const TextStyle(fontSize: 12, color: Colors.amber),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity, height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDark ? const Color(0x22FFFFFF) : Colors.grey.shade200,
+                    foregroundColor: isDark ? Colors.white : Colors.black87,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(context.tr('btn_close'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
         );
-      }
+      },
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String title, String value, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0x12FFFFFF) : const Color(0x06000000),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.cyanGlow),
+          const SizedBox(width: 12),
+          Text(title, style: TextStyle(fontSize: 13, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
+          const Spacer(),
+          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkText : AppColors.lightText)),
+        ],
+      ),
     );
   }
 
@@ -447,6 +1117,14 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(homeConfigProvider, (previous, next) {
+      if (previous?.activeConfig.userId != next.activeConfig.userId) {
+        _schedulesSubscription?.cancel();
+        _loadSchedulesFromDisk();
+        _subscribeToFirestoreSchedules();
+      }
+    });
+
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     final dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -620,7 +1298,25 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(color: Colors.blue.withOpacity(0.3)),
                                   ),
-                                  child: Text(context.tr('shared'), style: const TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.people_outline_rounded, size: 10, color: Colors.blue),
+                                      const SizedBox(width: 3),
+                                      Flexible(
+                                        child: Text(
+                                          schedule['authorUid'] == FirebaseAuth.instance.currentUser?.uid
+                                              ? '${context.tr('shared')} (Bạn tạo)'
+                                              : ((schedule['authorName'] != null && schedule['authorName'].toString().isNotEmpty)
+                                                  ? '${context.tr('shared')} (${schedule['authorName']})'
+                                                  : context.tr('shared')),
+                                          style: const TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 )
                               else
                                 Container(
@@ -639,7 +1335,7 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                           child: Switch(
                             value: isActive,
                             activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
-                            onChanged: (val) {
+                            onChanged: !_canManageSchedule(schedule) ? null : (val) {
                               final mqttState = ref.read(mqttConnectionStateProvider);
                               final isOnline = ref.read(espOnlineStateProvider);
                               if (mqttState != 2 || !isOnline) {
@@ -745,7 +1441,7 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (schedule['isShared'] == true && ref.watch(homeConfigProvider).activeConfig.role == 'member' && !ref.watch(homeConfigProvider).activeConfig.canEditAutomation && schedule['authorUid'] != FirebaseAuth.instance.currentUser?.uid) ...[
+                            if (!_canManageSchedule(schedule)) ...[
                               IconButton(
                                 constraints: const BoxConstraints(),
                                 padding: const EdgeInsets.all(6),

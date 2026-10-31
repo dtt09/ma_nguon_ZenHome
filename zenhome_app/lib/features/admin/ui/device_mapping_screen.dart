@@ -31,7 +31,20 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
     'power',
     'tv',
   ];
-  final List<String> _roomOptions = ['room_1', 'room_2', 'room_3', 'room_4'];
+  final List<String> _roomOptions = [
+    'room_1',
+    'room_2',
+    'room_3',
+    'room_4',
+    'room_5',
+    'room_6',
+    'room_7',
+    'room_8',
+    'room_9',
+    'room_10',
+    'room_11',
+    'custom',
+  ];
   final List<int> _suggestedPins = [2, 4, 12, 13, 14, 15, 18, 19, 21, 22, 23, 25, 26, 27];
 
   @override
@@ -58,7 +71,7 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
     if (gpioConflict != null) {
       showZaloPayErrorDialog(
         context,
-        title: 'Xung đột phần cứng GPIO',
+        title: context.tr('gpio_conflict_title'),
         message: 'Chân GPIO ${gpioConflict.pin} đang bị gán trùng cho nhiều thiết bị: "${gpioConflict.deviceNames.join('", "')}". Mỗi thiết bị phải kết nối một chân GPIO độc lập.',
         details: {
           'Chân GPIO': '${gpioConflict.pin}',
@@ -75,7 +88,7 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
       final roomTitle = context.tr(nameConflict.roomKey);
       showZaloPayErrorDialog(
         context,
-        title: 'Trùng tên thiết bị trong phòng',
+        title: context.tr('room_name_conflict_title'),
         message: 'Trong "$roomTitle" có nhiều thiết bị cùng mang tên "${nameConflict.deviceName}". Vui lòng đặt tên khác nhau để tránh nhầm lẫn.',
         details: {
           'Khu vực': roomTitle,
@@ -96,13 +109,13 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
         title: context.tr('mapping_saved_title'),
         message: context.tr('mapping_saved_desc'),
         details: result.details,
-        buttonText: 'Hoàn tất',
+        buttonText: context.tr('btn_confirm'),
       );
       if (mounted) Navigator.pop(context);
     } else {
       await showZaloPayErrorDialog(
         context,
-        title: 'Lưu ngoại tuyến',
+        title: context.tr('offline_saved_title'),
         message: '${context.tr('msg_sync_offline')}\nChi tiết: ${result.errorMessage}',
         details: {
           'Chế độ': 'Lưu tạm cục bộ (Offline)',
@@ -157,9 +170,11 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
     int pin = isEdit ? editDevice.pin : 2;
     String room = isEdit ? editDevice.room : _roomOptions.first;
     String icon = isEdit ? editDevice.icon : _iconOptions.first;
+    bool isCustomRoom = isEdit && !_roomOptions.contains(editDevice.room);
 
     final formKey = GlobalKey<FormState>();
     final pinController = TextEditingController(text: pin.toString());
+    final customRoomController = TextEditingController(text: isCustomRoom ? editDevice.room : '');
 
     showModalBottomSheet(
       context: context,
@@ -248,8 +263,10 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                               children: [
                                 Text(
                                   isEdit ? context.tr('edit_device_title') : context.tr('add_device_title'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontSize: 20,
+                                    fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                     color: textColor,
                                     letterSpacing: -0.3,
@@ -258,6 +275,8 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   context.tr('admin_mapping_subtitle'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(fontSize: 12, color: mutedColor),
                                 ),
                               ],
@@ -421,7 +440,7 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                       ),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
-                        value: room,
+                        value: (isCustomRoom || !_roomOptions.contains(room)) ? 'custom' : room,
                         dropdownColor: cardColor,
                         style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 14),
                         decoration: InputDecoration(
@@ -442,9 +461,58 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                           ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         ),
-                        items: _roomOptions.map((r) => DropdownMenuItem(value: r, child: Text(context.tr(r)))).toList(),
-                        onChanged: (val) => setModalState(() => room = val!),
+                        items: _roomOptions.map((r) => DropdownMenuItem(
+                          value: r, 
+                          child: Text(
+                            r == 'custom' ? '✨ ${context.tr('custom_room')}...' : context.tr(r),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        )).toList(),
+                        onChanged: (val) {
+                          setModalState(() {
+                            if (val == 'custom') {
+                              isCustomRoom = true;
+                            } else {
+                              isCustomRoom = false;
+                              room = val!;
+                            }
+                          });
+                        },
                       ),
+                      if (isCustomRoom || !_roomOptions.contains(room)) ...[
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: customRoomController,
+                          style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                          decoration: InputDecoration(
+                            hintText: context.tr('custom_room_hint'),
+                            hintStyle: TextStyle(color: mutedColor.withOpacity(0.5)),
+                            prefixIcon: Icon(Icons.edit_location_alt_rounded, color: AppColors.amberGlow, size: 22),
+                            filled: true,
+                            fillColor: isDark ? AppColors.darkCardElevated : const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: borderColor),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: borderColor),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(color: AppColors.amberGlow, width: 1.8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          ),
+                          onChanged: (val) => room = val.trim(),
+                          validator: (val) {
+                            if (isCustomRoom && (val == null || val.trim().isEmpty)) {
+                              return context.tr('err_empty_custom_room');
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
                       const SizedBox(height: 20),
 
                       // Icon Selector
@@ -534,7 +602,7 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                               if (exists) {
                                 showZaloPayWarningDialog(
                                   context,
-                                  title: 'Mã thiết bị đã tồn tại',
+                                  title: context.tr('err_duplicate_dev_id'),
                                   message: 'Mã ID "$devId" đã được sử dụng cho một thiết bị khác. Vui lòng chọn mã ID khác.',
                                   details: {'Mã nhập vào': devId},
                                 );
@@ -552,7 +620,7 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                               if (conflictingPinDev != null) {
                                 showZaloPayWarningDialog(
                                   context,
-                                  title: 'Xung đột chân GPIO $pin',
+                                  title: context.tr('gpio_conflict_title'),
                                   message: 'Chân GPIO $pin đã được sử dụng cho thiết bị "${conflictingPinDev.name}" (${context.tr(conflictingPinDev.room)}). Vui lòng chọn chân GPIO khác!',
                                   details: {
                                     'Chân GPIO': '$pin',
@@ -576,7 +644,7 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                               if (conflictingNameDev != null) {
                                 showZaloPayWarningDialog(
                                   context,
-                                  title: 'Trùng tên trong cùng phòng',
+                                  title: context.tr('room_name_conflict_title'),
                                   message: 'Trong "${context.tr(room)}" đã có thiết bị mang tên "$name". Vui lòng đặt tên khác để dễ phân biệt khi điều khiển!',
                                   details: {
                                     'Khu vực': context.tr(room),
@@ -587,10 +655,13 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                               }
 
                               setState(() {
-                                DeviceConfig newConfig = DeviceConfig(
+                                final finalRoom = (isCustomRoom || !_roomOptions.contains(room))
+                                      ? (customRoomController.text.trim().isNotEmpty ? customRoomController.text.trim() : room)
+                                      : room;
+                                  DeviceConfig newConfig = DeviceConfig(
                                   id: devId,
                                   pin: pin,
-                                  room: room,
+                                  room: finalRoom,
                                   name: name,
                                   icon: icon,
                                 );
@@ -713,18 +784,23 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
           ),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 context.tr('admin_mapping_title'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: 16,
                   color: textColor,
                   letterSpacing: -0.2,
                 ),
               ),
               Text(
                 context.tr('admin_mapping_subtitle'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 11, color: mutedColor),
               ),
             ],
@@ -901,12 +977,16 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                           children: [
                             Row(
                               children: [
-                                Text(
-                                  context.tr('esp32_hub'),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                    color: textColor,
+                                Flexible(
+                                  child: Text(
+                                    context.tr('esp32_hub'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: textColor,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 6),
@@ -970,12 +1050,16 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              statusText,
-                              style: TextStyle(
-                                color: statusColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
+                            Flexible(
+                              child: Text(
+                                statusText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                ),
                               ),
                             ),
                           ],
@@ -1192,6 +1276,8 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                           children: [
                             Text(
                               dev.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
@@ -1216,9 +1302,13 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                                     children: [
                                       Icon(Icons.meeting_room_outlined, size: 11, color: mutedColor),
                                       const SizedBox(width: 3),
-                                      Text(
-                                        context.tr(dev.room),
-                                        style: TextStyle(fontSize: 10, color: mutedColor, fontWeight: FontWeight.w600),
+                                      Flexible(
+                                        child: Text(
+                                          context.tr(dev.room),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(fontSize: 10, color: mutedColor, fontWeight: FontWeight.w600),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1252,6 +1342,8 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                                   ),
                                   child: Text(
                                     dev.id,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       fontSize: 10,
                                       color: mutedColor,

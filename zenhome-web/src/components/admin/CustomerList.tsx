@@ -11,9 +11,12 @@ import {
   Clock,
   MapPin,
   ShieldCheck,
-  Radio
+  Radio,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { RealCustomerUser } from '../../types/admin';
+import { maskPhone, maskEmail } from '../../utils/masking';
 
 interface CustomerListProps {
   customers: RealCustomerUser[];
@@ -31,6 +34,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({
   isLoading
 }) => {
   const [filter, setFilter] = useState<'all' | 'has_session' | 'has_mac'>('all');
+  const [isMasked, setIsMasked] = useState<boolean>(true);
 
   const filtered = customers.filter(c => {
     const matchesSearch = 
@@ -54,43 +58,59 @@ export const CustomerList: React.FC<CustomerListProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-50  flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-50 flex items-center gap-2">
             <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             <span>Khách hàng thực tế trên Firebase Firestore</span>
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400  mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Dữ liệu trực tiếp từ collection <code>/users</code> và subcollection <code>/sessions</code> trên Cloud Firestore (smarthome-98dd7).
           </p>
         </div>
 
-        {/* Filter Badges */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          {[
-            { id: 'all', label: `Tất cả (${customers.length})` },
-            { id: 'has_session', label: `Đang có phiên App (${customers.filter(c => c.sessions.length > 0).length})` },
-            { id: 'has_mac', label: `Đã liên kết ESP32 (${customers.filter(c => c.macAddress && c.macAddress !== 'Chưa liên kết').length})` },
-          ].map(f => (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id as any)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
-                filter === f.id
-                  ? 'bg-white dark:bg-slate-900  text-slate-900 dark:text-slate-50 shadow-sm'
-                  : 'bg-white dark:bg-slate-900  text-slate-600 dark:text-slate-400  hover:bg-slate-100 dark:hover:bg-slate-800/80 dark:bg-slate-800/50  border border-slate-200 dark:border-slate-800/60 '
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* Filter Badges & Privacy Toggle */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex items-center gap-1.5">
+            {[
+              { id: 'all', label: `Tất cả (${customers.length})` },
+              { id: 'has_session', label: `Đang có phiên App (${customers.filter(c => c.sessions.length > 0).length})` },
+              { id: 'has_mac', label: `Đã liên kết ESP32 (${customers.filter(c => c.macAddress && c.macAddress !== 'Chưa liên kết').length})` },
+            ].map(f => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id as any)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                  filter === f.id
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800/60'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* SEC-05: PII Privacy Data Masking Toggle */}
+          <button
+            onClick={() => setIsMasked(!isMasked)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-all border shadow-sm ${
+              isMasked
+                ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 border-sky-300 dark:border-sky-800/60'
+                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800/60'
+            }`}
+            title={isMasked ? "Đang che dữ liệu nhạy cảm (PII). Nhấn để hiện số điện thoại & email" : "Đang hiển thị đầy đủ. Nhấn để che giấu PII"}
+          >
+            {isMasked ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            <span>{isMasked ? 'PII: Đang che' : 'PII: Hiện đầy đủ'}</span>
+          </button>
         </div>
       </div>
 
       {/* Real Customers Table */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800/60  bg-white dark:bg-slate-900  shadow-sm overflow-hidden">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800/60  bg-slate-50 dark:bg-slate-950  text-slate-500 dark:text-slate-400 font-semibold uppercase text-[11px]">
+              <tr className="border-b border-slate-200 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-semibold uppercase text-[11px]">
                 <th className="py-3.5 px-4">Document ID / Họ tên</th>
                 <th className="py-3.5 px-4">Số điện thoại & Email</th>
                 <th className="py-3.5 px-4">Mã phần cứng ESP32</th>
@@ -100,7 +120,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({
                 <th className="py-3.5 px-4 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 ">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
               {filtered.map((customer, index) => {
                 const primarySession = customer.sessions[0];
 
@@ -108,20 +128,20 @@ export const CustomerList: React.FC<CustomerListProps> = ({
                   <tr 
                     key={customer.id}
                     onClick={() => onSelectCustomer(customer)}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 dark:bg-slate-950/80 cursor-pointer transition-colors group animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both"
+                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both"
                     style={{ animationDelay: `${Math.min(index * 30, 500)}ms` }}
                   >
                     
                     {/* Name & ID */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-sky-600 flex items-center justify-center text-slate-900 dark:text-slate-50 font-bold text-sm shadow-sm shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
                           {customer.displayName.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900 dark:text-slate-50  group-hover:text-indigo-600 dark:text-indigo-400 transition-colors flex items-center gap-1.5">
+                          <div className="font-bold text-slate-900 dark:text-slate-50 group-hover:text-indigo-600 dark:text-indigo-400 transition-colors flex items-center gap-1.5">
                             <span>{customer.displayName}</span>
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800/50  text-slate-500 dark:text-slate-400">
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400">
                               {customer.id}
                             </span>
                           </div>
@@ -132,13 +152,13 @@ export const CustomerList: React.FC<CustomerListProps> = ({
                       </div>
                     </td>
 
-                    {/* Phone & Email */}
+                    {/* Phone & Email (with Data Masking) */}
                     <td className="py-3.5 px-4">
-                      <div className="font-semibold text-slate-800 dark:text-slate-200 ">
-                        {customer.phoneNumber}
+                      <div className="font-semibold text-slate-800 dark:text-slate-200">
+                        {isMasked ? maskPhone(customer.phoneNumber) : customer.phoneNumber}
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                        {customer.email}
+                        {isMasked ? maskEmail(customer.email) : customer.email}
                       </div>
                     </td>
 
@@ -146,7 +166,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-1.5 font-mono text-[11px]">
                         <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500" />
-                        <span className="font-bold text-indigo-700 dark:text-indigo-500 ">
+                        <span className="font-bold text-indigo-700 dark:text-indigo-400">
                           {customer.macAddress}
                         </span>
                       </div>
@@ -187,7 +207,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({
 
                     {/* Devices list count */}
                     <td className="py-3.5 px-4">
-                      <div className="font-bold text-xs text-slate-800 dark:text-slate-200 ">
+                      <div className="font-bold text-xs text-slate-800 dark:text-slate-200">
                         {customer.devices.length} rơ-le
                       </div>
                       <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[140px]">
@@ -196,7 +216,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({
                     </td>
 
                     {/* CreatedAt on Firebase */}
-                    <td className="py-3.5 px-4 font-mono text-[11px] text-slate-500 dark:text-slate-400 ">
+                    <td className="py-3.5 px-4 font-mono text-[11px] text-slate-500 dark:text-slate-400">
                       {customer.createdAt}
                     </td>
 
@@ -205,7 +225,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({
                       <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => onDeleteCustomer(customer)}
-                          className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-rose-600 hover:bg-rose-50  transition-colors"
+                          className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                           title="Xóa tài khoản khách hàng (GDPR)"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -213,7 +233,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({
 
                         <button
                           onClick={() => onSelectCustomer(customer)}
-                          className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 dark:bg-slate-800/50  transition-colors"
+                          className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
                           title="Xem chi tiết"
                         >
                           <ChevronRight className="w-4 h-4" />

@@ -36,6 +36,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get room_4 => 'Outdoor';
 
   @override
+  String get room_5 => 'Home Office';
+
+  @override
+  String get room_6 => 'Bathroom';
+
+  @override
+  String get room_7 => 'Dining Room';
+
+  @override
+  String get room_8 => 'Altar Room';
+
+  @override
+  String get room_9 => 'Rooftop Terrace';
+
+  @override
+  String get room_10 => 'Hallway & Stairs';
+
+  @override
+  String get room_11 => 'Garage';
+
+  @override
+  String get custom_room => 'Custom Room';
+
+  @override
   String get device_1 => 'Main Light';
 
   @override
@@ -301,10 +325,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timer_title => 'Timer';
 
   @override
-  String get timer_action_off => 'Turn OFF after (Currently ON)';
+  String get timer_action_off => 'Turn OFF after';
 
   @override
-  String get timer_action_on => 'Turn ON after (Currently OFF)';
+  String get timer_action_on => 'Turn ON after';
+
+  @override
+  String get state_currently_on => 'Currently ON';
+
+  @override
+  String get state_currently_off => 'Currently OFF';
 
   @override
   String get timer_start => 'Start Timer';
@@ -323,6 +353,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get minutes => 'minutes';
+
+  @override
+  String get hours => 'hours';
+
+  @override
+  String get hours_label => 'Hours';
+
+  @override
+  String get minutes_label => 'Minutes';
 
   @override
   String get schedule_title => 'Schedules';
@@ -880,7 +919,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get btn_verify_otp => 'Verify OTP';
 
   @override
-  String get err_invalid_otp => 'Invalid or expired OTP code!';
+  String get err_invalid_otp => 'Invalid OTP code';
 
   @override
   String get create_account => 'Create Account';
@@ -2363,4 +2402,508 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get mapping_saved_desc =>
       'All device, room, and GPIO mappings have been synced to Cloud and reloaded to ESP32 Hub.';
+
+  @override
+  String get hub_status_title => 'Hub Connection Status';
+
+  @override
+  String get hub_status_subtitle =>
+      '3-Tier Link Monitoring: Local LAN, BLE & Cloud';
+
+  @override
+  String get hub_status_unlinked => 'UNLINKED HUB';
+
+  @override
+  String get hub_status_unlinked_desc =>
+      'Please link your ESP32 hardware in Settings.';
+
+  @override
+  String get hub_mode_lan => 'ACTIVE: LOCAL LAN ⚡';
+
+  @override
+  String get hub_mode_ble => 'ACTIVE: BLUETOOTH LE 📱';
+
+  @override
+  String get hub_mode_cloud => 'ACTIVE: CLOUD ☁';
+
+  @override
+  String get hub_mode_offline => 'OFFLINE';
+
+  @override
+  String get hub_desc_lan =>
+      'Controlling directly via high-speed local Wi-Fi. Independent of Internet connection.';
+
+  @override
+  String get hub_desc_ble =>
+      'Connected via background Bluetooth Low Energy (Zero-Touch). Operates seamlessly even if Wi-Fi Router loses power!';
+
+  @override
+  String get hub_desc_cloud =>
+      'Controlling via MQTT Cloud while away from home. Full remote control from anywhere.';
+
+  @override
+  String get hub_desc_offline =>
+      'Hub not reachable via LAN, BLE, or Cloud. Please check power supply to the Hub.';
+
+  @override
+  String get hub_channel_lan_title => 'Local Area Network (LAN)';
+
+  @override
+  String get hub_channel_ble_title => 'Background Bluetooth LE';
+
+  @override
+  String get hub_channel_cloud_title => 'Cloud MQTT (TLS 8883)';
+
+  @override
+  String get hub_ready_lan => 'Fastest ⚡ (~5ms)';
+
+  @override
+  String get hub_ready_ble => 'Direct 📱 (~15ms)';
+
+  @override
+  String get hub_ready_cloud => 'Remote ☁ (~200ms)';
+
+  @override
+  String get hub_channel_unavailable => 'Disconnected';
+
+  @override
+  String get hub_btn_diagnose => 'Diagnose & Re-scan';
+
+  @override
+  String get hub_diagnosing => 'Scanning LAN & BLE...';
+
+  @override
+  String get hub_ble_gatt_secured =>
+      'GATT Service: 19b10000... 🔐 (Key HMAC-SHA256 OK)';
+
+  @override
+  String get hub_ble_gatt_verifying =>
+      'GATT Service: 19b10000... (Verifying Key...)';
+
+  @override
+  String get hub_ble_key_ready => 'Key 🔐 Ready';
+
+  @override
+  String get hub_ble_key_waiting => 'Awaiting Auth';
+
+  @override
+  String hub_toast_lan_found(Object ip) {
+    return 'Found Hub at IP: $ip ⚡';
+  }
+
+  @override
+  String get hub_toast_ble_connected =>
+      'Connected directly via background Bluetooth LE 📱';
+
+  @override
+  String get hub_toast_cloud_fallback =>
+      'No local connection found, maintaining Cloud mode.';
+
+  @override
+  String get hub_ota_title => 'ESP32 Firmware Upgrade';
+
+  @override
+  String get hub_ota_desc => 'Update system firmware for microcontroller';
+
+  @override
+  String get hub_ota_updating => 'Flashing new Firmware...';
+
+  @override
+  String get hub_ota_success => 'Firmware upgraded successfully!';
+
+  @override
+  String get admin_verify_title => 'Verify Admin Password';
+
+  @override
+  String get admin_verify_desc =>
+      'Please enter ESP32 Hub admin password to authorize technical operations.';
+
+  @override
+  String get admin_pass_default_hint => 'Enter admin password (Default: admin)';
+
+  @override
+  String get btn_connect => 'Connect';
+
+  @override
+  String get device => 'Device';
+
+  @override
+  String get info => 'Information';
+
+  @override
+  String get gpio_conflict_title => 'GPIO Hardware Conflict';
+
+  @override
+  String get room_name_conflict_title => 'Duplicate Device Name in Room';
+
+  @override
+  String get offline_saved_title => 'Saved Offline';
+
+  @override
+  String get custom_room_hint => 'Enter custom room name (e.g. Gym Room)';
+
+  @override
+  String get err_empty_custom_room => 'Please enter a custom room name';
+
+  @override
+  String get err_duplicate_dev_id => 'Device ID already exists';
+
+  @override
+  String get btn_start_upgrade => 'Start Upgrade';
+
+  @override
+  String get btn_understood => 'Understood';
+
+  @override
+  String get btn_retry_connection => 'Retry Connection';
+
+  @override
+  String get btn_send_test => 'Send Test';
+
+  @override
+  String get choose_color => 'Choose Color';
+
+  @override
+  String get reconfig_wifi_mqtt => 'Reconfigure Wi-Fi & MQTT';
+
+  @override
+  String get setup_steps_title => 'Steps to perform:';
+
+  @override
+  String get setup_step_1 =>
+      '1. Power on the ESP32 Hub (LED flashes indicating config mode).';
+
+  @override
+  String get setup_step_2 => '2. Select Wi-Fi network and connect securely.';
+
+  @override
+  String get setup_step_3 =>
+      '3. After connecting successfully, system automatically transitions to provisioning.';
+
+  @override
+  String get version_changelog_title => 'Release Notes & What\'s New';
+
+  @override
+  String get version_changelog_desc =>
+      'View details of changes in the latest release';
+
+  @override
+  String get whats_new_in_version => 'What\'s new in version';
+
+  @override
+  String get version_history_title => 'Version History';
+
+  @override
+  String get latest_version_badge => 'Latest Version';
+
+  @override
+  String get update_available_badge => 'Update Available';
+
+  @override
+  String get btn_check_again => 'Check Again';
+
+  @override
+  String get you_are_up_to_date =>
+      'Your app is up to date and running the latest stable release.';
+
+  @override
+  String get technical_info_title => 'Technical Details';
+
+  @override
+  String get perm_view_activate_only => 'Permissions: View & Activate only';
+
+  @override
+  String get device_permissions_title => 'Device Permissions';
+
+  @override
+  String get reauth_security_title => 'Security Verification';
+
+  @override
+  String get reauth_with_google => 'Verify with Google';
+
+  @override
+  String get reauth_via_sms => 'Verify via SMS';
+
+  @override
+  String get reauth_password_title => 'Password Verification';
+
+  @override
+  String get build_number_label => 'Build Number';
+
+  @override
+  String get release_date_label => 'Release Date';
+
+  @override
+  String get package_name_label => 'Package Name';
+
+  @override
+  String get target_platform_label => 'Target Platform';
+
+  @override
+  String get empty_esp_limit_title => 'Unlinked ESP32 Home Exists';
+
+  @override
+  String empty_esp_limit_desc(Object name) {
+    return 'You have a home \"$name\" that does not have an ESP32 set up.\n\nEach account can only have at most 1 unlinked ESP32 home. Would you like to set up ESP32 for this home now?';
+  }
+
+  @override
+  String get btn_setup_esp_now => 'Set up ESP32 Now';
+
+  @override
+  String get btn_create_and_setup_esp => 'Create & Set up ESP32';
+
+  @override
+  String get create_home_then_setup_desc =>
+      'After naming the home, the app will automatically transition to the ESP32 pairing and Wi-Fi setup wizard.';
+
+  @override
+  String get wifi_pairing_timeout_3min =>
+      'Connection timed out (3 minutes). Please check your Wi-Fi credentials or router distance.';
+
+  @override
+  String get wifi_waiting_handshake_signal =>
+      'Waiting for initial Hub signal via Cloud...';
+
+  @override
+  String get wifi_sending_ack_signal =>
+      'Hub signal detected! Sending activation response...';
+
+  @override
+  String get wifi_setup_completed_unlock =>
+      'Setup completed! Hub features fully unlocked.';
+
+  @override
+  String get wifi_navigating_to_add_devices =>
+      'Transitioning to Add Devices...';
+
+  @override
+  String wifi_time_remaining(Object time) {
+    return 'Time remaining: $time';
+  }
+
+  @override
+  String get wifi_btn_add_devices => 'Add Devices (Device Mapping)';
+
+  @override
+  String get btn_add_home => 'Add New Home';
+
+  @override
+  String get sub_home => 'Sub Home';
+
+  @override
+  String get primary_home => 'Primary Home';
+
+  @override
+  String get rename_home => 'Rename Home';
+
+  @override
+  String get delete_home => 'Delete Home';
+
+  @override
+  String get multi_home_tip =>
+      'Tap a home to activate and control its corresponding devices.';
+
+  @override
+  String get create_new_home => 'Create New Home';
+
+  @override
+  String get enter_home_name => 'Enter Home Name';
+
+  @override
+  String get hint_home_name => 'E.g., Private House, Apartment, Villa...';
+
+  @override
+  String get err_empty_home_name => 'Please enter home name';
+
+  @override
+  String get created_home_success => 'Created new home successfully';
+
+  @override
+  String get err_create_home_failed =>
+      'Failed to create new home. Please try again!';
+
+  @override
+  String get hint_new_home_name => 'Enter new home name';
+
+  @override
+  String get msg_rename_home_success => 'Renamed home successfully';
+
+  @override
+  String get err_rename_home => 'Failed to rename home. Please try again!';
+
+  @override
+  String get delete_home_confirm_title => 'Confirm Delete Home?';
+
+  @override
+  String delete_home_confirm_desc(Object name) {
+    return 'Are you sure you want to delete home \"$name\"? All linked device data will be removed from your account.';
+  }
+
+  @override
+  String get msg_delete_home_success => 'Deleted home successfully';
+
+  @override
+  String get err_delete_home => 'Failed to delete home. Please try again!';
+
+  @override
+  String get devices_selected => 'devices selected';
+
+  @override
+  String get manage_homes => 'Manage Homes';
+
+  @override
+  String homes_count(Object count) {
+    return '$count homes';
+  }
+
+  @override
+  String get manage_sub_home_title => 'Manage Sub Home';
+
+  @override
+  String get delete_this_sub_home => 'Delete This Sub Home';
+
+  @override
+  String get wifi_cancel_pairing_title => 'Cancel Pairing Process?';
+
+  @override
+  String get wifi_cancel_pairing_desc =>
+      'Hub ESP32 has not finished connecting. If you exit now, device linkage data will be cancelled.';
+
+  @override
+  String get home_customization_title => 'Home Properties & Rules';
+
+  @override
+  String get home_type_title => 'Home Type:';
+
+  @override
+  String get home_icon_title => 'Recognition Icon:';
+
+  @override
+  String get home_color_title => 'Theme Color:';
+
+  @override
+  String get home_rules_title => 'Home Attribute Rules:';
+
+  @override
+  String get home_rules_desc =>
+      'Enable smart behavioral rules automatically applied specifically to this home:';
+
+  @override
+  String get home_props_saved =>
+      'Saved home properties and rule sets successfully!';
+
+  @override
+  String get err_save_home_props =>
+      'Failed to save home properties. Please try again!';
+
+  @override
+  String get home_type_townhouse => 'Townhouse';
+
+  @override
+  String get home_type_apartment => 'Apartment';
+
+  @override
+  String get home_type_villa => 'Villa';
+
+  @override
+  String get home_type_countryside => 'Countryside Home';
+
+  @override
+  String get home_type_office => 'Office';
+
+  @override
+  String get home_type_store => 'Store';
+
+  @override
+  String get rule_night_security_title => 'Night Security Protection';
+
+  @override
+  String get rule_night_security_desc =>
+      'Automatically activate sensor monitoring & door lock after 23:00. Alarm immediately on intrusion.';
+
+  @override
+  String get rule_energy_saving_title => 'Energy Saving When Away';
+
+  @override
+  String get rule_energy_saving_desc =>
+      'Automatically turn off AC, water heater and high loads when leaving home.';
+
+  @override
+  String get rule_outdoor_lighting_title => 'Automatic Outdoor Lighting';
+
+  @override
+  String get rule_outdoor_lighting_desc =>
+      'Turn on garden, balcony or signboard lights from 18:00 to 23:00 daily.';
+
+  @override
+  String get rule_fire_gas_priority_title => 'Fire & Gas Priority Alarm';
+
+  @override
+  String get rule_fire_gas_priority_desc =>
+      'Sound maximum siren and push urgent alerts even when phone is in Do Not Disturb.';
+
+  @override
+  String get rule_office_workhours_title =>
+      'Office Working Hours (08:00 - 18:00)';
+
+  @override
+  String get rule_office_workhours_desc =>
+      'Maintain standard working lighting and stabilize AC at 25°C during business hours.';
+
+  @override
+  String get rule_vacation_simulation_title => 'Vacation Presence Simulation';
+
+  @override
+  String get rule_vacation_simulation_desc =>
+      'Randomly toggle select lights in the evening to deter burglars during travels.';
+
+  @override
+  String get rule_quiet_hours_title => 'Quiet Sleep Hours (22:00 - 06:00)';
+
+  @override
+  String get rule_quiet_hours_desc =>
+      'Dim hallway night lights to 20% and mute chime beeps to preserve sleep.';
+
+  @override
+  String get scene_tap_to_change_icon => 'Tap to change icon';
+
+  @override
+  String get scene_action_keep => 'Skip';
+
+  @override
+  String get scene_action_turn_on => 'On';
+
+  @override
+  String get scene_action_turn_off => 'Off';
+
+  @override
+  String get scene_setup_device_state =>
+      'Configure device states in this scene';
+
+  @override
+  String get schedule_auto_desc =>
+      'Automatically activate devices at set times';
+
+  @override
+  String get schedule_activity_duration => 'Estimated active duration';
+
+  @override
+  String get schedule_tap_to_change => 'Tap to change';
+
+  @override
+  String get schedule_preset_all => 'All week';
+
+  @override
+  String get schedule_preset_weekdays => 'Mon - Fri';
+
+  @override
+  String get schedule_preset_weekends => 'Weekend';
+
+  @override
+  String get schedule_shared_hint =>
+      'All household members can view this schedule';
+
+  @override
+  String get schedule_author => 'Creator';
 }

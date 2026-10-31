@@ -15,6 +15,13 @@ const os = require('os');
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBSPEC_PATH = path.join(ROOT_DIR, 'zenhome_app', 'pubspec.yaml');
 const FIREBASE_MODULE_PATH = path.join(ROOT_DIR, 'zenhome-server', 'server', 'core', 'firebase.cjs');
+const ENV_PATH = path.join(ROOT_DIR, 'zenhome-server', '.env');
+try {
+  if (fs.existsSync(ENV_PATH)) {
+    const dotenv = require(path.join(ROOT_DIR, 'zenhome-server', 'node_modules', 'dotenv'));
+    dotenv.config({ path: ENV_PATH });
+  }
+} catch (e) {}
 
 async function getLocalIp() {
   const net = require('net');
@@ -114,7 +121,9 @@ async function main() {
   });
 
   const localIp = await getLocalIp();
-  let directApkUrl = getArg('direct-url') || `http://${localIp}:5000/public/downloads/zenhome-app-release.apk`;
+  const customBase = (process.env.SERVER_BASE_URL || process.env.PUBLIC_URL || '').trim().replace(/\/+$/, '');
+  const defaultDirectUrl = customBase ? `${customBase}/public/downloads/zenhome-app-release.apk` : `http://${localIp}:5000/public/downloads/zenhome-app-release.apk`;
+  let directApkUrl = getArg('direct-url') || defaultDirectUrl;
 
   if (!isSilent) {
     console.log(`📦 Thông tin phát hiện từ pubspec.yaml: v${detected.version} (Build: ${detected.buildNumber})\n`);

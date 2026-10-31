@@ -131,7 +131,7 @@ class DeviceMappingController extends StateNotifier<bool> {
         details: {
           'Số lượng thiết bị': '${devices.length} thiết bị',
           'Đồng bộ Cloud': 'Firestore thành công',
-          'Đồng bộ ESP32': 'Đã gửi qua MQTT (${activeConfig.mqttPrefix})',
+          'Đồng bộ ESP32': 'Đã gửi qua kênh kết nối bảo mật',
           'Thời gian': DateTime.now().toLocal().toString().substring(0, 19),
         },
       );

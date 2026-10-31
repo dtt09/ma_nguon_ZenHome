@@ -23,7 +23,7 @@ usersRouter.get('/', requireAdminAuth, async (req: Request, res: Response) => {
         phoneNumber: data.phoneNumber || null,
         macAddress: data.macAddress || null,
         deviceCount: devices.length,
-        devices: devices.map((d: any) => ({ id: d.id, name: d.name, room: d.room, pin: d.pin })),
+        devices: devices.map((d: any) => ({ id: d.id, name: d.name, room: d.room })),
         birthday: data.birthday || null,
         createdAt: data.createdAt || null,
       };
@@ -90,7 +90,7 @@ usersRouter.get('/:userId', requireAuth, async (req: Request, res: Response) => 
         macAddress: userData.macAddress || null,
         birthday: userData.birthday || null,
         totalDevices: devices.length,
-        devices,
+        devices: devices.map((d: any) => ({ id: d.id, name: d.name, room: d.room })),
         totalSessions: sessions.length,
         sessions,
         createdAt: userData.createdAt || null,

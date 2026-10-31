@@ -38,8 +38,18 @@ import {
   checkBackupServerHealth, 
   triggerDatabaseBackupSnapshot, 
   fetchBackupRecords, 
+  downloadBackupFile,
+  restoreBackupSnapshot,
+  getAdminSecret,
+  getServerBaseUrl,
 } from '../../services/backupServerService';
 import { AppVersionModal } from './AppVersionModal';
+import { Esp32OtaModal } from './Esp32OtaModal';
+import { RealCustomerUser } from '../../types/admin';
+
+interface BackupServerViewProps {
+  customers?: RealCustomerUser[];
+}
 
 interface LiveLogEntry {
   id: string;
@@ -73,12 +83,13 @@ interface ServerRamState {
   connectedClients?: number;
 }
 
-export const BackupServerView: React.FC = () => {
+export const BackupServerView: React.FC<BackupServerViewProps> = ({ customers = [] }) => {
   const [status, setStatus] = useState<BackupServerStatus | null>(null);
   const [telemetry, setTelemetry] = useState<ServerTelemetryPayload | null>(null);
   const [ramState, setRamState] = useState<ServerRamState | null>(null);
   const [logs, setLogs] = useState<LiveLogEntry[]>([]);
   const [backups, setBackups] = useState<BackupRecord[]>([]);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   // Telemetry & Real-time Live Clock / Ping State
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
@@ -100,6 +111,7 @@ export const BackupServerView: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
   const [showVersionModal, setShowVersionModal] = useState(false);
+  const [showEsp32Modal, setShowEsp32Modal] = useState(false);
 
   const terminalContainerRef = useRef<HTMLDivElement>(null);
 
@@ -108,7 +120,7 @@ export const BackupServerView: React.FC = () => {
     setTimeout(() => setNotification(null), 3500);
   };
 
-  const SERVER_BASE = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
+  const SERVER_BASE = getServerBaseUrl();
 
   // Helper formatters
   const formatUptime = (totalSec: number) => {
@@ -200,7 +212,12 @@ export const BackupServerView: React.FC = () => {
 
   const fetchInitialLogs = async () => {
     try {
-      const res = await fetch(`${SERVER_BASE}/api/node-server/logs`);
+      const res = await fetch(`${SERVER_BASE}/api/node-server/logs`, {
+        headers: {
+          'x-api-key': getAdminSecret(),
+          'Authorization': `Bearer ${getAdminSecret()}`,
+        },
+      });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.logs)) {
@@ -233,7 +250,10 @@ export const BackupServerView: React.FC = () => {
 
     const socket = io(SERVER_BASE, {
       reconnectionDelayMax: 5000,
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      auth: {
+        token: getAdminSecret(),
+      },
     });
     socketRef.current = socket;
 
@@ -335,7 +355,13 @@ export const BackupServerView: React.FC = () => {
     try {
       const [serverStatus, ramRes, loadedBackups] = await Promise.all([
         checkBackupServerHealth(),
-        fetch(`${SERVER_BASE}/api/node-server/state`).then(r => r.json()),
+        fetch(`${SERVER_BASE}/api/node-server/state`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getAdminSecret()}`,
+            'x-api-key': getAdminSecret(),
+          },
+        }).then(r => r.json()),
         fetchBackupRecords(),
       ]);
 
@@ -372,7 +398,8 @@ export const BackupServerView: React.FC = () => {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer zenhome-admin-secret-2026'
+          'Authorization': `Bearer ${getAdminSecret()}`,
+          'x-api-key': getAdminSecret()
         },
         body: JSON.stringify({ action, payload }),
       });
@@ -858,17 +885,30 @@ export const BackupServerView: React.FC = () => {
       )}
 
       {/* Quick Interactive Worker Actions Bar - Redesigned to Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
         <button
           onClick={() => setShowVersionModal(true)}
-          className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 hover:border-indigo-400 hover:shadow-md text-slate-700 dark:text-slate-300 transition-all group"
+          className="flex flex-col items-center justify-center gap-3 p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 hover:border-indigo-400 hover:shadow-md text-slate-700 dark:text-slate-300 transition-all group"
         >
           <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-full group-hover:scale-110 transition-transform">
-            <Smartphone className="w-6 h-6" />
+            <Smartphone className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div className="text-center">
-            <h4 className="font-bold text-sm group-hover:text-indigo-600 transition-colors">Phát Hành App OTA</h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Đẩy update lên App</p>
+            <h4 className="font-bold text-xs sm:text-sm group-hover:text-indigo-600 transition-colors">Phát Hành App</h4>
+            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">Cập nhật ứng dụng</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setShowEsp32Modal(true)}
+          className="flex flex-col items-center justify-center gap-3 p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 hover:border-violet-400 hover:shadow-md text-slate-700 dark:text-slate-300 transition-all group"
+        >
+          <div className="p-3 bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 rounded-full group-hover:scale-110 transition-transform">
+            <Cpu className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
+          <div className="text-center">
+            <h4 className="font-bold text-xs sm:text-sm group-hover:text-violet-600 transition-colors">Phát Hành ESP32</h4>
+            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">Firmware & OTA</p>
           </div>
         </button>
 
@@ -1155,7 +1195,7 @@ export const BackupServerView: React.FC = () => {
                   <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{b.timestamp}</span>
+                      <span>{b.displayTime || (b.timestamp && b.timestamp.includes('T') ? new Date(b.timestamp).toLocaleString('vi-VN') : b.timestamp)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Layers className="w-3.5 h-3.5 text-slate-400" />
@@ -1167,10 +1207,42 @@ export const BackupServerView: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end items-center gap-2">
                   <button
-                    onClick={() => alert(`Bản sao lưu ${b.id} đã sẵn sàng trong thư mục backups của Server.`)}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                    disabled={restoringId === b.id}
+                    onClick={async () => {
+                      if (!window.confirm(`⚠️ CẢNH BÁO KHÔI PHỤC DỮ LIỆU:\nBạn có chắc chắn muốn nạp lại toàn bộ dữ liệu từ bản sao lưu [${b.id}] vào Firestore?\nDữ liệu kịch bản, hẹn giờ và trạng thái thiết bị sẽ được cập nhật đồng bộ.`)) return;
+                      setRestoringId(b.id);
+                      try {
+                        const res = await restoreBackupSnapshot(b.id);
+                        showNotify(res.message);
+                      } catch (err: any) {
+                        alert(err.message || 'Lỗi khôi phục cơ sở dữ liệu');
+                      } finally {
+                        setRestoringId(null);
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                      restoringId === b.id
+                        ? 'bg-amber-100 text-amber-800 cursor-wait'
+                        : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:shadow-xs cursor-pointer'
+                    }`}
+                    title="Khôi phục snapshot này vào Cloud Firestore"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${restoringId === b.id ? 'animate-spin' : ''}`} />
+                    {restoringId === b.id ? 'Đang khôi phục...' : 'Khôi phục'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await downloadBackupFile(b.id);
+                        showNotify(`Đã tải xuống bản sao lưu [${b.id}.json] thành công!`);
+                      } catch (err: any) {
+                        alert(err.message || 'Lỗi khi tải file sao lưu');
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer"
+                    title="Tải file JSON sao lưu về máy"
                   >
                     <Download className="w-3.5 h-3.5" />
                     Tải về máy
@@ -1185,6 +1257,13 @@ export const BackupServerView: React.FC = () => {
       <AppVersionModal
         isOpen={showVersionModal}
         onClose={() => setShowVersionModal(false)}
+        onSuccessNotification={(msg) => showNotify(msg)}
+      />
+
+      <Esp32OtaModal
+        isOpen={showEsp32Modal}
+        onClose={() => setShowEsp32Modal(false)}
+        customers={customers}
         onSuccessNotification={(msg) => showNotify(msg)}
       />
 

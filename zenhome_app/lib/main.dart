@@ -1,6 +1,7 @@
 import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
 import 'package:jailbreak_root_detection/jailbreak_root_detection.dart';
 import 'dart:async';
+import 'dart:io';
 import 'dart:convert';
 import 'package:zenhome_app/core/providers/theme_provider.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
@@ -10,18 +11,21 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zenhome_app/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:zenhome_app/core/services/logger_service.dart';
+import 'package:zenhome_app/core/services/crash_sync_service.dart';
 import 'package:zenhome_app/core/services/app_update_service.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/features/onboarding/ui/splash_screen.dart';
 import 'package:zenhome_app/features/notifications/logic/notification_helper.dart';
 import 'package:zenhome_app/core/services/connectivity_service.dart';
+import 'package:zenhome_app/core/widgets/animations/telegram_theme_transition.dart';
+
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -63,10 +67,11 @@ void main() async {
     jailbroken = false;
   }
   if (jailbroken) {
-    // Tùy chọn: Thoát ứng dụng nếu phát hiện thiết bị bị bẻ khóa
-    // exit(0); 
-    // Tuy nhiên ở bản Dev ta chỉ log ra:
-    print("⚠️ THIẾT BỊ ĐÃ BỊ ROOT / JAILBREAK!");
+    LoggerService.w("⚠️ CẢNH BÁO BẢO MẬT: Phát hiện thiết bị đã bị Root / Jailbreak!");
+    // Kích hoạt cơ chế bảo vệ theo thuyết minh: Thoát ứng dụng khi ở bản Release Mode
+    if (!kDebugMode) {
+      exit(0);
+    }
   }
   
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -92,10 +97,13 @@ void main() async {
   // Dọn dẹp an toàn các file APK rác trong cache (nếu vừa nâng cấp phiên bản)
   AppUpdateService.cleanOldApkFiles();
   
-  // Tùy biến ErrorWidget để không bao giờ hiện màn hình trắng xóa nếu có lỗi ngoại lệ hoặc mạng
+  // Tùy biến ErrorWidget chuẩn xác: Debug hiện thông tin chi tiết; Release hiện lỗi giao diện đúng ngữ nghĩa (không gây hiểu nhầm mất Wifi)
   ErrorWidget.builder = (FlutterErrorDetails details) {
+    if (kDebugMode) {
+      return ErrorWidget(details.exception);
+    }
     return Material(
-      color: const Color(0xFF081210),
+      color: const Color(0xFF0F172A),
       child: SafeArea(
         child: Center(
           child: Padding(
@@ -106,21 +114,21 @@ void main() async {
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: AppColors.amberGlow.withOpacity(0.15),
+                    color: const Color(0xFFF43F5E).withOpacity(0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.amberGlow),
+                  child: const Icon(Icons.error_outline_rounded, size: 48, color: Color(0xFFF43F5E)),
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  PlatformDispatcher.instance.locale.languageCode == 'vi' ? 'Không thể tải nội dung' : 'Unable to load content',
+                  PlatformDispatcher.instance.locale.languageCode == 'vi' ? 'Đã xảy ra lỗi giao diện' : 'UI Display Error',
                   style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   PlatformDispatcher.instance.locale.languageCode == 'vi'
-                      ? 'Vui lòng kiểm tra lại kết nối mạng Wifi/4G và mở lại ứng dụng.'
-                      : 'Please check your network connection and restart the app.',
+                      ? 'Thành phần giao diện gặp sự cố tạm thời. Vui lòng khởi động lại ứng dụng.'
+                      : 'An interface component encountered an error. Please restart the app.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
                 ),
@@ -135,9 +143,26 @@ void main() async {
   try {
     await Firebase.initializeApp().timeout(const Duration(seconds: 3));
     
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    unawaited(CrashSyncService.initialize());
+    FlutterError.onError = CrashSyncService.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      final errStr = error.toString();
+      final isNetwork = error is SocketException || 
+                        error is HttpException || 
+                        errStr.contains('SocketException') || 
+                        errStr.contains('HandshakeException') ||
+                        errStr.contains('Software caused connection abort') ||
+                        errStr.contains('ConnectionException') ||
+                        errStr.contains('Failed host lookup') ||
+                        errStr.contains('Operation not permitted') ||
+                        errStr.contains('Network is unreachable');
+      CrashSyncService.recordCrash(
+        error, 
+        stack, 
+        fatal: !isNetwork, 
+        severity: isNetwork ? 'warning' : 'fatal',
+        reason: isNetwork ? 'Sự cố ngắt kết nối mạng / Chuyển đổi Wi-Fi' : null,
+      );
       return true;
     };
     
@@ -212,7 +237,9 @@ class ZenHomeApp extends ConsumerWidget {
       darkTheme: AppTheme.darkTheme,
       builder: (context, child) {
         return ConnectivityBannerWrapper(
-          child: child ?? const SizedBox(),
+          child: TelegramThemeTransition(
+            child: child ?? const SizedBox(),
+          ),
         );
       },
       home: const SplashScreen(),

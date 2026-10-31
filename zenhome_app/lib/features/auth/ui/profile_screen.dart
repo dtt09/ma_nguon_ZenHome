@@ -18,6 +18,7 @@ import 'package:zenhome_app/features/auth/ui/update_email_phone_screen.dart';
 import 'package:zenhome_app/core/utils/reauth_helper.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 import 'package:zenhome_app/features/auth/logic/profile_controller.dart';
+import 'package:zenhome_app/core/utils/masking_helper.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -30,6 +31,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final User? user = FirebaseAuth.instance.currentUser;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _birthdayController = TextEditingController();
+
+  bool _maskSensitiveDetails = true;
 
   bool _hasChanges = false;
   String _initialName = '';
@@ -910,7 +913,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           ],
                           image: (user?.photoURL != null && user!.photoURL!.isNotEmpty)
-                              ? DecorationImage(image: NetworkImage(user!.photoURL!), fit: BoxFit.cover)
+                              ? DecorationImage(
+                                  image: NetworkImage(user!.photoURL!),
+                                  fit: BoxFit.cover,
+                                  onError: (e, s) => debugPrint('[Avatar] Lỗi nạp avatar: $e'),
+                                )
                               : null,
                         ),
                         child: (user?.photoURL == null || user!.photoURL!.isEmpty)
@@ -1049,10 +1056,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                 const Divider(height: 24),
 
+                // Tiêu đề & Nút bật/tắt che thông tin liên lạc nhạy cảm (Data Masking)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Thông tin liên kết bảo mật',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          _maskSensitiveDetails ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          size: 19,
+                          color: const Color(0xFF0D9488),
+                        ),
+                        tooltip: _maskSensitiveDetails ? 'Hiện thông tin nhạy cảm' : 'Che thông tin nhạy cảm',
+                        onPressed: () => setState(() => _maskSensitiveDetails = !_maskSensitiveDetails),
+                      ),
+                    ],
+                  ),
+                ),
+
                 // Email (Google)
                 _buildInfoRow(
                   label: 'Email (Google)',
-                  value: profileState.email.isNotEmpty ? profileState.email : (context.tr('unlinked') ?? 'Chưa liên kết'),
+                  value: profileState.email.isNotEmpty
+                      ? (_maskSensitiveDetails ? MaskingHelper.maskEmail(profileState.email) : profileState.email)
+                      : (context.tr('unlinked') ?? 'Chưa liên kết'),
                   icon: Icons.alternate_email_rounded,
                   isDark: isDark,
                   trailing: Row(
@@ -1095,7 +1131,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 // Số điện thoại
                 _buildInfoRow(
                   label: context.tr('phone_number') ?? 'Số điện thoại',
-                  value: profileState.phone.isNotEmpty ? profileState.phone : (context.tr('unlinked') ?? 'Chưa có'),
+                  value: profileState.phone.isNotEmpty
+                      ? (_maskSensitiveDetails ? MaskingHelper.maskPhone(profileState.phone) : profileState.phone)
+                      : (context.tr('unlinked') ?? 'Chưa có'),
                   icon: Icons.phone_android_outlined,
                   isDark: isDark,
                   trailing: Row(

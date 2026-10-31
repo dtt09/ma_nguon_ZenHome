@@ -1,9 +1,11 @@
 import rateLimit from 'express-rate-limit';
+import { ADMIN_SECRET, safeCompare } from './auth';
 
 const isWhitelisted = (req: any) => {
   const ip = req.ip || req.connection?.remoteAddress || '';
   const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip.includes('127.0.0.1');
-  const hasAdminSecret = req.headers['authorization'] === 'Bearer zenhome-admin-secret-2026' || req.headers['x-api-key'] === 'zenhome-admin-secret-2026';
+  const token = req.headers['authorization']?.replace(/^Bearer\s+/i, '').trim() || (req.headers['x-api-key'] as string)?.trim();
+  const hasAdminSecret = Boolean(ADMIN_SECRET && token && safeCompare(token, ADMIN_SECRET));
   return isLocal || hasAdminSecret;
 };
 
@@ -17,7 +19,7 @@ export const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Giới hạn cho các hành động nguy hiểm (300 requests mỗi 10 phút, Bỏ qua cho Localhost & Admin Web)
+// Giới hạn cho các hành động nhạy cảm (300 requests mỗi 10 phút, Bỏ qua cho Localhost & Admin Web)
 export const actionLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 300,

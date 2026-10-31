@@ -2,22 +2,17 @@ import { Router, Request, Response } from 'express';
 import { sendCommandWithRetry } from '../../zenhomeWorker';
 import { state, addLog } from '../../zenhomeState';
 import { findUser, FieldValue } from '../../utils/firestoreHelper';
-import { requireAuth } from '../../middlewares/auth';
+import { requireAuth, checkUserPermission, checkOwnerOrAdminPermission } from '../../middlewares/auth';
+import { validatePin } from '../../middlewares/validation';
 
 export const devicesRouter = Router();
 
 // Bắt buộc xác thực người dùng (Chấp nhận Bearer Token Firebase ID hoặc Admin Secret)
 devicesRouter.use(requireAuth);
 
-function checkUserPermission(req: Request, targetUser: { id: string; data: any }): boolean {
-  if (req.user?.role === 'admin') return true;
-  if (!req.user) return false;
-  return req.user.uid === targetUser.id || req.user.uid === targetUser.data?.uid;
-}
-
 /**
  * @route   GET /api/v1/devices
- * @desc    Lấy danh sách tất cả thiết bị THỰC TẾ từ cơ sở dữ liệu Firestore
+ * @desc    Lấy danh sách thiết bị từ Firestore (Đã lọc theo quyền thành viên và ẩn chân GPIO nhạy cảm)
  */
 devicesRouter.get('/', async (req: Request, res: Response) => {
   try {
@@ -43,16 +38,48 @@ devicesRouter.get('/', async (req: Request, res: Response) => {
     const userMac = user.data.macAddress || '';
     const rawDevices: any[] = Array.isArray(user.data.devices) ? user.data.devices : [];
 
-    // Cập nhật trạng thái tức thời từ pendingTasks / active state trong RAM nếu đang chờ sync
-    const mapped = rawDevices.map(dev => {
+    // Phân quyền theo vai trò thành viên (RBAC Filtering):
+    // Nếu người gọi là thành viên phụ (không phải Owner và không phải Admin)
+    const isOwnerOrAdmin = req.user?.role === 'admin' || req.user?.uid === user.id || req.user?.uid === user.data?.uid;
+    let allowedDeviceIds: string[] | null = null;
+    if (!isOwnerOrAdmin) {
+      const callerUid = req.user?.uid || '';
+      const disabledMembers: string[] = Array.isArray(user.data?.disabledMembers) ? user.data.disabledMembers : [];
+      if (disabledMembers.includes(callerUid)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Tài khoản của bạn đã bị Chủ nhà tạm khóa quyền truy cập thiết bị.',
+        });
+      }
+      const memberPermissions = user.data?.memberDevicePermissions || {};
+      const perms = memberPermissions[callerUid];
+      if (Array.isArray(perms) && !perms.includes('*')) {
+        allowedDeviceIds = perms;
+      }
+    }
+
+    const filteredDevices = allowedDeviceIds
+      ? rawDevices.filter(d => allowedDeviceIds!.includes(d.id))
+      : rawDevices;
+
+    // Cập nhật trạng thái tức thời và LỌC BỎ các trường nhạy cảm phần cứng (PIN) đối với khách/thành viên
+    const mapped = filteredDevices.map(dev => {
       const stateTopic = `${user.id}/${userMac || 'ESP32_MAC'}/${dev.room}/${dev.id}/state`;
       const isPending = state.pendingTasks && state.pendingTasks[stateTopic];
-      return {
-        ...dev,
+      const devItem: any = {
+        id: dev.id,
+        name: dev.name,
+        room: dev.room,
+        icon: dev.icon || 'switch',
         state: isPending ? isPending.targetState === '1' : Boolean(dev.state),
         isPending: Boolean(isPending),
         topic: `${user.id}/${userMac || 'ESP32_MAC'}/${dev.room}/${dev.id}`,
       };
+      // Chỉ để lộ GPIO pin cho Quản trị viên hệ thống (Admin)
+      if (req.user?.role === 'admin') {
+        devItem.pin = dev.pin;
+      }
+      return devItem;
     });
 
     res.json({
@@ -87,11 +114,12 @@ devicesRouter.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: "Trường 'room' (Phòng) là bắt buộc." });
     }
 
-    if (pin === undefined || pin === null || isNaN(Number(pin))) {
-      return res.status(400).json({ success: false, error: "Trường 'pin' (Chân relay 0-7 hoặc GPIO) là bắt buộc." });
+    const pinValidation = validatePin(pin);
+    if (!pinValidation.valid) {
+      return res.status(400).json({ success: false, error: pinValidation.error });
     }
+    const pinNum = pinValidation.pinNum!;
 
-    const pinNum = Number(pin);
     const targetUserId = userId || (req.user?.role === 'user' ? req.user.uid : undefined);
     const user = await findUser(targetUserId);
 
@@ -102,10 +130,10 @@ devicesRouter.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    if (!checkUserPermission(req, user)) {
+    if (!checkOwnerOrAdminPermission(req, user)) {
       return res.status(403).json({
         success: false,
-        error: 'Forbidden: Bạn không có quyền thêm thiết bị cho tài khoản khác.',
+        error: 'Forbidden: Chỉ Chủ nhà hoặc Quản trị viên mới có quyền thêm thiết bị phần cứng.',
       });
     }
 
@@ -129,7 +157,7 @@ devicesRouter.post('/', async (req: Request, res: Response) => {
     if (pinConflict) {
       return res.status(400).json({
         success: false,
-        error: `Chân Pin ${pinNum} đã được gán cho thiết bị '${pinConflict.name}'. Vui lòng chọn chân khác.`,
+        error: `Chân Pin ${pinNum} đã được gắn cho thiết bị '${pinConflict.name}'. Mỗi rơ-le phải có một chân GPIO riêng biệt.`,
       });
     }
 
@@ -138,21 +166,22 @@ devicesRouter.post('/', async (req: Request, res: Response) => {
       name: name.trim(),
       room: room.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'),
       pin: pinNum,
-      icon: icon.trim(),
       state: false,
+      icon: icon.trim(),
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    // Lưu thiết bị thực vào Firestore
+    // Lưu vào array devices[] trong document user trên Firestore
     await user.ref.update({
       devices: FieldValue.arrayUnion(newDevice),
     });
 
-    addLog('[BACKEND]', `Thêm thiết bị mới: [${newDevice.name}] (Pin: ${newDevice.pin}, Phòng: ${newDevice.room}) cho user ${user.id}`, 'info');
+    addLog('[BACKEND]', `Thêm thiết bị mới: [${newDevice.name}] (Pin: ${pinNum}, Room: ${newDevice.room}) cho user ${user.id}`, 'info');
 
     res.status(201).json({
       success: true,
-      message: `Đã thêm thiết bị '${newDevice.name}' vào cơ sở dữ liệu thành công!`,
+      message: `Đã thêm thiết bị '${newDevice.name}' vào hệ thống thành công!`,
       device: newDevice,
       timestamp: new Date().toISOString(),
     });
@@ -163,7 +192,7 @@ devicesRouter.post('/', async (req: Request, res: Response) => {
 
 /**
  * @route   GET /api/v1/devices/:id
- * @desc    Lấy thông tin chi tiết một thiết bị thực tế từ cơ sở dữ liệu
+ * @desc    Lấy chi tiết một thiết bị THỰC TẾ theo ID
  */
 devicesRouter.get('/:id', async (req: Request, res: Response) => {
   try {
@@ -194,10 +223,15 @@ devicesRouter.get('/:id', async (req: Request, res: Response) => {
     const stateTopic = `${baseTopic}/state`;
     const isPending = state.pendingTasks && state.pendingTasks[stateTopic];
 
+    const safeDevice = { ...device };
+    if (req.user?.role !== 'admin') {
+      delete safeDevice.pin;
+    }
+
     res.json({
       success: true,
       data: {
-        ...device,
+        ...safeDevice,
         userId: user.id,
         macAddress: userMac,
         baseTopic,
@@ -213,7 +247,7 @@ devicesRouter.get('/:id', async (req: Request, res: Response) => {
 
 /**
  * @route   PUT /api/v1/devices/:id
- * @desc    Cập nhật thông tin thiết bị (tên, phòng, chân pin, icon) trong cơ sở dữ liệu
+ * @desc    Cập nhật thông tin thiết bị (tên, phòng, chân pin, icon) trong cơ sở dữ liệu (Chỉ Owner/Admin)
  */
 devicesRouter.put('/:id', async (req: Request, res: Response) => {
   try {
@@ -226,8 +260,8 @@ devicesRouter.put('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
     }
 
-    if (!checkUserPermission(req, user)) {
-      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền chỉnh sửa thiết bị của người dùng khác.' });
+    if (!checkOwnerOrAdminPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Chỉ Chủ nhà hoặc Quản trị viên mới có quyền chỉnh sửa cấu hình thiết bị.' });
     }
 
     const rawDevices: any[] = Array.isArray(user.data.devices) ? [...user.data.devices] : [];
@@ -240,9 +274,13 @@ devicesRouter.put('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    // Nếu đổi pin, kiểm tra trùng lặp với thiết bị khác
+    // Nếu đổi pin, kiểm tra hợp lệ và trùng lặp với thiết bị khác
     if (pin !== undefined && pin !== null) {
-      const pinNum = Number(pin);
+      const pinValidation = validatePin(pin);
+      if (!pinValidation.valid) {
+        return res.status(400).json({ success: false, error: pinValidation.error });
+      }
+      const pinNum = pinValidation.pinNum!;
       const conflict = rawDevices.find((d, idx) => idx !== index && Number(d.pin) === pinNum);
       if (conflict) {
         return res.status(400).json({
@@ -287,8 +325,8 @@ devicesRouter.delete('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
     }
 
-    if (!checkUserPermission(req, user)) {
-      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền xóa thiết bị của người dùng khác.' });
+    if (!checkOwnerOrAdminPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Chỉ Chủ nhà hoặc Quản trị viên mới có quyền xóa thiết bị khỏi hệ thống.' });
     }
 
     const rawDevices: any[] = Array.isArray(user.data.devices) ? user.data.devices : [];
@@ -349,6 +387,27 @@ devicesRouter.post('/:id/control', async (req: Request, res: Response) => {
       });
     }
 
+    // Kiểm tra quyền điều khiển thiết bị đối với thành viên phụ (RBAC)
+    const isOwnerOrAdmin = req.user?.role === 'admin' || req.user?.uid === user.id || req.user?.uid === user.data?.uid;
+    if (!isOwnerOrAdmin) {
+      const callerUid = req.user?.uid || '';
+      const disabledMembers: string[] = Array.isArray(user.data?.disabledMembers) ? user.data.disabledMembers : [];
+      if (disabledMembers.includes(callerUid)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Tài khoản của bạn đã bị Chủ nhà tạm khóa quyền điều khiển.',
+        });
+      }
+      const memberPermissions = user.data?.memberDevicePermissions || {};
+      const perms = memberPermissions[callerUid];
+      if (Array.isArray(perms) && !perms.includes('*') && !perms.includes(id)) {
+        return res.status(403).json({
+          success: false,
+          error: `Forbidden: Bạn không được Chủ nhà phân quyền điều khiển thiết bị '${id}'.`,
+        });
+      }
+    }
+
     // Kiểm tra tính xác thực: Thiết bị phải tồn tại trong cơ sở dữ liệu Firestore của user
     const rawDevices: any[] = Array.isArray(user.data.devices) ? user.data.devices : [];
     const device = rawDevices.find(d => d.id === id);
@@ -376,7 +435,7 @@ devicesRouter.post('/:id/control', async (req: Request, res: Response) => {
         id: device.id,
         name: device.name,
         room: device.room,
-        pin: device.pin,
+        ...(req.user?.role === 'admin' ? { pin: device.pin } : {}),
         baseTopic,
         targetState: stateStr,
         source,
@@ -426,6 +485,25 @@ devicesRouter.post('/bulk', async (req: Request, res: Response) => {
     }
 
     let targetDevices = [...rawDevices];
+
+    // Lọc theo phân quyền thành viên nếu là thành viên phụ (RBAC)
+    const isOwnerOrAdmin = req.user?.role === 'admin' || req.user?.uid === user.id || req.user?.uid === user.data?.uid;
+    if (!isOwnerOrAdmin) {
+      const callerUid = req.user?.uid || '';
+      const disabledMembers: string[] = Array.isArray(user.data?.disabledMembers) ? user.data.disabledMembers : [];
+      if (disabledMembers.includes(callerUid)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Tài khoản của bạn đã bị Chủ nhà tạm khóa quyền điều khiển.',
+        });
+      }
+      const memberPermissions = user.data?.memberDevicePermissions || {};
+      const perms = memberPermissions[callerUid];
+      if (Array.isArray(perms) && !perms.includes('*')) {
+        targetDevices = targetDevices.filter(d => perms.includes(d.id));
+      }
+    }
+
     if (action.startsWith('room_')) {
       if (!room) {
         return res.status(400).json({ success: false, error: "Hành động theo phòng yêu cầu cung cấp trường 'room'." });
@@ -434,7 +512,7 @@ devicesRouter.post('/bulk', async (req: Request, res: Response) => {
       if (targetDevices.length === 0) {
         return res.status(400).json({
           success: false,
-          error: `Không tìm thấy thiết bị nào trong phòng '${room}' trong cơ sở dữ liệu.`,
+          error: `Không tìm thấy thiết bị nào trong phòng '${room}' (hoặc bạn không được cấp quyền điều khiển).`,
         });
       }
     }
@@ -454,7 +532,12 @@ devicesRouter.post('/bulk', async (req: Request, res: Response) => {
       success: true,
       message: `Đã gửi lệnh ${targetState === '1' ? 'BẬT' : 'TẮT'} đồng loạt cho ${targetDevices.length} thiết bị thực tế!`,
       affectedDevicesCount: targetDevices.length,
-      affectedDevices: targetDevices.map(d => ({ id: d.id, name: d.name, room: d.room, pin: d.pin })),
+      affectedDevices: targetDevices.map(d => ({
+        id: d.id,
+        name: d.name,
+        room: d.room,
+        ...(req.user?.role === 'admin' ? { pin: d.pin } : {}),
+      })),
       action,
       targetState,
       timestamp: new Date().toISOString(),

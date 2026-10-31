@@ -6,6 +6,7 @@ import { handleEspPowerRestored, handleEspNetworkRestored, sendCommandWithRetry 
 import { saveScheduleToFirebase, deleteScheduleFromFirebase } from './schedules';
 import { setTimer } from './timers';
 import { recordDeviceState, recordEspOffline } from './deviceStateBackup';
+import { addLog } from '../zenhomeState';
 
 export function setupMqttHandlers() {
     client.on('connect', () => {
@@ -46,6 +47,32 @@ export function setupMqttHandlers() {
         
         const topicParts = topic.split('/');
 
+        // 0.1 BẮT CẢNH BÁO BẪY XÂM NHẬP (INTRUSION DETECTION HONEY-TOKEN ALERT)
+        if (topic.endsWith('/security/alert')) {
+            const userId = topicParts[0];
+            try {
+                const alertData = JSON.parse(payload);
+                console.warn(`[SECURITY ALERT] 🚨 PHÁT HIỆN DÒ QUÉT XÂM NHẬP! User: ${userId}, Attacker IP: ${alertData.attackerIp}, Trap: ${alertData.trap}`);
+                addLog('BẢO MẬT', `🚨 Phát hiện thiết bị IP ${alertData.attackerIp} dò quét bẫy ${alertData.trap}! Đã tự động chặn 24h.`, 'warn');
+
+                // Bắn thông báo đẩy khẩn cấp tới ứng dụng di động của gia chủ
+                sendPushToUserTokens(
+                    userId,
+                    {
+                        title: '🚨 CẢNH BÁO AN NINH GIA ĐÌNH',
+                        body: `Phát hiện thiết bị lạ tại IP ${alertData.attackerIp} đang dò quét bẫy ${alertData.trap}! Đã tự động khóa IP này 24 giờ.`
+                    },
+                    {
+                        title: '🚨 SECURITY ALERT',
+                        body: `Intrusion scan detected from IP ${alertData.attackerIp} on trap ${alertData.trap}! IP blacklisted for 24 hours.`
+                    }
+                );
+            } catch (err: any) {
+                console.error('[SECURITY ALERT] ❌ Lỗi xử lý cảnh báo an ninh:', err.message);
+            }
+            return;
+        }
+
         // 0. BẮT SỰ KIỆN ESP32 ONLINE / OFFLINE (Có điện / Mất điện)
         if (topicParts[topicParts.length - 1] === 'esp_status') {
             const userId = topicParts[0];
@@ -59,12 +86,26 @@ export function setupMqttHandlers() {
                 }
 
                 const userData = userDoc.data() || {};
-                const expectedMac = userData.macAddress;
+                const expectedMac = (userData.macAddress || '').trim();
+                const cleanExpectedMac = expectedMac.replace(/[:\-]/g, '').toUpperCase();
+                const cleanMac = macAddress.replace(/[:\-]/g, '').toUpperCase();
+                const isExpectedUnlinked = (!cleanExpectedMac || cleanExpectedMac === 'UNKNOWN' || cleanExpectedMac === 'UNKNOWN_MAC');
 
-                // Xóa tin nhắn rác nếu MAC không khớp
-                if (macAddress !== expectedMac || macAddress === 'unknown_mac' || macAddress === 'unknown') {
-                    console.log(`[CLEANUP] 🗑️ Đã xóa bản ghi MQTT rác (${macAddress}) không hợp lệ của user: ${userId}`);
+                // Nếu tài khoản đang ở trạng thái CHƯA LIÊN KẾT (chưa có Hub hoặc đang trong quá trình setup)
+                // Tuyệt đối không gửi lệnh reset phá hỏng quá trình ghép nối của người dùng!
+                if (isExpectedUnlinked) {
+                    console.log(`[BACKEND] ℹ️ Tài khoản '${userId}' đang ở trạng thái CHƯA LIÊN KẾT Hub. Bỏ qua kiểm tra đồng bộ.`);
+                    return;
+                }
+
+                // Chỉ cảnh báo và reset nếu Database ĐÃ LIÊN KẾT CHÍNH THỨC VỚI 1 HUB KHÁC nhưng lại nhận tin từ Hub lạ
+                if (cleanExpectedMac !== cleanMac) {
+                    console.warn(`[DESYNC-ALERT] ⚠️ Phát hiện ESP32 (${macAddress}) gửi trạng thái nhưng Database của user '${userId}' đang liên kết với Hub khác [${expectedMac}]!`);
+                    console.warn(`[DESYNC-ALERT] 👉 Đẩy lệnh reset để buộc ESP32 lạ về chế độ AP Setup...`);
+                    // Xóa retain message rác
                     client.publish(topic, "", { retain: true });
+                    // Gửi lệnh reset đến ESP32 sai MAC
+                    client.publish(`${userId}/${macAddress}/system/reset`, "1", { qos: 1 });
                     return;
                 }
 
@@ -226,7 +267,14 @@ export function setupMqttHandlers() {
                 const actionText = actualState === '1' ? 'BẬT' : 'TẮT';
                 const source = state.pendingTasks[topic].source || 'action';
 
-                logHistoryAndNotify(userId, devId, actionText, source);
+                // Chống bão thông báo (Push Storm) khi phục hồi mạng hoặc an toàn nguồn điện:
+                // Gia chủ đã nhận 1 thông báo tổng quan của hệ thống, không spam push cho từng relay riêng rẽ.
+                const isSilentSync = source === 'network_sync_restore' || source === 'power_safety' || source === 'safety_default';
+                if (!isSilentSync) {
+                    logHistoryAndNotify(userId, devId, actionText, source);
+                } else {
+                    console.log(`[SILENT SYNC] 🔕 Không bắn push notification riêng lẻ cho ${devId} (Nguồn: ${source})`);
+                }
 
                 if (state.pendingTasks[topic]?.intervalId) {
                     clearInterval(state.pendingTasks[topic].intervalId);
@@ -241,9 +289,11 @@ export function setupMqttHandlers() {
             try {
                 const reportData = JSON.parse(payload);
                 if (Array.isArray(reportData.relays)) {
+                    // Cắt bỏ phần tử 'sync' để lấy base topic chuẩn của ESP32: userId/macAddress
+                    const actualPrefix = topicParts.slice(0, -1).join('/');
                     reportData.relays.forEach((item: any) => {
                         if (item.id && item.state !== undefined) {
-                            const devTopic = `${baseTopic}/${item.room || 'default'}/${item.id}`;
+                            const devTopic = `${actualPrefix}/${item.room || 'default'}/${item.id}`;
                             recordDeviceState(devTopic, item.state === '1' ? '1' : '0', 'esp_sync_report');
                         }
                     });
@@ -292,11 +342,11 @@ export function setupMqttHandlers() {
             }
         }
 
-        // 5. NGHE TÍN HIỆU HARDWARE RESET TỪ ESP32 (Kiểm tra MAC xác thực)
-        else if (action === 'hardware_reset' && payload === '1') {
+        // 5. NGHE TÍN HIỆU HARDWARE RESET / UNLINK TỪ ESP32 (Kiểm tra MAC xác thực)
+        else if ((action === 'hardware_reset' || action === 'reset') && payload === '1') {
             const userId = topicParts[0];
             const incomingMac = topicParts.length > 1 ? topicParts[1] : 'unknown';
-            console.log(`[RESET] 🚨 Nhận tín hiệu Factory Reset cứng từ ESP32 (MAC: ${incomingMac}) của user ${userId}`);
+            console.log(`[RESET] 🚨 Nhận tín hiệu Reset/Unlink từ ESP32 (MAC: ${incomingMac}) của user ${userId}`);
             
             db.collection('users').doc(userId).get().then(userDoc => {
                 if (!userDoc.exists) {
@@ -304,10 +354,12 @@ export function setupMqttHandlers() {
                     return;
                 }
                 const userData = userDoc.data() || {};
-                const expectedMac = userData.macAddress;
+                const expectedMac = userData.macAddress || '';
+                const cleanIncoming = incomingMac.replace(/[:\-]/g, '').toUpperCase();
+                const cleanExpected = expectedMac.replace(/[:\-]/g, '').toUpperCase();
 
-                if (!expectedMac || incomingMac !== expectedMac || incomingMac === 'unknown') {
-                    console.warn(`[RESET BLOCKED] ⛔ Từ chối hardware_reset: MAC gửi lên (${incomingMac}) không khớp với MAC đã đăng ký (${expectedMac}) của user ${userId}`);
+                if (!expectedMac || (cleanIncoming !== cleanExpected && incomingMac !== expectedMac) || incomingMac === 'unknown') {
+                    console.warn(`[RESET BLOCKED] ⛔ Từ chối reset: MAC gửi lên (${incomingMac}) không khớp với MAC đã đăng ký (${expectedMac}) của user ${userId}`);
                     return;
                 }
 

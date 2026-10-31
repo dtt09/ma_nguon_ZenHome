@@ -1,8 +1,9 @@
-import { Router, Request, Response } from 'express';
+﻿import { Router, Request, Response } from 'express';
+import path from 'path';
 import { storedBackups, BackupRecord } from '../../zenhomeState';
 import { executeDeleteAccountRequest } from '../../zenhomeWorker';
-import { requireAdminAuth } from '../../middlewares/auth';
-import { createRealDatabaseBackup, getBackupFilePath } from '../../core/backupEngine';
+import { requireAdminAuth, requireAuth } from '../../middlewares/auth';
+import { createRealDatabaseBackup, getBackupFilePath, restoreDatabaseFromBackup } from '../../core/backupEngine';
 
 export const backupRouter = Router();
 
@@ -54,13 +55,40 @@ backupRouter.post('/trigger', requireAdminAuth, async (req: Request, res: Respon
  * @route   GET /api/v1/backup/list
  * @desc    Lấy danh sách lịch sử các bản sao lưu đã được tạo
  */
-backupRouter.get('/list', (req: Request, res: Response) => {
+backupRouter.get('/list', requireAdminAuth, (req: Request, res: Response) => {
   res.json({
     success: true,
     totalBackups: storedBackups.length,
     backups: storedBackups,
     timestamp: new Date().toISOString(),
   });
+
+/**
+ * @route   GET /api/v1/backup/download/:backupId
+ * @desc    Tải file snapshot JSON sao lưu trực tiếp về máy tính (Yêu cầu Admin Auth)
+ */
+backupRouter.get('/download/:backupId', requireAdminAuth, (req: Request, res: Response) => {
+  const backupId = String(req.params.backupId);
+  const filePath = getBackupFilePath(backupId);
+  if (!filePath) {
+    return res.status(404).json({ success: false, error: 'Không tìm thấy file sao lưu trên đĩa' });
+  }
+  res.download(filePath, path.basename(filePath));
+});
+
+/**
+ * @route   POST /api/v1/backup/restore/:backupId
+ * @desc    Khôi phục cơ sở dữ liệu Firestore từ bản sao lưu (Yêu cầu Admin Auth)
+ */
+backupRouter.post('/restore/:backupId', requireAdminAuth, async (req: Request, res: Response) => {
+  try {
+    const backupId = String(req.params.backupId);
+    const result = await restoreDatabaseFromBackup(backupId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 });
 
 /**
@@ -98,7 +126,7 @@ backupRouter.post('/delete-request', requireAdminAuth, async (req: Request, res:
  * @route   GET /api/v1/backup/device-states
  * @desc    Lấy toàn bộ trạng thái thiết bị được lưu trữ trong Mini Server Backup
  */
-backupRouter.get('/device-states', async (req: Request, res: Response) => {
+backupRouter.get('/device-states', requireAdminAuth, async (req: Request, res: Response) => {
   try {
     const { getAllDeviceBackupStates } = await import('../../core/deviceStateBackup');
     const allStates = getAllDeviceBackupStates();
@@ -117,9 +145,12 @@ backupRouter.get('/device-states', async (req: Request, res: Response) => {
  * @route   GET /api/v1/backup/device-states/:userId
  * @desc    Lấy trạng thái thiết bị của một gia chủ cụ thể
  */
-backupRouter.get('/device-states/:userId', async (req: Request, res: Response) => {
+backupRouter.get('/device-states/:userId', requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
+    if (req.user?.role !== 'admin' && req.user?.uid !== userId) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền truy cập trạng thái của tài khoản khác.' });
+    }
     const { getUserDeviceBackup } = await import('../../core/deviceStateBackup');
     const userBackup = getUserDeviceBackup(String(userId));
     if (!userBackup) {
@@ -140,11 +171,14 @@ backupRouter.get('/device-states/:userId', async (req: Request, res: Response) =
  * @route   POST /api/v1/backup/device-states/sync
  * @desc    Kích hoạt đồng bộ trạng thái từ Server Backup xuống ESP32
  */
-backupRouter.post('/device-states/sync', async (req: Request, res: Response) => {
+backupRouter.post('/device-states/sync', requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId, macAddress } = req.body;
     if (!userId) {
       return res.status(400).json({ success: false, error: 'Thiếu tham số userId' });
+    }
+    if (req.user?.role !== 'admin' && req.user?.uid !== userId) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền kích hoạt đồng bộ của tài khoản khác.' });
     }
     const { syncDeviceStatesToEsp } = await import('../../core/deviceStateBackup');
     const result = await syncDeviceStatesToEsp(String(userId), String(macAddress || 'unknown'));
@@ -164,7 +198,7 @@ backupRouter.post('/device-states/sync', async (req: Request, res: Response) => 
  * @route   POST /api/v1/backup/device-states/save
  * @desc    Lưu thủ công trạng thái thiết bị vào Server Backup
  */
-backupRouter.post('/device-states/save', async (req: Request, res: Response) => {
+backupRouter.post('/device-states/save', requireAuth, async (req: Request, res: Response) => {
   try {
     const { baseTopic, state, source } = req.body;
     if (!baseTopic || (state !== '0' && state !== '1')) {

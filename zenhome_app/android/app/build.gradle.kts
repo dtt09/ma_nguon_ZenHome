@@ -62,6 +62,12 @@ android {
             } else {
                 signingConfig = signingConfigs.getByName("debug")
             }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
@@ -81,5 +87,9 @@ flutter {
 }
 
 tasks.matching { it.name.contains("NativeSymbolTables") }.configureEach {
+    enabled = false
+}
+
+tasks.matching { it.name.startsWith("cleanMerge") }.configureEach {
     enabled = false
 }

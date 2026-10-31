@@ -34,10 +34,24 @@ export function formatFirestoreTimestamp(val: any): string {
   if (val instanceof Timestamp) {
     return val.toDate().toLocaleString('vi-VN');
   }
-  if (typeof val === 'object' && val.seconds !== undefined) {
-    return new Date(val.seconds * 1000).toLocaleString('vi-VN');
+  if (typeof val?.toDate === 'function') {
+    return val.toDate().toLocaleString('vi-VN');
   }
-  if (typeof val === 'string' || typeof val === 'number') {
+  if (typeof val === 'object') {
+    const sec = val._seconds ?? val.seconds;
+    if (typeof sec === 'number') {
+      return new Date(sec * 1000).toLocaleString('vi-VN');
+    }
+    return 'Chưa cập nhật';
+  }
+  if (typeof val === 'string') {
+    if (val.includes('T') || val.includes('-')) {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d.toLocaleString('vi-VN');
+    }
+    return val;
+  }
+  if (typeof val === 'number') {
     return new Date(val).toLocaleString('vi-VN');
   }
   return String(val);

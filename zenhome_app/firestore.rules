@@ -7,6 +7,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Kiểm tra người dùng có phải là chủ sở hữu của tài khoản userId (hỗ trợ cả UID và Username)
+    function isParentOwner(userId) {
+      return isSignedIn() && (
+        request.auth.uid == userId ||
+        (exists(/databases/$(database)/documents/users/$(userId)) &&
+         get(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid)
+      );
+    }
+
     // Kiểm tra có phải chủ sở hữu tài khoản hoặc UID khớp
     function isUserOwner(userId) {
       return isSignedIn() && (
@@ -16,25 +25,81 @@ service cloud.firestore {
       );
     }
 
-    // Cho phép đọc thông tin cơ bản để tra cứu lúc đăng nhập (email / phone / username)
-    // Nhưng CHỈ cho phép ghi khi chính chủ sở hữu tài khoản đó
-    match /users/{userId} {
-      allow read: if true;
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
-      allow update: if isSignedIn() && (
-        request.auth.uid == resource.data.uid ||
-        (resource.data.sharedWith is list && resource.data.sharedWith.hasAny([request.auth.token.email, request.auth.uid])) ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingInvitations']))
+    // Kiểm tra xem thành viên có đang bị vô hiệu hóa / khóa quyền không (SEC-FIX: Lọc mảng disabledMembers)
+    function isMemberDisabled(userData) {
+      return userData != null && userData.disabledMembers is list && (
+        userData.disabledMembers.hasAny([request.auth.token.email, request.auth.uid]) ||
+        (request.auth.token.email != null && userData.disabledMembers.hasAny([request.auth.token.email.split('@')[0]]))
       );
-      allow delete: if isUserOwner(userId);
+    }
 
-      // Subcollections của từng người dùng (history, sessions, alerts, timers, scenes, schedules)
+    // Kiểm tra xem người dùng hiện tại có nằm trong danh sách thành viên đã chấp thuận chia sẻ không
+    function isSharedMember(userData) {
+      return isSignedIn() && userData != null &&
+        !isMemberDisabled(userData) &&
+        (userData.sharedWith is list && (
+          userData.sharedWith.hasAny([request.auth.token.email, request.auth.uid]) ||
+          (request.auth.token.email != null && userData.sharedWith.hasAny([request.auth.token.email.split('@')[0]]))
+        ));
+    }
+
+    // Hồ sơ người dùng
+    match /users/{userId} {
+      // 1. Cho phép đọc thông tin chi tiết (get) từng tài khoản khi biết trước document ID:
+      // Phục vụ kiểm tra username trùng lặp khi đăng ký, tra cứu email để đăng nhập,
+      // và cho phép chính chủ / thành viên chia sẻ truy cập hồ sơ.
+      allow get: if true;
+
+      // 2. Chặn việc query / list toàn bộ collection 'users':
+      // CHỈ cho phép khi người dùng đã đăng nhập và là chính chủ hoặc thành viên chia sẻ của document đó.
+      allow list: if isSignedIn() && (
+        request.auth.uid == resource.data.uid ||
+        isSharedMember(resource.data)
+      );
+
+      // 3. Cho phép tạo tài khoản mới khi đã xác thực Firebase Auth (Google, SĐT, Email) và UID khớp
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
+
+      // 4. Cho phép cập nhật thông tin:
+      allow update: if isSignedIn() && (
+        // Chính chủ cập nhật
+        request.auth.uid == resource.data.uid ||
+        request.auth.uid == userId ||
+        // Người khác gửi lời mời tham gia nhà: chỉ được phép thêm vào pendingInvitations
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingInvitations']) ||
+        // Người nhận lời mời: chấp nhận lời mời (thêm vào sharedWith, xóa sentInvitations) hoặc từ chối (xóa sentInvitations)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sentInvitations']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'sentInvitations']) ||
+        // Thành viên phụ (Shared Member) cập nhật các cài đặt không can thiệp vào bảo mật nhạy cảm
+        (isSharedMember(resource.data) &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+           'adminPass', 'macAddress', 'devices', 'sharedWith', 'memberRoles',
+           'disabledMembers', 'memberDevicePermissions', 'uid', 'email', 'phone'
+         ]))
+      );
+
+      // 5. Xóa tài khoản: Chỉ chính chủ
+      allow delete: if isSignedIn() && (
+        request.auth.uid == userId ||
+        (resource != null && resource.data.uid == request.auth.uid)
+      );
+
+      // Subcollections (history, sessions, alerts, timers, scenes, schedules):
       match /{subcollection}/{docId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() && (
+          isParentOwner(userId) ||
+          (exists(/databases/$(database)/documents/users/$(userId)) &&
+           isSharedMember(get(/databases/$(database)/documents/users/$(userId)).data))
+        );
         allow write: if isSignedIn() && (
-          get(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid ||
-          request.auth.uid == userId ||
-          subcollection == 'alerts'
+          isParentOwner(userId) ||
+          // Thành viên phụ hợp lệ được ghi nhận vào history, alerts, timers, schedules, scenes
+          (exists(/databases/$(database)/documents/users/$(userId)) &&
+           isSharedMember(get(/databases/$(database)/documents/users/$(userId)).data) &&
+           subcollection in ['history', 'alerts', 'timers', 'schedules', 'scenes']) ||
+          // Cho phép gửi thông báo mời vào subcollection alerts của người nhận
+          (subcollection == 'alerts' && request.resource.data.type == 'new_invite')
         );
       }
     }
@@ -43,6 +108,19 @@ service cloud.firestore {
     match /system_config/{configId} {
       allow read: if true;
       allow write: if false; // Chỉ Firebase Admin SDK trên Server mới được sửa
+    }
+
+    // Báo cáo sự cố và Nhật ký lỗi Crashlytics: Cho phép ghi nhận từ ứng dụng di động
+    match /crash_logs/{logId} {
+      allow create: if true;
+      allow read: if isSignedIn();
+      allow update, delete: if false; // Chỉ Server Admin mới được xóa/sửa
+    }
+
+    match /bug_reports/{reportId} {
+      allow create: if true;
+      allow read: if isSignedIn();
+      allow update, delete: if false; // Chỉ Server Admin mới được xóa/sửa
     }
 
     // Yêu cầu xóa tài khoản: User chỉ được tạo request cho chính mình, không được sửa/xóa/đọc trộm của người khác

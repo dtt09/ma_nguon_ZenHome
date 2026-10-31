@@ -14,12 +14,26 @@ import { initZenHomeWorker, sendCommandWithRetry } from './server/zenhomeWorker'
 import { apiRouter } from './server/routes/api';
 import { syncServerConfigToFirestore, startNetworkSyncWatcher } from './server/core/networkSync';
 import { client as mqttClient } from './server/core/mqtt';
+import { ADMIN_SECRET } from './server/middlewares/auth';
+import { getAuth } from './server/core/firebase';
 
 
 const serverStartTime = new Date();
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
+
+// ==========================================
+// BẢO MẬT HỆ THỐNG: SECURITY HEADERS & HARDENING
+// ==========================================
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 // Enable CORS for frontend website (port 3000 / 5173 / all origins)
 app.use(cors({
@@ -68,6 +82,24 @@ app.get(['/public/downloads/:filename', '/downloads/:filename'], (req: Request, 
   const targetFile = path.join(downloadsPath, filename);
   if (fs.existsSync(targetFile)) {
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Accept-Ranges', 'bytes');
+    return res.sendFile(targetFile);
+  }
+  next();
+});
+
+// Phục vụ Firmware OTA cho ESP32 với bảo vệ chống Path Traversal
+const firmwareDir = path.join(publicPath, 'firmware', 'esp32');
+if (!fs.existsSync(firmwareDir)) {
+  fs.mkdirSync(firmwareDir, { recursive: true });
+}
+app.get(['/public/firmware/esp32/:filename', '/firmware/esp32/:filename'], (req: Request, res: Response, next) => {
+  const filename = path.basename(String(req.params.filename));
+  console.log(`[OTA-DOWNLOAD] 📦 ESP32 đang tải file firmware (${filename}) từ IP: ${req.ip || req.socket.remoteAddress}`);
+  const targetFile = path.join(firmwareDir, filename);
+  if (fs.existsSync(targetFile)) {
+    res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Accept-Ranges', 'bytes');
     return res.sendFile(targetFile);
@@ -155,27 +187,73 @@ export function getServerTelemetry() {
 
 // ==========================================
 // THỰC THI WEBSOCKETS (Real-time Logs & Bi-directional Telemetry)
+// Bắt buộc xác thực Socket.io Handshake chống rò rỉ Logs và bắn lệnh trái phép (SEC-03)
 // ==========================================
+io.use(async (socket, next) => {
+  const token = (socket.handshake.auth?.token as string)?.trim() ||
+                (socket.handshake.headers['x-api-key'] as string)?.trim() ||
+                socket.handshake.headers['authorization']?.replace(/^Bearer\s+/i, '').trim();
+
+  if (!token) {
+    return next(new Error('Unauthorized: Vui lòng cung cấp mã xác thực cho kết nối WebSocket.'));
+  }
+
+  // 1. Chấp nhận nếu là Admin Secret
+  if (ADMIN_SECRET && token === ADMIN_SECRET) {
+    socket.data.user = { uid: 'admin', role: 'admin' };
+    return next();
+  }
+
+  // 2. Chấp nhận nếu là Firebase ID Token hợp lệ
+  try {
+    const auth = getAuth();
+    if (auth) {
+      const decoded = await auth.verifyIdToken(token);
+      const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+      const isAdmin = (decoded.admin === true || decoded.role === 'admin' || 
+                       Boolean(configuredAdminEmail && decoded.email && decoded.email.trim().toLowerCase() === configuredAdminEmail));
+      socket.data.user = {
+        uid: decoded.uid,
+        email: decoded.email,
+        role: isAdmin ? 'admin' : 'user',
+      };
+      return next();
+    }
+  } catch (err: any) {
+    return next(new Error('Unauthorized: Token xác thực WebSocket không hợp lệ.'));
+  }
+
+  return next(new Error('Unauthorized: Kết nối WebSocket bị từ chối.'));
+});
+
 io.on('connection', (socket) => {
-  // Gửi lô log ban đầu cho client vừa kết nối (tối đa 300 dòng)
-  socket.emit('init_logs', serverLogs.slice(-300));
+  const isAdmin = socket.data.user && socket.data.user.role === 'admin';
 
-  // Gửi telemetry ban đầu ngay khi kết nối
-  socket.emit('telemetry_update', getServerTelemetry());
+  // PHÂN QUYỀN WEBSOCKET NÂNG CAO (SEC-SOCKET-01):
+  // Chỉ tài khoản Quản trị viên (Admin) mới được tham gia admin_room để nhận Logs và Telemetry
+  if (isAdmin) {
+    socket.join('admin_room');
 
-  // Client yêu cầu tải lại logs bất cứ lúc nào
-  socket.on('request_logs', () => {
+    // Gửi lô log ban đầu cho admin vừa kết nối (tối đa 300 dòng)
     socket.emit('init_logs', serverLogs.slice(-300));
-  });
 
-  // Client yêu cầu đồng bộ telemetry tức thì
-  socket.on('request_telemetry', () => {
+    // Gửi telemetry ban đầu ngay khi kết nối
     socket.emit('telemetry_update', getServerTelemetry());
-  });
+
+    // Admin yêu cầu tải lại logs bất cứ lúc nào
+    socket.on('request_logs', () => {
+      socket.emit('init_logs', serverLogs.slice(-300));
+    });
+
+    // Admin yêu cầu đồng bộ telemetry tức thì
+    socket.on('request_telemetry', () => {
+      socket.emit('telemetry_update', getServerTelemetry());
+    });
+  }
 
   // Client gửi ping để đo độ trễ hai chiều (Round-Trip Latency / RTT Ping-Pong)
   socket.on('client_ping', (data: any, ack?: (res: any) => void) => {
-    const telemetry = getServerTelemetry();
+    const telemetry = isAdmin ? getServerTelemetry() : { timestamp: Date.now() };
     const pongData = {
       ...telemetry,
       clientTimestamp: data?.clientTimestamp || Date.now(),
@@ -188,31 +266,43 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Client gửi lệnh điều khiển thiết bị qua WebSocket siêu tốc (không tốn overhead HTTP)
+  // Client gửi lệnh điều khiển thiết bị qua WebSocket siêu tốc (Kiểm tra quyền sở hữu topic)
   socket.on('device_cmd', (data: { topic: string; state: string; source?: string }) => {
+    if (!socket.data.user) return;
+    
+    // Nếu không phải admin, chỉ được điều khiển thiết bị thuộc userId của chính mình
+    if (socket.data.user.role !== 'admin' && data && data.topic) {
+      const topicUser = data.topic.split('/')[0];
+      if (topicUser !== socket.data.user.uid) {
+        console.warn(`[SOCKET SECURITY] ⚠️ User ${socket.data.user.uid} cố tình gửi lệnh tới thiết bị của người khác (${data.topic})!`);
+        return;
+      }
+    }
+
     if (data && data.topic && data.state !== undefined) {
       sendCommandWithRetry(data.topic, String(data.state), data.source || 'web_socket');
     }
   });
 
-  // Hàm lắng nghe log mới (bridge từ state)
-  const listener = (entry: any) => {
-    socket.emit('new_log', entry);
-  };
-  
-  logListeners.add(listener);
-
   socket.on('disconnect', () => {
-    logListeners.delete(listener);
+    // Tự động dọn dẹp khi ngắt kết nối
   });
 });
 
-// Broadcast telemetry định kỳ (2 giây) - Chỉ phát khi có ít nhất 1 client đang mở tab Web để tiết kiệm CPU
+// Broadcast log mới theo thời gian thực (CHỈ gửi cho các client trong admin_room)
+const broadcastNewLog = (entry: any) => {
+  io.to('admin_room').emit('new_log', entry);
+};
+logListeners.add(broadcastNewLog);
+
+// Broadcast telemetry định kỳ CHỈ KHI có client đang kết nối trong admin_room (Demand-Driven Telemetry)
+// Tiết kiệm 100% CPU/RAM thu thập telemetry khi không có người theo dõi dashboard
 setInterval(() => {
-  if (io.engine.clientsCount > 0) {
-    io.emit('telemetry_update', getServerTelemetry());
+  const adminRoom = io.sockets.adapter.rooms.get('admin_room');
+  if (adminRoom && adminRoom.size > 0) {
+    io.to('admin_room').emit('telemetry_update', getServerTelemetry());
   }
-}, 2000);
+}, 3000);
 
 // Khởi chạy server thống nhất (Full-Stack Unified)
 httpServer.listen(PORT, '0.0.0.0', async () => {

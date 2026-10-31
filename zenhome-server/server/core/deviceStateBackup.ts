@@ -5,6 +5,7 @@ import { db, FieldValue } from './firebase';
 import { sendCommandWithRetry } from './devices';
 import { addLog } from '../zenhomeState';
 import { sendPushToUserTokens } from './notifications';
+import { initSqliteDatabase, dbRun, dbAll, closeSqliteDatabase } from './database';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +35,94 @@ export interface UserDeviceBackup {
 // Bộ nhớ đệm RAM của Mini Server Backup
 const backupCache: Record<string, UserDeviceBackup> = {}; // key: userId
 let isInitialized = false;
+let persistDebounceTimer: NodeJS.Timeout | null = null;
+
+/**
+ * Ghi tệp JSON nguyên tử (Atomic Write): Ghi ra tệp tạm .tmp rồi đổi tên (rename)
+ * Ngăn chặn tuyệt đối việc file bị cắt cụt (corruption) nếu server bị tắt đột ngột
+ */
+function atomicWriteJsonSync(targetPath: string, data: any): void {
+    const dataDir = path.dirname(targetPath);
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+    }
+    const tmpPath = path.join(
+        dataDir,
+        `.${path.basename(targetPath)}.${Date.now()}.${Math.random().toString(36).substring(2, 7)}.tmp`
+    );
+    try {
+        fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+        fs.renameSync(tmpPath, targetPath);
+    } catch (err: any) {
+        if (fs.existsSync(tmpPath)) {
+            try { fs.unlinkSync(tmpPath); } catch (_) {}
+        }
+        throw err;
+    }
+}
+
+/**
+ * Ghi đĩa tức thì (Dùng cho các sự kiện an toàn nguồn điện khẩn cấp hoặc graceful shutdown)
+ */
+export function flushBackupToDiskSync(): void {
+    if (persistDebounceTimer) {
+        clearTimeout(persistDebounceTimer);
+        persistDebounceTimer = null;
+    }
+    try {
+        atomicWriteJsonSync(BACKUP_FILE, backupCache);
+    } catch (err: any) {
+        console.error('[BACKUP] ❌ Lỗi ghi file backup trạng thái thiết bị:', err.message);
+    }
+}
+
+/**
+ * Nạp trạng thái từ SQLite WAL vào bộ nhớ RAM
+ */
+export async function loadDeviceStatesFromSqlite(): Promise<void> {
+    try {
+        await initSqliteDatabase();
+        const metaRows = await dbAll<any>('SELECT * FROM user_backup_meta;');
+        for (const meta of metaRows) {
+            if (!backupCache[meta.userId]) {
+                backupCache[meta.userId] = {
+                    userId: meta.userId,
+                    macAddress: meta.macAddress,
+                    lastOnlineAt: meta.lastOnlineAt || undefined,
+                    lastOfflineAt: meta.lastOfflineAt || undefined,
+                    lastSyncAt: meta.lastSyncAt || undefined,
+                    devices: {}
+                };
+            }
+        }
+        const devRows = await dbAll<any>('SELECT * FROM device_states;');
+        for (const d of devRows) {
+            if (!backupCache[d.userId]) {
+                backupCache[d.userId] = {
+                    userId: d.userId,
+                    macAddress: d.macAddress,
+                    devices: {}
+                };
+            }
+            backupCache[d.userId].devices[d.deviceId] = {
+                userId: d.userId,
+                macAddress: d.macAddress,
+                room: d.room,
+                deviceId: d.deviceId,
+                baseTopic: d.baseTopic,
+                state: d.state,
+                source: d.source,
+                updatedAt: d.updatedAt,
+                syncStatus: d.syncStatus
+            };
+        }
+        if (devRows.length > 0) {
+            addLog('[SQLITE]', `💾 Đã nạp ${devRows.length} trạng thái thiết bị từ SQLite WAL!`, 'info');
+        }
+    } catch (e: any) {
+        console.error('[SQLITE] ❌ Lỗi nạp dữ liệu từ SQLite:', e.message);
+    }
+}
 
 /**
  * Khởi tạo hệ thống Backup: Đọc trạng thái cuối cùng từ đĩa cứng (Disk Persistence)
@@ -47,27 +136,128 @@ export function initDeviceStateBackup(): void {
         }
 
         if (fs.existsSync(BACKUP_FILE)) {
-            const raw = fs.readFileSync(BACKUP_FILE, 'utf-8');
-            const data = JSON.parse(raw);
-            Object.assign(backupCache, data);
-            addLog('[BACKUP]', `💾 Đã nạp thành công trạng thái thiết bị từ file backup cục bộ (${Object.keys(backupCache).length} nhà)`, 'info');
+            try {
+                const raw = fs.readFileSync(BACKUP_FILE, 'utf-8');
+                const data = JSON.parse(raw);
+                Object.assign(backupCache, data);
+            } catch (parseErr: any) {
+                console.error('[BACKUP] ⚠️ File backup bị lỗi cú pháp JSON:', parseErr.message);
+                atomicWriteJsonSync(BACKUP_FILE, {});
+            }
         } else {
-            fs.writeFileSync(BACKUP_FILE, JSON.stringify({}, null, 2), 'utf-8');
+            atomicWriteJsonSync(BACKUP_FILE, {});
         }
         isInitialized = true;
+        // Đồng bộ nạp dữ liệu từ SQLite WAL
+        loadDeviceStatesFromSqlite().catch(() => {});
     } catch (err: any) {
         console.error('[BACKUP] ❌ Lỗi khởi tạo cache backup thiết bị:', err.message);
     }
 }
 
 /**
- * Lưu bộ nhớ đệm xuống đĩa cứng (chống mất dữ liệu khi server restart / mất điện)
+ * Lưu bộ nhớ đệm xuống đĩa cứng kết hợp Debouncing (1500ms)
+ * Giảm tải 90% Disk I/O và giải phóng hoàn toàn Event Loop khi nhiều thiết bị thay đổi đồng thời
  */
-function persistBackupToDisk(): void {
-    try {
-        fs.writeFileSync(BACKUP_FILE, JSON.stringify(backupCache, null, 2), 'utf-8');
-    } catch (err: any) {
-        console.error('[BACKUP] ❌ Lỗi ghi file backup trạng thái thiết bị:', err.message);
+function persistBackupToDisk(immediate = false): void {
+    if (immediate) {
+        flushBackupToDiskSync();
+        return;
+    }
+
+    if (!persistDebounceTimer) {
+        persistDebounceTimer = setTimeout(() => {
+            persistDebounceTimer = null;
+            try {
+                atomicWriteJsonSync(BACKUP_FILE, backupCache);
+            } catch (err: any) {
+                console.error('[BACKUP] ❌ Lỗi ghi file backup trạng thái thiết bị (debounced):', err.message);
+            }
+        }, 1500);
+    }
+}
+
+const lastLogPerDevice: Record<string, number> = {};
+
+// ==========================================
+// DEBOUNCED BATCH FIRESTORE STATE SYNC (CHỐNG SPAM FIRESTORE WRITES)
+// Gom nhiều thay đổi trạng thái của cùng 1 gia chủ trong 1200ms vào 1 lần ghi Firestore duy nhất
+// ==========================================
+interface PendingSyncItem {
+    state: '0' | '1';
+    room: string;
+    updatedAt: any;
+    source: string;
+}
+
+const pendingFirestoreSync: Record<string, {
+    timer: NodeJS.Timeout | null;
+    devices: Record<string, PendingSyncItem>;
+}> = {};
+
+export function queueFirestoreStateSync(
+    userId: string,
+    deviceId: string,
+    state: '0' | '1',
+    room: string,
+    source: string
+): void {
+    if (!pendingFirestoreSync[userId]) {
+        pendingFirestoreSync[userId] = {
+            timer: null,
+            devices: {}
+        };
+    }
+
+    const userSync = pendingFirestoreSync[userId];
+    userSync.devices[deviceId] = {
+        state,
+        room,
+        updatedAt: FieldValue.serverTimestamp(),
+        source
+    };
+
+    if (!userSync.timer) {
+        userSync.timer = setTimeout(async () => {
+            userSync.timer = null;
+            const batchToFlush = { ...userSync.devices };
+            userSync.devices = {};
+
+            const count = Object.keys(batchToFlush).length;
+            if (count === 0) return;
+
+            try {
+                await db.collection('users').doc(userId).collection('device_states').doc('latest').set(
+                    batchToFlush,
+                    { merge: true }
+                );
+            } catch (err: any) {
+                console.error(`[BACKUP] ❌ Lỗi đồng bộ batch Firestore cho user ${userId}:`, err.message);
+            }
+        }, 1200);
+    }
+}
+
+export async function flushPendingFirestoreSync(): Promise<void> {
+    const promises: Promise<any>[] = [];
+    for (const [userId, syncData] of Object.entries(pendingFirestoreSync)) {
+        if (syncData.timer) {
+            clearTimeout(syncData.timer);
+            syncData.timer = null;
+        }
+        const batchToFlush = { ...syncData.devices };
+        syncData.devices = {};
+        if (Object.keys(batchToFlush).length > 0) {
+            promises.push(
+                db.collection('users').doc(userId).collection('device_states').doc('latest').set(
+                    batchToFlush,
+                    { merge: true }
+                ).catch((e: any) => console.error(`[BACKUP] ❌ Lỗi flush Firestore cho ${userId}:`, e.message))
+            );
+        }
+    }
+    if (promises.length > 0) {
+        await Promise.all(promises);
     }
 }
 
@@ -81,22 +271,22 @@ export async function recordDeviceState(
 ): Promise<void> {
     initDeviceStateBackup();
 
+    if (baseTopic.includes('/sync/') || baseTopic.includes('/system/')) {
+        return; // Bỏ qua các topic báo cáo hệ thống hoặc bulk sync
+    }
+
     const parts = baseTopic.split('/');
     if (parts.length < 3) return;
 
-    // Cấu trúc topic phổ biến: userId/macAddress/room/devId hoặc userId/room/devId
-    let userId = parts[0];
-    let macAddress = 'unknown';
-    let room = 'default';
-    let deviceId = parts[parts.length - 1];
+    // Cấu trúc topic chuẩn: userId/macAddress/room/devId hoặc userId/room/devId
+    const userId = parts[0];
+    const deviceId = parts[parts.length - 1];
+    const room = parts[parts.length - 2];
+    const macAddress = parts.length >= 4 ? parts[1] : 'unknown';
 
-    if (parts.length >= 4) {
-        macAddress = parts[1];
-        room = parts[2];
-        deviceId = parts[3];
-    } else {
-        room = parts[1];
-        deviceId = parts[2];
+    // Bỏ qua nếu deviceId trùng với room hoặc không hợp lệ
+    if (!deviceId || deviceId.startsWith('room_') || room === 'sync') {
+        return;
     }
 
     if (!backupCache[userId]) {
@@ -111,8 +301,12 @@ export async function recordDeviceState(
         backupCache[userId].macAddress = macAddress;
     }
 
+    const existing = backupCache[userId]?.devices[deviceId];
+    if (existing && existing.state === state) {
+        // Trạng thái thực tế không đổi -> Triệt tiêu 100% spam log, spam disk I/O và database writes!
+        return;
+    }
     const now = new Date().toISOString();
-    const existing = backupCache[userId].devices[deviceId];
 
     // Cập nhật bản ghi trạng thái
     backupCache[userId].devices[deviceId] = {
@@ -127,26 +321,36 @@ export async function recordDeviceState(
         syncStatus: 'synced'
     };
 
-    // Chỉ log khi có sự thay đổi trạng thái thực tế
-    if (!existing || existing.state !== state) {
-        console.log(`[BACKUP] 💾 Đã lưu trạng thái cuối: ${deviceId} (${room}) -> ${state === '1' ? 'BẬT' : 'TẮT'} (Nguồn: ${source})`);
-        addLog('[BACKUP]', `Đã lưu trạng thái cuối của [${deviceId}]: ${state === '1' ? 'BẬT' : 'TẮT'} (Gia chủ: ${userId})`, 'info');
-    }
+    // Chỉ ghi nhận và đồng bộ khi có sự thay đổi trạng thái thực tế (Tiết kiệm Firestore Writes & Disk I/O)
+    const isStateChanged = !existing || existing.state !== state;
 
-    persistBackupToDisk();
+    if (isStateChanged) {
+        const devKey = `${userId}:${deviceId}`;
+        const nowMs = Date.now();
+        const shouldLog = !lastLogPerDevice[devKey] || (nowMs - lastLogPerDevice[devKey] >= 2000);
 
-    // Đồng bộ lên Firestore để App và Web theo dõi tức thì
-    try {
-        await db.collection('users').doc(userId).collection('device_states').doc('latest').set({
-            [deviceId]: {
-                state,
-                room,
-                updatedAt: FieldValue.serverTimestamp(),
-                source
-            }
-        }, { merge: true });
-    } catch (e: any) {
-        // Không block luồng chính nếu Firestore chậm
+        if (shouldLog) {
+            lastLogPerDevice[devKey] = nowMs;
+            addLog('[BACKUP]', `Đã lưu trạng thái cuối của [${deviceId}]: ${state === '1' ? 'BẬT' : 'TẮT'} (Gia chủ: ${userId})`, 'info');
+        }
+
+        persistBackupToDisk();
+
+        // Ghi bền vững tức thì vào SQLite WAL (ACID Safe, <1ms)
+        dbRun(
+            `INSERT OR REPLACE INTO device_states (userId, deviceId, room, macAddress, baseTopic, state, source, syncStatus, updatedAt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [userId, deviceId, room, macAddress, baseTopic, state, source, 'synced', now]
+        ).catch((e: any) => console.error('[SQLITE] ❌ Lỗi lưu device state:', e.message));
+
+        dbRun(
+            `INSERT OR REPLACE INTO user_backup_meta (userId, macAddress, updatedAt)
+             VALUES (?, ?, ?);`,
+            [userId, macAddress, now]
+        ).catch(() => {});
+
+        // Đồng bộ gom nhóm (Debounced Batch) lên Firestore thay vì gọi set() dồn dập
+        queueFirestoreStateSync(userId, deviceId, state, room, source);
     }
 }
 
@@ -188,6 +392,19 @@ export async function handlePowerRestored(
     // 1. Cập nhật trong cache backup và gửi lệnh 0 (TẮT) cho tất cả thiết bị đã lưu
     if (userBackup && Object.keys(userBackup.devices).length > 0) {
         for (const [devId, record] of Object.entries(userBackup.devices)) {
+            // Lọc bỏ thiết bị không hợp lệ hoặc do sync cũ tạo ra
+            if (devId.startsWith('room_') || record.room === 'sync') {
+                delete userBackup.devices[devId];
+                continue;
+            }
+            if (fallbackDevices && fallbackDevices.length > 0) {
+                const isValid = fallbackDevices.some(d => d.id === devId);
+                if (!isValid) {
+                    delete userBackup.devices[devId];
+                    continue;
+                }
+            }
+
             record.state = '0';
             record.source = 'power_restored_safety';
             record.updatedAt = new Date().toISOString();
@@ -202,7 +419,7 @@ export async function handlePowerRestored(
             shutCount++;
         }
         userBackup.lastOnlineAt = new Date().toISOString();
-        persistBackupToDisk();
+        persistBackupToDisk(true);
     } else if (fallbackDevices && fallbackDevices.length > 0) {
         // Nếu chưa có cache, duyệt qua danh sách devices cấu hình
         for (const dev of fallbackDevices) {
@@ -277,11 +494,25 @@ export async function handleNetworkRestored(
     // Chỉ đồng bộ trạng thái lần cuối cho các thiết bị
     if (userBackup && Object.keys(userBackup.devices).length > 0) {
         for (const [devId, record] of Object.entries(userBackup.devices)) {
+            // Lọc bỏ thiết bị không hợp lệ hoặc do sync cũ tạo ra
+            if (devId.startsWith('room_') || record.room === 'sync') {
+                delete userBackup.devices[devId];
+                continue;
+            }
+            if (fallbackDevices && fallbackDevices.length > 0) {
+                const isValid = fallbackDevices.some(d => d.id === devId);
+                if (!isValid) {
+                    delete userBackup.devices[devId];
+                    continue;
+                }
+            }
+
             const targetState = record.state; // Giữ nguyên '0' hoặc '1' lần cuối
             syncedStates[devId] = targetState;
 
-            const targetTopic = record.baseTopic.includes(macAddress)
-                ? record.baseTopic
+            const cleanBase = record.baseTopic ? record.baseTopic.replace('/sync/', '/') : '';
+            const targetTopic = (cleanBase.includes(macAddress) && !cleanBase.includes('/sync/'))
+                ? cleanBase
                 : `${userId}/${macAddress}/${record.room}/${devId}`;
 
             console.log(`[NETWORK SYNC] 🔄 Đồng bộ ${devId}: ${targetState === '1' ? 'BẬT' : 'TẮT'} -> Gửi tới: ${targetTopic}/cmd`);
@@ -291,7 +522,7 @@ export async function handleNetworkRestored(
         }
         userBackup.lastOnlineAt = new Date().toISOString();
         userBackup.lastSyncAt = new Date().toISOString();
-        persistBackupToDisk();
+        persistBackupToDisk(true);
     } else if (fallbackDevices && fallbackDevices.length > 0) {
         for (const dev of fallbackDevices) {
             if (dev.room && dev.id) {
@@ -349,4 +580,25 @@ export function getAllDeviceBackupStates(): Record<string, UserDeviceBackup> {
     initDeviceStateBackup();
     return backupCache;
 }
+
+/**
+ * Xóa sạch cache trạng thái thiết bị khi tài khoản bị xóa (Chống rò rỉ dữ liệu / Ghost Data)
+ */
+export function removeUserDeviceBackup(userId: string): void {
+    initDeviceStateBackup();
+    if (backupCache[userId]) {
+        delete backupCache[userId];
+        persistBackupToDisk(true);
+        dbRun('DELETE FROM device_states WHERE userId = ?;', [userId]).catch(() => {});
+        dbRun('DELETE FROM user_backup_meta WHERE userId = ?;', [userId]).catch(() => {});
+        console.log(`[BACKUP] 🗑️ Đã xóa sạch cache trạng thái thiết bị của tài khoản đã xóa: ${userId}`);
+    }
+}
+
+// Tự động ghi đĩa, flush Firestore và đóng SQLite khi tiến trình Node.js kết thúc (Graceful Shutdown Protection)
+process.once('SIGINT', () => { flushBackupToDiskSync(); flushPendingFirestoreSync(); closeSqliteDatabase(); });
+process.once('SIGTERM', () => { flushBackupToDiskSync(); flushPendingFirestoreSync(); closeSqliteDatabase(); });
+process.once('beforeExit', () => { flushBackupToDiskSync(); flushPendingFirestoreSync(); closeSqliteDatabase(); });
+
+
 

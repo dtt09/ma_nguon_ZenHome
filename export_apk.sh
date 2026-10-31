@@ -50,7 +50,7 @@ fi
 cd "$APP_DIR"
 RAW_VERSION=$(grep '^version:' pubspec.yaml | head -n1 | awk '{print $2}' | tr -d '\r')
 if [ -z "$RAW_VERSION" ]; then
-    RAW_VERSION="1.3.0+10"
+    RAW_VERSION="1.8.0+185"
 fi
 
 SAFE_VERSION=$(echo "$RAW_VERSION" | tr '+' '_')

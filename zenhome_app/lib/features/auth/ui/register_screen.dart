@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -244,8 +244,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     LoadingOverlay.show(context);
     try {
       // 1. Kiểm tra username đã tồn tại chưa
-      final doc = await FirebaseFirestore.instance.collection('users').doc(username).get();
-      if (doc.exists) {
+      bool usernameInUse = false;
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(username).get();
+        if (doc.exists) {
+          usernameInUse = true;
+        }
+      } on FirebaseException catch (e) {
+        if (e.code == 'permission-denied') {
+          usernameInUse = true;
+        } else {
+          rethrow;
+        }
+      }
+
+      if (usernameInUse) {
         await LoadingOverlay.hideError();
         showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_username_in_use') ?? 'Username này đã được sử dụng. Vui lòng chọn tên khác!', isError: true);
         return;
@@ -376,13 +389,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         userDataToSave['email'] = emailToSave;
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(username).set(userDataToSave);
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(username).set(userDataToSave);
+      } on FirebaseException catch (e) {
+        if (e.code == 'permission-denied') {
+          await LoadingOverlay.hideError();
+          showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_username_in_use') ?? 'Username này đã được sử dụng. Vui lòng chọn tên khác!', isError: true);
+          return;
+        }
+        rethrow;
+      }
 
       // 4. Tạo cấu trúc config mẫu
       List<SmartConfig> myHomes = [
         SmartConfig(
           userId: username,
-          macAddress: 'unknown_mac',
+          macAddress: '',
           mqttServer: 'broker.emqx.io',
           devices: [],
           role: 'owner',

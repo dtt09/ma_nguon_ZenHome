@@ -49,3 +49,12 @@ Thumbs.db
 *.iml
 .tmp.driveupload/
 
+
+*.sqlite*
+*.sqlite-shm
+*.sqlite-wal
+zenhome-server/server/data/backups/
+*.bak
+*.bin
+*_backup.docx
+report_text.txt

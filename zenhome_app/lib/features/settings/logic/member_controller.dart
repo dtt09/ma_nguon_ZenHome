@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:zenhome_app/core/models/smart_config.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
+import 'package:zenhome_app/core/services/local_network_service.dart';
 
 class MemberOperationResult {
   final bool success;
@@ -35,8 +36,13 @@ class MemberController extends StateNotifier<bool> {
         final query = await FirebaseFirestore.instance
             .collection('users')
             .where('uid', isEqualTo: user.uid)
-            .limit(1)
             .get();
+        for (var doc in query.docs) {
+          if (doc.data()['isSubHome'] != true) {
+            currentUsername = doc.id;
+            return currentUsername;
+          }
+        }
         if (query.docs.isNotEmpty) {
           currentUsername = query.docs.first.id;
           return currentUsername;
@@ -86,25 +92,31 @@ class MemberController extends StateNotifier<bool> {
 
     state = true;
     try {
-      final targetDoc = await FirebaseFirestore.instance.collection('users').doc(trimmed).get();
-      if (!targetDoc.exists) {
-        state = false;
-        return const MemberOperationResult(
-          success: false,
-          errorMessage: 'err_user_not_found',
-        );
+      // 1. Thêm vào pendingInvitations của đối phương bằng update() trực tiếp.
+      // Theo Firestore Security Rules mới: Cấm người ngoài đọc doc của user khác (chống rò rỉ MQTT/ESP MAC),
+      // nhưng cho phép update nếu trường bị tác động duy nhất là pendingInvitations.
+      // Nếu user không tồn tại, Firestore update() sẽ trả về ngoại lệ 'not-found'.
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(trimmed).update({
+          'pendingInvitations': FieldValue.arrayUnion([currentUsername])
+        });
+      } on FirebaseException catch (e) {
+        if (e.code == 'not-found') {
+          state = false;
+          return const MemberOperationResult(
+            success: false,
+            errorMessage: 'err_user_not_found',
+          );
+        }
+        rethrow;
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(trimmed).set({
-        'pendingInvitations': FieldValue.arrayUnion([currentUsername])
-      }, SetOptions(merge: true));
-
-      // Lưu lại lời mời đã gửi trên tài khoản người mời để có thể theo dõi và thu hồi
+      // 2. Lưu lại lời mời đã gửi trên tài khoản người mời để có thể theo dõi và thu hồi
       await FirebaseFirestore.instance.collection('users').doc(currentUsername).set({
         'sentInvitations': FieldValue.arrayUnion([trimmed])
       }, SetOptions(merge: true));
 
-      // Bắn Alert để Server kích hoạt thông báo Push FCM
+      // 3. Bắn Alert để Server kích hoạt thông báo Push FCM
       final inviterName = FirebaseAuth.instance.currentUser?.displayName ?? currentUsername ?? 'Ai đó';
       await FirebaseFirestore.instance.collection('users').doc(trimmed).collection('alerts').add({
         'type': 'new_invite',
@@ -205,6 +217,12 @@ class MemberController extends StateNotifier<bool> {
           assignedRole = data['memberRoles'][currentUsername];
         }
 
+        bool canEdit = false;
+        if (assignedRole == 'co_owner' ||
+            (data['automationEditors'] != null && (data['automationEditors'] as List).contains(currentUsername))) {
+          canEdit = true;
+        }
+
         List<String>? allowedDevs;
         if (data['memberDevicePermissions'] != null &&
             data['memberDevicePermissions'][currentUsername] != null) {
@@ -213,7 +231,7 @@ class MemberController extends StateNotifier<bool> {
 
         final newConfig = SmartConfig(
           userId: ownerUsername,
-          macAddress: data['macAddress'] ?? 'unknown_mac',
+          macAddress: (data['macAddress'] == 'unknown_mac' || data['macAddress'] == 'unknown' || data['macAddress'] == null) ? '' : data['macAddress'],
           mqttServer: data['mqttServer'] ?? 'broker.emqx.io',
           mqttUser: data['mqttUser'],
           mqttPass: data['mqttPass'],
@@ -221,6 +239,7 @@ class MemberController extends StateNotifier<bool> {
           role: assignedRole,
           homeName: 'Nhà của $ownerName',
           ownerEmail: ownerUsername,
+          canEditAutomation: canEdit,
           allowedDevices: allowedDevs,
         );
 
@@ -278,6 +297,7 @@ class MemberController extends StateNotifier<bool> {
         'ownerUsername': FieldValue.delete(),
         'ownerEmail': FieldValue.delete()
       });
+      _syncToLocalHubIfAvailable();
       return MemberOperationResult(success: true, message: 'Đã gỡ quyền truy cập của $memberUsername');
     } catch (e) {
       return MemberOperationResult(success: false, errorMessage: e.toString());
@@ -300,6 +320,7 @@ class MemberController extends StateNotifier<bool> {
           }
         }, SetOptions(merge: true));
       }
+      _syncToLocalHubIfAvailable();
       return MemberOperationResult(
         success: true,
         message: 'Đã cập nhật quyền thiết bị cho $memberUsername',
@@ -318,6 +339,7 @@ class MemberController extends StateNotifier<bool> {
             ? FieldValue.arrayUnion([memberUsername])
             : FieldValue.arrayRemove([memberUsername])
       });
+      _syncToLocalHubIfAvailable();
       return MemberOperationResult(
         success: true,
         message: isDisabled ? 'Đã vô hiệu hóa $memberUsername' : 'Đã mở khóa $memberUsername',
@@ -354,6 +376,7 @@ class MemberController extends StateNotifier<bool> {
           memberUsername: newRole
         }
       }, SetOptions(merge: true));
+      _syncToLocalHubIfAvailable();
       return MemberOperationResult(
         success: true,
         message: 'Đã cập nhật vai trò cho $memberUsername',
@@ -361,6 +384,40 @@ class MemberController extends StateNotifier<bool> {
     } catch (e) {
       return MemberOperationResult(success: false, errorMessage: e.toString());
     }
+  }
+
+  /// Tự động đẩy phân quyền thành viên xuống Hub qua mạng LAN nếu Hub đang online trên cùng mạng Wi-Fi
+  Future<void> _syncToLocalHubIfAvailable() async {
+    try {
+      if (currentUsername == null) return;
+      final doc = await FirebaseFirestore.instance.collection('users').doc(currentUsername).get();
+      if (!doc.exists) return;
+      final data = doc.data() ?? {};
+      final membersList = <Map<String, dynamic>>[];
+      if (data['sharedWith'] is List) {
+        for (var m in (data['sharedWith'] as List)) {
+          final mStr = m.toString();
+          final role = (data['memberRoles'] is Map && data['memberRoles'][mStr] != null) ? data['memberRoles'][mStr] : 'member';
+          final disabled = (data['disabledMembers'] is List && (data['disabledMembers'] as List).contains(mStr));
+          final allowed = (data['memberDevicePermissions'] is Map && data['memberDevicePermissions'][mStr] is List)
+              ? List<String>.from(data['memberDevicePermissions'][mStr])
+              : <String>[];
+          membersList.add({
+            'user': mStr,
+            'role': role,
+            'disabled': disabled,
+            'allowed': allowed,
+          });
+        }
+      }
+      final payload = {
+        'owner': currentUsername,
+        'members': membersList,
+        'disabled': data['disabledMembers'] ?? [],
+        'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      };
+      await LocalNetworkService().syncMembersToHub(payload);
+    } catch (_) {}
   }
 }
 

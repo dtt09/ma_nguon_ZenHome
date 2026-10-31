@@ -862,61 +862,63 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                             child: Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                Text(
-                                                  email,
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 15,
-                                                    decoration: isDisabled ? TextDecoration.lineThrough : null,
-                                                    color: isDisabled ? Colors.grey : null,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 3),
-                                                Row(
-                                                  children: [
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: isCoOwner ? Colors.amber.withOpacity(0.15) : AppColors.primary.withOpacity(0.12),
-                                                        borderRadius: BorderRadius.circular(8),
-                                                      ),
-                                                      child: Text(
-                                                        isCoOwner ? context.tr('co_owner') : context.tr('member_role'),
-                                                        style: TextStyle(
-                                                          fontSize: 11,
-                                                          fontWeight: FontWeight.bold,
-                                                          color: isCoOwner ? Colors.amber.shade700 : AppColors.primaryLight,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 6),
-                                                    Text(
-                                                      isDisabled ? context.tr('member_disabled') : context.tr('member_active'),
-                                                      style: TextStyle(
-                                                        fontSize: 11,
-                                                        color: isDisabled ? Colors.grey : Colors.green,
-                                                      ),
-                                                    ),
-                                                    if (hasCustomDevs) ...[
-                                                      const SizedBox(width: 6),
-                                                      Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                        decoration: BoxDecoration(
-                                                          color: Colors.blue.withOpacity(0.15),
-                                                          borderRadius: BorderRadius.circular(8),
-                                                        ),
-                                                        child: Text(
-                                                          '${memberAllowedDevs.length} thiết bị',
-                                                          style: TextStyle(
-                                                            fontSize: 11,
-                                                            fontWeight: FontWeight.bold,
-                                                            color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ],
-                                                ),
+                                                 Text(
+                                                   email,
+                                                   style: TextStyle(
+                                                     fontWeight: FontWeight.bold,
+                                                     fontSize: 15,
+                                                     decoration: isDisabled ? TextDecoration.lineThrough : null,
+                                                     color: isDisabled ? Colors.grey : null,
+                                                   ),
+                                                   maxLines: 1,
+                                                   overflow: TextOverflow.ellipsis,
+                                                 ),
+                                                 const SizedBox(height: 4),
+                                                 Wrap(
+                                                   spacing: 6,
+                                                   runSpacing: 4,
+                                                   crossAxisAlignment: WrapCrossAlignment.center,
+                                                   children: [
+                                                     Container(
+                                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                       decoration: BoxDecoration(
+                                                         color: isCoOwner ? Colors.amber.withOpacity(0.15) : AppColors.primary.withOpacity(0.12),
+                                                         borderRadius: BorderRadius.circular(8),
+                                                       ),
+                                                       child: Text(
+                                                         isCoOwner ? context.tr('co_owner') : context.tr('member_role'),
+                                                         style: TextStyle(
+                                                           fontSize: 11,
+                                                           fontWeight: FontWeight.bold,
+                                                           color: isCoOwner ? Colors.amber.shade700 : AppColors.primaryLight,
+                                                         ),
+                                                       ),
+                                                     ),
+                                                     Text(
+                                                       isDisabled ? context.tr('member_disabled') : context.tr('member_active'),
+                                                       style: TextStyle(
+                                                         fontSize: 11,
+                                                         color: isDisabled ? Colors.grey : Colors.green,
+                                                       ),
+                                                     ),
+                                                     if (hasCustomDevs)
+                                                       Container(
+                                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                         decoration: BoxDecoration(
+                                                           color: Colors.blue.withOpacity(0.15),
+                                                           borderRadius: BorderRadius.circular(8),
+                                                         ),
+                                                         child: Text(
+                                                           '${memberAllowedDevs.length} thiết bị',
+                                                           style: TextStyle(
+                                                             fontSize: 11,
+                                                             fontWeight: FontWeight.bold,
+                                                             color: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
+                                                           ),
+                                                         ),
+                                                       ),
+                                                   ],
+                                                 ),
                                               ],
                                             ),
                                           ),
@@ -954,13 +956,13 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                                 ),
                                               ),
                                               const PopupMenuDivider(),
-                                              const PopupMenuItem<String>(
+                                              PopupMenuItem<String>(
                                                 value: 'device_perm',
                                                 child: Row(
                                                   children: [
-                                                    Icon(Icons.tune_rounded, size: 18, color: Colors.blueAccent),
-                                                    SizedBox(width: 10),
-                                                    Text('Phân quyền thiết bị'),
+                                                    const Icon(Icons.tune_rounded, size: 18, color: Colors.blueAccent),
+                                                    const SizedBox(width: 10),
+                                                    Text(context.tr('device_permissions_title')),
                                                   ],
                                                 ),
                                               ),

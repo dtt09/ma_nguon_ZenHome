@@ -104,8 +104,8 @@ class _BugReportDialogState extends State<BugReportDialog> {
         }
       } catch (_) {}
 
-      String appVersion = '1.7.1';
-      int buildNumber = 171;
+      String appVersion = '1.7.9';
+      int buildNumber = 177;
       try {
         final pkg = await PackageInfo.fromPlatform();
         appVersion = pkg.version;

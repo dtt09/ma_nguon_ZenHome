@@ -2,8 +2,12 @@ import { Router, Request, Response } from 'express';
 import { sendCommandWithRetry } from '../../zenhomeWorker';
 import { addLog } from '../../zenhomeState';
 import { findUser } from '../../utils/firestoreHelper';
+import { requireAuth, checkUserPermission } from '../../middlewares/auth';
 
 export const scenesRouter = Router();
+
+// Bắt buộc xác thực người dùng cho toàn bộ phân hệ Ngữ Cảnh Tự Động (Zero-Trust Security)
+scenesRouter.use(requireAuth);
 
 interface SceneAction {
   deviceId: string;
@@ -17,11 +21,15 @@ interface SceneAction {
  */
 scenesRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const userIdQuery = req.query.userId as string | undefined;
+    const userIdQuery = (req.query.userId as string | undefined) || (req.user?.role === 'user' ? req.user.uid : undefined);
     const user = await findUser(userIdQuery);
 
     if (!user) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền truy cập danh sách ngữ cảnh của tài khoản này.' });
     }
 
     const snap = await user.ref.collection('scenes').get();
@@ -29,7 +37,6 @@ scenesRouter.get('/', async (req: Request, res: Response) => {
       id: doc.id,
       ...doc.data(),
     }));
-
 
     res.json({
       success: true,
@@ -59,9 +66,14 @@ scenesRouter.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: "Trường 'actions' phải là mảng chứa ít nhất một hành động [{ deviceId, room, state }]." });
     }
 
-    const user = await findUser(userId);
+    const targetUserId = userId || (req.user?.role === 'user' ? req.user.uid : undefined);
+    const user = await findUser(targetUserId);
     if (!user) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền tạo ngữ cảnh cho tài khoản này.' });
     }
 
     const sceneId = (id && typeof id === 'string' && id.trim() !== '')
@@ -109,11 +121,15 @@ scenesRouter.post('/', async (req: Request, res: Response) => {
 scenesRouter.get('/:sceneId', async (req: Request, res: Response) => {
   try {
     const { sceneId } = req.params;
-    const userIdQuery = req.query.userId as string | undefined;
+    const userIdQuery = (req.query.userId as string | undefined) || (req.user?.role === 'user' ? req.user.uid : undefined);
 
     const user = await findUser(userIdQuery);
     if (!user) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền xem ngữ cảnh của tài khoản này.' });
     }
 
     const doc = await user.ref.collection('scenes').doc(sceneId).get();
@@ -145,10 +161,15 @@ scenesRouter.put('/:sceneId', async (req: Request, res: Response) => {
   try {
     const { sceneId } = req.params;
     const { userId, name, description, icon, color, actions } = req.body;
+    const targetUserId = userId || (req.user?.role === 'user' ? req.user.uid : undefined);
 
-    const user = await findUser(userId);
+    const user = await findUser(targetUserId);
     if (!user) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền cập nhật ngữ cảnh của tài khoản này.' });
     }
 
     const docRef = user.ref.collection('scenes').doc(sceneId);
@@ -190,11 +211,15 @@ scenesRouter.put('/:sceneId', async (req: Request, res: Response) => {
 scenesRouter.delete('/:sceneId', async (req: Request, res: Response) => {
   try {
     const { sceneId } = req.params;
-    const userIdQuery = (req.query.userId || req.body.userId) as string | undefined;
+    const userIdQuery = (req.query.userId || req.body.userId || (req.user?.role === 'user' ? req.user.uid : undefined)) as string | undefined;
 
     const user = await findUser(userIdQuery);
     if (!user) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền xóa ngữ cảnh của tài khoản này.' });
     }
 
     const docRef = user.ref.collection('scenes').doc(sceneId);
@@ -226,10 +251,15 @@ scenesRouter.post('/:sceneId/execute', async (req: Request, res: Response) => {
   try {
     const { sceneId } = req.params;
     const { userId, source = 'api_scene' } = req.body;
+    const targetUserId = userId || (req.user?.role === 'user' ? req.user.uid : undefined);
 
-    const user = await findUser(userId);
+    const user = await findUser(targetUserId);
     if (!user) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng trong cơ sở dữ liệu.' });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền kích hoạt ngữ cảnh của tài khoản này.' });
     }
 
     const doc = await user.ref.collection('scenes').doc(sceneId).get();

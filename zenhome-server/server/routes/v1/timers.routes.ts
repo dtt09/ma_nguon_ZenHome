@@ -1,9 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { state, addLog } from '../../zenhomeState';
 import { setTimer } from '../../core/timers';
+import { requireAuth } from '../../middlewares/auth';
 
 export const timersRouter = Router();
 
+// Bắt buộc xác thực người dùng cho toàn bộ phân hệ Hẹn Giờ (Zero-Trust Security)
+timersRouter.use(requireAuth);
 
 /**
  * @route   GET /api/v1/timers
@@ -74,7 +77,6 @@ timersRouter.delete('/:timerKey', (req: Request, res: Response) => {
     const timerKey = String(req.params.timerKey);
     const baseTopic = timerKey.replace(/_(on|off)$/, '');
     const action = timerKey.endsWith('_on') ? '1' : '0';
-
 
     // mins = 0 để hủy timer trong core timers.cjs
     setTimer(baseTopic, action, 0);

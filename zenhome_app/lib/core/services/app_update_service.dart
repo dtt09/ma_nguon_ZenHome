@@ -28,8 +28,8 @@ class AppUpdateService {
       return PackageInfo(
         appName: 'ZenHome',
         packageName: 'com.zenhome.app',
-        version: '1.7.3',
-        buildNumber: '173',
+        version: '1.7.9',
+        buildNumber: '179',
       );
     }
   }

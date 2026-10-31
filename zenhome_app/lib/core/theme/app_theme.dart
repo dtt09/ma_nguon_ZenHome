@@ -18,20 +18,20 @@ class AppColors {
   static const Color roseGlow = Color(0xFFF43F5E);         // Cảnh báo / Ngắt kết nối
   static const Color purpleGlow = Color(0xFF8B5CF6);       // Ngữ cảnh thông minh
 
-  // Light Mode Surfaces (Clean Mint Pearl)
-  static const Color lightBg = Color(0xFFF5F9F8);
-  static const Color lightCard = Color(0xFFFFFFFF);
-  static const Color lightCardBorder = Color(0xFFE2EFEA);
-  static const Color lightText = Color(0xFF0F172A);
-  static const Color lightTextMuted = Color(0xFF64748B);
+  // Light Mode Surfaces (Crisp High-Contrast Pearl & Slate)
+  static const Color lightBg = Color(0xFFF1F5F9);          // Clean Slate Pearl Light
+  static const Color lightCard = Color(0xFFFFFFFF);        // Pure Crisp White
+  static const Color lightCardBorder = Color(0xFFE2E8F0);  // Sharp Defined Border
+  static const Color lightText = Color(0xFF0F172A);        // Deep Slate Black
+  static const Color lightTextMuted = Color(0xFF64748B);   // Readable Slate Muted
 
-  // Dark Mode Surfaces (OLED True Obsidian with subtle emerald atmosphere)
-  static const Color darkBg = Color(0xFF081210);
-  static const Color darkCard = Color(0xFF0E1F1C);
-  static const Color darkCardElevated = Color(0xFF142B27);
-  static const Color darkCardBorder = Color(0x2634D399);   // Subtle Mint Glow border
-  static const Color darkText = Color(0xFFF0FDF4);
-  static const Color darkTextMuted = Color(0xFF94A3B8);
+  // Dark Mode Surfaces (Cyber Obsidian Slate - Eliminating muddy greenish haze)
+  static const Color darkBg = Color(0xFF0A0F1D);          // True Obsidian Slate Night
+  static const Color darkCard = Color(0xFF131D31);        // Distinct Elevated Surface
+  static const Color darkCardElevated = Color(0xFF1C2842);// Higher Layer Card
+  static const Color darkCardBorder = Color(0x2E60A5FA);   // Cyber Sapphire Ambient Border
+  static const Color darkText = Color(0xFFF8FAFC);        // Crisp High-Readability Text
+  static const Color darkTextMuted = Color(0xFF94A3B8);   // Soft Silver Muted
 
   // Luxury Ambient Gradients
   static const LinearGradient brandHero = LinearGradient(

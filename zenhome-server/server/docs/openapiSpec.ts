@@ -20,6 +20,10 @@ export const openApiSpec = {
       description: "ZenHome Unified Server (Port 5000)"
     }
   ],
+  security: [
+    { bearerAuth: [] },
+    { apiKeyAuth: [] }
+  ],
   tags: [
     { name: "Người Dùng (Users)", description: "Quản lý tài khoản, hồ sơ chủ nhà và phiên đăng nhập di động thực tế từ Firestore" },
     { name: "Thiết Bị (Devices)", description: "CRUD thiết bị thực tế trong Firestore và điều khiển phần cứng qua MQTT Retry Engine" },
@@ -723,6 +727,58 @@ export const openApiSpec = {
         responses: {
           "200": { description: "Cập nhật thành công" }
         }
+      }
+    },
+    "/api/v1/hub/ota/info": {
+      get: {
+        tags: ["Hub & Thiết Bị (Hardware)"],
+        summary: "Lấy thông tin phiên bản Firmware ESP32 mới nhất (OTA)",
+        responses: {
+          "200": { description: "Thành công" }
+        }
+      }
+    },
+    "/api/v1/hub/ota/publish": {
+      post: {
+        tags: ["Hub & Thiết Bị (Hardware)"],
+        summary: "Xuất bản và phát hành bản cập nhật Firmware ESP32 mới từ Web Admin",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  version: { type: "string", example: "2.5.5" },
+                  buildNumber: { type: "integer", example: 199 },
+                  directUrl: { type: "string", example: "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/firmware.bin" },
+                  sha256: { type: "string", example: "3B4F069E0A74D34C6E38BF3037EB329F5DCAF32A0F90391F8722D0AE3D0E4F4D" },
+                  releaseNotesVi: { type: "string", example: "• Cập nhật tối ưu truyền nhận MQTT và A/B Safe Rollback" },
+                  triggerFleetOta: { type: "boolean", example: false }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          "200": { description: "Phát hành thành công" }
+        }
+      }
+    }
+  },
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT / MasterKey",
+        description: "Mã Master Key Quản trị viên (zenhome-admin-secret-2026) hoặc Firebase ID Token"
+      },
+      apiKeyAuth: {
+        type: "apiKey",
+        in: "header",
+        name: "x-api-key",
+        description: "API Key Header thay thế cho Authorization Bearer"
       }
     }
   }

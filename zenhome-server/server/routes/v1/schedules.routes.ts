@@ -8,9 +8,12 @@ import {
   getCurrentVietnamTimeInfo,
   getNextUpcomingSchedule,
 } from '../../core/schedules';
+import { requireAuth } from '../../middlewares/auth';
 
 export const schedulesRouter = Router();
 
+// Bắt buộc xác thực người dùng cho toàn bộ phân hệ Lịch Trình (Zero-Trust Security)
+schedulesRouter.use(requireAuth);
 
 /**
  * @route   GET /api/v1/schedules
@@ -165,7 +168,6 @@ schedulesRouter.delete('/:id', async (req: Request, res: Response) => {
     if (state.activeSchedules[id]) {
       delete state.activeSchedules[id];
     }
-
 
     await deleteScheduleFromFirebase(id);
 

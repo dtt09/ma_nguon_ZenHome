@@ -36,6 +36,30 @@ class AppLocalizationsVi extends AppLocalizations {
   String get room_4 => 'Ngoài trời';
 
   @override
+  String get room_5 => 'Phòng làm việc';
+
+  @override
+  String get room_6 => 'Phòng tắm';
+
+  @override
+  String get room_7 => 'Phòng ăn';
+
+  @override
+  String get room_8 => 'Phòng thờ';
+
+  @override
+  String get room_9 => 'Sân thượng';
+
+  @override
+  String get room_10 => 'Hành lang & Cầu thang';
+
+  @override
+  String get room_11 => 'Gara / Nhà xe';
+
+  @override
+  String get custom_room => 'Phòng tùy chỉnh';
+
+  @override
   String get device_1 => 'Đèn Chính';
 
   @override
@@ -126,7 +150,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get confirm_new_password => 'Xác nhận mật khẩu mới';
 
   @override
-  String get btn_save_changes => 'Lưu Thay Đổi';
+  String get btn_save_changes => 'Lưu thay đổi';
 
   @override
   String get err_empty_old_pass => 'Vui lòng nhập mật khẩu cũ!';
@@ -301,10 +325,16 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timer_title => 'Đếm ngược (Timer)';
 
   @override
-  String get timer_action_off => 'TẮT sau (Đang bật)';
+  String get timer_action_off => 'Tắt sau';
 
   @override
-  String get timer_action_on => 'BẬT sau (Đang tắt)';
+  String get timer_action_on => 'Bật sau';
+
+  @override
+  String get state_currently_on => 'Đang bật';
+
+  @override
+  String get state_currently_off => 'Đang tắt';
 
   @override
   String get timer_start => 'Bắt đầu đếm ngược';
@@ -323,6 +353,15 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get minutes => 'phút';
+
+  @override
+  String get hours => 'giờ';
+
+  @override
+  String get hours_label => 'Giờ';
+
+  @override
+  String get minutes_label => 'Phút';
 
   @override
   String get schedule_title => 'Danh sách Lịch trình';
@@ -880,7 +919,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get btn_verify_otp => 'Xác nhận OTP';
 
   @override
-  String get err_invalid_otp => 'Mã OTP không đúng hoặc đã hết hạn!';
+  String get err_invalid_otp => 'Mã OTP không hợp lệ';
 
   @override
   String get create_account => 'Tạo tài khoản';
@@ -2371,4 +2410,511 @@ class AppLocalizationsVi extends AppLocalizations {
   @override
   String get mapping_saved_desc =>
       'Toàn bộ danh sách phân bổ thiết bị, phòng và chân GPIO đã được đồng bộ xuống Cloud và gửi lệnh nạp lại tới Hub ESP32.';
+
+  @override
+  String get hub_status_title => 'Trạng thái kết nối Hub';
+
+  @override
+  String get hub_status_subtitle =>
+      'Giám sát 3 tầng kết nối: Local LAN, BLE & Cloud';
+
+  @override
+  String get hub_status_unlinked => 'CHƯA LIÊN KẾT HUB';
+
+  @override
+  String get hub_status_unlinked_desc =>
+      'Vui lòng thực hiện liên kết phần cứng ESP32 trong phần Cài đặt.';
+
+  @override
+  String get hub_mode_lan => 'ĐANG KẾT NỐI: LOCAL LAN ⚡';
+
+  @override
+  String get hub_mode_ble => 'ĐANG KẾT NỐI: BLUETOOTH LE 📱';
+
+  @override
+  String get hub_mode_cloud => 'ĐANG KẾT NỐI: CLOUD ☁';
+
+  @override
+  String get hub_mode_offline => 'NGOẠI TUYẾN (OFFLINE)';
+
+  @override
+  String get hub_desc_lan =>
+      'Đang điều khiển trực tiếp qua Wi-Fi nội bộ tốc độ cao. Không phụ thuộc đường truyền Internet.';
+
+  @override
+  String get hub_desc_ble =>
+      'Đang kết nối ngầm qua Bluetooth Low Energy (Zero-Touch). Hoạt động hoàn hảo ngay cả khi Router Wi-Fi mất nguồn!';
+
+  @override
+  String get hub_desc_cloud =>
+      'Đang điều khiển qua MQTT Cloud do không cùng mạng với Hub. Hỗ trợ điều khiển từ xa bất cứ đâu.';
+
+  @override
+  String get hub_desc_offline =>
+      'Không tìm thấy Hub qua LAN, BLE lẫn Cloud. Vui lòng kiểm tra nguồn điện cấp cho Hub.';
+
+  @override
+  String get hub_channel_lan_title => 'Mạng nội bộ (Local LAN)';
+
+  @override
+  String get hub_channel_ble_title => 'Bluetooth LE ngầm (Zero-Touch)';
+
+  @override
+  String get hub_channel_cloud_title => 'Đám mây (Cloud MQTT TLS)';
+
+  @override
+  String get hub_ready_lan => 'Cực nhanh ⚡ (~5ms)';
+
+  @override
+  String get hub_ready_ble => 'Trực tiếp 📱 (~15ms)';
+
+  @override
+  String get hub_ready_cloud => 'Từ xa ☁ (~200ms)';
+
+  @override
+  String get hub_channel_unavailable => 'Không kết nối';
+
+  @override
+  String get hub_btn_diagnose => 'Chẩn đoán & Quét lại kết nối';
+
+  @override
+  String get hub_diagnosing => 'Đang quét cả LAN & BLE...';
+
+  @override
+  String get hub_ble_gatt_secured =>
+      'GATT Service: 19b10000... 🔐 (Key HMAC-SHA256 OK)';
+
+  @override
+  String get hub_ble_gatt_verifying =>
+      'GATT Service: 19b10000... (Đang kiểm tra Key...)';
+
+  @override
+  String get hub_ble_key_ready => 'Key 🔐 Sẵn sàng';
+
+  @override
+  String get hub_ble_key_waiting => 'Chờ xác thực';
+
+  @override
+  String hub_toast_lan_found(Object ip) {
+    return 'Đã tìm thấy Hub tại IP: $ip ⚡';
+  }
+
+  @override
+  String get hub_toast_ble_connected =>
+      'Đã kết nối ngầm trực tiếp qua Bluetooth LE 📱';
+
+  @override
+  String get hub_toast_cloud_fallback =>
+      'Không tìm thấy kết nối cục bộ, duy trì chế độ Cloud.';
+
+  @override
+  String get hub_ota_title => 'Nâng cấp Firmware ESP32';
+
+  @override
+  String get hub_ota_desc => 'Cập nhật phần mềm hệ thống cho vi điều khiển';
+
+  @override
+  String get hub_ota_updating => 'Đang nạp Firmware mới...';
+
+  @override
+  String get hub_ota_success => 'Nâng cấp Firmware thành công!';
+
+  @override
+  String get admin_verify_title => 'Xác thực Mật khẩu Quản trị';
+
+  @override
+  String get admin_verify_desc =>
+      'Vui lòng nhập mật khẩu quản trị của Hub ESP32 để ủy quyền thao tác kỹ thuật.';
+
+  @override
+  String get admin_pass_default_hint =>
+      'Nhập mật khẩu quản trị (Mặc định: admin)';
+
+  @override
+  String get btn_connect => 'Kết nối';
+
+  @override
+  String get device => 'Thiết bị';
+
+  @override
+  String get info => 'Thông tin';
+
+  @override
+  String get gpio_conflict_title => 'Xung đột phần cứng GPIO';
+
+  @override
+  String get room_name_conflict_title => 'Trùng tên thiết bị trong phòng';
+
+  @override
+  String get offline_saved_title => 'Lưu ngoại tuyến';
+
+  @override
+  String get custom_room_hint => 'Nhập tên phòng tùy chỉnh (vd: Phòng Tập Gym)';
+
+  @override
+  String get err_empty_custom_room => 'Vui lòng nhập tên phòng tùy chỉnh';
+
+  @override
+  String get err_duplicate_dev_id => 'Mã thiết bị đã tồn tại';
+
+  @override
+  String get btn_start_upgrade => 'Bắt Đầu Nâng Cấp';
+
+  @override
+  String get btn_understood => 'Đã hiểu';
+
+  @override
+  String get btn_retry_connection => 'Thử lại kết nối';
+
+  @override
+  String get btn_send_test => 'Gửi Test';
+
+  @override
+  String get choose_color => 'Chọn màu sắc';
+
+  @override
+  String get reconfig_wifi_mqtt => 'Cấu hình lại Wi-Fi & MQTT';
+
+  @override
+  String get setup_steps_title => 'Các bước thực hiện:';
+
+  @override
+  String get setup_step_1 =>
+      '1. Cắm nguồn cho Hub ESP32 (đèn LED nhấp nháy vào chế độ cấu hình).';
+
+  @override
+  String get setup_step_2 => '2. Chọn mạng Wi-Fi và tiến hành kết nối an toàn.';
+
+  @override
+  String get setup_step_3 =>
+      '3. Sau khi kết nối thành công, hệ thống sẽ tự động chuyển sang bước nạp cấu hình.';
+
+  @override
+  String get version_changelog_title => 'Nhật ký cập nhật & Có gì mới';
+
+  @override
+  String get version_changelog_desc =>
+      'Xem chi tiết các thay đổi trong phiên bản mới';
+
+  @override
+  String get whats_new_in_version => 'Có gì mới trong phiên bản';
+
+  @override
+  String get version_history_title => 'Lịch sử các phiên bản';
+
+  @override
+  String get latest_version_badge => 'Phiên bản mới nhất';
+
+  @override
+  String get update_available_badge => 'Có bản cập nhật mới';
+
+  @override
+  String get btn_check_again => 'Kiểm tra lại';
+
+  @override
+  String get you_are_up_to_date =>
+      'Ứng dụng của bạn đang ở phiên bản mới nhất và ổn định nhất.';
+
+  @override
+  String get technical_info_title => 'Thông số kỹ thuật';
+
+  @override
+  String get perm_view_activate_only => 'Quyền hạn: Chỉ xem & Kích hoạt';
+
+  @override
+  String get device_permissions_title => 'Phân quyền thiết bị';
+
+  @override
+  String get reauth_security_title => 'Xác thực bảo mật';
+
+  @override
+  String get reauth_with_google => 'Xác thực với Google';
+
+  @override
+  String get reauth_via_sms => 'Xác thực qua SMS';
+
+  @override
+  String get reauth_password_title => 'Xác thực mật khẩu';
+
+  @override
+  String get build_number_label => 'Số bản build';
+
+  @override
+  String get release_date_label => 'Ngày phát hành';
+
+  @override
+  String get package_name_label => 'Tên gói ứng dụng';
+
+  @override
+  String get target_platform_label => 'Nền tảng hỗ trợ';
+
+  @override
+  String get empty_esp_limit_title => 'Đã có nhà chưa cài ESP32';
+
+  @override
+  String empty_esp_limit_desc(Object name) {
+    return 'Bạn đang có ngôi nhà \"$name\" chưa được thiết lập ESP32.\n\nMỗi tài khoản chỉ được phép có 1 ngôi nhà duy nhất trống ESP32. Bạn có muốn thiết lập ESP32 cho ngôi nhà này ngay bây giờ không?';
+  }
+
+  @override
+  String get btn_setup_esp_now => 'Thiết lập ESP32 ngay';
+
+  @override
+  String get btn_create_and_setup_esp => 'Tạo & Cài đặt ESP32';
+
+  @override
+  String get create_home_then_setup_desc =>
+      'Sau khi đặt tên nhà, ứng dụng sẽ tự động chuyển tới quy trình ghép nối và cấp phát Wi-Fi cho Hub ESP32.';
+
+  @override
+  String get wifi_pairing_timeout_3min =>
+      'Hết thời gian chờ kết nối (3 phút). Vui lòng kiểm tra lại thông tin Wi-Fi hoặc khoảng cách đến Hub.';
+
+  @override
+  String get wifi_waiting_handshake_signal =>
+      'Đang đợi Hub bắt tín hiệu lần đầu qua Cloud...';
+
+  @override
+  String get wifi_sending_ack_signal =>
+      'Đã bắt được tín hiệu từ Hub! Đang gửi phản hồi kích hoạt thiết bị...';
+
+  @override
+  String get wifi_setup_completed_unlock =>
+      'Thiết lập hoàn tất! Hub đã mở khóa toàn bộ tính năng.';
+
+  @override
+  String get wifi_navigating_to_add_devices =>
+      'Đang chuyển sang màn hình Thêm thiết bị...';
+
+  @override
+  String wifi_time_remaining(Object time) {
+    return 'Thời gian còn lại: $time';
+  }
+
+  @override
+  String get wifi_btn_add_devices => 'Thêm thiết bị (Device Mapping)';
+
+  @override
+  String get btn_add_home => 'Thêm nhà mới';
+
+  @override
+  String get sub_home => 'Nhà phụ';
+
+  @override
+  String get primary_home => 'Nhà chính';
+
+  @override
+  String get rename_home => 'Đổi tên nhà';
+
+  @override
+  String get delete_home => 'Xóa nhà';
+
+  @override
+  String get multi_home_tip =>
+      'Chạm vào ngôi nhà để chuyển đổi và điều khiển thiết bị tương ứng.';
+
+  @override
+  String get create_new_home => 'Tạo ngôi nhà mới';
+
+  @override
+  String get enter_home_name => 'Nhập tên nhà';
+
+  @override
+  String get hint_home_name => 'Ví dụ: Nhà riêng, Chung cư, Biệt thự...';
+
+  @override
+  String get err_empty_home_name => 'Vui lòng nhập tên ngôi nhà';
+
+  @override
+  String get created_home_success => 'Đã tạo ngôi nhà mới thành công';
+
+  @override
+  String get err_create_home_failed =>
+      'Không thể tạo ngôi nhà mới. Vui lòng thử lại!';
+
+  @override
+  String get hint_new_home_name => 'Nhập tên mới cho ngôi nhà';
+
+  @override
+  String get msg_rename_home_success => 'Đã đổi tên nhà thành công';
+
+  @override
+  String get err_rename_home => 'Không thể đổi tên nhà. Vui lòng thử lại!';
+
+  @override
+  String get delete_home_confirm_title => 'Xác nhận xóa ngôi nhà?';
+
+  @override
+  String delete_home_confirm_desc(Object name) {
+    return 'Bạn có chắc chắn muốn xóa ngôi nhà \"$name\"? Toàn bộ dữ liệu thiết bị liên kết sẽ bị xóa khỏi tài khoản của bạn.';
+  }
+
+  @override
+  String get msg_delete_home_success => 'Đã xóa ngôi nhà thành công';
+
+  @override
+  String get err_delete_home => 'Không thể xóa ngôi nhà. Vui lòng thử lại!';
+
+  @override
+  String get devices_selected => 'thiết bị đã chọn';
+
+  @override
+  String get manage_homes => 'Quản lý ngôi nhà';
+
+  @override
+  String homes_count(Object count) {
+    return '$count ngôi nhà';
+  }
+
+  @override
+  String get manage_sub_home_title => 'Quản lý nhà phụ';
+
+  @override
+  String get delete_this_sub_home => 'Xóa nhà phụ này';
+
+  @override
+  String get wifi_cancel_pairing_title => 'Hủy quá trình ghép nối?';
+
+  @override
+  String get wifi_cancel_pairing_desc =>
+      'Hub ESP32 chưa hoàn tất kết nối. Nếu thoát bây giờ, các thông tin liên kết thiết bị sẽ bị hủy bỏ.';
+
+  @override
+  String get home_customization_title => 'Thuộc tính & Bộ quy tắc';
+
+  @override
+  String get home_type_title => 'Loại hình ngôi nhà:';
+
+  @override
+  String get home_icon_title => 'Biểu tượng nhận diện:';
+
+  @override
+  String get home_color_title => 'Màu sắc chủ đạo:';
+
+  @override
+  String get home_rules_title => 'Bộ quy tắc đặc thù:';
+
+  @override
+  String get home_rules_desc =>
+      'Kích hoạt các quy tắc hành vi thông minh tự động áp dụng riêng cho ngôi nhà này:';
+
+  @override
+  String get home_props_saved => 'Đã lưu thuộc tính và bộ quy tắc ngôi nhà!';
+
+  @override
+  String get err_save_home_props =>
+      'Không thể lưu thuộc tính nhà. Vui lòng thử lại!';
+
+  @override
+  String get home_type_townhouse => 'Nhà phố';
+
+  @override
+  String get home_type_apartment => 'Chung cư';
+
+  @override
+  String get home_type_villa => 'Biệt thự';
+
+  @override
+  String get home_type_countryside => 'Nhà vườn';
+
+  @override
+  String get home_type_office => 'Văn phòng';
+
+  @override
+  String get home_type_store => 'Cửa hàng';
+
+  @override
+  String get rule_night_security_title => 'Bảo vệ an ninh ban đêm';
+
+  @override
+  String get rule_night_security_desc =>
+      'Tự động kích hoạt giám sát cảm biến & khóa cửa sau 23:00. Báo động tức thì nếu có xâm nhập.';
+
+  @override
+  String get rule_energy_saving_title => 'Tiết kiệm điện khi rời nhà';
+
+  @override
+  String get rule_energy_saving_desc =>
+      'Tự động ngắt điều hòa, bình nóng lạnh và thiết bị tải nặng khi chủ nhà rời khỏi khu vực.';
+
+  @override
+  String get rule_outdoor_lighting_title => 'Chiếu sáng cảnh quan tự động';
+
+  @override
+  String get rule_outdoor_lighting_desc =>
+      'Bật đèn sân vườn, ban công hoặc bảng hiệu từ 18:00 đến 23:00 hàng ngày.';
+
+  @override
+  String get rule_fire_gas_priority_title =>
+      'Ưu tiên khẩn cấp Hỏa hoạn & Khí Gas';
+
+  @override
+  String get rule_fire_gas_priority_desc =>
+      'Cảnh báo còi báo động tối đa và đẩy thông báo khẩn cấp ngay cả khi điện thoại bật Không làm phiền.';
+
+  @override
+  String get rule_office_workhours_title =>
+      'Giờ làm việc tập trung (08:00 - 18:00)';
+
+  @override
+  String get rule_office_workhours_desc =>
+      'Tự động duy trì ánh sáng làm việc chuẩn và ổn định nhiệt độ điều hòa 25°C trong giờ hành chính.';
+
+  @override
+  String get rule_vacation_simulation_title =>
+      'Giả lập có người ở nhà khi đi vắng';
+
+  @override
+  String get rule_vacation_simulation_desc =>
+      'Bật/tắt ngẫu nhiên một số bóng đèn vào buổi tối để phòng chống trộm khi bạn đi du lịch hoặc công tác.';
+
+  @override
+  String get rule_quiet_hours_title =>
+      'Khung giờ yên tĩnh nghỉ ngơi (22:00 - 06:00)';
+
+  @override
+  String get rule_quiet_hours_desc =>
+      'Giảm độ sáng đèn đêm hành lang xuống mức 20% và tắt âm bíp phản hồi để không làm phiền giấc ngủ.';
+
+  @override
+  String get scene_tap_to_change_icon => 'Chạm để đổi biểu tượng';
+
+  @override
+  String get scene_action_keep => 'Bỏ qua';
+
+  @override
+  String get scene_action_turn_on => 'Bật';
+
+  @override
+  String get scene_action_turn_off => 'Tắt';
+
+  @override
+  String get scene_setup_device_state =>
+      'Thiết lập trạng thái thiết bị trong kịch bản';
+
+  @override
+  String get schedule_auto_desc =>
+      'Tự động kích hoạt thiết bị theo thời gian định sẵn';
+
+  @override
+  String get schedule_activity_duration => 'Thời lượng bật dự kiến';
+
+  @override
+  String get schedule_tap_to_change => 'Chạm để đổi';
+
+  @override
+  String get schedule_preset_all => 'Cả tuần';
+
+  @override
+  String get schedule_preset_weekdays => 'T2 - T6';
+
+  @override
+  String get schedule_preset_weekends => 'Cuối tuần';
+
+  @override
+  String get schedule_shared_hint =>
+      'Mọi thành viên trong nhà đều có thể theo dõi';
+
+  @override
+  String get schedule_author => 'Người tạo';
 }

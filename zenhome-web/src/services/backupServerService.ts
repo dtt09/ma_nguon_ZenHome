@@ -117,6 +117,7 @@ export interface BackupServerStatus {
 export interface BackupRecord {
   id: string;
   timestamp: string;
+  displayTime?: string;
   docCount: number;
   sizeBytes: number;
   collections: string[];
@@ -130,7 +131,56 @@ export interface ServerEventLog {
   source: string;
 }
 
-const DEFAULT_SERVER_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000');
+/**
+ * Tự động phát hiện URL máy chủ Backend chính xác theo môi trường mạng và đồng bộ cổng:
+ * 1. Nếu mở từ cổng Dev (port 3000 hoặc 5173), tự động kết nối sang backend port 5000 (cùng hostname/IP LAN)
+ * 2. Nếu mở từ cổng Production (port 5000), dùng trực tiếp window.location.origin
+ * 3. Nếu có cấu hình VITE_API_URL thì ưu tiên dùng
+ */
+export function getServerBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    if (window.location.port === '3000' || window.location.port === '5173') {
+      return `${window.location.protocol}//${window.location.hostname}:5000`;
+    }
+    return window.location.origin;
+  }
+  return import.meta.env.VITE_API_URL || 'http://localhost:5000';
+}
+
+export const DEFAULT_SERVER_URL = getServerBaseUrl();
+
+export function getAdminSecret(): string {
+  try {
+    const saved = sessionStorage.getItem('zenhome_admin_key') || localStorage.getItem('zenhome_admin_key');
+    if (saved && saved.trim()) return saved.trim();
+  } catch (e) {}
+  return '';
+}
+
+export async function verifyAdminSecret(secret: string): Promise<boolean> {
+  const trimmed = secret.trim();
+  if (!trimmed) return false;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch(`${DEFAULT_SERVER_URL}/api/node-server/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${trimmed}`,
+        'x-api-key': trimmed,
+      },
+      body: JSON.stringify({ action: 'verify_admin' }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (res.ok) return true;
+    if (res.status === 401 || res.status === 403) return false;
+  } catch (e) {
+    console.warn('[AUTH] Không thể kết nối tới server để xác thực Admin Key:', e);
+  }
+  return false;
+}
 
 // Get configured backup server base URL (e.g. https://... on Render or empty for local)
 export function getBackupServerBaseUrl(): string {
@@ -238,7 +288,7 @@ export async function sendDeleteRequestToBackupServer(payload: {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer zenhome-admin-secret-2026'
+      'Authorization': `Bearer ${getAdminSecret()}`
     },
     body: JSON.stringify(payload),
   });
@@ -260,7 +310,7 @@ export async function triggerDatabaseBackupSnapshot(): Promise<{
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer zenhome-admin-secret-2026'
+      'Authorization': `Bearer ${getAdminSecret()}`
     },
   });
 
@@ -273,7 +323,11 @@ export async function triggerDatabaseBackupSnapshot(): Promise<{
 
 export async function fetchBackupRecords(): Promise<BackupRecord[]> {
   try {
-    const res = await fetch(`${DEFAULT_SERVER_URL}/api/backup-server/backups`);
+    const res = await fetch(`${DEFAULT_SERVER_URL}/api/backup-server/backups`, {
+      headers: {
+        'Authorization': `Bearer ${getAdminSecret()}`
+      }
+    });
     if (!res.ok) return [];
     const data = await res.json();
     return data.backups || [];
@@ -298,6 +352,7 @@ export async function updateAppVersionInfo(payload: any): Promise<{ success: boo
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAdminSecret()}`,
     },
     body: JSON.stringify(payload),
   });
@@ -305,6 +360,167 @@ export async function updateAppVersionInfo(payload: any): Promise<{ success: boo
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(`Lỗi cập nhật phiên bản (HTTP ${res.status}): ${errText}`);
+  }
+
+  return await res.json();
+}
+
+export async function downloadBackupFile(backupId: string): Promise<void> {
+  const res = await fetch(`${DEFAULT_SERVER_URL}/api/backup-server/download/${encodeURIComponent(backupId)}`, {
+    headers: {
+      'Authorization': `Bearer ${getAdminSecret()}`
+    }
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Không thể tải bản sao lưu (HTTP ${res.status}): ${errorText}`);
+  }
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${backupId}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+export async function restoreBackupSnapshot(backupId: string): Promise<{
+  success: boolean;
+  restoredDocuments: number;
+  message: string;
+}> {
+  const res = await fetch(`${DEFAULT_SERVER_URL}/api/backup-server/restore/${encodeURIComponent(backupId)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAdminSecret()}`
+    }
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Lỗi khôi phục bản sao lưu (HTTP ${res.status}): ${errorText}`);
+  }
+  return await res.json();
+}
+
+// ==========================================
+// QUẢN LÝ NÂNG CẤP FIRMWARE ESP32 TỪ XA (OTA)
+// ==========================================
+
+export interface Esp32FirmwareInfo {
+  exists: boolean;
+  version: string;
+  buildNumber: number;
+  fileName: string;
+  fileSizeBytes: number;
+  sha256: string;
+  directUrl: string;
+  releaseNotesVi?: string;
+  lastDeployedAt: string;
+  supportedHardware: string;
+}
+
+export interface Esp32PublishPayload {
+  version: string;
+  buildNumber: number;
+  directUrl: string;
+  sha256?: string;
+  fileSizeBytes?: number;
+  releaseNotesVi?: string;
+  triggerFleetOta?: boolean;
+}
+
+export async function publishEsp32Firmware(payload: Esp32PublishPayload): Promise<{ success: boolean; message: string; dispatchedCount?: number; data?: any }> {
+  const res = await fetch(`${DEFAULT_SERVER_URL}/api/v1/hub/ota/publish`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAdminSecret()}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Lỗi phát hành Firmware ESP32 (HTTP ${res.status}): ${errText}`);
+  }
+
+  return await res.json();
+}
+
+export async function fetchEsp32OtaInfo(): Promise<Esp32FirmwareInfo | null> {
+  try {
+    const res = await fetch(`${DEFAULT_SERVER_URL}/api/v1/hub/ota/info`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.data || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function triggerEsp32Ota(payload: {
+  userId?: string;
+  macAddress: string;
+  version?: string;
+}): Promise<{ success: boolean; message: string; data?: any }> {
+  const res = await fetch(`${DEFAULT_SERVER_URL}/api/v1/hub/ota/trigger`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAdminSecret()}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Lỗi phát lệnh OTA (HTTP ${res.status}): ${errText}`);
+  }
+
+  return await res.json();
+}
+
+export async function deployPlatformIoBuild(payload?: {
+  version?: string;
+  buildNumber?: number;
+}): Promise<{ success: boolean; message: string; data?: any }> {
+  const res = await fetch(`${DEFAULT_SERVER_URL}/api/v1/hub/ota/deploy-build`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAdminSecret()}`,
+    },
+    body: JSON.stringify(payload || {}),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Lỗi triển khai build PlatformIO (HTTP ${res.status}): ${errText}`);
+  }
+
+  return await res.json();
+}
+
+export async function uploadEsp32Firmware(payload: {
+  base64Data: string;
+  version: string;
+  buildNumber: number;
+}): Promise<{ success: boolean; message: string; data?: any }> {
+  const res = await fetch(`${DEFAULT_SERVER_URL}/api/v1/hub/ota/upload`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAdminSecret()}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Lỗi tải lên Firmware (HTTP ${res.status}): ${errText}`);
   }
 
   return await res.json();

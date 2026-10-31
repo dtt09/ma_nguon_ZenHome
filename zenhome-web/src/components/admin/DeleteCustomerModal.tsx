@@ -216,7 +216,7 @@ export const DeleteCustomerModal: React.FC<DeleteCustomerModalProps> = ({
           )}
 
           {commandSent && (
-            <div className="p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/20  border border-blue-300  text-blue-800  text-xs font-semibold animate-in fade-in flex items-center gap-2">
+            <div className="p-3.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold animate-in fade-in flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
               <span>Đã gửi lệnh lên Server Backup thành công! Hệ thống máy chủ đang tự động thực hiện quy trình xóa.</span>
             </div>

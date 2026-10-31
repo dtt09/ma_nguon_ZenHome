@@ -82,7 +82,15 @@ export async function sendPushToUserTokens(
     }
 }
 
+const lastHistoryDebounce: Record<string, number> = {};
+
 export async function logHistoryAndNotify(userId: string, devId: string, actionText: string, source: string) {
+    const historyKey = `${userId}:${devId}:${actionText}`;
+    const nowMs = Date.now();
+    if (lastHistoryDebounce[historyKey] && (nowMs - lastHistoryDebounce[historyKey] < 4000)) {
+        return; // Đã ghi nhận trong 4s qua -> Bỏ qua để chống spam Database & Notification
+    }
+    lastHistoryDebounce[historyKey] = nowMs;
     try {
         let targetEmail: string | null = null;
         let deviceName = `Thiết bị ${devId}`;
@@ -141,8 +149,23 @@ export async function logHistoryAndNotify(userId: string, devId: string, actionT
     }
 }
 
+const lastOfflinePushTimes: Record<string, number> = {};
+
 export async function notifyOffline(userId: string, devId: string) {
     try {
+        if (!devId || devId.startsWith('room_') || devId === 'sync' || devId === 'unknown') {
+            return; // Bỏ qua deviceId rác
+        }
+
+        const cooldownKey = `${userId}_${devId}`;
+        const now = Date.now();
+        // Chống bão thông báo: Không bắn push lặp lại cho cùng 1 thiết bị trong 10 phút
+        if (lastOfflinePushTimes[cooldownKey] && (now - lastOfflinePushTimes[cooldownKey] < 600000)) {
+            console.log(`[COOLDOWN] ⏳ Bỏ qua bắn Push ngoại tuyến lặp lại cho ${devId} của user ${userId} (đã báo trong 10 phút qua).`);
+            return;
+        }
+        lastOfflinePushTimes[cooldownKey] = now;
+
         let targetEmail: string | null = null;
         let deviceName = `Thiết bị ${devId}`;
         let language = 'vi';

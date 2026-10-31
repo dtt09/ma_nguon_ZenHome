@@ -6,6 +6,46 @@ import { deleteScheduleFromFirebase } from './schedules';
 
 const userAlertsUnsubscribers: Record<string, () => void> = {};
 
+function syncUserMembersToEsp32(userId: string, userData: any) {
+    if (!userData) return;
+    const isOwner = (!userData.role || userData.role === 'owner');
+    if (!isOwner) return;
+
+    const mac = userData.macAddress;
+    if (!mac || mac === 'unknown_mac' || mac === 'unknown') return;
+
+    const cleanMac = mac.replace(/[:-]/g, '').toUpperCase();
+    const membersList: Array<{ user: string; role: string; disabled: boolean; allowed: string[] }> = [];
+
+    if (Array.isArray(userData.sharedWith)) {
+        userData.sharedWith.forEach((memberUser: string) => {
+            const role = (userData.memberRoles && userData.memberRoles[memberUser]) || 'member';
+            const disabled = Array.isArray(userData.disabledMembers) && userData.disabledMembers.includes(memberUser);
+            const allowed = (userData.memberDevicePermissions && userData.memberDevicePermissions[memberUser]) || [];
+            membersList.push({
+                user: memberUser,
+                role,
+                disabled,
+                allowed
+            });
+        });
+    }
+
+    const payload = JSON.stringify({
+        owner: userId,
+        members: membersList,
+        disabled: Array.isArray(userData.disabledMembers) ? userData.disabledMembers : [],
+        timestamp: Math.floor(Date.now() / 1000)
+    });
+
+    const membersTopic = `${userId}/${mac}/system/members`;
+    client.publish(membersTopic, payload, { qos: 1, retain: true });
+    if (mac !== cleanMac) {
+        client.publish(`${userId}/${cleanMac}/system/members`, payload, { qos: 1, retain: true });
+    }
+    console.log(`[BACKEND-RBAC] 🔄 Đã đồng bộ phân quyền thành viên tới ESP32 (${membersTopic}): ${membersList.length} thành viên`);
+}
+
 export function startListeningToAlerts() {
     console.log(`[FIREBASE] 🛡️ Đang khởi chạy trình lắng nghe Cảnh báo bảo mật...`);
     db.collection('users').onSnapshot(snapshot => {
@@ -14,6 +54,7 @@ export function startListeningToAlerts() {
             const userId = userEmail;
 
             if (change.type === 'added') {
+                syncUserMembersToEsp32(userId, change.doc.data());
                 if (userAlertsUnsubscribers[userEmail]) {
                     userAlertsUnsubscribers[userEmail]();
                     delete userAlertsUnsubscribers[userEmail];
@@ -31,6 +72,9 @@ export function startListeningToAlerts() {
                         console.error(`[FIREBASE ERROR] ❌ Lỗi lắng nghe alerts của ${userEmail}:`, err);
                     });
                 userAlertsUnsubscribers[userEmail] = unsub;
+            }
+            else if (change.type === 'modified') {
+                syncUserMembersToEsp32(userId, change.doc.data());
             }
             else if (change.type === 'removed') {
                 if (userAlertsUnsubscribers[userEmail]) {
@@ -88,6 +132,13 @@ export function startListeningToAlerts() {
                     if (timerCount > 0) {
                         console.log(`[BACKEND] ✅ Đã dọn dẹp ${timerCount} bộ hẹn giờ (timer) khỏi RAM của user ${userId}`);
                     }
+
+                    // Dọn dẹp sạch cache trạng thái thiết bị trong Server Backup (Chống Ghost Data)
+                    try {
+                        const { removeUserDeviceBackup } = await import('./deviceStateBackup');
+                        removeUserDeviceBackup(userId);
+                    } catch (e) {}
+
                     (async () => {
                         try {
                             const snap = await db.collection('server_timers').get();
@@ -160,8 +211,14 @@ export function startListeningToDeleteRequests() {
                         
                         if (isOwner && macAddress && macAddress !== 'unknown_mac' && macAddress !== 'unknown') {
                             const resetTopic = `${username}/${macAddress}/system/reset`;
-                            client.publish(resetTopic, '1', { qos: 1, retain: true });
-                            console.log(`[BACKEND] ✅ Đã gửi lệnh Factory Reset tới ESP32 do Owner xóa tài khoản: ${resetTopic}`);
+                            const resetPayload = JSON.stringify({
+                                action: 'factory_reset',
+                                admin_pass: userData.adminPass || 'admin',
+                                server_authorized: true,
+                                timestamp: Date.now()
+                            });
+                            client.publish(resetTopic, resetPayload, { qos: 1, retain: true });
+                            console.log(`[BACKEND] ✅ Đã gửi lệnh Factory Reset bảo mật tới ESP32 do Owner xóa tài khoản: ${resetTopic}`);
                         }
                     }
 
@@ -178,6 +235,11 @@ export function startListeningToDeleteRequests() {
                     // 3. Xóa Firestore User Document
                     await db.collection('users').doc(username).delete();
                     console.log(`[BACKEND] ✅ Đã xóa document chính của ${username}`);
+                    
+                    try {
+                        const { removeUserDeviceBackup } = await import('./deviceStateBackup');
+                        removeUserDeviceBackup(username);
+                    } catch (_) {}
                     
                     // 4. Xóa chính request này
                     await change.doc.ref.delete();

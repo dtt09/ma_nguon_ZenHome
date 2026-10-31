@@ -1,4 +1,5 @@
-import 'dart:async';
+﻿import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'package:zenhome_app/features/setup/logic/wifi_provisioning_service.dart'
 import 'package:zenhome_app/features/setup/logic/esp_api_service.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart' hide MqttConnectionState;
+import 'package:zenhome_app/core/services/app_update_service.dart';
 import 'package:zenhome_app/core/utils/helpers.dart';
 
 class WifiSetupWizardState {
@@ -28,6 +30,7 @@ class WifiSetupWizardState {
   final String pairingMessage;
   final bool pairingFailed;
   final String pairingErrorMessage;
+  final int remainingTimeoutSeconds;
 
   const WifiSetupWizardState({
     this.currentStep = 0,
@@ -44,6 +47,7 @@ class WifiSetupWizardState {
     this.pairingMessage = '',
     this.pairingFailed = false,
     this.pairingErrorMessage = '',
+    this.remainingTimeoutSeconds = 180,
   });
 
   WifiSetupWizardState copyWith({
@@ -61,6 +65,7 @@ class WifiSetupWizardState {
     String? pairingMessage,
     bool? pairingFailed,
     String? pairingErrorMessage,
+    int? remainingTimeoutSeconds,
   }) {
     return WifiSetupWizardState(
       currentStep: currentStep ?? this.currentStep,
@@ -77,6 +82,7 @@ class WifiSetupWizardState {
       pairingMessage: pairingMessage ?? this.pairingMessage,
       pairingFailed: pairingFailed ?? this.pairingFailed,
       pairingErrorMessage: pairingErrorMessage ?? this.pairingErrorMessage,
+      remainingTimeoutSeconds: remainingTimeoutSeconds ?? this.remainingTimeoutSeconds,
     );
   }
 }
@@ -156,10 +162,10 @@ class WifiSetupWizardController extends StateNotifier<WifiSetupWizardState> {
 
   /// Quét danh sách Wi-Fi gia đình xung quanh
   Future<List<WiFiAccessPoint>> scanNearbyHomeWifi() async {
-    state = state.copyWith(isScanningHomeWifi: true);
+    state = state.copyWith(isScanningHomeWifi: true, currentStep: 1);
     try {
       final results = await WifiProvisioningService.scanNearbyWifi(espOnly: false);
-      state = state.copyWith(isScanningHomeWifi: false);
+      state = state.copyWith(isScanningHomeWifi: false, currentStep: 1);
 
       final homeAps = results.where((ap) {
         final s = ap.ssid.toLowerCase();
@@ -174,7 +180,7 @@ class WifiSetupWizardController extends StateNotifier<WifiSetupWizardState> {
       }
       return uniqueMap.values.toList();
     } catch (e) {
-      state = state.copyWith(isScanningHomeWifi: false);
+      state = state.copyWith(isScanningHomeWifi: false, currentStep: 1);
       rethrow;
     }
   }
@@ -190,6 +196,7 @@ class WifiSetupWizardController extends StateNotifier<WifiSetupWizardState> {
     required String defaultServer,
     required String defaultUser,
     required String defaultPass,
+    String? targetHomeId,
   }) async {
     state = state.copyWith(
       currentStep: 2,
@@ -197,9 +204,19 @@ class WifiSetupWizardController extends StateNotifier<WifiSetupWizardState> {
       pairingFailed: false,
       pairingErrorMessage: '',
       pairingMessage: 'Đang kiểm tra kết nối với Hub ESP32...',
+      remainingTimeoutSeconds: 180,
     );
 
     try {
+      // Đảm bảo cấu hình đang active đúng là ngôi nhà mục tiêu (tránh xung đột giữa các nhà)
+      if (targetHomeId != null && targetHomeId.isNotEmpty) {
+        final curActive = _ref.read(homeConfigProvider).activeConfig;
+        if (curActive.userId != targetHomeId) {
+          debugPrint('[SETUP] 🔄 Chuyển active home sang mục tiêu thiết lập: $targetHomeId');
+          await _ref.read(homeConfigProvider).switchActiveHome(targetHomeId);
+        }
+      }
+
       // 1. Ping ESP32
       state = state.copyWith(
         pairingProgress: 0.25,
@@ -230,8 +247,8 @@ class WifiSetupWizardController extends StateNotifier<WifiSetupWizardState> {
       }
 
       String userMqtt = mqttUser.trim();
-      if (userMqtt.isEmpty) {
-        userMqtt = (activeConfig.mqttUser != null && activeConfig.mqttUser!.isNotEmpty)
+      if (userMqtt.isEmpty || userMqtt.startsWith('user_')) {
+        userMqtt = (activeConfig.mqttUser != null && activeConfig.mqttUser!.isNotEmpty && !activeConfig.mqttUser!.startsWith('user_'))
             ? activeConfig.mqttUser!
             : defaultUser;
       }
@@ -241,6 +258,14 @@ class WifiSetupWizardController extends StateNotifier<WifiSetupWizardState> {
         passMqtt = (activeConfig.mqttPass != null && activeConfig.mqttPass!.isNotEmpty)
             ? activeConfig.mqttPass!
             : defaultPass;
+      }
+
+      // Đảm bảo đồng bộ tuyệt đối với HiveMQ Cloud
+      if (serverInput.contains('hivemq.cloud')) {
+        if (userMqtt.isEmpty || userMqtt.startsWith('user_') || passMqtt.isEmpty) {
+          userMqtt = 'DTC_ZenHome';
+          passMqtt = 'DTC_ZenHome2103';
+        }
       }
 
       activeConfig.macAddress = espMac;
@@ -255,15 +280,21 @@ class WifiSetupWizardController extends StateNotifier<WifiSetupWizardState> {
         pairingMessage: 'Đang gửi thông tin Wi-Fi và MQTT đến Hub...',
       );
 
+      String? liveServerUrl;
+      try {
+        liveServerUrl = await AppUpdateService.getLiveServerBaseUrl();
+      } catch (_) {}
+
       bool isSuccess = await EspApiService.sendConfigToESP(
         wifiSsid: wifiSsid.trim(),
         wifiPass: wifiPass.trim(),
         adminPass: activeConfig.adminPass,
         config: activeConfig,
+        serverUrl: liveServerUrl,
       );
 
       if (!isSuccess) {
-        activeConfig.macAddress = 'unknown_mac';
+        activeConfig.macAddress = '';
         state = state.copyWith(
           pairingFailed: true,
           pairingErrorMessage: 'ESP32 từ chối gói cấu hình. Vui lòng kiểm tra lại mật khẩu quản trị.',
@@ -271,36 +302,107 @@ class WifiSetupWizardController extends StateNotifier<WifiSetupWizardState> {
         return;
       }
 
-      // Ngắt kết nối SoftAP để điện thoại bắt lại Internet
+      // Ngắt kết nối SoftAP ngay lập tức để điện thoại chuyển lại về Wi-Fi nhà hoặc 4G/5G Internet
       await WifiProvisioningService.releaseWifiUsage();
       try {
         await WiFiForIoTPlugin.disconnect();
       } catch (_) {}
+      await Future.delayed(const Duration(milliseconds: 1500));
 
-      // 3. Đợi thiết bị reboot và lên mạng MQTT
+      // 3. Đợi thiết bị reboot và lên mạng MQTT (Thời gian chờ tối đa 3 phút)
       state = state.copyWith(
-        pairingProgress: 0.75,
-        pairingMessage: 'Đang đợi Hub khởi động và kết nối MQTT Broker...',
+        pairingProgress: 0.65,
+        pairingMessage: 'Đang đợi Hub kết nối Wi-Fi & MQTT Cloud lần đầu...',
+        remainingTimeoutSeconds: 180,
       );
 
       final mqttRepo = _ref.read(mqttRepositoryProvider);
       mqttRepo.disconnect();
 
       bool isEspOnline = false;
-      final sub = mqttRepo.espOnlineStream.listen((online) {
-        if (online) isEspOnline = true;
+      bool isHandshakeReceived = false;
+      bool isSetupCompleted = false;
+
+      final targetMqttPrefix = '${activeConfig.userId}/$espMac';
+
+      final setupSub = mqttRepo.setupMessageStream.listen((msg) {
+        final topic = msg['topic'];
+        final payload = msg['payload'] ?? '';
+        final fullTopic = msg['fullTopic'] ?? '';
+        debugPrint('[SETUP-APP] 📩 Nhận setup message từ Hub: $topic (Full: $fullTopic) -> $payload');
+        if (topic == 'handshake') {
+          isHandshakeReceived = true;
+          state = state.copyWith(
+            pairingProgress: 0.90,
+            pairingMessage: 'Đã bắt được tín hiệu từ Hub! Đang gửi phản hồi xác nhận kích hoạt...',
+          );
+          // Gửi phản hồi xác nhận bắt tay để ESP32 hoàn tất thiết lập
+          try {
+            final confirmPayload = jsonEncode({
+              'confirm': true,
+              'mac': espMac,
+              'userId': activeConfig.userId,
+              'timestamp': DateTime.now().millisecondsSinceEpoch,
+            });
+            mqttRepo.publishCmd('$targetMqttPrefix/setup/confirm', confirmPayload);
+            if (fullTopic.endsWith('/setup/handshake')) {
+              final detectedPrefix = fullTopic.replaceAll('/setup/handshake', '');
+              if (detectedPrefix != targetMqttPrefix) {
+                mqttRepo.publishCmd('$detectedPrefix/setup/confirm', confirmPayload);
+                debugPrint('[SETUP-APP] 📤 Đã gửi thêm confirm tới detectedPrefix: $detectedPrefix/setup/confirm');
+              }
+            }
+            debugPrint('[SETUP-APP] 📤 Đã gửi confirm tới Hub trên: $targetMqttPrefix/setup/confirm');
+          } catch (e) {
+            debugPrint('[SETUP-APP] ⚠️ Lỗi gửi confirm: $e');
+          }
+        } else if (topic == 'complete') {
+          isSetupCompleted = true;
+          isEspOnline = true;
+          state = state.copyWith(
+            pairingProgress: 0.98,
+            pairingMessage: 'Thiết lập hoàn tất! Hub đã mở khóa toàn bộ tính năng.',
+          );
+        }
       });
 
-      await Future.delayed(const Duration(seconds: 3));
+      final onlineSub = mqttRepo.espOnlineStream.listen((online) {
+        if (online) {
+          isEspOnline = true;
+          if (isHandshakeReceived) {
+            isSetupCompleted = true;
+          }
+        }
+      });
+
+      // Kết nối MQTT ngay với targetMqttPrefix đã có MAC chính xác
+      try {
+        mqttRepo.connect(
+          userId: activeConfig.userId,
+          mqttServer: serverInput,
+          mqttPrefix: targetMqttPrefix,
+          dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
+          mqttUser: userMqtt,
+          mqttPass: passMqtt,
+        );
+      } catch (e) {
+        debugPrint('[SETUP-APP] Lỗi kết nối MQTT ban đầu: $e');
+      }
 
       int waitLoops = 0;
-      int lastConnectAttempt = -10;
+      int lastConnectAttempt = 0;
+      const int maxTimeoutSeconds = 180; // Giới hạn 3 phút ghép nối
 
-      while (!isEspOnline && waitLoops < 90) {
-        if (mqttRepo.isEspOnline) {
-          isEspOnline = true;
+      while (!isSetupCompleted && waitLoops < maxTimeoutSeconds) {
+        final remaining = maxTimeoutSeconds - waitLoops;
+        state = state.copyWith(remainingTimeoutSeconds: remaining);
+
+        // Nếu đã online nhưng chưa handshake hoặc chưa hoàn tất, gửi xác nhận
+        if (isEspOnline && !isSetupCompleted && isHandshakeReceived) {
+          isSetupCompleted = true;
           break;
         }
+
         if (waitLoops - lastConnectAttempt >= 6) {
           final mqttState = mqttRepo.client?.connectionStatus?.state;
           if (mqttState != MqttConnectionState.connected && mqttState != MqttConnectionState.connecting) {
@@ -308,38 +410,56 @@ class WifiSetupWizardController extends StateNotifier<WifiSetupWizardState> {
             mqttRepo.disconnect();
             mqttRepo.connect(
               userId: activeConfig.userId,
-              mqttServer: activeConfig.mqttServer,
-              mqttPrefix: activeConfig.mqttPrefix,
+              mqttServer: serverInput,
+              mqttPrefix: targetMqttPrefix,
               dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
-              mqttUser: activeConfig.mqttUser,
-              mqttPass: activeConfig.mqttPass,
+              mqttUser: userMqtt,
+              mqttPass: passMqtt,
             );
           }
         }
+
+        // Nếu điện thoại đã kết nối MQTT và đã nhận handshake nhưng chưa nhận complete, định kỳ nhắc lại confirm
+        if (isHandshakeReceived && !isSetupCompleted && waitLoops % 2 == 0) {
+          try {
+            final confirmPayload = jsonEncode({
+              'confirm': true,
+              'mac': espMac,
+              'userId': activeConfig.userId,
+              'timestamp': DateTime.now().millisecondsSinceEpoch,
+            });
+            mqttRepo.publishCmd('$targetMqttPrefix/setup/confirm', confirmPayload);
+          } catch (_) {}
+        }
+
         await Future.delayed(const Duration(seconds: 1));
         waitLoops++;
-        if (waitLoops % 10 == 0) {
+
+        if (waitLoops % 4 == 0 && !isHandshakeReceived) {
           state = state.copyWith(
-            pairingProgress: min(0.95, 0.75 + (waitLoops / 90.0) * 0.20),
+            pairingProgress: min(0.85, 0.65 + (waitLoops / maxTimeoutSeconds.toDouble()) * 0.20),
+            pairingMessage: 'Đang đợi Hub bắt tín hiệu lần đầu (${waitLoops}s / 3 phút)...',
           );
         }
       }
 
-      sub.cancel();
+      setupSub.cancel();
+      onlineSub.cancel();
 
-      if (!isEspOnline) {
-        activeConfig.macAddress = 'unknown_mac';
+      if (!isSetupCompleted && !isEspOnline) {
+        activeConfig.macAddress = '';
         await _ref.read(homeConfigProvider).saveConfigToStorage(activeConfig);
         state = state.copyWith(
           pairingFailed: true,
-          pairingErrorMessage: 'Quá thời gian chờ Hub online trên MQTT. Hãy kiểm tra lại mật khẩu Wi-Fi nhà.',
+          pairingErrorMessage: 'Hết thời gian chờ kết nối (3 phút)! Vui lòng kiểm tra lại thông tin Wi-Fi nhà và khoảng cách đến Hub.',
         );
         return;
       }
 
-      // 4. Lưu MAC và đồng bộ
+      // 4. Lưu MAC và kích hoạt liên kết độc quyền (Exclusive MAC Binding)
       activeConfig.macAddress = espMac;
       await _ref.read(homeConfigProvider).saveConfigToStorage(activeConfig);
+      await _ref.read(homeConfigProvider).claimExclusiveMacAddress(activeConfig.userId, espMac);
 
       // 5. Đồng bộ Firebase
       try {
@@ -358,13 +478,34 @@ class WifiSetupWizardController extends StateNotifier<WifiSetupWizardState> {
       // 6. Hoàn tất -> Bước 3
       state = state.copyWith(
         pairingProgress: 1.0,
+        pairingMessage: 'Thiết lập hoàn tất! Hub đã mở khóa toàn bộ tính năng. Đang chuyển sang thêm thiết bị...',
         currentStep: 3,
+        remainingTimeoutSeconds: 0,
       );
     } catch (e) {
       state = state.copyWith(
         pairingFailed: true,
         pairingErrorMessage: 'Đã xảy ra lỗi: $e',
       );
+    }
+  }
+
+  /// Hủy bỏ quy trình thiết lập, đảm bảo không lưu MAC ảo vào cấu hình Local
+  Future<void> cancelSetupWorkflow() async {
+    try {
+      final activeConfig = _ref.read(homeConfigProvider).activeConfig;
+      if (activeConfig.macAddress.isNotEmpty) {
+        // Chỉ reset nếu chưa hoàn thành thiết lập hợp lệ
+        if (state.currentStep != 3) {
+          activeConfig.macAddress = '';
+          await _ref.read(homeConfigProvider).saveConfigToStorage(activeConfig);
+          debugPrint("[SETUP] 🛑 Đã hủy quy trình ghép nối và reset MAC về rỗng (tránh liên kết ảo).");
+        }
+      }
+      final mqttRepo = _ref.read(mqttRepositoryProvider);
+      mqttRepo.disconnect();
+    } catch (e) {
+      debugPrint("[SETUP] Lỗi khi hủy quy trình ghép nối: $e");
     }
   }
 }

@@ -152,6 +152,8 @@ export async function syncServerConfigToFirestore(port: number): Promise<ServerN
     return currentConfig;
   }
 
+  lastSyncedIp = localIp;
+
   try {
     // 1. Cập nhật system_config/server_config
     const serverConfigRef = db.collection('system_config').doc('server_config');
@@ -172,20 +174,23 @@ export async function syncServerConfigToFirestore(port: number): Promise<ServerN
       { merge: true }
     );
 
-    // 2. Cập nhật downloadUrl, directApkUrl và serverBaseUrl trong system_config/app_version
-    // để App di động và Web Admin luôn nhận link tải trực tiếp theo IP mới nhất
+    // 2. Cập nhật serverBaseUrl trong system_config/app_version (BẢO LƯU LINK GITHUB RELEASES TOÀN CẦU)
     const appVersionRef = db.collection('system_config').doc('app_version');
-    await appVersionRef.set(
-      {
-        downloadUrl: directApkUrl,
-        directApkUrl,
-        serverBaseUrl,
-        lastServerSyncAt: nowIso,
-      },
-      { merge: true }
-    );
+    const appVersionDoc = await appVersionRef.get();
+    const appVersionData = appVersionDoc.data() || {};
+    const hasGlobalGithub = (appVersionData.directApkUrl || '').toLowerCase().includes('github.com');
 
-    lastSyncedIp = localIp;
+    const versionUpdatePayload: Record<string, any> = {
+      serverBaseUrl,
+      lastServerSyncAt: nowIso,
+    };
+    if (!hasGlobalGithub) {
+      versionUpdatePayload.downloadUrl = directApkUrl;
+      versionUpdatePayload.directApkUrl = directApkUrl;
+    }
+
+    await appVersionRef.set(versionUpdatePayload, { merge: true });
+
     console.log(`[NETWORK] 📡 Đã đồng bộ IP máy chủ: ${localIp}:${port} -> Cloud Firestore (server_config & app_version)`);
     addLog('[NETWORK]', `📡 Đã đồng bộ IP máy chủ (${localIp}:${port}) lên Cloud Firestore thành công.`, 'success');
   } catch (err: any) {

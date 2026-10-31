@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:zenhome_app/core/utils/anti_spam_helper.dart';
 
 class BouncingButton extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final double scaleFactor;
   final Duration duration;
 
@@ -12,6 +12,7 @@ class BouncingButton extends StatefulWidget {
     super.key,
     required this.child,
     this.onTap,
+    this.onLongPress,
     this.scaleFactor = 0.94, // Softer scale (was 0.92)
     this.duration = const Duration(milliseconds: 250), // Slower, smoother animation
   });
@@ -51,25 +52,17 @@ class _BouncingButtonState extends State<BouncingButton> with SingleTickerProvid
   }
 
   void _onTapDown(TapDownDetails details) {
-    if (widget.onTap != null) {
-      HapticFeedback.lightImpact();
+    if (widget.onTap != null || widget.onLongPress != null) {
       _controller.forward();
     }
   }
 
   void _onTapUp(TapUpDetails details) {
-    if (widget.onTap != null) {
-      _controller.reverse();
-      AntiSpamHelper.throttle('btn_${widget.hashCode}', const Duration(milliseconds: 600), () {
-        widget.onTap!();
-      });
-    }
+    _controller.reverse();
   }
 
   void _onTapCancel() {
-    if (widget.onTap != null) {
-      _controller.reverse();
-    }
+    _controller.reverse();
   }
 
   @override
@@ -79,6 +72,18 @@ class _BouncingButtonState extends State<BouncingButton> with SingleTickerProvid
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
+      onTap: widget.onTap != null
+          ? () {
+              widget.onTap!();
+            }
+          : null,
+      onLongPress: widget.onLongPress != null
+          ? () {
+              _controller.reverse();
+              HapticFeedback.heavyImpact();
+              widget.onLongPress!();
+            }
+          : null,
       child: AnimatedBuilder(
         animation: _scaleAnimation,
         builder: (context, child) => Transform.scale(

@@ -1,6 +1,5 @@
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:firebase_core/firebase_core.dart'; // Thêm cái này
 import 'package:flutter/foundation.dart';
+import 'package:zenhome_app/core/services/crash_sync_service.dart';
 
 class LoggerService {
   static void i(String message) {
@@ -16,16 +15,15 @@ class LoggerService {
       if (stackTrace != null) print(stackTrace);
     }
     
-    // FIX 2: Bắt buộc check Firebase đã sống chưa rồi mới gửi Crashlytics
+    // Đồng bộ lỗi tự động qua CrashSyncService tới cả Firebase Crashlytics & Cloud Firestore
     try {
-      if (Firebase.apps.isNotEmpty) {
-        FirebaseCrashlytics.instance.recordError(
-          error ?? message,
-          stackTrace,
-          reason: message,
-          fatal: false,
-        );
-      }
+      CrashSyncService.recordCrash(
+        error ?? message,
+        stackTrace,
+        reason: message,
+        fatal: false,
+        severity: 'error',
+      );
     } catch (e) {
       debugPrint('Logger error: $e');
     }

@@ -79,7 +79,7 @@ export const BugReportsView: React.FC<BugReportsViewProps> = ({
       case 'investigating':
         return {
           label: 'Đang xử lý',
-          badgeColor: 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-400 border-blue-200 dark:border-blue-800/60',
+          badgeColor: 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border-sky-200 dark:border-sky-800/60',
           dotColor: 'bg-blue-500 animate-pulse'
         };
       default:

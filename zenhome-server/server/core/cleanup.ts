@@ -21,6 +21,10 @@ export async function cleanJunkAccounts() {
         console.log(`[CLEANUP] 🗑️ Đang xóa username rác (không có uid): ${doc.id}`);
         await doc.ref.delete();
         deletedFirestoreDocs++;
+        try {
+          const { removeUserDeviceBackup } = await import('./deviceStateBackup');
+          removeUserDeviceBackup(doc.id);
+        } catch (_) {}
       } else {
         validUidsInDb.add(uid);
       }

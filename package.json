@@ -1,0 +1,14 @@
+{
+  "name": "zenhome-root",
+  "version": "1.8.11",
+  "description": "ZenHome Smart Home Unified System",
+  "scripts": {
+    "release": "node scripts/auto_publish_release.js",
+    "release:quick": "node scripts/auto_publish_release.js --skip-build",
+    "release:esp": "node scripts/auto_publish_release.js --only-esp",
+    "release:apk": "node scripts/auto_publish_release.js --only-apk",
+    "server": "cd zenhome-server && npm run dev",
+    "build:esp": "pio run -d esp32_1",
+    "build:apk": "cd zenhome_app && flutter build apk --release"
+  }
+}

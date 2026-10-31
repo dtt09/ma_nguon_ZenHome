@@ -50,10 +50,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
+            transitionDuration: const Duration(milliseconds: 700),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child); 
+              final curvedAnimation = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutQuart,
+              );
+
+              return FadeTransition(
+                opacity: curvedAnimation,
+                child: ScaleTransition(
+                  scale: Tween<double>(begin: 0.94, end: 1.0).animate(curvedAnimation),
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0.0, 0.03),
+                      end: Offset.zero,
+                    ).animate(curvedAnimation),
+                    child: child,
+                  ),
+                ),
+              );
             },
-            transitionDuration: const Duration(milliseconds: 600), 
           ),
         );
       }

@@ -43,13 +43,18 @@ class SmartConfig {
   String? ownerEmail;
   bool canEditAutomation;
   List<String>? allowedDevices;
+  bool isSubHome;
+  String homeIcon;
+  String homeType;
+  String homeColor;
+  List<String> homeRules;
 
   SmartConfig({
     required this.userId,
     required this.macAddress,
-    this.mqttServer = 'broker.emqx.io', 
-    this.mqttUser,
-    this.mqttPass,
+    this.mqttServer = 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud', 
+    this.mqttUser = 'DTC_ZenHome',
+    this.mqttPass = 'DTC_ZenHome2103',
     this.adminPass = 'admin', 
     required this.devices,
     this.role = 'owner',
@@ -57,9 +62,15 @@ class SmartConfig {
     this.ownerEmail,
     this.canEditAutomation = false,
     this.allowedDevices,
+    this.isSubHome = false,
+    this.homeIcon = 'home',
+    this.homeType = 'townhouse',
+    this.homeColor = '#0F766E',
+    this.homeRules = const [],
   });
 
   String get mqttPrefix => '$userId/$macAddress';
+  bool get isHubLinked => macAddress.isNotEmpty && macAddress != 'unknown_mac' && macAddress != 'unknown';
 
   Map<String, dynamic> toJson() => {
         'userId': userId,
@@ -73,15 +84,29 @@ class SmartConfig {
         'ownerEmail': ownerEmail,
         'canEditAutomation': canEditAutomation,
         'allowedDevices': allowedDevices,
+        'isSubHome': isSubHome,
+        'homeIcon': homeIcon,
+        'homeType': homeType,
+        'homeColor': homeColor,
+        'homeRules': homeRules,
         'devices': devices.map((e) => e.toJson()).toList(),
       };
 
-  factory SmartConfig.fromJson(Map<String, dynamic> json) => SmartConfig(
+  factory SmartConfig.fromJson(Map<String, dynamic> json) {
+    final rawMac = json['macAddress']?.toString() ?? '';
+    final cleanMac = (rawMac == 'unknown_mac' || rawMac == 'unknown') ? '' : rawMac;
+    return SmartConfig(
         userId: json['userId'] ?? 'guest',
-        macAddress: json['macAddress'] ?? 'unknown_mac',
-        mqttServer: json['mqttServer'] ?? 'broker.emqx.io', 
-        mqttUser: json['mqttUser'],
-        mqttPass: json['mqttPass'],
+        macAddress: cleanMac,
+        mqttServer: (json['mqttServer'] != null && json['mqttServer'].toString().isNotEmpty && json['mqttServer'] != 'broker.emqx.io')
+            ? json['mqttServer']
+            : 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud', 
+        mqttUser: (json['mqttUser'] != null && json['mqttUser'].toString().isNotEmpty && !json['mqttUser'].toString().startsWith('user_'))
+            ? json['mqttUser']
+            : 'DTC_ZenHome',
+        mqttPass: (json['mqttPass'] != null && json['mqttPass'].toString().isNotEmpty)
+            ? json['mqttPass']
+            : 'DTC_ZenHome2103',
         adminPass: json['adminPass'] ?? 'admin', 
         role: json['role'] ?? 'owner',
         homeName: json['homeName'] ?? 'My Home',
@@ -93,5 +118,11 @@ class SmartConfig {
         allowedDevices: json['allowedDevices'] != null
             ? List<String>.from(json['allowedDevices'])
             : null,
+        isSubHome: json['isSubHome'] ?? false,
+        homeIcon: json['homeIcon'] ?? 'home',
+        homeType: json['homeType'] ?? 'townhouse',
+        homeColor: json['homeColor'] ?? '#0F766E',
+        homeRules: json['homeRules'] != null ? List<String>.from(json['homeRules']) : [],
       );
+  }
 }

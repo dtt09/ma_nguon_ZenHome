@@ -5,6 +5,7 @@ import 'package:zenhome_app/core/services/app_update_service.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 
 import 'package:zenhome_app/core/utils/toast_helper.dart';
+import 'package:zenhome_app/features/settings/ui/version_changelog_screen.dart';
 
 class AppUpdateDialog extends StatefulWidget {
   final AppVersionInfo updateInfo;
@@ -820,6 +821,28 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                             ),
                           ),
                         ],
+                        Center(
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              foregroundColor: const Color(0xFF3B82F6),
+                            ),
+                            icon: const Icon(Icons.article_rounded, size: 16),
+                            label: Text(
+                              context.tr('version_changelog_title'),
+                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => VersionChangelogScreen(updateInfo: updateInfo),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         Row(
                           children: [
                             if (!isForce) ...[

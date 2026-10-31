@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:wifi_scan/wifi_scan.dart';
 
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
+import 'package:zenhome_app/core/services/local_network_service.dart';
 import 'package:zenhome_app/core/utils/helpers.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/features/setup/logic/wifi_provisioning_service.dart';
@@ -72,6 +73,7 @@ class HubReconfigController extends StateNotifier<HubReconfigState> {
     try {
       final activeConfig = _ref.read(homeConfigProvider).activeConfig;
       final isEspOnline = _ref.read(mqttRepositoryProvider).isEspOnline;
+      bool sentDirectly = false;
 
       // 1. Nếu Hub Online: Bắn gói tin JSON OTA tới topic ${mqttPrefix}/system/config
       if (isEspOnline) {
@@ -92,6 +94,15 @@ class HubReconfigController extends StateNotifier<HubReconfigState> {
 
         // Đợi 800ms để đảm bảo gói tin gửi trọn vẹn qua MQTT TLS
         await Future.delayed(const Duration(milliseconds: 800));
+        sentDirectly = true;
+      } else {
+        // Hub Offline trên MQTT: Dự phòng tức thì gửi qua LAN HTTP hoặc BLE Zero-Touch!
+        sentDirectly = await LocalNetworkService().sendReconfigHub(
+          newSsid: newSsid,
+          newWifiPass: newWifiPass,
+          newServer: newServer,
+          newAdminPass: newAdminPass,
+        );
       }
 
       // 2. Cập nhật cấu hình vào Local Storage của ứng dụng
@@ -136,11 +147,18 @@ class HubReconfigController extends StateNotifier<HubReconfigState> {
         );
       }
 
+      String methodText = 'Đã lưu trên Cloud (Hub Offline)';
+      if (isEspOnline) {
+        methodText = 'Bắn lệnh Cloud OTA (Thành công)';
+      } else if (sentDirectly) {
+        methodText = 'Gửi trực tiếp qua LAN/BLE Zero-Touch (Thành công)';
+      }
+
       final details = {
         'Tên Wi-Fi mới': newSsid,
         'MQTT Server': newServer,
         'Mã MAC': activeConfig.macAddress,
-        'Phương thức': isEspOnline ? 'Bắn lệnh Cloud OTA (Thành công)' : 'Đã lưu trên Cloud (Hub Offline)',
+        'Phương thức': methodText,
         'Thời gian': DateTime.now().toLocal().toString().substring(0, 19),
       };
 

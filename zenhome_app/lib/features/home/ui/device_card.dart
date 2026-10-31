@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
@@ -14,6 +14,7 @@ class DeviceCard extends StatelessWidget {
   final bool isCooldown;
   final bool isRestricted;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   const DeviceCard({
     super.key,
@@ -24,6 +25,7 @@ class DeviceCard extends StatelessWidget {
     this.isCooldown = false,
     this.isRestricted = false,
     required this.onTap,
+    this.onLongPress,
   });
 
   /// Xác định dải màu ánh sáng thông minh tùy theo loại thiết bị
@@ -119,14 +121,14 @@ class DeviceCard extends StatelessWidget {
             gradient: activeGradient,
             boxShadow: [
               BoxShadow(
-                color: glowColor.withOpacity(isDark ? 0.45 : 0.35),
-                blurRadius: 22,
-                spreadRadius: 1,
+                color: glowColor.withOpacity(isDark ? 0.48 : 0.38),
+                blurRadius: 24,
+                spreadRadius: 2,
                 offset: const Offset(0, 10),
               ),
               BoxShadow(
-                color: Colors.white.withOpacity(0.15),
-                blurRadius: 4,
+                color: Colors.white.withOpacity(0.2),
+                blurRadius: 6,
                 offset: const Offset(0, 1),
               ),
             ],
@@ -175,23 +177,58 @@ class DeviceCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Icon hộp tròn với hiệu ứng nổi và màu nhận diện loại thiết bị
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isOn
-                        ? Colors.white.withOpacity(0.22)
-                        : glowColor.withOpacity(isDark ? 0.15 : 0.09),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 28,
-                    color: iconColor,
-                  )
-                      .animate(target: isOn ? 1 : 0)
-                      .scale(begin: const Offset(0.95, 0.95), end: const Offset(1.08, 1.08), duration: 250.ms),
+                // Icon hộp tròn với hiệu ứng nổi Animate UI và màu nhận diện loại thiết bị
+                Builder(
+                  builder: (context) {
+                    Widget iconChild = Icon(
+                      icon,
+                      size: 28,
+                      color: iconColor,
+                    );
+
+                    // Hiệu ứng quay động cơ Animate UI khi bật quạt / làm mát
+                    final bool isFan = icon == Icons.mode_fan_off ||
+                        icon == Icons.air_rounded ||
+                        icon == Icons.wind_power ||
+                        icon == Icons.toys_outlined;
+
+                    if (isFan && isOn) {
+                      iconChild = iconChild
+                          .animate(onPlay: (c) => c.repeat())
+                          .rotate(duration: 1200.ms, curve: Curves.linear);
+                    } else {
+                      iconChild = iconChild
+                          .animate(target: isOn ? 1 : 0)
+                          .scale(
+                            begin: const Offset(0.92, 0.92),
+                            end: const Offset(1.12, 1.12),
+                            duration: 280.ms,
+                            curve: Curves.easeOutBack,
+                          );
+                    }
+
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 280),
+                      curve: Curves.easeOutCubic,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isOn
+                            ? Colors.white.withOpacity(0.24)
+                            : glowColor.withOpacity(isDark ? 0.16 : 0.09),
+                        shape: BoxShape.circle,
+                        boxShadow: isOn
+                            ? [
+                                BoxShadow(
+                                  color: Colors.white.withOpacity(0.2),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: iconChild,
+                    );
+                  },
                 ),
 
                 // Trạng thái / Đang xử lý
@@ -211,7 +248,7 @@ class DeviceCard extends StatelessWidget {
                 else if (isCooldown)
                   LogoLoadingIndicator(color: primaryTextColor, size: 22)
                 else
-                  // Capsule switch toggle sang trọng với viền màu nhận diện khi tắt
+                  // Capsule switch toggle Animate UI với lò xo easeOutBack
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
@@ -226,7 +263,7 @@ class DeviceCard extends StatelessWidget {
                       border: isOn ? null : Border.all(color: glowColor.withOpacity(0.25), width: 1),
                     ),
                     child: AnimatedAlign(
-                      duration: const Duration(milliseconds: 250),
+                      duration: const Duration(milliseconds: 280),
                       curve: Curves.easeOutBack,
                       alignment: isOn ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
@@ -282,26 +319,41 @@ class DeviceCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 5),
-                // Trạng thái BẬT / TẮT
+                // Trạng thái BẬT / TẮT với chấm đèn phát quang
                 Row(
                   children: [
-                    Container(
-                      width: 6,
-                      height: 6,
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      width: isOn ? 8 : 6,
+                      height: isOn ? 8 : 6,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isOn
                             ? (icon == Icons.lightbulb_rounded ? Colors.amberAccent : Colors.lightGreenAccent)
                             : (isDark ? Colors.white30 : Colors.black26),
+                        boxShadow: isOn
+                            ? [
+                                BoxShadow(
+                                  color: (icon == Icons.lightbulb_rounded ? Colors.amberAccent : Colors.lightGreenAccent)
+                                      .withOpacity(0.6),
+                                  blurRadius: 6,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      isOn ? context.tr('status_on') : context.tr('status_off'),
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 250),
                       style: TextStyle(
                         fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: isOn ? FontWeight.w700 : FontWeight.w600,
                         color: secondaryTextColor,
+                      ),
+                      child: Text(
+                        isOn ? context.tr('status_on') : context.tr('status_off'),
                       ),
                     ),
                   ],
@@ -314,7 +366,11 @@ class DeviceCard extends StatelessWidget {
     );
 
     return BouncingButton(
-      onTap: isCooldown ? null : onTap,
+      onTap: isCooldown ? null : () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      onLongPress: isCooldown ? null : onLongPress,
       scaleFactor: 0.96,
       child: card,
     );

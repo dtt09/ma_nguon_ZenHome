@@ -25,8 +25,8 @@ Future<bool> showAdminPasswordDialog(
         isDark: isDark,
         currentAdminPassword: currentAdminPassword,
         title: title ?? context.tr('admin_verify_title'),
-        description: description ??
-            'Vui lòng nhập mật khẩu quản trị của Hub ESP32 để ủy quyền thao tác hủy liên kết và xóa sạch cấu hình từ xa.',
+        description: description ?? context.tr('admin_verify_desc'),
+
       );
     },
   );
@@ -200,7 +200,7 @@ class _AdminPasswordModalContentState extends State<_AdminPasswordModalContent> 
                   ),
                   decoration: InputDecoration(
                     labelText: context.tr('wifi_admin_pass_hint'),
-                    hintText: 'Nhập mật khẩu quản trị (Mặc định: admin)',
+                    hintText: context.tr('admin_pass_default_hint'),
                     hintStyle: TextStyle(
                       fontSize: 13,
                       color: widget.isDark ? Colors.grey.shade600 : Colors.grey.shade400,

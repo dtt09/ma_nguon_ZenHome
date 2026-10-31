@@ -26,7 +26,10 @@ import 'package:zenhome_app/features/home/ui/home_switcher_sheet.dart';
 import 'package:zenhome_app/features/home/ui/room_tab.dart';
 import 'package:zenhome_app/features/notifications/ui/notification_badge.dart';
 import 'package:zenhome_app/features/home/ui/scene_section.dart';
+import 'package:zenhome_app/features/home/ui/scenes_screen.dart';
 import 'package:zenhome_app/core/services/local_network_service.dart';
+import 'package:zenhome_app/core/utils/home_helper.dart';
+import 'package:zenhome_app/core/services/ble_local_service.dart';
 import 'package:zenhome_app/core/providers/local_network_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -38,7 +41,6 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String _selectedRoomCode = '';
-  final Map<String, bool> _cooldowns = {};
   final List<StreamSubscription> _subscriptions = [];
   final List<Timer> _timers = [];
   
@@ -62,10 +64,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (availableRooms.isNotEmpty) {
       _selectedRoomCode = availableRooms.first; 
     }
-    // Khởi chạy giám sát mạng cục bộ (Local LAN) và kích hoạt cầu nối đồng bộ
+    // Khởi chạy giám sát mạng cục bộ (Local LAN) và kích hoạt cầu nối đồng bộ kèm phân quyền
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(localSyncBridgeProvider);
-      ref.read(localNetworkServiceProvider).startMonitoring(targetMac: activeConfig.macAddress);
+      ref.read(localNetworkServiceProvider).startMonitoring(
+        targetMac: activeConfig.macAddress,
+        adminPass: activeConfig.adminPass,
+        userId: activeConfig.userId,
+        role: activeConfig.role,
+        allowedDevices: activeConfig.allowedDevices,
+      );
     });
   }
 
@@ -110,7 +118,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _toggleDevice(String devId, String roomId, bool currentState) {
-    if (_cooldowns[devId] == true) return; 
+    if (ref.read(pendingDeviceOperationsProvider).contains(devId)) return; 
 
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
 
@@ -146,42 +154,73 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     String cmd = !currentState ? '1' : '0';
     String actionText = !currentState ? context.tr('status_on') : context.tr('status_off');
 
-    // Thêm hiệu ứng rung phản hồi (Haptics)
-    if (!currentState) {
-      HapticFeedback.heavyImpact(); // Rung mạnh khi BẬT
-    } else {
-      HapticFeedback.mediumImpact(); // Rung vừa khi TẮT
-    }
+    // Phản hồi xúc giác chạm nhẹ
+    HapticFeedback.selectionClick();
 
-    // 1. ƯU TIÊN MẠNG CỤC BỘ (LOCAL LAN) NẾU ĐANG CÙNG MẠNG VỚI ESP32
-    if (isLocalAvailable) {
-      setState(() => _cooldowns[devId] = true);
-      // Tối ưu hóa UI lạc quan (Optimistic UI)
-      final currentStates = Map<String, bool>.from(ref.read(globalDeviceStatesProvider));
-      currentStates[devId] = !currentState;
-      ref.read(globalDeviceStatesProvider.notifier).state = currentStates;
-
-      localService.sendLocalControl(devId: devId, cmd: cmd).then((success) {
-        if (!mounted) return;
-        setState(() => _cooldowns[devId] = false);
-
-        if (success) {
+    // 1. Quản lý trạng thái chờ phản hồi qua Global Pending Provider (Bất tử qua mọi lần chuyển Tab)
+    ref.read(pendingDeviceOperationsProvider.notifier).setPending(
+      devId,
+      true,
+      onTimeout: () {
+        ref.read(mqttRepositoryProvider).markEspOffline();
+        HapticFeedback.vibrate();
+        if (mounted) {
           showFloatingToast(
             context,
-            context.tr('toast_success'),
-            '${!currentState ? context.tr('toast_turn_on') : context.tr('toast_turn_off')} (Local ⚡)',
+            context.tr('toast_error') ?? 'Lỗi',
+            context.tr('toast_mqtt_timeout') ?? 'Thiết bị không phản hồi, vui lòng kiểm tra nguồn điện!',
+            isError: true,
           );
-          _logHistoryToFirebase(devId, actionText);
-        } else {
-          // Dự phòng tự động: Thử gửi tiếp qua Cloud MQTT nếu Local HTTP trục trặc
-          _sendViaMqtt(devId, roomId, currentState, cmd, actionText, activeConfig);
         }
-      });
-      return;
+      },
+    );
+
+    // 2. KÍCH HOẠT LỆNH ĐIỀU KHIỂN (ƯU TIÊN LOCAL LAN TỨC THÌ + DỰ PHÒNG CLOUD MQTT SONG SONG)
+    bool confirmed = false;
+
+    void onHardwareConfirmed(bool newState) {
+      if (confirmed) return;
+      confirmed = true;
+
+      // Xóa cờ pending trên toàn cục
+      ref.read(pendingDeviceOperationsProvider.notifier).setPending(devId, false);
+
+      // Cập nhật công tắc trên app CHỈ KHI nhận được phản hồi thực tế từ ESP32
+      ref.read(globalDeviceStatesProvider.notifier).updateState(devId, newState);
+
+      // Rung phản hồi thành công khi rơ-le thực tế đã đóng/ngắt
+      if (newState) {
+        HapticFeedback.heavyImpact();
+      } else {
+        HapticFeedback.mediumImpact();
+      }
+
+      _logHistoryToFirebase(devId, actionText);
     }
 
-    // 2. GỬI QUA CLOUD MQTT NẾU KHÔNG Ở MẠNG LAN
-    _sendViaMqtt(devId, roomId, currentState, cmd, actionText, activeConfig);
+    // Kênh 1: Gửi qua mạng nội bộ LAN HTTP (Tốc độ < 15ms) hoặc BLE
+    if (isLocalAvailable) {
+      localService.sendLocalControl(devId: devId, cmd: cmd).then((success) {
+        if (success) {
+          onHardwareConfirmed(!currentState);
+        }
+      });
+    }
+
+    // Kênh 2: Phát qua MQTT Cloud (Đa topic đảm bảo cả có dấu hai chấm và không dấu)
+    try {
+      final mqttPrefix = activeConfig.mqttPrefix;
+      final topicCmd1 = '$mqttPrefix/$roomId/$devId/cmd';
+      ref.read(mqttRepositoryProvider).publishCmd(topicCmd1, cmd);
+
+      final cleanPrefix = mqttPrefix.replaceAll(':', '');
+      if (cleanPrefix != mqttPrefix) {
+        final topicCmd2 = '$cleanPrefix/$roomId/$devId/cmd';
+        ref.read(mqttRepositoryProvider).publishCmd(topicCmd2, cmd);
+      }
+    } catch (e) {
+      debugPrint('[MQTT] Lỗi publish lệnh relay: $e');
+    }
   }
 
   void _sendViaMqtt(
@@ -192,47 +231,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     String actionText,
     SmartConfig activeConfig,
   ) {
-    String topicCmd = '${activeConfig.mqttPrefix}/$roomId/$devId/cmd';
-    try {
-      final currentStates = Map<String, bool>.from(ref.read(globalDeviceStatesProvider));
-      currentStates[devId] = !currentState;
-      ref.read(globalDeviceStatesProvider.notifier).state = currentStates;
-
-      bool confirmed = false;
-      final sub = ref.read(mqttRepositoryProvider).deviceStateStream.listen((update) {
-         if (update.containsKey(devId) && update[devId] == !currentState) {
-            confirmed = true;
-         }
-      });
-      _subscriptions.add(sub);
-
-      ref.read(mqttRepositoryProvider).publishCmd(topicCmd, cmd);
-      showFloatingToast(context, context.tr('toast_success'), !currentState ? context.tr('toast_turn_on') : context.tr('toast_turn_off'));
-      
-      _logHistoryToFirebase(devId, actionText);
-
-      setState(() => _cooldowns[devId] = true);
-
-      late Timer timer;
-      timer = Timer(const Duration(seconds: 3), () {
-        sub.cancel();
-        _subscriptions.remove(sub);
-        _timers.remove(timer); // Xóa khỏi danh sách để chống leak RAM
-
-        if (!confirmed) {
-           final revertStates = Map<String, bool>.from(ref.read(globalDeviceStatesProvider));
-           revertStates[devId] = currentState;
-           ref.read(globalDeviceStatesProvider.notifier).state = revertStates;
-           if (mounted) {
-              showFloatingToast(context, context.tr('toast_error') ?? 'Lỗi', context.tr('toast_mqtt_timeout') ?? 'Thiết bị không phản hồi, đã hoàn tác!', isError: true);
-           }
-        }
-        if (mounted) setState(() => _cooldowns[devId] = false);
-      });
-      _timers.add(timer);
-    } catch (e) {
-      showFloatingToast(context, context.tr('toast_error'), context.tr('toast_mqtt_wait'), isError: true);
-    }
+    // Được gộp vào quy trình song song tối ưu của _toggleDevice
   }
 
   void _logHistoryToFirebase(String devId, String actionText) async {
@@ -277,7 +276,49 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         final isLocalAvailable = ref.watch(isLocalNetworkAvailableProvider).value ?? localService.isLocalAvailable;
         final localIp = ref.watch(localHubIpProvider).value ?? localService.cachedHubIp;
         final isEspOnline = ref.watch(espOnlineStateProvider);
+        final isBleConnected = BleLocalService().isConnected;
+        final isBleNearby = BleLocalService().isHubNearby;
+        final isLanConnected = isLocalAvailable && localIp != null && localIp.isNotEmpty;
         final isUnlinked = activeConfig.macAddress == 'unknown_mac' || activeConfig.macAddress.isEmpty;
+
+        // Xác định Kênh kết nối ưu tiên đang hoạt động
+        String activeTitle = context.tr('hub_mode_offline');
+        String activeDesc = context.tr('hub_desc_offline');
+        String activeLatency = 'N/A';
+        List<Color> gradientColors = [const Color(0xFF7F1D1D), const Color(0xFF991B1B)];
+        IconData activeIcon = Icons.cloud_off_rounded;
+
+        if (isUnlinked) {
+          activeTitle = context.tr('hub_status_unlinked');
+          activeDesc = context.tr('hub_status_unlinked_desc');
+          gradientColors = [const Color(0xFF475569), const Color(0xFF334155)];
+          activeIcon = Icons.link_off_rounded;
+        } else if (isLanConnected) {
+          activeTitle = context.tr('hub_mode_lan');
+          activeDesc = context.tr('hub_desc_lan');
+          activeLatency = '~5ms';
+          gradientColors = [const Color(0xFF065F46), const Color(0xFF047857)];
+          activeIcon = Icons.bolt_rounded;
+        } else if (isBleConnected || isBleNearby) {
+          final isBleAuth = BleLocalService().isAuthenticated;
+          activeTitle = isBleConnected
+              ? (isBleAuth ? '${context.tr('hub_mode_ble')} 🔐' : context.tr('hub_mode_ble'))
+              : '${context.tr('hub_mode_ble')} ⚡';
+          activeDesc = isBleConnected
+              ? (isBleAuth ? '${context.tr('hub_desc_ble')} (Đã xác thực Key an toàn)' : context.tr('hub_desc_ble'))
+              : 'Sẵn sàng nhận lệnh (Hàng đợi Connect-on-Demand & Tự ngắt nhường sóng)';
+          activeLatency = '~20ms';
+          gradientColors = [const Color(0xFF4338CA), const Color(0xFF6366F1)];
+          activeIcon = isBleConnected
+              ? (isBleAuth ? Icons.lock_open_rounded : Icons.bluetooth_connected_rounded)
+              : Icons.bluetooth_searching_rounded;
+        } else if (isEspOnline) {
+          activeTitle = context.tr('hub_mode_cloud');
+          activeDesc = context.tr('hub_desc_cloud');
+          activeLatency = '~200ms';
+          gradientColors = [const Color(0xFF075985), const Color(0xFF0284C7)];
+          activeIcon = Icons.cloud_rounded;
+        }
 
         return Container(
           decoration: BoxDecoration(
@@ -312,14 +353,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isLocalAvailable
+                      color: isLanConnected
                           ? const Color(0xFF10B981).withOpacity(0.15)
-                          : const Color(0xFF0EA5E9).withOpacity(0.15),
+                          : isBleConnected
+                              ? const Color(0xFF6366F1).withOpacity(0.15)
+                              : isEspOnline
+                                  ? const Color(0xFF0EA5E9).withOpacity(0.15)
+                                  : Colors.red.withOpacity(0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isLocalAvailable ? Icons.bolt_rounded : Icons.cloud_rounded,
-                      color: isLocalAvailable ? const Color(0xFF10B981) : const Color(0xFF0EA5E9),
+                      activeIcon,
+                      color: isLanConnected
+                          ? const Color(0xFF10B981)
+                          : isBleConnected
+                              ? const Color(0xFF6366F1)
+                              : isEspOnline
+                                  ? const Color(0xFF0EA5E9)
+                                  : Colors.red,
                       size: 24,
                     ),
                   ),
@@ -328,16 +379,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Trạng thái kết nối Hub',
-                          style: TextStyle(
+                        Text(
+                          context.tr('hub_status_title'),
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Ưu tiên Local ⚡ để phản hồi tức thì',
+                          context.tr('hub_status_subtitle'),
                           style: TextStyle(
                             fontSize: 12.5,
                             color: isDark ? Colors.white60 : Colors.black54,
@@ -356,11 +407,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: isLocalAvailable
-                        ? [const Color(0xFF065F46), const Color(0xFF047857)]
-                        : isEspOnline
-                            ? [const Color(0xFF075985), const Color(0xFF0284C7)]
-                            : [const Color(0xFF7F1D1D), const Color(0xFF991B1B)],
+                    colors: gradientColors,
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -372,21 +419,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          isUnlinked
-                              ? 'CHƯA LIÊN KẾT HUB'
-                              : isLocalAvailable
-                                  ? 'ĐANG KẾT NỐI: LOCAL ⚡'
-                                  : isEspOnline
-                                      ? 'ĐANG KẾT NỐI: CLOUD ☁'
-                                      : 'NGOẠI TUYẾN (OFFLINE)',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
+                        Expanded(
+                          child: Text(
+                            activeTitle,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
@@ -394,7 +440,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            isLocalAvailable ? 'Độ trễ ~5ms' : isEspOnline ? 'Độ trễ ~200ms' : 'Mất liên lạc',
+                            'Độ trễ: $activeLatency',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10.5,
@@ -406,13 +452,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      isUnlinked
-                          ? 'Vui lòng thực hiện liên kết phần cứng ESP32 trong phần Cài đặt.'
-                          : isLocalAvailable
-                              ? 'Mọi lệnh điều khiển thiết bị & ngữ cảnh được thực thi trực tiếp qua Wi-Fi nội bộ, không cần qua Cloud hay Internet.'
-                              : isEspOnline
-                                  ? 'Đang điều khiển qua MQTT Cloud do không cùng mạng Wi-Fi với Hub. Độ trễ phụ thuộc tốc độ Internet.'
-                                  : 'Không tìm thấy Hub qua mạng nội bộ lẫn Cloud. Vui lòng kiểm tra nguồn điện và Wi-Fi của Hub.',
+                      activeDesc,
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 12,
@@ -425,7 +465,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               const SizedBox(height: 18),
 
-              // Bảng thông số 2 kênh
+              // Bảng thông số 3 tầng kết nối: Local LAN, Bluetooth LE ngầm, Cloud MQTT
               Container(
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -436,7 +476,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
                 child: Column(
                   children: [
-                    // Kênh Local
+                    // Kênh 1: Local LAN Wi-Fi
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       child: Row(
@@ -444,16 +484,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           Icon(
                             Icons.wifi_rounded,
                             size: 20,
-                            color: isLocalAvailable ? const Color(0xFF10B981) : Colors.grey,
+                            color: isLanConnected ? const Color(0xFF10B981) : Colors.grey,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Mạng nội bộ (Local)',
-                                  style: TextStyle(
+                                Text(
+                                  context.tr('hub_channel_lan_title'),
+                                  style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -472,17 +512,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: isLocalAvailable
+                              color: isLanConnected
                                   ? const Color(0xFF10B981).withOpacity(0.15)
                                   : Colors.grey.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              isLocalAvailable ? 'Sẵn sàng ⚡' : 'Không có',
+                              isLanConnected ? context.tr('hub_ready_lan') : context.tr('hub_channel_unavailable'),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: isLocalAvailable ? const Color(0xFF10B981) : Colors.grey,
+                                color: isLanConnected ? const Color(0xFF10B981) : Colors.grey,
                               ),
                             ),
                           ),
@@ -490,7 +530,71 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                     ),
                     Divider(height: 1, color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06)),
-                    // Kênh Cloud
+
+                    // Kênh 2: Bluetooth LE ngầm Zero-Touch
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.bluetooth_rounded,
+                            size: 20,
+                            color: isBleConnected ? const Color(0xFF6366F1) : Colors.grey,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  context.tr('hub_channel_ble_title'),
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isBleConnected
+                                      ? (BleLocalService().isAuthenticated
+                                          ? context.tr('hub_ble_gatt_secured')
+                                          : context.tr('hub_ble_gatt_verifying'))
+                                      : (isBleNearby
+                                          ? 'Sẵn sàng nhận lệnh (Hàng đợi Connect-on-Demand)'
+                                          : 'Dự phòng ngầm khi router Wi-Fi mất nguồn'),
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: isDark ? Colors.white60 : Colors.black54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: (isBleConnected || isBleNearby)
+                                  ? const Color(0xFF6366F1).withOpacity(0.15)
+                                  : Colors.grey.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              isBleConnected
+                                  ? (BleLocalService().isAuthenticated ? context.tr('hub_ble_key_ready') : context.tr('hub_ble_key_waiting'))
+                                  : (isBleNearby ? 'Sẵn sàng ⚡' : context.tr('hub_channel_unavailable')),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: (isBleConnected || isBleNearby) ? const Color(0xFF6366F1) : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Divider(height: 1, color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06)),
+
+                    // Kênh 3: Đám mây Cloud MQTT TLS
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       child: Row(
@@ -505,9 +609,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Đám mây (Cloud MQTT)',
-                                  style: TextStyle(
+                                Text(
+                                  context.tr('hub_channel_cloud_title'),
+                                  style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -535,7 +639,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              isEspOnline ? 'Kết nối' : 'Ngoại tuyến',
+                              isEspOnline ? context.tr('hub_ready_cloud') : context.tr('hub_channel_unavailable'),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
@@ -552,26 +656,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               const SizedBox(height: 20),
 
-              // Nút quét lại mạng Local
+              // Nút Chẩn đoán & Quét lại kết nối
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    showFloatingToast(context, 'Mạng Local', 'Đang quét dò tìm Hub trong mạng Wi-Fi...');
+                    showFloatingToast(context, context.tr('hub_status_title'), context.tr('hub_diagnosing'));
+                    // Quét đồng thời cả mạng LAN Wi-Fi và BLE ngầm
                     await localService.discoverHub(force: true);
+                    BleLocalService().start(
+                      targetMac: activeConfig.macAddress,
+                      adminPass: activeConfig.adminPass,
+                      userId: activeConfig.userId,
+                      role: activeConfig.role,
+                      allowedDevices: activeConfig.allowedDevices,
+                    );
+
                     if (context.mounted) {
                       if (localService.isLocalAvailable) {
-                        showFloatingToast(context, 'Thành công', 'Đã tìm thấy Hub tại IP: ${localService.cachedHubIp} ⚡');
+                        showFloatingToast(context, context.tr('toast_success'), context.tr('hub_toast_lan_found').replaceAll('{ip}', localService.cachedHubIp ?? ''));
+                      } else if (BleLocalService().isAuthenticated) {
+                        showFloatingToast(context, context.tr('toast_success'), context.tr('hub_toast_ble_connected'));
                       } else {
-                        showFloatingToast(context, 'Mạng Local', 'Không tìm thấy Hub qua Wi-Fi, tiếp tục dùng Cloud.', isError: true);
+                        showFloatingToast(context, context.tr('hub_status_title'), context.tr('hub_toast_cloud_fallback'), isError: true);
                       }
                     }
                   },
                   icon: const Icon(Icons.radar_rounded, size: 18),
-                  label: const Text(
-                    'Quét lại mạng Local (LAN)',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                  label: Text(
+                    context.tr('hub_btn_diagnose'),
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF10B981),
@@ -697,6 +812,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(5),
+                                        margin: const EdgeInsets.only(right: 8),
+                                        decoration: BoxDecoration(
+                                          color: HomeHelper.getThemeColor(activeConfig.homeColor).withOpacity(0.18),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          HomeHelper.getIconData(activeConfig.homeIcon),
+                                          color: HomeHelper.getThemeColor(activeConfig.homeColor),
+                                          size: 18,
+                                        ),
+                                      ),
                                       Flexible(
                                         child: Text(
                                           activeConfig.homeName,
@@ -815,7 +943,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               AnimatedOpacity(
                 opacity: isConnected ? 1.0 : 0.5,
                 duration: const Duration(milliseconds: 300),
-                child: const WeatherCard().animate().scale(begin: const Offset(0.95, 0.95)),
+                child: const WeatherCard()
+                    .animate()
+                    .fade(duration: 350.ms)
+                    .scale(begin: const Offset(0.96, 0.96), end: const Offset(1.0, 1.0), curve: Curves.easeOutBack),
               ),
               
               const SizedBox(height: 22),
@@ -850,7 +981,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               
               Builder(
                 
-                builder: (context) { Map<String, bool> states = ref.watch(globalDeviceStatesProvider);
+                builder: (context) {
+                  final Map<String, bool> states = ref.watch(globalDeviceStatesProvider);
+                  final Set<String> pendingDevices = ref.watch(pendingDeviceOperationsProvider);
                   List<DeviceConfig> sortedDevices = activeConfig.devices
                       .where((dev) => dev.room == _selectedRoomCode)
                       .toList();
@@ -858,12 +991,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                   List<Widget> activeDevices = sortedDevices.map((dev) {
                         bool isOn = states[dev.id] ?? false;
-                        bool isCooldown = _cooldowns[dev.id] ?? false; 
+                        bool isCooldown = pendingDevices.contains(dev.id); 
                         bool isRestricted = activeConfig.role == 'member' &&
                             activeConfig.allowedDevices != null &&
                             !activeConfig.allowedDevices!.contains(dev.id);
 
                         return DeviceCard(
+                          key: ValueKey('dev_${dev.id}_$_selectedRoomCode'),
                           deviceName: dev.name, 
                           roomName: context.tr(dev.room), 
                           icon: _getIconData(dev.icon),
@@ -871,6 +1005,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           isCooldown: isCooldown, 
                           isRestricted: isRestricted,
                           onTap: () => _toggleDevice(dev.id, dev.room, isOn),
+                          onLongPress: isRestricted ? null : () => _showQuickAutomationModal(dev, isOn),
                         );
                       }).toList();
 
@@ -886,7 +1021,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ],
                         ),
                       ),
-                    );
+                    ).animate().fade(duration: 300.ms).scale(begin: const Offset(0.9, 0.9), curve: Curves.easeOutBack);
                   }
 
                   return AnimatedOpacity(
@@ -897,10 +1032,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       physics: const NeverScrollableScrollPhysics(),
                       crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.82,
                       children: activeDevices.asMap().entries.map((entry) {
-                        return entry.value.animate(delay: (100 + entry.key * 75).ms)
-                            .fade(duration: 400.ms)
-                            .slideY(begin: 0.1, duration: 400.ms, curve: Curves.easeOutQuart)
-                            .scale(begin: const Offset(0.9, 0.9), duration: 400.ms, curve: Curves.easeOutQuart);
+                        return entry.value
+                            .animate(
+                              key: ValueKey('anim_${_selectedRoomCode}_${entry.key}'),
+                              delay: (entry.key * 45).ms,
+                            )
+                            .fade(duration: 320.ms, curve: Curves.easeOutCubic)
+                            .slideY(begin: 0.12, end: 0, duration: 320.ms, curve: Curves.easeOutBack)
+                            .scale(begin: const Offset(0.92, 0.92), end: const Offset(1.0, 1.0), duration: 320.ms, curve: Curves.easeOutBack);
                       }).toList(),
                     ),
                   );
@@ -909,6 +1048,395 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+
+  // ==========================================
+  // TIỆN ÍCH NHANH: TỰ ĐỘNG HÓA KHI NHẤN GIỮ Ô CÔNG TẮC
+  // ==========================================
+  void _showQuickAutomationModal(DeviceConfig dev, bool currentIsOn) {
+    HapticFeedback.heavyImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+    final deviceTopic = '${activeConfig.mqttPrefix}/${dev.room}/${dev.id}';
+    final targetAction = currentIsOn ? 'delay_off' : 'delay_on';
+    final targetActionText = currentIsOn ? 'Tắt' : 'Bật';
+    final targetColor = currentIsOn ? const Color(0xFFEF4444) : const Color(0xFF0F766E);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF131D31) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.black12,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Header: Device Info & Status
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: (currentIsOn ? Colors.amber : Colors.blueGrey).withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _getIconData(dev.icon),
+                        color: currentIsOn ? Colors.amber : (isDark ? Colors.white70 : Colors.black87),
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            dev.name,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${context.tr(dev.room)} • ${currentIsOn ? context.tr('status_on') : context.tr('status_off')}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? Colors.white60 : Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: targetColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: targetColor.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.bolt_rounded, size: 14, color: targetColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Tự động hóa',
+                            style: TextStyle(
+                              color: targetColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 22),
+                Divider(color: isDark ? Colors.white10 : Colors.black12, height: 1),
+                const SizedBox(height: 18),
+
+                // Section 1: Hẹn giờ nhanh
+                Row(
+                  children: [
+                    Icon(Icons.timer_outlined, size: 18, color: isDark ? Colors.white70 : Colors.black87),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Hẹn giờ $targetActionText nhanh sau:',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Preset buttons
+                Row(
+                  children: [
+                    _buildQuickTimerPresetBtn(ctx, dev, deviceTopic, targetAction, targetActionText, 15, '15p', isDark),
+                    const SizedBox(width: 8),
+                    _buildQuickTimerPresetBtn(ctx, dev, deviceTopic, targetAction, targetActionText, 30, '30p', isDark),
+                    const SizedBox(width: 8),
+                    _buildQuickTimerPresetBtn(ctx, dev, deviceTopic, targetAction, targetActionText, 60, '1 giờ', isDark),
+                    const SizedBox(width: 8),
+                    _buildQuickTimerPresetBtn(ctx, dev, deviceTopic, targetAction, targetActionText, 120, '2 giờ', isDark),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Custom time button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
+                    ),
+                    icon: const Icon(Icons.edit_calendar_rounded, size: 18),
+                    label: const Text('Tùy chỉnh thời gian hẹn giờ...'),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _showCustomQuickTimerDialog(dev, deviceTopic, targetAction, targetActionText);
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+                Divider(color: isDark ? Colors.white10 : Colors.black12, height: 1),
+                const SizedBox(height: 14),
+
+                // Section 2: Tạo lịch trình định kỳ
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.calendar_month_rounded, color: Colors.purple, size: 22),
+                  ),
+                  title: Text(
+                    'Lịch trình định kỳ',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Cài đặt tự động bật/tắt lặp lại các ngày trong tuần',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: isDark ? Colors.white60 : Colors.black54,
+                    ),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ScenesScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickTimerPresetBtn(
+    BuildContext ctx,
+    DeviceConfig dev,
+    String deviceTopic,
+    String targetAction,
+    String targetActionText,
+    int minutes,
+    String label,
+    bool isDark,
+  ) {
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(ctx);
+          _applyQuickTimer(dev, deviceTopic, targetAction, targetActionText, minutes);
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0x1AFFFFFF) : const Color(0x0A000000),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isDark ? const Color(0x28FFFFFF) : const Color(0x18000000),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                minutes < 60 ? '$minutes' : '${minutes ~/ 60}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                minutes < 60 ? 'phút' : 'giờ',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? Colors.white60 : Colors.black54,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _applyQuickTimer(
+    DeviceConfig dev,
+    String deviceTopic,
+    String targetAction,
+    String targetActionText,
+    int mins,
+  ) async {
+    final mqttState = ref.read(mqttConnectionStateProvider);
+    final isOnline = ref.read(espOnlineStateProvider);
+    if (mqttState != 2 || !isOnline) {
+      showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
+      return;
+    }
+
+    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+    String targetId = activeConfig.userId;
+    String cmdTopic = targetAction == 'delay_off' ? '$deviceTopic/timer_off' : '$deviceTopic/timer_on';
+
+    ref.read(mqttRepositoryProvider).publishCmd(cmdTopic, mins.toString());
+
+    int targetTime = DateTime.now().millisecondsSinceEpoch + (mins * 60000);
+    String timerId = DateTime.now().millisecondsSinceEpoch.toString();
+    final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final currentName = FirebaseAuth.instance.currentUser?.displayName ?? 
+                        FirebaseAuth.instance.currentUser?.email ?? 'Thành viên';
+
+    Map<String, dynamic> newTimer = {
+      'id': timerId,
+      'topic': deviceTopic,
+      'action': targetAction == 'delay_off' ? (context.tr('timer_action_off') ?? 'Tắt sau') : (context.tr('timer_action_on') ?? 'Bật sau'),
+      'minutes': mins,
+      'timeStr': '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+      'status': 'active', 
+      'targetTime': targetTime,
+      'isShared': true,
+      'authorUid': currentUid,
+      'authorName': currentName,
+    };
+
+    if (targetId.isNotEmpty && targetId != 'guest') {
+      try {
+        FirebaseFirestore.instance.collection('users').doc(targetId).collection('timers').doc(timerId).set(newTimer);
+      } catch (_) {}
+    }
+
+    showFloatingToast(
+      context,
+      context.tr('toast_success'),
+      'Đã hẹn giờ $targetActionText ${dev.name} sau $mins phút',
+    );
+  }
+
+  void _showCustomQuickTimerDialog(
+    DeviceConfig dev,
+    String deviceTopic,
+    String targetAction,
+    String targetActionText,
+  ) {
+    final TextEditingController minutesCtrl = TextEditingController(text: '45');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.timer_outlined, color: Color(0xFF0F766E)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Hẹn giờ $targetActionText ${dev.name}',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nhập số phút muốn hẹn giờ:', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: minutesCtrl,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                suffixText: 'phút',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('btn_cancel') ?? 'Hủy', style: const TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F766E),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              int? mins = int.tryParse(minutesCtrl.text.trim());
+              if (mins != null && mins > 0 && mins <= 1440) {
+                Navigator.pop(ctx);
+                _applyQuickTimer(dev, deviceTopic, targetAction, targetActionText, mins);
+              } else {
+                showFloatingToast(context, 'Lỗi', 'Vui lòng nhập số phút hợp lệ (1 - 1440)', isError: true);
+              }
+            },
+            child: Text(context.tr('btn_confirm') ?? 'Xác nhận'),
+          ),
+        ],
       ),
     );
   }

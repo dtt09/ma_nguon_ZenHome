@@ -1,4 +1,7 @@
+﻿import 'dart:convert';
 import 'package:zenhome_app/core/providers/theme_provider.dart';
+import 'package:zenhome_app/core/widgets/animations/telegram_theme_transition.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -11,6 +14,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:zenhome_app/core/services/session_manager.dart';
 import 'package:zenhome_app/core/utils/helpers.dart';
+import 'package:zenhome_app/core/models/smart_config.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/features/home/ui/main_layout.dart';
 import 'package:zenhome_app/features/admin/ui/admin_login_screen.dart';
@@ -20,6 +24,8 @@ import 'package:zenhome_app/features/auth/ui/login_screen.dart';
 import 'package:zenhome_app/features/auth/ui/profile_screen.dart';
 import 'package:zenhome_app/features/settings/ui/member_screen.dart';
 import 'package:zenhome_app/features/settings/ui/hub_reconfig_screen.dart';
+import 'package:zenhome_app/features/settings/ui/esp_ota_dialog.dart';
+import 'package:zenhome_app/features/settings/ui/version_changelog_screen.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/premium_dialog.dart';
 import 'package:zenhome_app/core/widgets/zalopay_status_dialog.dart';
@@ -30,7 +36,14 @@ import 'package:zenhome_app/core/widgets/user_avatar.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 import 'package:zenhome_app/core/services/app_update_service.dart';
+import 'package:zenhome_app/core/services/crash_sync_service.dart';
 import 'package:zenhome_app/features/feedback/ui/bug_report_dialog.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:zenhome_app/core/services/local_network_service.dart';
+import 'package:zenhome_app/core/providers/local_network_provider.dart';
+import 'package:zenhome_app/core/services/ble_local_service.dart';
+import 'package:zenhome_app/core/utils/masking_helper.dart';
+import 'package:zenhome_app/features/home/ui/home_switcher_sheet.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -45,13 +58,25 @@ class SettingsScreen extends ConsumerWidget {
       isDanger: true,
       icon: Icons.logout_rounded,
       onConfirm: () async {
+        final localNet = ref.read(localNetworkServiceProvider);
+        final homeConfig = ref.read(homeConfigProvider);
+
         // FCM Tokens are now managed by SessionManager in Firestore.
         // We do not need to unsubscribe from topics here.
         await SessionManager.clearSession();
         
+        // Ngắt kết nối và giải phóng toàn bộ dịch vụ cục bộ & Bluetooth LE
+        localNet.stopMonitoring();
+        BleLocalService().stop();
+
+        // Xóa sạch toàn bộ khóa bảo mật Zero-Knowledge khỏi Secure Storage
+        try {
+          const FlutterSecureStorage().deleteAll();
+        } catch (_) {}
+
         await FirebaseAuth.instance.signOut();
         
-        await ref.read(homeConfigProvider).clearAllHomes();
+        await homeConfig.clearAllHomes();
         
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('notification_history');
@@ -114,6 +139,13 @@ class SettingsScreen extends ConsumerWidget {
             debugPrint('Error unsubscribing FCM: $e');
           }
 
+          // Ngắt kết nối và giải phóng mạng cục bộ & Bluetooth Low Energy
+          ref.read(localNetworkServiceProvider).stopMonitoring();
+          BleLocalService().stop();
+          try {
+            const FlutterSecureStorage().deleteAll();
+          } catch (_) {}
+
           // Xóa nhà này khỏi danh sách và quay về MainLayout
           final provider = ref.read(homeConfigProvider);
           final remainingHomes = provider.availableHomes.where((h) => h.userId != ownerId).toList();
@@ -135,6 +167,33 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  // Hàm xử lý xóa ngôi nhà phụ hiện tại
+  void _handleDeleteCurrentSubHome(BuildContext context, WidgetRef ref, SmartConfig activeConfig) async {
+    final confirmed = await showCautionConfirmDialog(
+      context,
+      title: context.tr('delete_home_confirm_title') ?? 'Xóa ngôi nhà?',
+      warningText: (context.tr('delete_home_confirm_desc') ?? 'Bạn có chắc chắn muốn xóa ngôi nhà "{name}"? Toàn bộ thiết bị, cấu hình và lịch trình của ngôi nhà này sẽ bị xóa vĩnh viễn.')
+          .replaceAll('{name}', activeConfig.homeName),
+      cautionDetails: 'Hành động này không thể hoàn tác. Ứng dụng sẽ tự động chuyển về Nhà chính mặc định của bạn.',
+      confirmText: context.tr('btn_delete') ?? 'Xóa vĩnh viễn',
+      cancelText: context.tr('btn_cancel') ?? 'Hủy',
+      isDanger: true,
+    );
+
+    if (confirmed == true) {
+      LoadingOverlay.show(context);
+      final success = await ref.read(homeConfigProvider).deleteHome(activeConfig.userId);
+      LoadingOverlay.hide();
+      if (context.mounted) {
+        if (success) {
+          showFloatingToast(context, context.tr('toast_success') ?? 'Thành công', context.tr('msg_delete_home_success') ?? 'Đã xóa ngôi nhà và chuyển về nhà chính!');
+        } else {
+          showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_delete_home') ?? 'Không thể xóa ngôi nhà!', isError: true);
+        }
+      }
+    }
+  }
+
   // Hàm lưu Theme vào ổ cứng
   Future<void> _setTheme(ThemeMode mode, WidgetRef ref) async {
     ref.read(themeModeNotifierProvider.notifier).setThemeMode(mode);
@@ -145,6 +204,28 @@ class SettingsScreen extends ConsumerWidget {
       await prefs.setString('app_theme', 'dark');
     } else {
       await prefs.setString('app_theme', 'system');
+    }
+  }
+
+  void _changeThemeWithTelegramTransition(
+    BuildContext context,
+    ThemeMode mode,
+    ThemeMode currentMode,
+    WidgetRef ref,
+    Offset tapPosition,
+  ) {
+    if (mode == currentMode) return;
+    HapticFeedback.mediumImpact();
+    final transitionState = TelegramThemeTransition.of(context);
+    if (transitionState != null) {
+      transitionState.startThemeTransition(
+        center: tapPosition,
+        performThemeChange: () async {
+          await _setTheme(mode, ref);
+        },
+      );
+    } else {
+      _setTheme(mode, ref);
     }
   }
 
@@ -234,6 +315,26 @@ class SettingsScreen extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Column(
                           children: [
+                            // --- QUẢN LÝ NGÔI NHÀ & CHUYỂN ĐỔI NHÀ ---
+                            ListTile(
+                              leading: Container(
+                                padding: const EdgeInsets.all(9),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0F766E).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(Icons.home_work_rounded, color: Color(0xFF0F766E), size: 22),
+                              ),
+                              title: Text(context.tr('manage_homes') ?? 'Quản lý ngôi nhà', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                              subtitle: Text(
+                                '${activeConfig.homeName} • ${ref.watch(homeConfigProvider).availableHomes.length} ${context.tr('homes_count') ?? 'ngôi nhà'}',
+                                style: TextStyle(fontSize: 12.5, color: Colors.grey.shade500),
+                              ),
+                              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                              onTap: () => showHomeSwitcherBottomSheet(context, ref),
+                            ),
+                            Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+
                             if (activeConfig.role == 'owner') ...[
                               ListTile(
                                 leading: Container(
@@ -334,70 +435,85 @@ class SettingsScreen extends ConsumerWidget {
                                         ),
                                       ),
                                     ),
-                                    // Action Options
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: GestureDetector(
-                                            behavior: HitTestBehavior.opaque,
-                                            onTap: () {
-                                              HapticFeedback.mediumImpact();
-                                              _setTheme(ThemeMode.light, ref);
-                                            },
-                                            child: Center(
-                                              child: Icon(
-                                                Icons.light_mode_rounded,
-                                                size: 18,
-                                                color: currentThemeMode == ThemeMode.light
-                                                    ? Colors.white
-                                                    : (isDark ? Colors.white60 : Colors.black54),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: GestureDetector(
-                                            behavior: HitTestBehavior.opaque,
-                                            onTap: () {
-                                              HapticFeedback.mediumImpact();
-                                              _setTheme(ThemeMode.system, ref);
-                                            },
-                                            child: Center(
-                                              child: Icon(
-                                                Icons.brightness_auto_rounded,
-                                                size: 18,
-                                                color: currentThemeMode == ThemeMode.system
-                                                    ? Colors.white
-                                                    : (isDark ? Colors.white60 : Colors.black54),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: GestureDetector(
-                                            behavior: HitTestBehavior.opaque,
-                                            onTap: () {
-                                              HapticFeedback.mediumImpact();
-                                              _setTheme(ThemeMode.dark, ref);
-                                            },
-                                            child: Center(
-                                              child: Icon(
-                                                Icons.dark_mode_rounded,
-                                                size: 18,
-                                                color: currentThemeMode == ThemeMode.dark
-                                                    ? Colors.white
-                                                    : (isDark ? Colors.white60 : Colors.black54),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            
+                                     // Action Options
+                                     Row(
+                                       children: [
+                                         Expanded(
+                                           child: GestureDetector(
+                                             behavior: HitTestBehavior.opaque,
+                                             onTapDown: (details) {
+                                               _changeThemeWithTelegramTransition(
+                                                 context,
+                                                 ThemeMode.light,
+                                                 currentThemeMode,
+                                                 ref,
+                                                 details.globalPosition,
+                                               );
+                                             },
+                                             child: Center(
+                                               child: Icon(
+                                                 Icons.light_mode_rounded,
+                                                 size: 18,
+                                                 color: currentThemeMode == ThemeMode.light
+                                                     ? Colors.white
+                                                     : (isDark ? Colors.white60 : Colors.black54),
+                                               ),
+                                             ),
+                                           ),
+                                         ),
+                                         Expanded(
+                                           child: GestureDetector(
+                                             behavior: HitTestBehavior.opaque,
+                                             onTapDown: (details) {
+                                               _changeThemeWithTelegramTransition(
+                                                 context,
+                                                 ThemeMode.system,
+                                                 currentThemeMode,
+                                                 ref,
+                                                 details.globalPosition,
+                                               );
+                                             },
+                                             child: Center(
+                                               child: Icon(
+                                                 Icons.brightness_auto_rounded,
+                                                 size: 18,
+                                                 color: currentThemeMode == ThemeMode.system
+                                                     ? Colors.white
+                                                     : (isDark ? Colors.white60 : Colors.black54),
+                                               ),
+                                             ),
+                                           ),
+                                         ),
+                                         Expanded(
+                                           child: GestureDetector(
+                                             behavior: HitTestBehavior.opaque,
+                                             onTapDown: (details) {
+                                               _changeThemeWithTelegramTransition(
+                                                 context,
+                                                 ThemeMode.dark,
+                                                 currentThemeMode,
+                                                 ref,
+                                                 details.globalPosition,
+                                               );
+                                             },
+                                             child: Center(
+                                               child: Icon(
+                                                 Icons.dark_mode_rounded,
+                                                 size: 18,
+                                                 color: currentThemeMode == ThemeMode.dark
+                                                     ? Colors.white
+                                                     : (isDark ? Colors.white60 : Colors.black54),
+                                               ),
+                                             ),
+                                           ),
+                                         ),
+                                       ],
+                                     ),
+                                   ],
+                                 ),
+                               ),
+                             ),
+                             
                             Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
                             
                             // --- NÚT ĐỔI NGÔN NGỮ ---
@@ -570,7 +686,7 @@ class SettingsScreen extends ConsumerWidget {
                                 ),
                                 subtitle: Text(
                                   (activeConfig.macAddress.isNotEmpty && activeConfig.macAddress != 'unknown_mac')
-                                      ? 'Đã liên kết (MAC: ${activeConfig.macAddress})'
+                                      ? 'Đã liên kết (MAC: ${MaskingHelper.maskMac(activeConfig.macAddress)})'
                                       : 'Cấu hình mạng Wi-Fi và liên kết Hub',
                                   style: TextStyle(
                                     fontSize: 12,
@@ -615,7 +731,7 @@ class SettingsScreen extends ConsumerWidget {
                                                     const SizedBox(width: 8),
                                                     Expanded(
                                                       child: Text(
-                                                        'MAC: ${activeConfig.macAddress}',
+                                                        'MAC: ${MaskingHelper.maskMac(activeConfig.macAddress)}',
                                                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                                                       ),
                                                     ),
@@ -646,7 +762,7 @@ class SettingsScreen extends ConsumerWidget {
                                                   ),
                                                   icon: const Icon(Icons.settings_suggest_rounded, size: 18),
                                                   onPressed: () => Navigator.pop(ctx, 'setup'),
-                                                  label: const Text('Cấu hình lại Wi-Fi & MQTT', style: TextStyle(fontWeight: FontWeight.bold)),
+                                                  label: Text(context.tr('reconfig_wifi_mqtt'), style: const TextStyle(fontWeight: FontWeight.bold)),
                                                 ),
                                                 const SizedBox(height: 8),
                                                 OutlinedButton.icon(
@@ -734,7 +850,7 @@ class SettingsScreen extends ConsumerWidget {
                                         context,
                                         title: context.tr('unlink_hub_confirm_title'),
                                         warningText: context.tr('unlink_hub_confirm_desc'),
-                                        cautionDetails: 'MAC Hub: ${activeConfig.macAddress} • ESP32 sẽ lập tức xóa /config.json, ngắt mọi rơ-le và tự động khởi động lại vào AP Setup.',
+                                        cautionDetails: 'MAC Hub: ${MaskingHelper.maskMac(activeConfig.macAddress)} • ESP32 sẽ lập tức xóa /config.json, ngắt mọi rơ-le và tự động khởi động lại vào AP Setup.',
                                         confirmText: 'Bắn tín hiệu Reset & Hủy',
                                         cancelText: 'Giữ lại liên kết',
                                         isDanger: true,
@@ -745,7 +861,12 @@ class SettingsScreen extends ConsumerWidget {
                                       LoadingOverlay.show(context);
                                       try {
                                         if (isEspOnline) {
-                                          ref.read(mqttRepositoryProvider).publishCmd('${activeConfig.mqttPrefix}/system/reset', '1');
+                                          final resetPayload = jsonEncode({
+                                            'action': 'factory_reset',
+                                            'admin_pass': activeConfig.adminPass ?? 'admin',
+                                            'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                                          });
+                                          ref.read(mqttRepositoryProvider).publishCmd('${activeConfig.mqttPrefix}/system/reset', resetPayload);
                                           await Future.delayed(const Duration(milliseconds: 600));
                                         }
                                       } catch (e) {
@@ -754,12 +875,12 @@ class SettingsScreen extends ConsumerWidget {
 
                                       // 5. Cập nhật gỡ MAC trong Local và Firestore
                                       String previousMac = activeConfig.macAddress;
-                                      activeConfig.macAddress = 'unknown_mac';
+                                      activeConfig.macAddress = '';
                                       await ref.read(homeConfigProvider).saveConfigToStorage(activeConfig);
                                       try {
                                         if (activeConfig.userId != 'guest' && activeConfig.userId.isNotEmpty) {
                                           await FirebaseFirestore.instance.collection('users').doc(activeConfig.userId).set({
-                                            'macAddress': 'unknown_mac',
+                                            'macAddress': '',
                                           }, SetOptions(merge: true));
                                         }
                                       } catch (e) {
@@ -778,7 +899,7 @@ class SettingsScreen extends ConsumerWidget {
                                           details: {
                                             'Thao tác': 'Factory Reset & Hủy Hub',
                                             'Mã MAC': previousMac,
-                                            'Tín hiệu ESP32': isEspOnline ? 'Đã gửi lệnh Reset (/system/reset)' : 'Hub Offline (Đã gỡ trên Cloud)',
+                                            'Tín hiệu ESP32': isEspOnline ? 'Đã gửi lệnh Reset bảo mật' : 'Hub Offline (Đã gỡ trên Cloud)',
                                             'Thời gian': DateTime.now().toLocal().toString().substring(0, 19),
                                           },
                                           buttonText: 'Hoàn tất',
@@ -882,7 +1003,7 @@ class SettingsScreen extends ConsumerWidget {
                                         details: {
                                           'Hành động': 'Khởi động lại Hub từ xa',
                                           'MAC Thiết bị': activeConfig.macAddress,
-                                          'Kênh điều khiển': '${activeConfig.mqttPrefix}/system/reboot',
+                                          'Kênh điều khiển': 'Kênh mã hóa bảo mật (TLS)',
                                           'Thời gian': DateTime.now().toLocal().toString().substring(0, 19),
                                         },
                                         buttonText: 'Đã hiểu',
@@ -898,6 +1019,29 @@ class SettingsScreen extends ConsumerWidget {
                                     }
                                   }
                                 },
+                              ),
+                              Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+
+                              // --- NÚT NÂNG CẤP FIRMWARE ESP32 (FIRMWARE OTA) ---
+                              ListTile(
+                                leading: Container(
+                                  padding: const EdgeInsets.all(9),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0284C7).withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Icon(Icons.system_update_alt_rounded, color: Color(0xFF0284C7), size: 22),
+                                ),
+                                title: Text(context.tr('hub_ota_title'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                                subtitle: Text(
+                                  context.tr('hub_ota_desc'),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  ),
+                                ),
+                                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                                onTap: () => EspOtaDialog.startOtaProcess(context, ref, activeConfig),
                               ),
                               Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
 
@@ -957,6 +1101,45 @@ class SettingsScreen extends ConsumerWidget {
                             title: Text(context.tr('btn_leave_home') ?? 'Rời khỏi nhà này', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.red)),
                             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
                             onTap: () => _handleLeaveHome(context, ref, activeConfig.ownerEmail, activeConfig.userId),
+                          ),
+                        ),
+                      ),
+                    ).animate().slideX(begin: 0.1, end: 0),
+                  ],
+
+                  // --- GROUP: XÓA NGÔI NHÀ PHỤ HIỆN TẠI (CHO CHỦ SỞ HỮU) ---
+                  if (activeConfig.isSubHome && activeConfig.role == 'owner') ...[
+                    Text(context.tr('manage_sub_home_title') ?? 'QUẢN LÝ NGÔI NHÀ PHỤ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500))
+                        .animate(delay: 400.ms).fade(duration: 400.ms),
+                    const SizedBox(height: 10),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05)),
+                        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
+                      ),
+                      child: Material(
+                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        clipBehavior: Clip.antiAlias,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(9),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 22),
+                            ),
+                            title: Text(context.tr('delete_this_sub_home') ?? 'Xóa ngôi nhà phụ này', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.red)),
+                            subtitle: Text(
+                              'Xóa vĩnh viễn ${activeConfig.homeName} và trở về nhà chính',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                            ),
+                            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
+                            onTap: () => _handleDeleteCurrentSubHome(context, ref, activeConfig),
                           ),
                         ),
                       ),
@@ -1062,6 +1245,32 @@ class SettingsScreen extends ConsumerWidget {
                               leading: Container(
                                 padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
+                                  color: const Color(0xFF8B5CF6).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(Icons.article_rounded, color: Color(0xFF8B5CF6), size: 22),
+                              ),
+                              title: Text(
+                                context.tr('version_changelog_title'),
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                              ),
+                              subtitle: Text(
+                                context.tr('version_changelog_desc'),
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                              ),
+                              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const VersionChangelogScreen()),
+                                );
+                              },
+                            ),
+                            Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+                            ListTile(
+                              leading: Container(
+                                padding: const EdgeInsets.all(9),
+                                decoration: BoxDecoration(
                                   color: const Color(0xFFF59E0B).withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -1077,6 +1286,51 @@ class SettingsScreen extends ConsumerWidget {
                               ),
                               trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                               onTap: () => BugReportDialog.show(context),
+                            ),
+                            Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+                            ListTile(
+                              leading: Container(
+                                padding: const EdgeInsets.all(9),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE11D48).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(Icons.flourescent_rounded, color: Color(0xFFE11D48), size: 22),
+                              ),
+                              title: const Text(
+                                'Kiểm tra Crashlytics Realtime',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                              ),
+                              subtitle: Text(
+                                'Mô phỏng gửi lỗi lên Firebase & đồng bộ Web Admin',
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE11D48).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFE11D48).withOpacity(0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.send_rounded, size: 14, color: Color(0xFFE11D48)),
+                                    const SizedBox(width: 4),
+                                    Text(context.tr('btn_send_test'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFE11D48))),
+                                  ],
+                                ),
+                              ),
+                              onTap: () async {
+                                final success = await CrashSyncService.sendTestCrash();
+                                if (context.mounted) {
+                                  if (success) {
+                                    showFloatingToast(context, 'Crashlytics Test', 'Đã gửi log kiểm thử Crashlytics & Firestore thành công! Mời kiểm tra Web Admin.', isError: false);
+                                  } else {
+                                    showFloatingToast(context, 'Lỗi', 'Không thể gửi test log kiểm thử', isError: true);
+                                  }
+                                }
+                              },
                             ),
                           ],
                         ),

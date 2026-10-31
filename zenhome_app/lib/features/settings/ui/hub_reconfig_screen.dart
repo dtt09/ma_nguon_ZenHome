@@ -501,7 +501,7 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Tiền tố Topic Prefix
+                      // Bảo mật kênh truyền thông (Ẩn topic MQTT kỹ thuật)
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -511,15 +511,15 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.tag_rounded, size: 18, color: Color(0xFF0F766E)),
+                            const Icon(Icons.security_rounded, size: 18, color: Color(0xFF0F766E)),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'Topic Prefix: ${activeConfig.mqttPrefix}',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  const Text(
+                                    'Kênh truyền thông: Bảo mật nội bộ',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(

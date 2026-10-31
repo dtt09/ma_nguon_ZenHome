@@ -101,107 +101,26 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
   }
 
   Future<void> saveAndNavigate(String username) async {
-    List<SmartConfig> myHomes = [];
+    bool synced = false;
     try {
-      final myDoc = await FirebaseFirestore.instance.collection('users').doc(username).get();
-      if (myDoc.exists) {
-        final data = myDoc.data() as Map<String, dynamic>;
-        List<DeviceConfig> restoredDevices = [];
-        if (data['devices'] != null) {
-          restoredDevices = (data['devices'] as List).map((e) => DeviceConfig.fromJson(e)).toList();
-        }
-        
-        if (data['displayName'] != null) {
-            final user = FirebaseAuth.instance.currentUser;
-            if (user != null && user.displayName != data['displayName']) {
-                await user.updateDisplayName(data['displayName']);
-            }
-        }
-
-        // Đồng bộ ngôn ngữ giữa App và Firebase Profile
-        if (data['language'] != null && (data['language'] == 'vi' || data['language'] == 'en')) {
-          final savedLang = data['language'].toString();
-          final currentLang = ref.read(localeNotifierProvider).languageCode;
-          if (currentLang != savedLang) {
-            await ref.read(localeNotifierProvider.notifier).setLocale(savedLang);
-          }
-        } else {
-          final currentLang = ref.read(localeNotifierProvider).languageCode;
-          await myDoc.reference.set({'language': currentLang}, SetOptions(merge: true));
-        }
-
-        myHomes.add(SmartConfig(
-          userId: username,
-          macAddress: data['macAddress'] ?? 'unknown_mac',
-          mqttServer: data['mqttServer'] ?? 'broker.emqx.io',
-          mqttUser: data['mqttUser'],
-          mqttPass: data['mqttPass'],
-          devices: restoredDevices,
-          role: 'owner',
-          homeName: context.tr('my_home_default'),
-          ownerEmail: username,
-          canEditAutomation: true,
-        ));
-
-        if (data['ownerUsername'] != null && data['ownerUsername'].toString().isNotEmpty) {
-           String ownerUsername = data['ownerUsername'];
-           try {
-              final ownerDoc = await FirebaseFirestore.instance.collection('users').doc(ownerUsername).get();
-              if (ownerDoc.exists) {
-                  final ownerData = ownerDoc.data() as Map<String, dynamic>;
-                  List<DeviceConfig> ownerDevices = [];
-                  if (ownerData['devices'] != null) {
-                      ownerDevices = (ownerData['devices'] as List).map((e) => DeviceConfig.fromJson(e)).toList();
-                  }
-                  String ownerName = ownerData['displayName'] ?? ownerUsername;
-                  String assignedRole = 'member';
-                  if (ownerData['memberRoles'] != null && ownerData['memberRoles'][username] != null) {
-                    assignedRole = ownerData['memberRoles'][username];
-                  }
-                  bool canEdit = false;
-                  if (ownerData['automationEditors'] != null && (ownerData['automationEditors'] as List).contains(username)) {
-                    canEdit = true;
-                  }
-                  
-                  myHomes.add(SmartConfig(
-                      userId: ownerUsername,
-                      macAddress: ownerData['macAddress'] ?? 'unknown_mac',
-                      mqttServer: ownerData['mqttServer'] ?? 'broker.emqx.io',
-                      mqttUser: ownerData['mqttUser'],
-                      mqttPass: ownerData['mqttPass'],
-                      devices: ownerDevices,
-                      role: assignedRole,
-                      homeName: '${context.tr('home_of')} $ownerName',
-                      ownerEmail: ownerUsername, 
-                      canEditAutomation: canEdit,
-                  ));
-              }
-           } catch (e) {
-              debugPrint("Lỗi tải nhà được mời: $e");
-           }
-        }
-      } else {
-        myHomes.add(SmartConfig(
-          userId: username,
-          macAddress: 'unknown_mac',
-          mqttServer: 'broker.emqx.io',
-          devices: [],
-          role: 'owner',
-          homeName: context.tr('my_home_default'),
-          ownerEmail: username,
-          canEditAutomation: true,
-        ));
-      }
+      synced = await ref.read(homeConfigProvider).syncFromFirestore(targetUsername: username);
     } catch (e) {
-      debugPrint("Lỗi đồng bộ Firebase: $e");
+      debugPrint("Lỗi syncFromFirestore: $e");
     }
 
-    if (myHomes.isEmpty) {
-      myHomes.add(SmartConfig(
-        userId: username, macAddress: 'unknown_mac', devices: [], role: 'owner', homeName: context.tr('my_home_default'), ownerEmail: username, canEditAutomation: true,
-      ));
+    if (!synced || ref.read(homeConfigProvider).availableHomes.isEmpty) {
+      final fallbackHome = SmartConfig(
+        userId: username,
+        macAddress: '',
+        mqttServer: 'broker.emqx.io',
+        devices: [],
+        role: 'owner',
+        homeName: context.tr('my_home_default'),
+        ownerEmail: username,
+        canEditAutomation: true,
+      );
+      await ref.read(homeConfigProvider).setAvailableHomes([fallbackHome]);
     }
-    await ref.read(homeConfigProvider).setAvailableHomes(myHomes);
 
     // Ghi nhận session không đồng bộ để không chặn việc chuyển màn hình
     SessionManager.recordSession().catchError((e) {

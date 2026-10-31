@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Mặc định ứng dụng chỉ tin cậy chứng chỉ hệ thống của Android OS, ngăn chặn tấn công MITM từ chứng chỉ User cài đặt -->
     <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Chỉ cho phép chứng chỉ User trong môi trường Debug phục vụ quá trình phát triển & kiểm thử nội bộ -->
+    <debug-overrides>
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />
         </trust-anchors>
-    </base-config>
+    </debug-overrides>
 </network-security-config>

@@ -152,6 +152,54 @@ abstract class AppLocalizations {
   /// **'Outdoor'**
   String get room_4;
 
+  /// No description provided for @room_5.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Office'**
+  String get room_5;
+
+  /// No description provided for @room_6.
+  ///
+  /// In en, this message translates to:
+  /// **'Bathroom'**
+  String get room_6;
+
+  /// No description provided for @room_7.
+  ///
+  /// In en, this message translates to:
+  /// **'Dining Room'**
+  String get room_7;
+
+  /// No description provided for @room_8.
+  ///
+  /// In en, this message translates to:
+  /// **'Altar Room'**
+  String get room_8;
+
+  /// No description provided for @room_9.
+  ///
+  /// In en, this message translates to:
+  /// **'Rooftop Terrace'**
+  String get room_9;
+
+  /// No description provided for @room_10.
+  ///
+  /// In en, this message translates to:
+  /// **'Hallway & Stairs'**
+  String get room_10;
+
+  /// No description provided for @room_11.
+  ///
+  /// In en, this message translates to:
+  /// **'Garage'**
+  String get room_11;
+
+  /// No description provided for @custom_room.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Room'**
+  String get custom_room;
+
   /// No description provided for @device_1.
   ///
   /// In en, this message translates to:
@@ -677,14 +725,26 @@ abstract class AppLocalizations {
   /// No description provided for @timer_action_off.
   ///
   /// In en, this message translates to:
-  /// **'Turn OFF after (Currently ON)'**
+  /// **'Turn OFF after'**
   String get timer_action_off;
 
   /// No description provided for @timer_action_on.
   ///
   /// In en, this message translates to:
-  /// **'Turn ON after (Currently OFF)'**
+  /// **'Turn ON after'**
   String get timer_action_on;
+
+  /// No description provided for @state_currently_on.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently ON'**
+  String get state_currently_on;
+
+  /// No description provided for @state_currently_off.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently OFF'**
+  String get state_currently_off;
 
   /// No description provided for @timer_start.
   ///
@@ -721,6 +781,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'minutes'**
   String get minutes;
+
+  /// No description provided for @hours.
+  ///
+  /// In en, this message translates to:
+  /// **'hours'**
+  String get hours;
+
+  /// No description provided for @hours_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Hours'**
+  String get hours_label;
+
+  /// No description provided for @minutes_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Minutes'**
+  String get minutes_label;
 
   /// No description provided for @schedule_title.
   ///
@@ -1787,7 +1865,7 @@ abstract class AppLocalizations {
   /// No description provided for @err_invalid_otp.
   ///
   /// In en, this message translates to:
-  /// **'Invalid or expired OTP code!'**
+  /// **'Invalid OTP code'**
   String get err_invalid_otp;
 
   /// No description provided for @create_account.
@@ -4423,6 +4501,918 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All device, room, and GPIO mappings have been synced to Cloud and reloaded to ESP32 Hub.'**
   String get mapping_saved_desc;
+
+  /// No description provided for @hub_status_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub Connection Status'**
+  String get hub_status_title;
+
+  /// No description provided for @hub_status_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'3-Tier Link Monitoring: Local LAN, BLE & Cloud'**
+  String get hub_status_subtitle;
+
+  /// No description provided for @hub_status_unlinked.
+  ///
+  /// In en, this message translates to:
+  /// **'UNLINKED HUB'**
+  String get hub_status_unlinked;
+
+  /// No description provided for @hub_status_unlinked_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please link your ESP32 hardware in Settings.'**
+  String get hub_status_unlinked_desc;
+
+  /// No description provided for @hub_mode_lan.
+  ///
+  /// In en, this message translates to:
+  /// **'ACTIVE: LOCAL LAN ⚡'**
+  String get hub_mode_lan;
+
+  /// No description provided for @hub_mode_ble.
+  ///
+  /// In en, this message translates to:
+  /// **'ACTIVE: BLUETOOTH LE 📱'**
+  String get hub_mode_ble;
+
+  /// No description provided for @hub_mode_cloud.
+  ///
+  /// In en, this message translates to:
+  /// **'ACTIVE: CLOUD ☁'**
+  String get hub_mode_cloud;
+
+  /// No description provided for @hub_mode_offline.
+  ///
+  /// In en, this message translates to:
+  /// **'OFFLINE'**
+  String get hub_mode_offline;
+
+  /// No description provided for @hub_desc_lan.
+  ///
+  /// In en, this message translates to:
+  /// **'Controlling directly via high-speed local Wi-Fi. Independent of Internet connection.'**
+  String get hub_desc_lan;
+
+  /// No description provided for @hub_desc_ble.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected via background Bluetooth Low Energy (Zero-Touch). Operates seamlessly even if Wi-Fi Router loses power!'**
+  String get hub_desc_ble;
+
+  /// No description provided for @hub_desc_cloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Controlling via MQTT Cloud while away from home. Full remote control from anywhere.'**
+  String get hub_desc_cloud;
+
+  /// No description provided for @hub_desc_offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub not reachable via LAN, BLE, or Cloud. Please check power supply to the Hub.'**
+  String get hub_desc_offline;
+
+  /// No description provided for @hub_channel_lan_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Area Network (LAN)'**
+  String get hub_channel_lan_title;
+
+  /// No description provided for @hub_channel_ble_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Background Bluetooth LE'**
+  String get hub_channel_ble_title;
+
+  /// No description provided for @hub_channel_cloud_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud MQTT (TLS 8883)'**
+  String get hub_channel_cloud_title;
+
+  /// No description provided for @hub_ready_lan.
+  ///
+  /// In en, this message translates to:
+  /// **'Fastest ⚡ (~5ms)'**
+  String get hub_ready_lan;
+
+  /// No description provided for @hub_ready_ble.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct 📱 (~15ms)'**
+  String get hub_ready_ble;
+
+  /// No description provided for @hub_ready_cloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote ☁ (~200ms)'**
+  String get hub_ready_cloud;
+
+  /// No description provided for @hub_channel_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get hub_channel_unavailable;
+
+  /// No description provided for @hub_btn_diagnose.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnose & Re-scan'**
+  String get hub_btn_diagnose;
+
+  /// No description provided for @hub_diagnosing.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning LAN & BLE...'**
+  String get hub_diagnosing;
+
+  /// No description provided for @hub_ble_gatt_secured.
+  ///
+  /// In en, this message translates to:
+  /// **'GATT Service: 19b10000... 🔐 (Key HMAC-SHA256 OK)'**
+  String get hub_ble_gatt_secured;
+
+  /// No description provided for @hub_ble_gatt_verifying.
+  ///
+  /// In en, this message translates to:
+  /// **'GATT Service: 19b10000... (Verifying Key...)'**
+  String get hub_ble_gatt_verifying;
+
+  /// No description provided for @hub_ble_key_ready.
+  ///
+  /// In en, this message translates to:
+  /// **'Key 🔐 Ready'**
+  String get hub_ble_key_ready;
+
+  /// No description provided for @hub_ble_key_waiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting Auth'**
+  String get hub_ble_key_waiting;
+
+  /// No description provided for @hub_toast_lan_found.
+  ///
+  /// In en, this message translates to:
+  /// **'Found Hub at IP: {ip} ⚡'**
+  String hub_toast_lan_found(Object ip);
+
+  /// No description provided for @hub_toast_ble_connected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected directly via background Bluetooth LE 📱'**
+  String get hub_toast_ble_connected;
+
+  /// No description provided for @hub_toast_cloud_fallback.
+  ///
+  /// In en, this message translates to:
+  /// **'No local connection found, maintaining Cloud mode.'**
+  String get hub_toast_cloud_fallback;
+
+  /// No description provided for @hub_ota_title.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Firmware Upgrade'**
+  String get hub_ota_title;
+
+  /// No description provided for @hub_ota_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Update system firmware for microcontroller'**
+  String get hub_ota_desc;
+
+  /// No description provided for @hub_ota_updating.
+  ///
+  /// In en, this message translates to:
+  /// **'Flashing new Firmware...'**
+  String get hub_ota_updating;
+
+  /// No description provided for @hub_ota_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Firmware upgraded successfully!'**
+  String get hub_ota_success;
+
+  /// No description provided for @admin_verify_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify Admin Password'**
+  String get admin_verify_title;
+
+  /// No description provided for @admin_verify_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter ESP32 Hub admin password to authorize technical operations.'**
+  String get admin_verify_desc;
+
+  /// No description provided for @admin_pass_default_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter admin password (Default: admin)'**
+  String get admin_pass_default_hint;
+
+  /// No description provided for @btn_connect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get btn_connect;
+
+  /// No description provided for @device.
+  ///
+  /// In en, this message translates to:
+  /// **'Device'**
+  String get device;
+
+  /// No description provided for @info.
+  ///
+  /// In en, this message translates to:
+  /// **'Information'**
+  String get info;
+
+  /// No description provided for @gpio_conflict_title.
+  ///
+  /// In en, this message translates to:
+  /// **'GPIO Hardware Conflict'**
+  String get gpio_conflict_title;
+
+  /// No description provided for @room_name_conflict_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate Device Name in Room'**
+  String get room_name_conflict_title;
+
+  /// No description provided for @offline_saved_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved Offline'**
+  String get offline_saved_title;
+
+  /// No description provided for @custom_room_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter custom room name (e.g. Gym Room)'**
+  String get custom_room_hint;
+
+  /// No description provided for @err_empty_custom_room.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a custom room name'**
+  String get err_empty_custom_room;
+
+  /// No description provided for @err_duplicate_dev_id.
+  ///
+  /// In en, this message translates to:
+  /// **'Device ID already exists'**
+  String get err_duplicate_dev_id;
+
+  /// No description provided for @btn_start_upgrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Upgrade'**
+  String get btn_start_upgrade;
+
+  /// No description provided for @btn_understood.
+  ///
+  /// In en, this message translates to:
+  /// **'Understood'**
+  String get btn_understood;
+
+  /// No description provided for @btn_retry_connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry Connection'**
+  String get btn_retry_connection;
+
+  /// No description provided for @btn_send_test.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Test'**
+  String get btn_send_test;
+
+  /// No description provided for @choose_color.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Color'**
+  String get choose_color;
+
+  /// No description provided for @reconfig_wifi_mqtt.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconfigure Wi-Fi & MQTT'**
+  String get reconfig_wifi_mqtt;
+
+  /// No description provided for @setup_steps_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Steps to perform:'**
+  String get setup_steps_title;
+
+  /// No description provided for @setup_step_1.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Power on the ESP32 Hub (LED flashes indicating config mode).'**
+  String get setup_step_1;
+
+  /// No description provided for @setup_step_2.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Select Wi-Fi network and connect securely.'**
+  String get setup_step_2;
+
+  /// No description provided for @setup_step_3.
+  ///
+  /// In en, this message translates to:
+  /// **'3. After connecting successfully, system automatically transitions to provisioning.'**
+  String get setup_step_3;
+
+  /// No description provided for @version_changelog_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Release Notes & What\'s New'**
+  String get version_changelog_title;
+
+  /// No description provided for @version_changelog_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'View details of changes in the latest release'**
+  String get version_changelog_desc;
+
+  /// No description provided for @whats_new_in_version.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new in version'**
+  String get whats_new_in_version;
+
+  /// No description provided for @version_history_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Version History'**
+  String get version_history_title;
+
+  /// No description provided for @latest_version_badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest Version'**
+  String get latest_version_badge;
+
+  /// No description provided for @update_available_badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Available'**
+  String get update_available_badge;
+
+  /// No description provided for @btn_check_again.
+  ///
+  /// In en, this message translates to:
+  /// **'Check Again'**
+  String get btn_check_again;
+
+  /// No description provided for @you_are_up_to_date.
+  ///
+  /// In en, this message translates to:
+  /// **'Your app is up to date and running the latest stable release.'**
+  String get you_are_up_to_date;
+
+  /// No description provided for @technical_info_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Technical Details'**
+  String get technical_info_title;
+
+  /// No description provided for @perm_view_activate_only.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions: View & Activate only'**
+  String get perm_view_activate_only;
+
+  /// No description provided for @device_permissions_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Permissions'**
+  String get device_permissions_title;
+
+  /// No description provided for @reauth_security_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Security Verification'**
+  String get reauth_security_title;
+
+  /// No description provided for @reauth_with_google.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify with Google'**
+  String get reauth_with_google;
+
+  /// No description provided for @reauth_via_sms.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify via SMS'**
+  String get reauth_via_sms;
+
+  /// No description provided for @reauth_password_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Password Verification'**
+  String get reauth_password_title;
+
+  /// No description provided for @build_number_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Build Number'**
+  String get build_number_label;
+
+  /// No description provided for @release_date_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Release Date'**
+  String get release_date_label;
+
+  /// No description provided for @package_name_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Package Name'**
+  String get package_name_label;
+
+  /// No description provided for @target_platform_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Target Platform'**
+  String get target_platform_label;
+
+  /// No description provided for @empty_esp_limit_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlinked ESP32 Home Exists'**
+  String get empty_esp_limit_title;
+
+  /// No description provided for @empty_esp_limit_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'You have a home \"{name}\" that does not have an ESP32 set up.\n\nEach account can only have at most 1 unlinked ESP32 home. Would you like to set up ESP32 for this home now?'**
+  String empty_esp_limit_desc(Object name);
+
+  /// No description provided for @btn_setup_esp_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up ESP32 Now'**
+  String get btn_setup_esp_now;
+
+  /// No description provided for @btn_create_and_setup_esp.
+  ///
+  /// In en, this message translates to:
+  /// **'Create & Set up ESP32'**
+  String get btn_create_and_setup_esp;
+
+  /// No description provided for @create_home_then_setup_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'After naming the home, the app will automatically transition to the ESP32 pairing and Wi-Fi setup wizard.'**
+  String get create_home_then_setup_desc;
+
+  /// No description provided for @wifi_pairing_timeout_3min.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection timed out (3 minutes). Please check your Wi-Fi credentials or router distance.'**
+  String get wifi_pairing_timeout_3min;
+
+  /// No description provided for @wifi_waiting_handshake_signal.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for initial Hub signal via Cloud...'**
+  String get wifi_waiting_handshake_signal;
+
+  /// No description provided for @wifi_sending_ack_signal.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub signal detected! Sending activation response...'**
+  String get wifi_sending_ack_signal;
+
+  /// No description provided for @wifi_setup_completed_unlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup completed! Hub features fully unlocked.'**
+  String get wifi_setup_completed_unlock;
+
+  /// No description provided for @wifi_navigating_to_add_devices.
+  ///
+  /// In en, this message translates to:
+  /// **'Transitioning to Add Devices...'**
+  String get wifi_navigating_to_add_devices;
+
+  /// No description provided for @wifi_time_remaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Time remaining: {time}'**
+  String wifi_time_remaining(Object time);
+
+  /// No description provided for @wifi_btn_add_devices.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Devices (Device Mapping)'**
+  String get wifi_btn_add_devices;
+
+  /// No description provided for @btn_add_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Add New Home'**
+  String get btn_add_home;
+
+  /// No description provided for @sub_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub Home'**
+  String get sub_home;
+
+  /// No description provided for @primary_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary Home'**
+  String get primary_home;
+
+  /// No description provided for @rename_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename Home'**
+  String get rename_home;
+
+  /// No description provided for @delete_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Home'**
+  String get delete_home;
+
+  /// No description provided for @multi_home_tip.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a home to activate and control its corresponding devices.'**
+  String get multi_home_tip;
+
+  /// No description provided for @create_new_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Create New Home'**
+  String get create_new_home;
+
+  /// No description provided for @enter_home_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter Home Name'**
+  String get enter_home_name;
+
+  /// No description provided for @hint_home_name.
+  ///
+  /// In en, this message translates to:
+  /// **'E.g., Private House, Apartment, Villa...'**
+  String get hint_home_name;
+
+  /// No description provided for @err_empty_home_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter home name'**
+  String get err_empty_home_name;
+
+  /// No description provided for @created_home_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Created new home successfully'**
+  String get created_home_success;
+
+  /// No description provided for @err_create_home_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create new home. Please try again!'**
+  String get err_create_home_failed;
+
+  /// No description provided for @hint_new_home_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter new home name'**
+  String get hint_new_home_name;
+
+  /// No description provided for @msg_rename_home_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Renamed home successfully'**
+  String get msg_rename_home_success;
+
+  /// No description provided for @err_rename_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to rename home. Please try again!'**
+  String get err_rename_home;
+
+  /// No description provided for @delete_home_confirm_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Delete Home?'**
+  String get delete_home_confirm_title;
+
+  /// No description provided for @delete_home_confirm_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete home \"{name}\"? All linked device data will be removed from your account.'**
+  String delete_home_confirm_desc(Object name);
+
+  /// No description provided for @msg_delete_home_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted home successfully'**
+  String get msg_delete_home_success;
+
+  /// No description provided for @err_delete_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete home. Please try again!'**
+  String get err_delete_home;
+
+  /// No description provided for @devices_selected.
+  ///
+  /// In en, this message translates to:
+  /// **'devices selected'**
+  String get devices_selected;
+
+  /// No description provided for @manage_homes.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Homes'**
+  String get manage_homes;
+
+  /// No description provided for @homes_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} homes'**
+  String homes_count(Object count);
+
+  /// No description provided for @manage_sub_home_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Sub Home'**
+  String get manage_sub_home_title;
+
+  /// No description provided for @delete_this_sub_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete This Sub Home'**
+  String get delete_this_sub_home;
+
+  /// No description provided for @wifi_cancel_pairing_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel Pairing Process?'**
+  String get wifi_cancel_pairing_title;
+
+  /// No description provided for @wifi_cancel_pairing_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub ESP32 has not finished connecting. If you exit now, device linkage data will be cancelled.'**
+  String get wifi_cancel_pairing_desc;
+
+  /// No description provided for @home_customization_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Properties & Rules'**
+  String get home_customization_title;
+
+  /// No description provided for @home_type_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Type:'**
+  String get home_type_title;
+
+  /// No description provided for @home_icon_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Recognition Icon:'**
+  String get home_icon_title;
+
+  /// No description provided for @home_color_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme Color:'**
+  String get home_color_title;
+
+  /// No description provided for @home_rules_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Attribute Rules:'**
+  String get home_rules_title;
+
+  /// No description provided for @home_rules_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable smart behavioral rules automatically applied specifically to this home:'**
+  String get home_rules_desc;
+
+  /// No description provided for @home_props_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved home properties and rule sets successfully!'**
+  String get home_props_saved;
+
+  /// No description provided for @err_save_home_props.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save home properties. Please try again!'**
+  String get err_save_home_props;
+
+  /// No description provided for @home_type_townhouse.
+  ///
+  /// In en, this message translates to:
+  /// **'Townhouse'**
+  String get home_type_townhouse;
+
+  /// No description provided for @home_type_apartment.
+  ///
+  /// In en, this message translates to:
+  /// **'Apartment'**
+  String get home_type_apartment;
+
+  /// No description provided for @home_type_villa.
+  ///
+  /// In en, this message translates to:
+  /// **'Villa'**
+  String get home_type_villa;
+
+  /// No description provided for @home_type_countryside.
+  ///
+  /// In en, this message translates to:
+  /// **'Countryside Home'**
+  String get home_type_countryside;
+
+  /// No description provided for @home_type_office.
+  ///
+  /// In en, this message translates to:
+  /// **'Office'**
+  String get home_type_office;
+
+  /// No description provided for @home_type_store.
+  ///
+  /// In en, this message translates to:
+  /// **'Store'**
+  String get home_type_store;
+
+  /// No description provided for @rule_night_security_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Night Security Protection'**
+  String get rule_night_security_title;
+
+  /// No description provided for @rule_night_security_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically activate sensor monitoring & door lock after 23:00. Alarm immediately on intrusion.'**
+  String get rule_night_security_desc;
+
+  /// No description provided for @rule_energy_saving_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Energy Saving When Away'**
+  String get rule_energy_saving_title;
+
+  /// No description provided for @rule_energy_saving_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically turn off AC, water heater and high loads when leaving home.'**
+  String get rule_energy_saving_desc;
+
+  /// No description provided for @rule_outdoor_lighting_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic Outdoor Lighting'**
+  String get rule_outdoor_lighting_title;
+
+  /// No description provided for @rule_outdoor_lighting_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on garden, balcony or signboard lights from 18:00 to 23:00 daily.'**
+  String get rule_outdoor_lighting_desc;
+
+  /// No description provided for @rule_fire_gas_priority_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Fire & Gas Priority Alarm'**
+  String get rule_fire_gas_priority_title;
+
+  /// No description provided for @rule_fire_gas_priority_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound maximum siren and push urgent alerts even when phone is in Do Not Disturb.'**
+  String get rule_fire_gas_priority_desc;
+
+  /// No description provided for @rule_office_workhours_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Office Working Hours (08:00 - 18:00)'**
+  String get rule_office_workhours_title;
+
+  /// No description provided for @rule_office_workhours_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Maintain standard working lighting and stabilize AC at 25°C during business hours.'**
+  String get rule_office_workhours_desc;
+
+  /// No description provided for @rule_vacation_simulation_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Vacation Presence Simulation'**
+  String get rule_vacation_simulation_title;
+
+  /// No description provided for @rule_vacation_simulation_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Randomly toggle select lights in the evening to deter burglars during travels.'**
+  String get rule_vacation_simulation_desc;
+
+  /// No description provided for @rule_quiet_hours_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet Sleep Hours (22:00 - 06:00)'**
+  String get rule_quiet_hours_title;
+
+  /// No description provided for @rule_quiet_hours_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Dim hallway night lights to 20% and mute chime beeps to preserve sleep.'**
+  String get rule_quiet_hours_desc;
+
+  /// No description provided for @scene_tap_to_change_icon.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to change icon'**
+  String get scene_tap_to_change_icon;
+
+  /// No description provided for @scene_action_keep.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get scene_action_keep;
+
+  /// No description provided for @scene_action_turn_on.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get scene_action_turn_on;
+
+  /// No description provided for @scene_action_turn_off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get scene_action_turn_off;
+
+  /// No description provided for @scene_setup_device_state.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure device states in this scene'**
+  String get scene_setup_device_state;
+
+  /// No description provided for @schedule_auto_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically activate devices at set times'**
+  String get schedule_auto_desc;
+
+  /// No description provided for @schedule_activity_duration.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated active duration'**
+  String get schedule_activity_duration;
+
+  /// No description provided for @schedule_tap_to_change.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to change'**
+  String get schedule_tap_to_change;
+
+  /// No description provided for @schedule_preset_all.
+  ///
+  /// In en, this message translates to:
+  /// **'All week'**
+  String get schedule_preset_all;
+
+  /// No description provided for @schedule_preset_weekdays.
+  ///
+  /// In en, this message translates to:
+  /// **'Mon - Fri'**
+  String get schedule_preset_weekdays;
+
+  /// No description provided for @schedule_preset_weekends.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekend'**
+  String get schedule_preset_weekends;
+
+  /// No description provided for @schedule_shared_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'All household members can view this schedule'**
+  String get schedule_shared_hint;
+
+  /// No description provided for @schedule_author.
+  ///
+  /// In en, this message translates to:
+  /// **'Creator'**
+  String get schedule_author;
 }
 
 class _AppLocalizationsDelegate

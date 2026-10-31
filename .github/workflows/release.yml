@@ -1,0 +1,73 @@
+name: ZenHome Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Release ESP32 & Flutter APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python for PlatformIO
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: ⚙️ Install PlatformIO Core
+        run: pip install --upgrade platformio
+
+      - name: 🔨 Build ESP32 Firmware
+        run: |
+          cd esp32_1
+          pio run
+          cp .pio/build/esp32dev/firmware.bin ../firmware.bin
+          cd ..
+
+      - name: ☕ Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 📱 Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.x'
+          channel: 'stable'
+          cache: true
+
+      - name: 📦 Build ZenHome Flutter APK
+        run: |
+          cd zenhome_app
+          flutter pub get
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk ../ZenHome_Release.apk || cp build/app/outputs/apk/release/app-release.apk ../ZenHome_Release.apk
+          cd ..
+
+      - name: 🚀 Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ZenHome ${{ github.ref_name }} - Global Release
+          body: |
+            • Automated Release built by GitHub Actions CI/CD
+            • ESP32 Firmware & Android APK unified release
+            • Instant 0ms Control & Resilient Global OTA CDN
+          draft: false
+          prerelease: false
+          make_latest: true
+          files: |
+            firmware.bin
+            ZenHome_Release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

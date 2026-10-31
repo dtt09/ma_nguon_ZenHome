@@ -80,7 +80,12 @@ String getDeviceNameHelper(BuildContext context, String baseTopic, SmartConfig c
     // Nhờ import constants.dart ở trên nên hàm tr() gọi ở đây hoàn toàn hợp lệ
     return '${device.name} (${context.tr(device.room)})';
   } catch (e) {
-    return baseTopic;
+    final parts = baseTopic.split('/');
+    if (parts.isNotEmpty && parts.last.isNotEmpty) {
+      final devId = parts.last;
+      return devId.replaceAll('_', ' ').toUpperCase();
+    }
+    return context.tr('device');
   }
 }
 
