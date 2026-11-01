@@ -129,25 +129,32 @@ class MqttRepository {
       if (cleanPrefix != mqttPrefix) {
         client!.subscribe('$cleanPrefix/+/+/state', MqttQos.atLeastOnce);
       }
-      client!.subscribe('+/+/+/+/state', MqttQos.atLeastOnce);
     } catch (_) {}
     
     try {
+      final cleanPrefix = mqttPrefix.replaceAll(':', '');
       client!.subscribe('$mqttPrefix/nhiet_do_trong_nha', MqttQos.atLeastOnce);
       client!.subscribe('$mqttPrefix/thong_bao', MqttQos.atLeastOnce);
       client!.subscribe('$mqttPrefix/esp_status', MqttQos.atLeastOnce);
-      client!.subscribe('+/+/esp_status', MqttQos.atLeastOnce);
+      if (cleanPrefix != mqttPrefix) {
+        client!.subscribe('$cleanPrefix/esp_status', MqttQos.atLeastOnce);
+      }
       client!.subscribe('$mqttPrefix/heartbeat', MqttQos.atLeastOnce);
-      client!.subscribe('+/+/heartbeat', MqttQos.atLeastOnce);
+      if (cleanPrefix != mqttPrefix) {
+        client!.subscribe('$cleanPrefix/heartbeat', MqttQos.atLeastOnce);
+      }
       client!.subscribe('$mqttPrefix/system/ota_progress', MqttQos.atLeastOnce);
       client!.subscribe('$mqttPrefix/system/ota_result', MqttQos.atLeastOnce);
-      client!.subscribe('+/+/system/ota_progress', MqttQos.atLeastOnce);
-      client!.subscribe('+/+/system/ota_result', MqttQos.atLeastOnce);
+      if (cleanPrefix != mqttPrefix) {
+        client!.subscribe('$cleanPrefix/system/ota_progress', MqttQos.atLeastOnce);
+        client!.subscribe('$cleanPrefix/system/ota_result', MqttQos.atLeastOnce);
+      }
       client!.subscribe('$mqttPrefix/setup/handshake', MqttQos.atLeastOnce);
       client!.subscribe('$mqttPrefix/setup/complete', MqttQos.atLeastOnce);
-      // Wildcard subscribe để bắt trọn tín hiệu Setup từ Hub ngay cả khi prefix có sai biệt giữa các nhà
-      client!.subscribe('+/+/setup/handshake', MqttQos.atLeastOnce);
-      client!.subscribe('+/+/setup/complete', MqttQos.atLeastOnce);
+      if (cleanPrefix != mqttPrefix) {
+        client!.subscribe('$cleanPrefix/setup/handshake', MqttQos.atLeastOnce);
+        client!.subscribe('$cleanPrefix/setup/complete', MqttQos.atLeastOnce);
+      }
     } catch (e) {
       LoggerService.w('[MQTT] ⚠️ Lỗi subscribe topics: $e');
     }
@@ -163,10 +170,9 @@ class MqttRepository {
         final cleanPrefixNoColon = cleanPrefix.replaceAll(':', '');
         
         // Cập nhật trạng thái sống còn (Liveness / Online) của ESP32:
-        // CHỈ chấp nhận từ topic chuyên trách esp_status hoặc heartbeat, TUYỆT ĐỐI không phán đoán từ retained state
+        // CHỈ chấp nhận từ topic của chính Hub hiện tại (chống giao thoa đa người dùng trên Broker)
         if (cleanCurrent == '$cleanPrefix/esp_status' || 
-            cleanCurrent == '$cleanPrefixNoColon/esp_status' || 
-            cleanCurrent.endsWith('/esp_status')) {
+            cleanCurrent == '$cleanPrefixNoColon/esp_status') {
           final clean = payload.trim().toLowerCase();
           if (clean == 'online' || clean.startsWith('online')) {
             _isEspOnline = true;
@@ -178,56 +184,62 @@ class MqttRepository {
             _heartbeatWatchdogTimer?.cancel();
           }
         } else if (cleanCurrent == '$cleanPrefix/heartbeat' || 
-                   cleanCurrent == '$cleanPrefixNoColon/heartbeat' || 
-                   cleanCurrent.endsWith('/heartbeat')) {
+                   cleanCurrent == '$cleanPrefixNoColon/heartbeat') {
           _isEspOnline = true;
           _espOnlineController.add(true);
           _resetHeartbeatWatchdog();
         }
 
-        if (cleanCurrent.endsWith('/setup/handshake')) {
+        if (cleanCurrent.endsWith('/setup/handshake') && 
+            (cleanCurrent.startsWith(cleanPrefix) || cleanCurrent.startsWith(cleanPrefixNoColon))) {
           _setupMessageController.add({
             'topic': 'handshake',
             'payload': payload.trim(),
             'fullTopic': currentTopic,
           });
-        } else if (cleanCurrent.endsWith('/setup/complete')) {
+        } else if (cleanCurrent.endsWith('/setup/complete') && 
+                   (cleanCurrent.startsWith(cleanPrefix) || cleanCurrent.startsWith(cleanPrefixNoColon))) {
           _setupMessageController.add({
             'topic': 'complete',
             'payload': payload.trim(),
             'fullTopic': currentTopic,
           });
-        } else if (cleanCurrent == '$cleanPrefix/nhiet_do_trong_nha') {
+        } else if (cleanCurrent == '$cleanPrefix/nhiet_do_trong_nha' || cleanCurrent == '$cleanPrefixNoColon/nhiet_do_trong_nha') {
           _indoorTempController.add(payload.trim());
-        } else if (currentTopic == '$mqttPrefix/thong_bao') {
+        } else if (currentTopic == '$mqttPrefix/thong_bao' || currentTopic == '$cleanPrefixNoColon/thong_bao') {
           _notificationController.add('${payload.trim()}|${DateTime.now().millisecondsSinceEpoch}');
-        } else if (currentTopic == '$mqttPrefix/system/ota_progress' || currentTopic.endsWith('/system/ota_progress')) {
+        } else if (cleanCurrent.endsWith('/system/ota_progress') && 
+                   (cleanCurrent.startsWith(cleanPrefix) || cleanCurrent.startsWith(cleanPrefixNoColon))) {
           try {
             final json = jsonDecode(payload) as Map<String, dynamic>;
             _otaProgressController.add(json);
           } catch (_) {}
-        } else if (currentTopic == '$mqttPrefix/system/ota_result' || currentTopic.endsWith('/system/ota_result')) {
+        } else if (cleanCurrent.endsWith('/system/ota_result') && 
+                   (cleanCurrent.startsWith(cleanPrefix) || cleanCurrent.startsWith(cleanPrefixNoColon))) {
           try {
             final json = jsonDecode(payload) as Map<String, dynamic>;
             _otaResultController.add(json);
           } catch (_) {}
-        } else if (currentTopic.endsWith('/state')) {
-          final parts = currentTopic.split('/');
-          if (parts.length >= 2) {
-            String devId = parts[parts.length - 2];
-            bool isOn = false;
-            final trimmed = payload.trim();
-            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-              try {
-                final json = jsonDecode(trimmed);
-                isOn = json['state'] == 1 || json['state'] == '1' || json['action'] == '1' || json['action'] == 'ON';
-              } catch (_) {
-                isOn = trimmed.contains('"state":1') || trimmed.contains('"state": 1');
+        } else if (cleanCurrent.endsWith('/state')) {
+          // BẢO VỆ CHỐNG NHẢY CHÉO CÔNG TẮC: Chỉ nhận nếu topic thuộc về chính Hub này
+          if (cleanCurrent.startsWith(cleanPrefix) || cleanCurrent.startsWith(cleanPrefixNoColon)) {
+            final parts = currentTopic.split('/');
+            if (parts.length >= 2) {
+              String devId = parts[parts.length - 2];
+              bool isOn = false;
+              final trimmed = payload.trim();
+              if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                try {
+                  final json = jsonDecode(trimmed);
+                  isOn = json['state'] == 1 || json['state'] == '1' || json['action'] == '1' || json['action'] == 'ON';
+                } catch (_) {
+                  isOn = trimmed.contains('"state":1') || trimmed.contains('"state": 1');
+                }
+              } else {
+                isOn = trimmed == '1';
               }
-            } else {
-              isOn = trimmed == '1';
+              _deviceStateController.add({devId: isOn});
             }
-            _deviceStateController.add({devId: isOn});
           }
         }
       }

@@ -310,19 +310,44 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
 
     Map<String, String> actions = scene['actions'];
 
-    // 1. Ưu tiên thực thi qua Mạng nội bộ (Local LAN) nếu đang kết nối
-    if (isLocalAvailable) {
-      final currentStates = Map<String, bool>.from(ref.read(globalDeviceStatesProvider));
-      actions.forEach((topic, command) {
-        String devId = topic.split('/').last;
-        localService.sendLocalControl(devId: devId, cmd: command);
-        currentStates[devId] = (command == '1');
+    // Thực thi các hành động với độ trễ xen kẽ (Staggered Execution: 60ms) chống sụt áp nguồn (Brownout Protection)
+    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+    final mqttPrefix = activeConfig.mqttPrefix;
+    final cleanPrefix = mqttPrefix.replaceAll(':', '');
+
+    int delayMs = 0;
+    actions.forEach((topic, command) {
+      String devId = topic.split('/').last;
+      String roomId = 'living_room';
+      final parts = topic.split('/');
+      if (parts.length >= 2) {
+        roomId = parts[parts.length - 2];
+      }
+
+      Future.delayed(Duration(milliseconds: delayMs), () {
+        ref.read(pendingDeviceOperationsProvider.notifier).setPending(devId, true);
+
+        if (isLocalAvailable) {
+          localService.sendLocalControl(devId: devId, cmd: command).then((success) {
+            if (!success) {
+              // Dự phòng sang MQTT Cloud nếu LAN không nhận lệnh
+              ref.read(mqttRepositoryProvider).publishCmd('$mqttPrefix/$roomId/$devId/cmd', command);
+            }
+          });
+        } else {
+          final targetTopic = '$mqttPrefix/$roomId/$devId/cmd';
+          ref.read(mqttRepositoryProvider).publishCmd(targetTopic, command);
+          if (cleanPrefix != mqttPrefix) {
+            ref.read(mqttRepositoryProvider).publishCmd('$cleanPrefix/$roomId/$devId/cmd', command);
+          }
+        }
       });
-      ref.read(globalDeviceStatesProvider.notifier).state = currentStates;
+      delayMs += 60; // Xen kẽ 60ms giữa các cuộn hút rơ-le
+    });
+
+    if (isLocalAvailable) {
       showFloatingToast(context, context.tr('toast_activated'), '${_getSceneName(scene)} (Local ⚡)');
     } else {
-      // 2. Gửi qua Cloud MQTT nếu không ở mạng Local
-      actions.forEach((topic, command) => ref.read(mqttRepositoryProvider).publishCmd('$topic/cmd', command));
       showFloatingToast(context, context.tr('toast_activated'), '${_getSceneName(scene)} (Cloud)');
     }
 

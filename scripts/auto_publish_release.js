@@ -222,31 +222,38 @@ async function main() {
     tagVersion = await ask('Phiên bản tag Release phát hành', `v${pubspecVersion}`);
   }
 
-  const releaseTitle = `ZenHome ${tagVersion} - Native Luxury Dialogs, 60fps Tab Transitions & Dual-OTA Release`;
+  const releaseTitle = `ZenHome ${tagVersion} - System Harmony, Anti-Crosstalk & Brownout Protection`;
   const releaseNotes = `## 🌟 Điểm nổi bật trong bản phát hành ${tagVersion} (Build ${pubspecBuild})
 
 ### 📱 Ứng dụng Di động (Mobile App v${pubspecVersion}+${pubspecBuild}):
-- 💎 **Hộp thoại trạng thái ZenHome Luxury Glassmorphism**:
-  - Tái thiết kế toàn diện hộp thoại Thành công / Thất bại / Cảnh báo / Xác nhận theo chuẩn sang trọng ZenHome Native, loại bỏ hoàn toàn giao diện cũ.
-  - Khắc phục triệt để lỗi tràn/lem lớp kính mờ (BackdropFilter blur bleeding) bằng cơ chế ClipRRect đồng bộ bo góc 28px.
-  - Tích hợp hiệu ứng vầng hào quang chuyển động mượt mà (Breathing Aura Glow) xung quanh biểu tượng squircle (Ngọc lục bảo, Đỏ Ruby, Vàng Hoàng gia, Cam Mặt trời).
-  - Khắc phục lỗi tràn chữ (Text Overflow) trong bảng chi tiết bằng tỷ lệ nhãn chuẩn 105px và hệ thống Auto-wrapping linh hoạt.
-- 📱 **Khắc phục liên kết số điện thoại & tra cứu dữ liệu**:
-  - Khắc phục lỗi "không tra cứu được dữ liệu" khi liên kết SĐT bằng cách sử dụng trực tiếp xác thực bảo mật \`FirebaseAuth.verifyPhoneNumber\` và chuẩn hóa truy vấn đa định dạng (+84 / 0).
-- 🛡️ **Bảo mật & Che mờ dữ liệu nhạy cảm (Security Masking)**:
-  - Tự động che mờ (masking) thông tin nhạy cảm của hệ thống: địa chỉ IP, địa chỉ MAC, mật khẩu quản trị, email và số điện thoại, bảo đảm tính riêng tư khi hiển thị và chia sẻ màn hình.
-- 🚀 **Trải nghiệm chuyển Tab mượt mà & Bảo toàn trạng thái (60-120 FPS)**:
-  - Nâng cấp điều hướng với \`PageView\` và \`Curves.easeOutCubic\`, chuyển cảnh mượt mà cùng hiệu ứng vật lý \`BouncingScrollPhysics\`.
-  - Tích hợp \`AutomaticKeepAliveClientMixin\` trên toàn bộ màn hình chính, bảo toàn tuyệt đối trạng thái chờ thao tác công tắc khi chuyển qua lại giữa các Tab Tiện ích / Cài đặt mà không lo bị treo.
-- 🌐 **Chuẩn hóa Đa ngôn ngữ (i18n)**: Rà soát và loại bỏ toàn bộ chuỗi tĩnh còn sót lại, hỗ trợ song ngữ Tiếng Việt & Tiếng Anh hoàn chỉnh.
+- 🛡️ **Khắc phục triệt để Giao thoa / Rò rỉ Trạng thái (Anti-Crosstalk)**:
+  - Loại bỏ hoàn toàn wildcard subscriptions (\`+/+/+/+/state\`, \`+/+/esp_status\`), chỉ lắng nghe và áp dụng trạng thái từ đúng tiền tố \`userId/macAddress\` của ngôi nhà đang chọn. Không bao giờ bị nhảy trạng thái công tắc chéo giữa các gia đình trên HiveMQ Broker.
+- ⚡ **Khử xung đột phát lệnh song song (LAN Priority & Sequential Fallback)**:
+  - Tối ưu luồng điều khiển: Khi ở mạng nhà, ưu tiên gửi qua LAN HTTP/BLE tức thì; chỉ khi LAN thất bại mới tự động chuyển hướng sang Cloud MQTT. Loại bỏ hiện tượng gửi 2 gói tin cùng lúc gây nghẽn rơ-le và xung đột Relay Guard.
+- ⏱️ **Phản hồi chính xác trạng thái & Chống timeout giả**:
+  - Khi một lệnh điều khiển đơn lẻ timeout, App chỉ thông báo lỗi kết nối cục bộ của thiết bị đó, tuyệt đối không đánh dấu toàn bộ Hub là offline (\`markEspOffline\`).
+- 💎 **Bảo vệ sụt áp nguồn khi kích hoạt Ngữ cảnh (Staggered Scene Execution)**:
+  - Chèn độ trễ xen kẽ 60ms giữa các lệnh kích hoạt rơ-le liên tiếp trong ngữ cảnh, triệt tiêu đỉnh dòng tức thời (Inrush Current) gây sụt áp nguồn vi điều khiển.
+- 💎 **Giao diện Hộp thoại ZenHome Luxury Glassmorphism**: Thay thế hoàn toàn giao diện ZaloPay cũ bằng chuẩn Luxury Glassmorphism đồng bộ bo góc 28px, hiệu ứng Breathing Aura Glow và chống tràn chữ.
+- 🔒 **Che giấu dữ liệu nhạy cảm (Security Masking)**: Tự động che mờ IP, MAC, Admin Pass, Email và SĐT trên toàn bộ giao diện quản trị.
+- 🌐 **Chuẩn hóa Đa ngôn ngữ (i18n)**: Rà soát và hoàn tất 100% bản dịch song ngữ Việt - Anh.
 
 ### ⚡ Firmware ESP32 (v2.5.7 Build 201):
-- 📶 **Khắc phục triệt để lỗi nâng cấp OTA (MQTT Keep-Alive & Dual-Detection)**:
-  - Thêm chu kỳ duy trì kết nối \`mqttClient.loop()\` trực tiếp trong vòng lặp tải HTTP firmware, ngăn chặn HiveMQ broker ngắt socket khi đang tải tệp OTA 30-40s (giải quyết lỗi App bị kẹt 0% dù ESP32 nạp thành công).
-  - Tích hợp cơ chế phát hiện kép (Dual-detection) trên App thông qua luồng trạng thái ESP32 online trở lại sau reboot để tự động hoàn tất 100% và hiện thông báo thành công.
-- 🛡️ **Khắc phục lỗi tự động Restart ngẫu nhiên (WDT & FreeRTOS Safety)**:
-  - Tăng FreeRTOS Watchdog Timer (WDT) lên 45 giây và điều chỉnh timeout socket xuống 15 giây.
-  - Bổ sung \`esp_task_wdt_reset()\` trong chu kỳ xác thực HTTP để triệt tiêu hiện tượng ESP32 bị WDT reset ngẫu nhiên khi mạng chập chờn.
+- 🛡️ **Khắc phục ESP32 Brownout / Sập nguồn ngẫu nhiên**:
+  - Tích hợp bộ đệm an toàn nguồn điện trong \`safeSetRelayPin\`: Tự động giãn cách 50ms giữa các lần đóng cuộn hút rơ-le, ngăn chặn sụt áp đường nguồn 5V/3.3V gây ngắt bảo vệ Brownout Reset.
+- 🤝 **Luôn phản hồi xác nhận trạng thái (Guaranteed Hardware State ACK)**:
+  - Kể cả khi lệnh bị chặn bởi Relay Guard (<800ms) hoặc lệnh gửi trạng thái trùng với hiện tại, ESP32 vẫn công bố ngay trạng thái vật lý thực tế về MQTT và LAN HTTP để App giải phóng cờ pending tức thì, không bị đơ 3.5s.
+- 📶 **Khắc phục lỗi treo OTA 0%**:
+  - Duy trì chu kỳ \`mqttClient.loop()\` trong suốt quá trình tải firmware 30-40s, ngăn HiveMQ broker ngắt socket.
+- ⏱️ **Tối ưu hóa FreeRTOS WDT 45s & Socket Timeout 15s**: Loại bỏ triệt để hiện tượng Watchdog reset khi mạng Wi-Fi chập chờn.
+
+### 🖥️ Backend Server & Cloud Sync:
+- 🔄 **Tôn trọng chân lý phần cứng khi phục hồi mạng (Single Source of Truth)**:
+  - Khi có mạng trở lại sau sự cố, Server tiếp nhận báo cáo \`/sync/report\` từ ESP32 để cập nhật cơ sở dữ liệu, không phát lệnh cũ đè ngược lên phần cứng.
+- 🔑 **Chuẩn hóa khóa tra cứu Task (MAC Colon Normalization)**:
+  - Chuẩn hóa topic loại bỏ dấu hai chấm trong \`state.pendingTasks\`, giải phóng chính xác tiến trình kiểm tra retry.
+- 🛡️ **Bảo vệ an toàn phần cứng Đa Hub (Multi-Hub Safety)**:
+  - Hỗ trợ mảng danh sách Hub, không tự tiện gửi lệnh Factory Reset phá hủy dữ liệu của thiết bị khác trên cùng tài khoản.
 
 ---
 *Phát hành chính thức bởi ZenHome Automation Release Engine*`;

@@ -98,14 +98,14 @@ export function setupMqttHandlers() {
                     return;
                 }
 
-                // Chỉ cảnh báo và reset nếu Database ĐÃ LIÊN KẾT CHÍNH THỨC VỚI 1 HUB KHÁC nhưng lại nhận tin từ Hub lạ
-                if (cleanExpectedMac !== cleanMac) {
-                    console.warn(`[DESYNC-ALERT] ⚠️ Phát hiện ESP32 (${macAddress}) gửi trạng thái nhưng Database của user '${userId}' đang liên kết với Hub khác [${expectedMac}]!`);
-                    console.warn(`[DESYNC-ALERT] 👉 Đẩy lệnh reset để buộc ESP32 lạ về chế độ AP Setup...`);
-                    // Xóa retain message rác
-                    client.publish(topic, "", { retain: true });
-                    // Gửi lệnh reset đến ESP32 sai MAC
-                    client.publish(`${userId}/${macAddress}/system/reset`, "1", { qos: 1 });
+                // Hỗ trợ kiểm tra danh sách Hub (Đa Hub / Multi-Hub): Không tự tiện gửi lệnh reset hủy hoại Flash
+                const userMacList = Array.isArray(userData.macAddresses)
+                    ? userData.macAddresses.map((m: string) => m.replace(/[:\-]/g, '').toUpperCase())
+                    : [cleanExpectedMac];
+
+                if (!userMacList.includes(cleanMac) && cleanExpectedMac !== cleanMac) {
+                    console.warn(`[DESYNC-ALERT] ⚠️ Phát hiện ESP32 (${macAddress}) gửi trạng thái nhưng không khớp Hub chính [${expectedMac}] của user '${userId}'!`);
+                    console.log(`[DESYNC-ALERT] ℹ️ Bỏ qua xử lý tự động cho Hub lạ (Bảo vệ phần cứng, không gửi lệnh reset tùy tiện).`);
                     return;
                 }
 
@@ -259,13 +259,24 @@ export function setupMqttHandlers() {
             // Luôn ghi nhận trạng thái thực tế vào Server Backup Engine
             recordDeviceState(baseTopic, actualState === '1' ? '1' : '0', 'mqtt_state');
 
-            if (state.pendingTasks[topic] && state.pendingTasks[topic].targetState === actualState) {
+            // Chuẩn hóa khóa tra cứu pendingTasks (hỗ trợ cả topic có dấu hai chấm và không dấu)
+            const cleanTopicKey = topic.replace(/[:\-]/g, '');
+            let matchedPendingKey: string | null = null;
+            if (state.pendingTasks[topic]) {
+                matchedPendingKey = topic;
+            } else {
+                matchedPendingKey = Object.keys(state.pendingTasks).find(
+                    k => k.replace(/[:\-]/g, '') === cleanTopicKey
+                ) || null;
+            }
+
+            if (matchedPendingKey && state.pendingTasks[matchedPendingKey].targetState === actualState) {
                 console.log(`[SUCCESS] ✅ ESP32 đã BẬT/TẮT xong: ${baseTopic} -> ${actualState === '1' ? 'BẬT' : 'TẮT'}${ackData && ackData.cmdId ? ` (ACK cmdId: ${ackData.cmdId})` : ''}`);
 
                 const userId = topicParts[0];
                 const devId = topicParts[topicParts.length - 1];
                 const actionText = actualState === '1' ? 'BẬT' : 'TẮT';
-                const source = state.pendingTasks[topic].source || 'action';
+                const source = state.pendingTasks[matchedPendingKey].source || 'action';
 
                 // Chống bão thông báo (Push Storm) khi phục hồi mạng hoặc an toàn nguồn điện:
                 // Gia chủ đã nhận 1 thông báo tổng quan của hệ thống, không spam push cho từng relay riêng rẽ.
@@ -276,10 +287,10 @@ export function setupMqttHandlers() {
                     console.log(`[SILENT SYNC] 🔕 Không bắn push notification riêng lẻ cho ${devId} (Nguồn: ${source})`);
                 }
 
-                if (state.pendingTasks[topic]?.intervalId) {
-                    clearInterval(state.pendingTasks[topic].intervalId);
+                if (state.pendingTasks[matchedPendingKey]?.intervalId) {
+                    clearInterval(state.pendingTasks[matchedPendingKey].intervalId);
                 }
-                delete state.pendingTasks[topic];
+                delete state.pendingTasks[matchedPendingKey];
             }
             return;
         }

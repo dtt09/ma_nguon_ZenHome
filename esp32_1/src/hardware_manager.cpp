@@ -51,6 +51,16 @@ void initHardware() {
 
 void safeSetRelayPin(int pin, int level) {
   if (pcfFound && pin >= 0 && pin <= 7) {
+    // Chống sụt áp nguồn (Brownout Protection): Nếu đóng cuộn hút rơ-le (Active-Low LOW),
+    // chèn độ trễ nhỏ 50ms giữa các lần kích hoạt để triệt tiêu sốc dòng tức thời (Inrush Current)
+    static unsigned long lastRelayOnTime = 0;
+    if (level == LOW) {
+      unsigned long now = millis();
+      if (now - lastRelayOnTime < 50) {
+        delay(50 - (now - lastRelayOnTime));
+      }
+      lastRelayOnTime = millis();
+    }
     pcf.digitalWrite(pin, level);
   }
 }
@@ -85,6 +95,12 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
           Serial.printf("[RELAY-GUARD] 🛡️ Chặn thao tác quá nhanh trên %s (Cách lần trước %lums < %dms). Chống cháy tiếp điểm!\n",
                         devId.c_str(), now - myRelays[i].lastToggleTime, MIN_RELAY_DWELL_MS);
         }
+        // Phản hồi ngay trạng thái hiện tại về MQTT để App / Server giải phóng pending, không bị treo 3.5s
+        if (WiFi.status() == WL_CONNECTED && mqttClient.connected()) {
+          String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
+          String stateTopic = mqtt_prefix + "/" + rName + "/" + devId + "/state";
+          mqttClient.publish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
+        }
         return false;
       }
 
@@ -111,20 +127,19 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
         notifyBleRelayState(devId, targetState);
       }
 
-      // KIỂM TRA MẠNG & CHỐNG SPAM MQTT BROKER:
+      // KIỂM TRA MẠNG & PHẢN HỒI XÁC NHẬN (ACK) TỚI MQTT BROKER:
       bool isNetworkOnline = (WiFi.status() == WL_CONNECTED && mqttClient.connected());
 
       if (isNetworkOnline) {
-        if (stateActuallyChanged) {
-          String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
-          String stateTopic = mqtt_prefix + "/" + rName + "/" + devId + "/state";
-          mqttClient.publish(stateTopic.c_str(), targetState.c_str(), true);
-          String cleanP = mqtt_prefix;
-          cleanP.replace(":", "");
-          String stateTopic2 = cleanP + "/" + rName + "/" + devId + "/state";
-          if (stateTopic2 != stateTopic) {
-            mqttClient.publish(stateTopic2.c_str(), targetState.c_str(), true);
-          }
+        // Luôn gửi xác nhận trạng thái thực tế về MQTT để giải phóng pending trên App/Server
+        String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
+        String stateTopic = mqtt_prefix + "/" + rName + "/" + devId + "/state";
+        mqttClient.publish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
+        String cleanP = mqtt_prefix;
+        cleanP.replace(":", "");
+        String stateTopic2 = cleanP + "/" + rName + "/" + devId + "/state";
+        if (stateTopic2 != stateTopic) {
+          mqttClient.publish(stateTopic2.c_str(), myRelays[i].state.c_str(), true);
         }
       } else {
         if (stateActuallyChanged) {

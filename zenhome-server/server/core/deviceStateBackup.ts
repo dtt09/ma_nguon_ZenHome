@@ -507,16 +507,12 @@ export async function handleNetworkRestored(
                 }
             }
 
-            const targetState = record.state; // Giữ nguyên '0' hoặc '1' lần cuối
+            const targetState = record.state;
             syncedStates[devId] = targetState;
 
-            const cleanBase = record.baseTopic ? record.baseTopic.replace('/sync/', '/') : '';
-            const targetTopic = (cleanBase.includes(macAddress) && !cleanBase.includes('/sync/'))
-                ? cleanBase
-                : `${userId}/${macAddress}/${record.room}/${devId}`;
-
-            console.log(`[NETWORK SYNC] 🔄 Đồng bộ ${devId}: ${targetState === '1' ? 'BẬT' : 'TẮT'} -> Gửi tới: ${targetTopic}/cmd`);
-            sendCommandWithRetry(targetTopic, targetState, 'network_sync_restore');
+            // Tôn trọng phần cứng vật lý (Single Source of Truth):
+            // ESP32 tự động công bố trạng thái rơ-le thực tế qua /sync/report khi có mạng lại.
+            // Server ghi nhận đồng bộ, tuyệt đối không gửi lệnh cũ đè ngược xuống phần cứng!
             record.syncStatus = 'synced';
             syncedCount++;
         }
@@ -525,9 +521,7 @@ export async function handleNetworkRestored(
         persistBackupToDisk(true);
     } else if (fallbackDevices && fallbackDevices.length > 0) {
         for (const dev of fallbackDevices) {
-            if (dev.room && dev.id) {
-                const baseTopic = `${userId}/${macAddress}/${dev.room}/${dev.id}`;
-                sendCommandWithRetry(baseTopic, '0', 'safety_default');
+            if (dev.id) {
                 syncedStates[dev.id] = '0';
                 syncedCount++;
             }

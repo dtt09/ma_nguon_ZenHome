@@ -786,7 +786,7 @@ void publishHomeAssistantDiscovery() {
     dev["name"] = "ZenHome Hub (" + cleanMac + ")";
     dev["model"] = "ESP32 DevKit V1";
     dev["manufacturer"] = "ZenHome STEM";
-    dev["sw_version"] = "2.5.6";
+    dev["sw_version"] = "2.5.7";
 
     String payload;
     serializeJson(discDoc, payload);
@@ -811,7 +811,7 @@ void publishHomeAssistantDiscovery() {
   dev["name"] = "ZenHome Hub (" + cleanMac + ")";
   dev["model"] = "ESP32 DevKit V1";
   dev["manufacturer"] = "ZenHome STEM";
-  dev["sw_version"] = "2.5.6";
+  dev["sw_version"] = "2.5.7";
 
   String tempPayload;
   serializeJson(tempDoc, tempPayload);

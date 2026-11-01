@@ -499,7 +499,23 @@ void setupStationWebServer() {
       String res = "{\"status\":\"ok\",\"id\":\"" + devId + "\",\"state\":\"" + targetState + "\"}";
       request->send(200, "application/json", res);
     } else {
-      request->send(404, "application/json", "{\"status\":\"error\",\"message\":\"Không tìm thấy thiết bị hoặc thao tác quá nhanh\"}");
+      // Tìm xem thiết bị có tồn tại không
+      String curState = "0";
+      bool devExists = false;
+      for (int i = 0; i < relayCount; i++) {
+        if (myRelays[i].id == devId) {
+          devExists = true;
+          curState = myRelays[i].state;
+          break;
+        }
+      }
+      if (devExists) {
+        // Thiết bị tồn tại nhưng bị chặn gạt quá nhanh (Relay Guard): Trả về 200 kèm trạng thái hiện tại
+        String res = "{\"status\":\"guard_blocked\",\"id\":\"" + devId + "\",\"state\":\"" + curState + "\",\"message\":\"Thao tác quá nhanh, đã phản hồi trạng thái hiện tại\"}";
+        request->send(200, "application/json", res);
+      } else {
+        request->send(404, "application/json", "{\"status\":\"error\",\"message\":\"Không tìm thấy thiết bị\"}");
+      }
     }
   });
 

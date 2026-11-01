@@ -34,8 +34,8 @@ export function useFirebaseRealtimeData(enabled: boolean = true) {
     totalCrashes: 0,
     totalReports: 0,
     onlineEspCount: 0,
-    latestAppVersion: 'v1.7.9',
-    latestBuildNumber: 179,
+    latestAppVersion: 'v1.8.13',
+    latestBuildNumber: 200,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -1,6 +1,6 @@
 {
   "version": "1.8.13",
-  "buildNumber": 199,
+  "buildNumber": 200,
   "minVersion": "1.8.0",
   "minBuildNumber": 180,
   "titleVi": "Bản Cập Nhật ZenHome v1.8.13 (Luxury Glassmorphism & Fast Switch)",
@@ -10,7 +10,7 @@
   "downloadUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "directApkUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "isForceUpdate": false,
-  "fileSizeBytes": 72226559,
-  "sha256": "6C501176494F1011FDEDBCA1EC766606C3827360FB824045F30954ED9EB2AC6B",
-  "publishedAt": "2026-11-01T06:37:38.000Z"
+  "fileSizeBytes": 72242943,
+  "sha256": "34A5DD06174F17814992535EE470C0F5A37BA1EABE427C9B3969FFF0FD8AD4A6",
+  "publishedAt": "2026-11-01T07:08:00.000Z"
 }

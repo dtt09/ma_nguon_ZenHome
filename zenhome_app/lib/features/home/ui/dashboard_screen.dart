@@ -165,20 +165,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
       devId,
       true,
       onTimeout: () {
-        ref.read(mqttRepositoryProvider).markEspOffline();
         HapticFeedback.vibrate();
         if (mounted) {
           showFloatingToast(
             context,
             context.tr('toast_error') ?? 'Lỗi',
-            context.tr('toast_mqtt_timeout') ?? 'Thiết bị không phản hồi, vui lòng kiểm tra nguồn điện!',
+            context.tr('toast_mqtt_timeout') ?? 'Thiết bị không phản hồi, vui lòng kiểm tra kết nối!',
             isError: true,
           );
         }
       },
     );
 
-    // 2. KÍCH HOẠT LỆNH ĐIỀU KHIỂN (ƯU TIÊN LOCAL LAN TỨC THÌ + DỰ PHÒNG CLOUD MQTT SONG SONG)
+    // 2. KÍCH HOẠT LỆNH ĐIỀU KHIỂN (ƯU TIÊN LOCAL LAN TỨC THÌ, DỰ PHÒNG TUẦN TỰ CLOUD MQTT)
     bool confirmed = false;
 
     void onHardwareConfirmed(bool newState) {
@@ -201,28 +200,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
       _logHistoryToFirebase(devId, actionText);
     }
 
-    // Kênh 1: Gửi qua mạng nội bộ LAN HTTP (Tốc độ < 15ms) hoặc BLE
+    void sendCloudMqtt() {
+      try {
+        final mqttPrefix = activeConfig.mqttPrefix;
+        final topicCmd1 = '$mqttPrefix/$roomId/$devId/cmd';
+        ref.read(mqttRepositoryProvider).publishCmd(topicCmd1, cmd);
+
+        final cleanPrefix = mqttPrefix.replaceAll(':', '');
+        if (cleanPrefix != mqttPrefix) {
+          final topicCmd2 = '$cleanPrefix/$roomId/$devId/cmd';
+          ref.read(mqttRepositoryProvider).publishCmd(topicCmd2, cmd);
+        }
+      } catch (e) {
+        debugPrint('[MQTT] Lỗi publish lệnh relay: $e');
+      }
+    }
+
+    // Kênh 1: Ưu tiên gửi qua mạng nội bộ LAN HTTP (Tốc độ < 15ms) hoặc BLE
     if (isLocalAvailable) {
       localService.sendLocalControl(devId: devId, cmd: cmd).then((success) {
         if (success) {
           onHardwareConfirmed(!currentState);
+        } else {
+          // Dự phòng tuần tự: Nếu LAN không nhận lệnh, chuyển sang Cloud MQTT
+          sendCloudMqtt();
         }
       });
-    }
-
-    // Kênh 2: Phát qua MQTT Cloud (Đa topic đảm bảo cả có dấu hai chấm và không dấu)
-    try {
-      final mqttPrefix = activeConfig.mqttPrefix;
-      final topicCmd1 = '$mqttPrefix/$roomId/$devId/cmd';
-      ref.read(mqttRepositoryProvider).publishCmd(topicCmd1, cmd);
-
-      final cleanPrefix = mqttPrefix.replaceAll(':', '');
-      if (cleanPrefix != mqttPrefix) {
-        final topicCmd2 = '$cleanPrefix/$roomId/$devId/cmd';
-        ref.read(mqttRepositoryProvider).publishCmd(topicCmd2, cmd);
-      }
-    } catch (e) {
-      debugPrint('[MQTT] Lỗi publish lệnh relay: $e');
+    } else {
+      // Kênh 2: Phát qua MQTT Cloud khi ở ngoài nhà
+      sendCloudMqtt();
     }
   }
 
