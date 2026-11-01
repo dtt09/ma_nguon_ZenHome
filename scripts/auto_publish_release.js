@@ -23,6 +23,9 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const REPO_OWNER = 'dtt09';
 const REPO_NAME = 'ma_nguon_ZenHome';
 
+// Đảm bảo git trong mingit luôn có trong PATH khi chạy các tiến trình Flutter/Gradle
+process.env.PATH = 'C:\\Users\\dinht\\AppData\\Local\\Programs\\flutter\\bin\\mingit\\cmd;' + (process.env.PATH || '');
+
 // Đọc token từ .env nếu có, hoặc lấy từ Windows Credential Helper
 function loadEnvToken() {
   const envPaths = [
