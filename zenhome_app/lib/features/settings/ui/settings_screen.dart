@@ -975,7 +975,7 @@ class SettingsScreen extends ConsumerWidget {
                                       title: 'Hub ESP32 ngoại tuyến',
                                       message: context.tr('restart_hub_offline_err'),
                                       details: {
-                                        'Mã Hub': activeConfig.macAddress,
+                                        'Mã Hub': MaskingHelper.maskMac(activeConfig.macAddress),
                                         'Trạng thái': 'Ngoại tuyến (Offline)',
                                         'Khắc phục': 'Vui lòng kiểm tra nguồn điện và Wi-Fi của thiết bị.',
                                       },
@@ -987,7 +987,7 @@ class SettingsScreen extends ConsumerWidget {
                                     context,
                                     title: context.tr('restart_hub_confirm_title'),
                                     warningText: context.tr('restart_hub_confirm_desc'),
-                                    cautionDetails: 'MAC: ${activeConfig.macAddress} • Lệnh gửi qua giao thức bảo mật MQTT TLS.',
+                                    cautionDetails: 'MAC: ${MaskingHelper.maskMac(activeConfig.macAddress)} • Lệnh gửi qua giao thức bảo mật MQTT TLS.',
                                     confirmText: 'Khởi động lại ngay',
                                     cancelText: 'Hủy bỏ',
                                     isDanger: false,
@@ -1002,7 +1002,7 @@ class SettingsScreen extends ConsumerWidget {
                                         message: context.tr('restart_hub_success_desc'),
                                         details: {
                                           'Hành động': 'Khởi động lại Hub từ xa',
-                                          'MAC Thiết bị': activeConfig.macAddress,
+                                          'MAC Thiết bị': MaskingHelper.maskMac(activeConfig.macAddress),
                                           'Kênh điều khiển': 'Kênh mã hóa bảo mật (TLS)',
                                           'Thời gian': DateTime.now().toLocal().toString().substring(0, 19),
                                         },

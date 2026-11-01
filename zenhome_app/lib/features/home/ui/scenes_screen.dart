@@ -22,11 +22,14 @@ class ScenesScreen extends ConsumerStatefulWidget {
   ConsumerState<ScenesScreen> createState() => _ScenesScreenState();
 }
 
-class _ScenesScreenState extends ConsumerState<ScenesScreen> {
+class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   int _selectedTabIndex = 0; // 0: Ngữ cảnh (Scenes), 1: Tự động hóa (Automations)
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
+    super.build(context);
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
     final isLocalAvailable = ref.watch(isLocalNetworkAvailableProvider).value ?? ref.watch(localNetworkServiceProvider).isLocalAvailable;
     final mqttState = ref.watch(mqttConnectionStateProvider);

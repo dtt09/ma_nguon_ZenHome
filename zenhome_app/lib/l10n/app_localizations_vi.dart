@@ -2540,7 +2540,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get info => 'Thông tin';
 
   @override
-  String get gpio_conflict_title => 'Xung đột phần cứng GPIO';
+  String get gpio_conflict_title => 'Xung đột chân GPIO';
 
   @override
   String get room_name_conflict_title => 'Trùng tên thiết bị trong phòng';
@@ -2917,4 +2917,47 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get schedule_author => 'Người tạo';
+
+  @override
+  String get action_turn_off => 'Tắt';
+
+  @override
+  String get action_turn_on => 'Bật';
+
+  @override
+  String get no_permission_device =>
+      'Bạn không có quyền điều khiển thiết bị này';
+
+  @override
+  String get sec_linked_info => 'Thông tin liên kết bảo mật';
+
+  @override
+  String get show_sensitive_info => 'Hiện thông tin nhạy cảm';
+
+  @override
+  String get hide_sensitive_info => 'Che thông tin nhạy cảm';
+
+  @override
+  String get timer_quick_title => 'Hẹn giờ';
+
+  @override
+  String get timer_quick_after => 'nhanh sau:';
+
+  @override
+  String gpio_conflict_msg(Object pin) {
+    return 'Chân GPIO $pin đang bị gán trùng cho nhiều thiết bị:';
+  }
+
+  @override
+  String get device_name_conflict_title => 'Xung đột tên thiết bị';
+
+  @override
+  String device_name_conflict_msg(Object name, Object room) {
+    return 'Khu vực $room có nhiều thiết bị cùng mang tên $name';
+  }
+
+  @override
+  String delete_device_confirm(Object name) {
+    return 'Bạn có chắc chắn muốn xóa thiết bị \"$name\"?';
+  }
 }

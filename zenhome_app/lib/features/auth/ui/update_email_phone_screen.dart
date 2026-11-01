@@ -42,34 +42,6 @@ class _UpdateEmailPhoneScreenState extends State<UpdateEmailPhoneScreen> {
       
       setState(() => _isLoading = true);
       
-      // Kiểm tra SĐT đã tồn tại chưa
-      try {
-        final existingQuery = await FirebaseFirestore.instance.collection('users').where('phoneNumber', isEqualTo: phoneNumber).get();
-        if (existingQuery.docs.isNotEmpty) {
-          String? currentUsername;
-          final userQuery = await FirebaseFirestore.instance.collection('users').where('uid', isEqualTo: user!.uid).get();
-          if (userQuery.docs.isNotEmpty) currentUsername = userQuery.docs.first.id;
-          
-          bool isUsedByOther = false;
-          for (var doc in existingQuery.docs) {
-            if (doc.id != currentUsername) {
-              isUsedByOther = true;
-              break;
-            }
-          }
-          
-          if (isUsedByOther) {
-            setState(() => _isLoading = false);
-            if (mounted) showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_phone_already_linked') ?? 'Số điện thoại này đã được liên kết với một tài khoản khác', isError: true);
-            return;
-          }
-        }
-      } catch (e) {
-        setState(() => _isLoading = false);
-        if (mounted) showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_check_data_failed') ?? 'Không thể kiểm tra dữ liệu, vui lòng thử lại', isError: true);
-        return;
-      }
-
       await FirebaseAuth.instance.verifyPhoneNumber(
         phoneNumber: phoneNumber,
         verificationCompleted: (_) {},

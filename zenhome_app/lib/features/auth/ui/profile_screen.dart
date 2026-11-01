@@ -1063,7 +1063,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Thông tin liên kết bảo mật',
+                        context.tr('sec_linked_info') ?? 'Thông tin liên kết bảo mật',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -1076,7 +1076,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           size: 19,
                           color: const Color(0xFF0D9488),
                         ),
-                        tooltip: _maskSensitiveDetails ? 'Hiện thông tin nhạy cảm' : 'Che thông tin nhạy cảm',
+                        tooltip: _maskSensitiveDetails ? (context.tr('show_sensitive_info') ?? 'Hiện thông tin nhạy cảm') : (context.tr('hide_sensitive_info') ?? 'Che thông tin nhạy cảm'),
                         onPressed: () => setState(() => _maskSensitiveDetails = !_maskSensitiveDetails),
                       ),
                     ],

@@ -9,7 +9,7 @@
 #define DHTTYPE DHT11
 #define RESET_BTN_PIN 0
 #define STATUS_LED_PIN 2
-#define WDT_TIMEOUT_SECONDS 30
+#define WDT_TIMEOUT_SECONDS 45
 #define MAX_LOCAL_RULES 8
 
 struct PhysicalSwitch {

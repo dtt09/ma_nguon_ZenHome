@@ -886,7 +886,7 @@
   "btn_connect": "Kết nối",
   "device": "Thiết bị",
   "info": "Thông tin",
-  "gpio_conflict_title": "Xung đột phần cứng GPIO",
+  "gpio_conflict_title": "Xung đột chân GPIO",
   "room_name_conflict_title": "Trùng tên thiết bị trong phòng",
   "offline_saved_title": "Lưu ngoại tuyến",
   "custom_room_hint": "Nhập tên phòng tùy chỉnh (vd: Phòng Tập Gym)",
@@ -999,5 +999,17 @@
   "schedule_preset_weekdays": "T2 - T6",
   "schedule_preset_weekends": "Cuối tuần",
   "schedule_shared_hint": "Mọi thành viên trong nhà đều có thể theo dõi",
-  "schedule_author": "Người tạo"
+  "schedule_author": "Người tạo",
+  "action_turn_off": "Tắt",
+  "action_turn_on": "Bật",
+  "no_permission_device": "Bạn không có quyền điều khiển thiết bị này",
+  "sec_linked_info": "Thông tin liên kết bảo mật",
+  "show_sensitive_info": "Hiện thông tin nhạy cảm",
+  "hide_sensitive_info": "Che thông tin nhạy cảm",
+  "timer_quick_title": "Hẹn giờ",
+  "timer_quick_after": "nhanh sau:",
+  "gpio_conflict_msg": "Chân GPIO {pin} đang bị gán trùng cho nhiều thiết bị:",
+  "device_name_conflict_title": "Xung đột tên thiết bị",
+  "device_name_conflict_msg": "Khu vực {room} có nhiều thiết bị cùng mang tên {name}",
+  "delete_device_confirm": "Bạn có chắc chắn muốn xóa thiết bị \"{name}\"?"
 }

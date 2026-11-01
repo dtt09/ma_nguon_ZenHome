@@ -222,23 +222,31 @@ async function main() {
     tagVersion = await ask('Phiên bản tag Release phát hành', `v${pubspecVersion}`);
   }
 
-  const releaseTitle = `ZenHome ${tagVersion} - Zero Optimistic Glitch & Luxury UI Release`;
+  const releaseTitle = `ZenHome ${tagVersion} - Native Luxury Dialogs, 60fps Tab Transitions & Dual-OTA Release`;
   const releaseNotes = `## 🌟 Điểm nổi bật trong bản phát hành ${tagVersion} (Build ${pubspecBuild})
 
 ### 📱 Ứng dụng Di động (Mobile App v${pubspecVersion}+${pubspecBuild}):
-- 🛡️ **Đồng bộ trạng thái phần cứng thời gian thực (Zero Optimistic Jump)**: Nút công tắc trên App chỉ chuyển trạng thái sau khi nhận được thông điệp xác nhận vật lý từ ESP32 qua Stream, loại bỏ hoàn toàn hiện tượng nhảy trạng thái ảo hoặc không đồng bộ.
-- ⚡ **Khắc phục triệt để treo nút khi đổi Tab (Pending Operations with Riverpod)**: Quản lý tác vụ chờ độc lập với vòng đời UI; chuyển qua lại giữa các tab (Tiện ích / Cài đặt / Phòng) không làm gián đoạn hoặc treo giao diện. Tích hợp cơ chế tự giải phóng an toàn 3.5s.
-- 🎨 **Tái thiết kế giao diện Setup Ngữ cảnh & Lịch trình (Luxury High-Contrast)**:
-  - Giao diện Glassmorphism với chiều sâu ấn tượng, phối màu tương phản cao tránh chìm màu.
-  - Thẻ thời gian kép Sunrise (Vàng hổ phách) & Sunset (Chàm tím) trực quan kèm bộ đếm thời lượng hoạt động động.
-  - Bộ chọn thứ trong tuần dạng Squircle trực quan cùng các bộ lọc nhanh (Cả tuần, T2-T6, Cuối tuần).
-  - Bộ trượt chuyên dụng **LuxurySlider** hỗ trợ track phát sáng đa dải màu, mốc đánh dấu trực quan và phản hồi rung xúc giác (Haptic Feedback).
-- 🌐 **Chuẩn hóa Đa ngôn ngữ (i18n)**: Rà soát và loại bỏ toàn bộ chuỗi tĩnh, hỗ trợ song ngữ Tiếng Việt & Tiếng Anh toàn diện.
+- 💎 **Hộp thoại trạng thái ZenHome Luxury Glassmorphism**:
+  - Tái thiết kế toàn diện hộp thoại Thành công / Thất bại / Cảnh báo / Xác nhận theo chuẩn sang trọng ZenHome Native, loại bỏ hoàn toàn giao diện cũ.
+  - Khắc phục triệt để lỗi tràn/lem lớp kính mờ (BackdropFilter blur bleeding) bằng cơ chế ClipRRect đồng bộ bo góc 28px.
+  - Tích hợp hiệu ứng vầng hào quang chuyển động mượt mà (Breathing Aura Glow) xung quanh biểu tượng squircle (Ngọc lục bảo, Đỏ Ruby, Vàng Hoàng gia, Cam Mặt trời).
+  - Khắc phục lỗi tràn chữ (Text Overflow) trong bảng chi tiết bằng tỷ lệ nhãn chuẩn 105px và hệ thống Auto-wrapping linh hoạt.
+- 📱 **Khắc phục liên kết số điện thoại & tra cứu dữ liệu**:
+  - Khắc phục lỗi "không tra cứu được dữ liệu" khi liên kết SĐT bằng cách sử dụng trực tiếp xác thực bảo mật \`FirebaseAuth.verifyPhoneNumber\` và chuẩn hóa truy vấn đa định dạng (+84 / 0).
+- 🛡️ **Bảo mật & Che mờ dữ liệu nhạy cảm (Security Masking)**:
+  - Tự động che mờ (masking) thông tin nhạy cảm của hệ thống: địa chỉ IP, địa chỉ MAC, mật khẩu quản trị, email và số điện thoại, bảo đảm tính riêng tư khi hiển thị và chia sẻ màn hình.
+- 🚀 **Trải nghiệm chuyển Tab mượt mà & Bảo toàn trạng thái (60-120 FPS)**:
+  - Nâng cấp điều hướng với \`PageView\` và \`Curves.easeOutCubic\`, chuyển cảnh mượt mà cùng hiệu ứng vật lý \`BouncingScrollPhysics\`.
+  - Tích hợp \`AutomaticKeepAliveClientMixin\` trên toàn bộ màn hình chính, bảo toàn tuyệt đối trạng thái chờ thao tác công tắc khi chuyển qua lại giữa các Tab Tiện ích / Cài đặt mà không lo bị treo.
+- 🌐 **Chuẩn hóa Đa ngôn ngữ (i18n)**: Rà soát và loại bỏ toàn bộ chuỗi tĩnh còn sót lại, hỗ trợ song ngữ Tiếng Việt & Tiếng Anh hoàn chỉnh.
 
-### ⚡ Firmware ESP32 (v2.5.6 Build 200):
-- ⏱️ **Tối ưu hóa FreeRTOS & Chu kỳ kết nối**: Giảm MQTT keepAlive xuống 15 giây và phát heartbeat beacon định kỳ 15 giây giúp App phát hiện ngắt kết nối vật lý tức thì (trong vòng 35s).
-- 🚫 **Chống Spam Log UART/Serial**: Điều tiết tần suất log cảnh báo kết nối MQTT (cooldown 30s) và log bảo vệ Relay Guard (cooldown 2s), giải phóng tài nguyên CPU và bộ đệm UART.
-- 🔐 **Bảo mật phần cứng & Chống phân mảnh**: Tối ưu bộ nhớ heap LittleFS và phân bổ RAM, bảo vệ relay không bị chớp tắt khi nguồn chập chờn.
+### ⚡ Firmware ESP32 (v2.5.7 Build 201):
+- 📶 **Khắc phục triệt để lỗi nâng cấp OTA (MQTT Keep-Alive & Dual-Detection)**:
+  - Thêm chu kỳ duy trì kết nối \`mqttClient.loop()\` trực tiếp trong vòng lặp tải HTTP firmware, ngăn chặn HiveMQ broker ngắt socket khi đang tải tệp OTA 30-40s (giải quyết lỗi App bị kẹt 0% dù ESP32 nạp thành công).
+  - Tích hợp cơ chế phát hiện kép (Dual-detection) trên App thông qua luồng trạng thái ESP32 online trở lại sau reboot để tự động hoàn tất 100% và hiện thông báo thành công.
+- 🛡️ **Khắc phục lỗi tự động Restart ngẫu nhiên (WDT & FreeRTOS Safety)**:
+  - Tăng FreeRTOS Watchdog Timer (WDT) lên 45 giây và điều chỉnh timeout socket xuống 15 giây.
+  - Bổ sung \`esp_task_wdt_reset()\` trong chu kỳ xác thực HTTP để triệt tiêu hiện tượng ESP32 bị WDT reset ngẫu nhiên khi mạng chập chờn.
 
 ---
 *Phát hành chính thức bởi ZenHome Automation Release Engine*`;

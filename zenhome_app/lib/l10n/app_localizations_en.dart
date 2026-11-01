@@ -2531,7 +2531,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get info => 'Information';
 
   @override
-  String get gpio_conflict_title => 'GPIO Hardware Conflict';
+  String get gpio_conflict_title => 'GPIO Pin Conflict';
 
   @override
   String get room_name_conflict_title => 'Duplicate Device Name in Room';
@@ -2906,4 +2906,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get schedule_author => 'Creator';
+
+  @override
+  String get action_turn_off => 'Turn Off';
+
+  @override
+  String get action_turn_on => 'Turn On';
+
+  @override
+  String get no_permission_device =>
+      'You do not have permission to control this device';
+
+  @override
+  String get sec_linked_info => 'Security & Linked Accounts';
+
+  @override
+  String get show_sensitive_info => 'Show sensitive information';
+
+  @override
+  String get hide_sensitive_info => 'Hide sensitive information';
+
+  @override
+  String get timer_quick_title => 'Schedule';
+
+  @override
+  String get timer_quick_after => 'quickly after:';
+
+  @override
+  String gpio_conflict_msg(Object pin) {
+    return 'GPIO Pin $pin is assigned to multiple devices:';
+  }
+
+  @override
+  String get device_name_conflict_title => 'Device Name Conflict';
+
+  @override
+  String device_name_conflict_msg(Object name, Object room) {
+    return 'Room $room has multiple devices named $name';
+  }
+
+  @override
+  String delete_device_confirm(Object name) {
+    return 'Are you sure you want to delete device \"$name\"?';
+  }
 }

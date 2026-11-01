@@ -39,7 +39,10 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   String _selectedRoomCode = '';
   final List<StreamSubscription> _subscriptions = [];
   final List<Timer> _timers = [];
@@ -129,7 +132,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       showFloatingToast(
         context,
         context.tr('error'),
-        'Bạn không có quyền điều khiển thiết bị này',
+        context.tr('no_permission_device') ?? 'Bạn không có quyền điều khiển thiết bị này',
         isError: true,
       );
       return;
@@ -708,6 +711,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
     List<String> roomTabs = activeConfig.devices.map((e) => e.room).toSet().toList();
     roomTabs.sort((a, b) => context.tr(a).compareTo(context.tr(b)));
@@ -1062,7 +1066,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
     final deviceTopic = '${activeConfig.mqttPrefix}/${dev.room}/${dev.id}';
     final targetAction = currentIsOn ? 'delay_off' : 'delay_on';
-    final targetActionText = currentIsOn ? 'Tắt' : 'Bật';
+    final targetActionText = currentIsOn ? (context.tr('action_turn_off') ?? 'Tắt') : (context.tr('action_turn_on') ?? 'Bật');
     final targetColor = currentIsOn ? const Color(0xFFEF4444) : const Color(0xFF0F766E);
 
     showModalBottomSheet(
@@ -1176,7 +1180,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Icon(Icons.timer_outlined, size: 18, color: isDark ? Colors.white70 : Colors.black87),
                     const SizedBox(width: 8),
                     Text(
-                      'Hẹn giờ $targetActionText nhanh sau:',
+                      '${context.tr('timer_quick_title') ?? 'Hẹn giờ'} $targetActionText ${context.tr('timer_quick_after') ?? 'nhanh sau:'}',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,

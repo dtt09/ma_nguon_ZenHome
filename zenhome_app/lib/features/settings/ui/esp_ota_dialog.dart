@@ -13,7 +13,7 @@ import 'package:zenhome_app/core/utils/masking_helper.dart';
 import 'package:zenhome_app/core/utils/reauth_helper.dart';
 import 'package:zenhome_app/core/widgets/admin_password_dialog.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
-import 'package:zenhome_app/core/widgets/zalopay_status_dialog.dart';
+import 'package:zenhome_app/core/widgets/zenhome_luxury_dialog.dart';
 
 /// Hộp thoại thực thi Nâng cấp Firmware ESP32 qua OTA với quy trình xác thực đa lớp (Multi-layer Authenticated OTA)
 class EspOtaDialog {
@@ -29,7 +29,7 @@ class EspOtaDialog {
     // BƯỚC 1: KIỂM TRA PHÂN QUYỀN (Role RBAC)
     // -------------------------------------------------------------
     if (activeConfig.role != 'owner') {
-      showZaloPayWarningDialog(
+      showZenHomeWarningDialog(
         context,
         title: 'Từ chối quyền truy cập',
         message: 'Chỉ Chủ nhà (Owner) mới có quyền nâng cấp firmware cho vi điều khiển ESP32.',
@@ -45,7 +45,7 @@ class EspOtaDialog {
         activeConfig.macAddress != 'unknown';
 
     if (!isLinked) {
-      showZaloPayWarningDialog(
+      showZenHomeWarningDialog(
         context,
         title: 'Chưa liên kết Hub ESP32',
         message: 'Tài khoản chưa được kết nối với Hub ESP32 nào. Vui lòng thiết lập Wi-Fi cho Hub trước.',
@@ -55,7 +55,7 @@ class EspOtaDialog {
 
     final isEspOnline = ref.read(mqttRepositoryProvider).isEspOnline;
     if (!isEspOnline) {
-      showZaloPayErrorDialog(
+      showZenHomeErrorDialog(
         context,
         title: 'Hub ESP32 ngoại tuyến',
         message: 'Hub ESP32 hiện đang ngoại tuyến (mất nguồn hoặc mất kết nối Wi-Fi). Vui lòng kiểm tra lại thiết bị trước khi nâng cấp firmware.',
@@ -77,7 +77,7 @@ class EspOtaDialog {
     );
     if (!authenticated) {
       if (context.mounted) {
-        showZaloPayWarningDialog(
+        showZenHomeWarningDialog(
           context,
           title: 'Hủy thao tác bảo mật',
           message: 'Chưa xác thực danh tính. Quá trình nâng cấp firmware được hủy bỏ an toàn.',
@@ -98,7 +98,7 @@ class EspOtaDialog {
     );
     if (!isAdminPassValid) {
       if (context.mounted) {
-        showZaloPayWarningDialog(
+        showZenHomeWarningDialog(
           context,
           title: 'Hủy thao tác bảo mật',
           message: 'Chưa xác thực mật khẩu quản trị. Hub ESP32 được giữ nguyên phiên bản cũ.',
@@ -167,7 +167,7 @@ class EspOtaDialog {
     if (!context.mounted) return;
 
     if (firmwareInfo == null || firmwareInfo['exists'] != true) {
-      showZaloPayWarningDialog(
+      showZenHomeWarningDialog(
         context,
         title: 'Chưa có bản cập nhật mới',
         message: 'Hiện tại máy chủ chưa có file Firmware binary (.bin) sẵn sàng để nâng cấp OTA cho Hub ESP32.',
@@ -357,9 +357,11 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
   bool _isFinished = false;
   bool _isSuccess = false;
   String? _errorMessage;
+  final DateTime _startTime = DateTime.now();
 
   StreamSubscription? _progressSub;
   StreamSubscription? _resultSub;
+  StreamSubscription? _onlineSub;
   Timer? _timeoutTimer;
 
   @override
@@ -373,7 +375,7 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
 
     // Lắng nghe tiến trình phần trăm nạp Flash từ ESP32
     _progressSub = mqttRepo.otaProgressStream.listen((data) {
-      if (!mounted) return;
+      if (!mounted || _isFinished) return;
       if (data.containsKey('progress')) {
         final p = (data['progress'] as num).toInt();
         setState(() {
@@ -385,7 +387,7 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
 
     // Lắng nghe kết quả kết thúc
     _resultSub = mqttRepo.otaResultStream.listen((data) {
-      if (!mounted) return;
+      if (!mounted || _isFinished) return;
       final status = data['status']?.toString().toLowerCase();
       final msg = data['message']?.toString() ?? '';
 
@@ -401,6 +403,21 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
           _errorMessage = msg.isNotEmpty ? msg : 'Lỗi trong quá trình nạp firmware!';
         }
       });
+    });
+
+    // Dual-detection: Nếu ESP32 khởi động lại và online trở lại sau quá trình nạp
+    _onlineSub = mqttRepo.espOnlineStream.listen((isOnline) {
+      if (!mounted || _isFinished) return;
+      final elapsedSec = DateTime.now().difference(_startTime).inSeconds;
+      if (isOnline && (_progress >= 85 || elapsedSec >= 25)) {
+        _timeoutTimer?.cancel();
+        setState(() {
+          _isFinished = true;
+          _isSuccess = true;
+          _progress = 100;
+          _statusMessage = 'Nâng cấp thành công! Hub ESP32 đã hoạt động trở lại.';
+        });
+      }
     });
 
     // Thiết lập timeout 90s phòng trường hợp Hub mất nguồn giữa chừng
@@ -497,6 +514,7 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
   void dispose() {
     _progressSub?.cancel();
     _resultSub?.cancel();
+    _onlineSub?.cancel();
     _timeoutTimer?.cancel();
     super.dispose();
   }

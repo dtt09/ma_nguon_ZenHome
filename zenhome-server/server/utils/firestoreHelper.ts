@@ -1,6 +1,5 @@
 import { db, FieldValue } from '../core/firebase';
 
-
 export interface UserLookupResult {
   id: string;
   ref: any;
@@ -14,7 +13,7 @@ export interface UserLookupResult {
  * 2. Document ID chữ thường (vd: 'dtthuat' khi truyền 'Dtthuat')
  * 3. Firebase Auth UID (vd: 'UT0tnCXDGehdN25KbXtHkrTOV3q2')
  * 4. Địa chỉ Email (vd: 'dinhtuthuat2103@gmail.com')
- * 5. Mặc định lấy tài khoản đầu tiên nếu không truyền userId
+ * 5. Số điện thoại (vd: '0987654321' hoặc '+84987654321')
  */
 export async function findUser(userId?: string): Promise<UserLookupResult | null> {
   if (!db) {
@@ -68,6 +67,34 @@ export async function findUser(userId?: string): Promise<UserLookupResult | null
     if (!queryEmail.empty) {
       const doc = queryEmail.docs[0];
       return { id: doc.id, ref: doc.ref, data: doc.data() };
+    }
+  } catch (err) {
+    // Tiếp tục fallback
+  }
+
+  // 6. Thử tìm theo trường 'phoneNumber' (hỗ trợ cả định dạng +84 và 0)
+  try {
+    let cleanPhone = cleanId;
+    if (cleanPhone.startsWith('0')) {
+      const altPhone = '+84' + cleanPhone.substring(1);
+      const queryPhone = await db.collection('users').where('phoneNumber', 'in', [cleanPhone, altPhone]).limit(1).get();
+      if (!queryPhone.empty) {
+        const doc = queryPhone.docs[0];
+        return { id: doc.id, ref: doc.ref, data: doc.data() };
+      }
+    } else if (cleanPhone.startsWith('+84')) {
+      const altPhone = '0' + cleanPhone.substring(3);
+      const queryPhone = await db.collection('users').where('phoneNumber', 'in', [cleanPhone, altPhone]).limit(1).get();
+      if (!queryPhone.empty) {
+        const doc = queryPhone.docs[0];
+        return { id: doc.id, ref: doc.ref, data: doc.data() };
+      }
+    } else {
+      const queryPhone = await db.collection('users').where('phoneNumber', '==', cleanPhone).limit(1).get();
+      if (!queryPhone.empty) {
+        const doc = queryPhone.docs[0];
+        return { id: doc.id, ref: doc.ref, data: doc.data() };
+      }
     }
   } catch (err) {
     // Không tìm thấy

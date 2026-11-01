@@ -1,16 +1,16 @@
 {
-  "version": "1.8.12",
-  "buildNumber": 198,
+  "version": "1.8.13",
+  "buildNumber": 199,
   "minVersion": "1.8.0",
   "minBuildNumber": 180,
-  "titleVi": "Bản Cập Nhật ZenHome v1.8.12 (Luxury UI & Instant Sync)",
-  "titleEn": "ZenHome Update v1.8.12 (Luxury UI & Instant Sync)",
-  "releaseNotesVi": "• Khắc phục hoàn toàn lỗi treo nút công tắc khi chuyển đổi qua lại giữa các tab Tiện ích / Cài đặt\n• Đồng bộ phản hồi phần cứng thực tế (chỉ đổi nút khi nhận xác nhận từ ESP32, chống sai lệch trạng thái)\n• Nâng cấp giao diện Luxury UI/UX cao cấp cho Ngữ cảnh, Lịch trình & Bộ thanh trượt đa tầng sang trọng\n• Firmware ESP32 v2.5.6 (Build 200): Tối ưu phần cứng, nhịp tim Heartbeat 15s, triệt tiêu log spam và tự động ngắt kết nối an toàn khi mất điện",
-  "releaseNotesEn": "• Completely fixed switch freezing when switching between tabs\n• Strict physical hardware state confirmation before switch toggle\n• Luxury UI/UX overhaul for Scenes, Schedules, and Multi-layer Glow Sliders\n• ESP32 Firmware v2.5.6 (Build 200): 15s Heartbeat, rate-limited logging, zero log spam, and power outage safety",
+  "titleVi": "Bản Cập Nhật ZenHome v1.8.13 (Luxury Glassmorphism & Fast Switch)",
+  "titleEn": "ZenHome Update v1.8.13 (Luxury Glassmorphism & Fast Switch)",
+  "releaseNotesVi": "• Khắc phục triệt để lỗi liên kết số điện thoại (\"không tra cứu được dữ liệu\") bằng xác thực Firebase Auth nguyên tử\n• Thiết kế lại toàn bộ hệ thống thông báo thành công / thất bại sang phong cách ZenHome Luxury Glassmorphism đẳng cấp (loại bỏ ZaloPay cũ)\n• Tối ưu chuyển tab siêu mượt mà với PageView 60/120fps và giữ nguyên trạng thái công tắc, thanh trượt, ngữ cảnh khi chuyển trang\n• Che giấu và bảo mật toàn diện thông tin nhạy cảm: địa chỉ MAC, IP, Email, Số điện thoại và mật khẩu quản trị\n• Khắc phục dứt điểm lỗi nâng cấp OTA ESP32: Dual-detection tự động nhận diện thiết bị khởi động lại và nhịp tim MQTT\n• Firmware ESP32 v2.5.7 (Build 201): Tối ưu hóa WDT 45s, xử lý timeout TLS 15s, chống tự động restart và tự động flush hàng đợi trước khi reboot",
+  "releaseNotesEn": "• Completely fixed phone number linking error with atomic Firebase Auth verification\n• Redesigned success/failure modal system into ZenHome Luxury Glassmorphism (discarded legacy ZaloPay styling)\n• Ultra-smooth 60/120fps PageView tab switching with full state preservation across tabs\n• System-wide data masking for MAC, IP, Email, Phone, and Admin passwords\n• Fixed ESP32 OTA upgrade: Dual-detection for instant reboot recovery and MQTT heartbeat\n• ESP32 Firmware v2.5.7 (Build 201): WDT 45s, TLS socket timeout 15s, anti-crash, and pre-reboot queue flush",
   "downloadUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "directApkUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "isForceUpdate": false,
-  "fileSizeBytes": 72226547,
-  "sha256": "75F35E85E150411EDEC21022C5F356B125E73480CEFAFA3340E60FDE65E09D10",
-  "publishedAt": "2026-10-31T16:30:27.079Z"
+  "fileSizeBytes": 72226559,
+  "sha256": "6C501176494F1011FDEDBCA1EC766606C3827360FB824045F30954ED9EB2AC6B",
+  "publishedAt": "2026-11-01T06:37:38.000Z"
 }

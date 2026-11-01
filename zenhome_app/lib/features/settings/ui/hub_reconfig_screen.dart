@@ -6,7 +6,8 @@ import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
-import 'package:zenhome_app/core/widgets/zalopay_status_dialog.dart';
+import 'package:zenhome_app/core/widgets/zenhome_luxury_dialog.dart';
+import 'package:zenhome_app/core/utils/masking_helper.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/features/settings/logic/hub_reconfig_controller.dart';
 import 'package:zenhome_app/features/settings/ui/wifi_picker_bottom_sheet.dart';
@@ -99,7 +100,7 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
       context,
       title: 'Xác nhận đổi Wi-Fi & MQTT',
       warningText: 'Hub ESP32 sẽ lưu cấu hình mới và tự động khởi động lại để kết nối vào mạng Wi-Fi và Broker MQTT mới.',
-      cautionDetails: 'Wi-Fi mới: $newSsid\nMQTT Broker: ${_mqttServerController.text.trim()}\nMAC Hub: ${activeConfig.macAddress}',
+      cautionDetails: 'Wi-Fi mới: $newSsid\nMQTT Broker: ${_mqttServerController.text.trim()}\nMAC Hub: ${MaskingHelper.maskMac(activeConfig.macAddress)}',
       confirmText: isEspOnline ? 'Bắn cấu hình OTA ngay' : 'Lưu cấu hình Cloud',
       cancelText: 'Xem lại',
       isDanger: false,
@@ -238,7 +239,7 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  'MAC: ${activeConfig.macAddress}',
+                                  'MAC: ${MaskingHelper.maskMac(activeConfig.macAddress)}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,

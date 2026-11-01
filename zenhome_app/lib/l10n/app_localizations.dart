@@ -4733,7 +4733,7 @@ abstract class AppLocalizations {
   /// No description provided for @gpio_conflict_title.
   ///
   /// In en, this message translates to:
-  /// **'GPIO Hardware Conflict'**
+  /// **'GPIO Pin Conflict'**
   String get gpio_conflict_title;
 
   /// No description provided for @room_name_conflict_title.
@@ -5413,6 +5413,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Creator'**
   String get schedule_author;
+
+  /// No description provided for @action_turn_off.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn Off'**
+  String get action_turn_off;
+
+  /// No description provided for @action_turn_on.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn On'**
+  String get action_turn_on;
+
+  /// No description provided for @no_permission_device.
+  ///
+  /// In en, this message translates to:
+  /// **'You do not have permission to control this device'**
+  String get no_permission_device;
+
+  /// No description provided for @sec_linked_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Security & Linked Accounts'**
+  String get sec_linked_info;
+
+  /// No description provided for @show_sensitive_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Show sensitive information'**
+  String get show_sensitive_info;
+
+  /// No description provided for @hide_sensitive_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide sensitive information'**
+  String get hide_sensitive_info;
+
+  /// No description provided for @timer_quick_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get timer_quick_title;
+
+  /// No description provided for @timer_quick_after.
+  ///
+  /// In en, this message translates to:
+  /// **'quickly after:'**
+  String get timer_quick_after;
+
+  /// No description provided for @gpio_conflict_msg.
+  ///
+  /// In en, this message translates to:
+  /// **'GPIO Pin {pin} is assigned to multiple devices:'**
+  String gpio_conflict_msg(Object pin);
+
+  /// No description provided for @device_name_conflict_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Name Conflict'**
+  String get device_name_conflict_title;
+
+  /// No description provided for @device_name_conflict_msg.
+  ///
+  /// In en, this message translates to:
+  /// **'Room {room} has multiple devices named {name}'**
+  String device_name_conflict_msg(Object name, Object room);
+
+  /// No description provided for @delete_device_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete device \"{name}\"?'**
+  String delete_device_confirm(Object name);
 }
 
 class _AppLocalizationsDelegate

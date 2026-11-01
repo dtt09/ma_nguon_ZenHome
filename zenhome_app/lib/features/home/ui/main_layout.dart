@@ -60,6 +60,7 @@ class MainLayout extends ConsumerStatefulWidget {
 class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, HomeSyncMixin {
 
   int _currentIndex = 0;
+  late final PageController _pageController;
 
   bool _isDragging = false;
 
@@ -76,6 +77,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
     super.initState();
 
     SessionManager.updateLastAccess();
+    _pageController = PageController(initialPage: _currentIndex);
 
     
 
@@ -152,6 +154,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
   void dispose() {
 
     _notificationSubscription?.cancel();
+    _pageController.dispose();
 
     disposeAuthSync();
 
@@ -243,8 +246,12 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
 
             ? DisabledView(isDark: isDark)
 
-            : IndexedStack(
-                index: _currentIndex,
+            : PageView(
+                controller: _pageController,
+                physics: const BouncingScrollPhysics(),
+                onPageChanged: (idx) {
+                  setState(() => _currentIndex = idx);
+                },
                 children: screens,
               ),
 
@@ -616,7 +623,14 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
 
         HapticFeedback.lightImpact();
 
-        setState(() => _currentIndex = index);
+        if (_currentIndex != index) {
+          _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+          );
+          setState(() => _currentIndex = index);
+        }
 
       },
 

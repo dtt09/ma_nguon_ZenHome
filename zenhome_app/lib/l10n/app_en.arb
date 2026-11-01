@@ -886,7 +886,7 @@
   "btn_connect": "Connect",
   "device": "Device",
   "info": "Information",
-  "gpio_conflict_title": "GPIO Hardware Conflict",
+  "gpio_conflict_title": "GPIO Pin Conflict",
   "room_name_conflict_title": "Duplicate Device Name in Room",
   "offline_saved_title": "Saved Offline",
   "custom_room_hint": "Enter custom room name (e.g. Gym Room)",
@@ -999,5 +999,17 @@
   "schedule_preset_weekdays": "Mon - Fri",
   "schedule_preset_weekends": "Weekend",
   "schedule_shared_hint": "All household members can view this schedule",
-  "schedule_author": "Creator"
+  "schedule_author": "Creator",
+  "action_turn_off": "Turn Off",
+  "action_turn_on": "Turn On",
+  "no_permission_device": "You do not have permission to control this device",
+  "sec_linked_info": "Security & Linked Accounts",
+  "show_sensitive_info": "Show sensitive information",
+  "hide_sensitive_info": "Hide sensitive information",
+  "timer_quick_title": "Schedule",
+  "timer_quick_after": "quickly after:",
+  "gpio_conflict_msg": "GPIO Pin {pin} is assigned to multiple devices:",
+  "device_name_conflict_title": "Device Name Conflict",
+  "device_name_conflict_msg": "Room {room} has multiple devices named {name}",
+  "delete_device_confirm": "Are you sure you want to delete device \"{name}\"?"
 }

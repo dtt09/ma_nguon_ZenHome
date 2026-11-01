@@ -20,12 +20,12 @@ static unsigned long currentMqttRetryInterval = 5000; // Khởi đầu thử l�
 
 void initMqttClient() {
   espClient.setInsecure(); // Sử dụng TLS Encryption (Port 8883) tương thích HiveMQ Cloud cross-signed chain
-  espClient.setTimeout(35); // 35 giây timeout cho phiên bắt tay TLS xuyên lục địa
+  espClient.setTimeout(15); // 15 giây timeout cho phiên bắt tay TLS
   mqttClient.setServer(mqtt_server.c_str(), 8883);
   mqttClient.setCallback(mqttCallback);
   mqttClient.setBufferSize(1024);
   mqttClient.setKeepAlive(15); // Giảm KeepAlive xuống 15s (Broker kích hoạt LWT 'offline' sau tối đa 22s khi mất điện)
-  mqttClient.setSocketTimeout(35); // 35 giây timeout cho MQTT CONNACK và Ping
+  mqttClient.setSocketTimeout(15); // 15 giây timeout cho MQTT CONNACK và Ping
 }
 
 /**
@@ -72,6 +72,7 @@ bool verifyBindingWithDatabase() {
   HTTPClient http;
 
   for (int i = 0; i < candidateCount; i++) {
+    esp_task_wdt_reset();
     String verifyUrl = candidates[i] + "/api/v1/hub/verify-binding?userId=" + linkedUser + 
                        "&macAddress=" + cleanHwMac + 
                        "&setup=" + (isSetupPending ? "1" : "0") + 
@@ -820,6 +821,19 @@ void publishHomeAssistantDiscovery() {
 }
 
 void publishOtaMessage(const String& subTopic, const String& payload) {
+  if (!mqttClient.connected()) {
+    if (WiFi.status() == WL_CONNECTED) {
+      String mac = WiFi.macAddress();
+      mac.replace(":", "");
+      String clientId = "ESP32_OTA_" + mac;
+      String statusTopic = mqtt_prefix + "/esp_status";
+      if (mqtt_user != "" && mqtt_pass != "") {
+        mqttClient.connect(clientId.c_str(), mqtt_user.c_str(), mqtt_pass.c_str(), statusTopic.c_str(), 1, true, "offline");
+      } else {
+        mqttClient.connect(clientId.c_str(), statusTopic.c_str(), 1, true, "offline");
+      }
+    }
+  }
   if (!mqttClient.connected()) return;
   String t1 = mqtt_prefix + subTopic;
   mqttClient.publish(t1.c_str(), payload.c_str(), false);
@@ -829,6 +843,7 @@ void publishOtaMessage(const String& subTopic, const String& payload) {
   if (t2 != t1) {
     mqttClient.publish(t2.c_str(), payload.c_str(), false);
   }
+  mqttClient.loop();
 }
 
 void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
@@ -913,6 +928,7 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
     if (millis() - lastWdt >= 1000) {
       lastWdt = millis();
       esp_task_wdt_reset();
+      mqttClient.loop();
     }
     delay(1);
   }
@@ -940,6 +956,10 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
     if (Update.end(true)) {
       Serial.println("[SERVER-OTA] ✅ NÂNG CẤP THÀNH CÔNG RỰC RỠ! ESP32 sẽ khởi động lại vào Firmware mới sau 2 giây...");
       publishOtaMessage("/system/ota_result", "{\"status\":\"success\",\"message\":\"Nâng cấp Firmware OTA thành công 100%! Đang khởi động lại.\"}");
+      for (int i = 0; i < 5; i++) {
+        mqttClient.loop();
+        delay(100);
+      }
       delay(1500);
       ESP.restart();
     } else {

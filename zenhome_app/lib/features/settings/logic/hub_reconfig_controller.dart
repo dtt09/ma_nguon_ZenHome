@@ -1,3 +1,4 @@
+import 'package:zenhome_app/core/utils/masking_helper.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -157,7 +158,7 @@ class HubReconfigController extends StateNotifier<HubReconfigState> {
       final details = {
         'Tên Wi-Fi mới': newSsid,
         'MQTT Server': newServer,
-        'Mã MAC': activeConfig.macAddress,
+        'Mã MAC': MaskingHelper.maskMac(activeConfig.macAddress),
         'Phương thức': methodText,
         'Thời gian': DateTime.now().toLocal().toString().substring(0, 19),
       };

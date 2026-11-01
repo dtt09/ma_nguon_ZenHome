@@ -42,6 +42,23 @@ class MaskingHelper {
     return trimmed;
   }
 
+  /// Che giấu địa chỉ IP: ví dụ '192.168.1.45' -> '192.168.1.***'
+  static String maskIp(String? ip) {
+    if (ip == null || ip.trim().isEmpty) return '';
+    final trimmed = ip.trim();
+    final parts = trimmed.split('.');
+    if (parts.length == 4) {
+      return '${parts[0]}.${parts[1]}.${parts[2]}.***';
+    }
+    return trimmed;
+  }
+
+  /// Che giấu mật khẩu quản trị Hub: ví dụ '123456' -> '••••••'
+  static String maskPassword(String? pass) {
+    if (pass == null || pass.isEmpty) return '••••••';
+    return '•' * pass.length.clamp(6, 12);
+  }
+
   /// Che giấu chuỗi token hoặc khóa bí mật
   static String maskSecret(String? secret) {
     if (secret == null || secret.isEmpty) return '';

@@ -5,7 +5,7 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
-#define FIRMWARE_VERSION "2.5.6 (Build 200)"
+#define FIRMWARE_VERSION "2.5.7 (Build 201)"
 #define MAX_RELAYS 16
 #define MIN_RELAY_DWELL_MS 800                // Thời gian trễ tối thiểu 800ms giữa 2 lần đổi trạng thái
 #define MANUAL_OVERRIDE_MS (30 * 60 * 1000UL) // Khóa tự động hóa 30 phút khi người dùng can thiệp thủ công
