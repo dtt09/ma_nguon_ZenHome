@@ -237,8 +237,7 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
         String ts = doc["ts"].as<String>();
         String nonce = doc["nonce"].as<String>();
         String sig = doc["sig"].as<String>();
-        String expectedSig = computeHmacSha256(currentLocalSecretKey, "reboot:" + ts + ":" + nonce);
-        if (sig.equalsIgnoreCase(expectedSig)) {
+        if (verifyHmacSha256(currentLocalSecretKey, "reboot:" + ts + ":" + nonce, sig)) {
           Serial.println("\n[BLE] 🔄 Nhận lệnh Reboot thủ công từ App qua BLE (Chữ ký hợp lệ)! Khởi động lại sau 1.5s...");
           rebootScheduledAt = millis();
           shouldReboot = true;
@@ -267,15 +266,14 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
       }
 
       String signPayload = "reconfig:" + newSsid + ":" + ts + ":" + nonce;
-      String expectedSig = computeHmacSha256(currentLocalSecretKey, signPayload);
-      bool authOk = sig.equalsIgnoreCase(expectedSig);
+      bool authOk = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
 
       if (!authOk && admin_pass.length() > 0) {
         String mac = WiFi.macAddress();
         mac.replace(":", "");
         mac.toUpperCase();
         String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
-        authOk = sig.equalsIgnoreCase(computeHmacSha256(masterKey, signPayload));
+        authOk = verifyHmacSha256(masterKey, signPayload, sig);
       }
 
       if (!authOk) {
@@ -331,13 +329,10 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
       mac.toUpperCase();
 
       String expectedAuthPayload = "auth:" + mac + ":" + ts + ":" + nonce;
-      String expectedSig = computeHmacSha256(currentLocalSecretKey, expectedAuthPayload);
-
-      bool authOk = sig.equalsIgnoreCase(expectedSig);
+      bool authOk = verifyHmacSha256(currentLocalSecretKey, expectedAuthPayload, sig);
       if (!authOk && admin_pass.length() > 0) {
         String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
-        String expectedMasterSig = computeHmacSha256(masterKey, expectedAuthPayload);
-        if (sig.equalsIgnoreCase(expectedMasterSig)) {
+        if (verifyHmacSha256(masterKey, expectedAuthPayload, sig)) {
           authOk = true;
           currentLocalSecretKey = masterKey;
           pendingSecretKeyToSave = masterKey;
@@ -401,12 +396,11 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
       }
 
       String signPayload = (user.length() > 0) ? (user + ":" + devId + ":" + cmd + ":" + ts + ":" + nonce) : (devId + ":" + cmd + ":" + ts + ":" + nonce);
-      String expectedSig = computeHmacSha256(currentLocalSecretKey, signPayload);
-      bool cmdSigOk = sig.equalsIgnoreCase(expectedSig);
+      bool cmdSigOk = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
 
       if (!cmdSigOk && user.length() > 0) {
         String legacyPayload = devId + ":" + cmd + ":" + ts + ":" + nonce;
-        if (sig.equalsIgnoreCase(computeHmacSha256(currentLocalSecretKey, legacyPayload))) {
+        if (verifyHmacSha256(currentLocalSecretKey, legacyPayload, sig)) {
           cmdSigOk = true;
         }
       }
@@ -416,11 +410,11 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
         mac.replace(":", "");
         mac.toUpperCase();
         String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
-        if (sig.equalsIgnoreCase(computeHmacSha256(masterKey, signPayload))) {
+        if (verifyHmacSha256(masterKey, signPayload, sig)) {
           cmdSigOk = true;
           currentLocalSecretKey = masterKey;
           pendingSecretKeyToSave = masterKey;
-        } else if (user.length() > 0 && sig.equalsIgnoreCase(computeHmacSha256(masterKey, devId + ":" + cmd + ":" + ts + ":" + nonce))) {
+        } else if (user.length() > 0 && verifyHmacSha256(masterKey, devId + ":" + cmd + ":" + ts + ":" + nonce, sig)) {
           cmdSigOk = true;
           currentLocalSecretKey = masterKey;
           pendingSecretKeyToSave = masterKey;

@@ -49,6 +49,17 @@ service cloud.firestore {
         );
     }
 
+    // Kiểm tra xem người dùng có được Chủ nhà gửi lời mời hợp lệ qua sentInvitations không
+    function isInvitedMember(userData) {
+      return isSignedIn() && userData != null &&
+        userData.sentInvitations is list && (
+          userData.sentInvitations.hasAny([request.auth.uid]) ||
+          (request.auth.token.email != null && (
+            userData.sentInvitations.hasAny([request.auth.token.email, request.auth.token.email.split('@')[0]])
+          ))
+        );
+    }
+
     // Hồ sơ người dùng
     match /users/{userId} {
       // 1. Cho phép đọc thông tin chi tiết (get) từng tài khoản khi biết trước document ID:
@@ -73,14 +84,9 @@ service cloud.firestore {
         request.auth.uid == userId ||
         // Người khác gửi lời mời tham gia nhà: chỉ được phép thêm vào pendingInvitations
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingInvitations']) ||
-        // Người nhận lời mời: chấp nhận lời mời (thêm vào sharedWith, sharedUids, xóa sentInvitations) hoặc từ chối (xóa sentInvitations)
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith']) ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedUids']) ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sentInvitations']) ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'sentInvitations']) ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedUids', 'sentInvitations']) ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'sharedUids']) ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'sharedUids', 'sentInvitations']) ||
+        // Người nhận lời mời: CHỈ cho phép khi thực sự có trong sentInvitations của chủ nhà (chống tự cấp quyền trái phép)
+        (isInvitedMember(resource.data) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'sharedUids', 'sentInvitations'])) ||
         // Cho phép thành viên tự rời nhà (xóa mình khỏi sharedWith, sharedUids, automationEditors, disabledMembers, disabledUids)
         (isSharedMember(resource.data) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -104,7 +110,9 @@ service cloud.firestore {
       match /{subcollection}/{docId} {
         allow read: if isSignedIn() && (
           isParentOwner(userId) ||
-          (exists(/databases/$(database)/documents/users/$(userId)) &&
+          // Chặn thành viên phụ đọc sessions để chống rò rỉ tọa độ GPS và FCM Push Token của Chủ nhà
+          (subcollection != 'sessions' &&
+           exists(/databases/$(database)/documents/users/$(userId)) &&
            isSharedMember(get(/databases/$(database)/documents/users/$(userId)).data))
         );
         allow write: if isSignedIn() && (
@@ -138,16 +146,21 @@ service cloud.firestore {
       allow write: if false; // Chỉ Firebase Admin SDK trên Server mới được sửa
     }
 
-    // Báo cáo sự cố và Nhật ký lỗi Crashlytics: Cho phép ghi nhận từ ứng dụng di động
+    // Báo cáo sự cố và Nhật ký lỗi Crashlytics: Cho phép ghi nhận từ ứng dụng di động, cấm đọc tùy tiện (chỉ Server Admin SDK đọc)
     match /crash_logs/{logId} {
       allow create: if true;
-      allow read: if isSignedIn();
+      allow read: if false; // Chỉ Firebase Admin SDK trên Server mới được đọc/xử lý
       allow update, delete: if false; // Chỉ Server Admin mới được xóa/sửa
     }
 
+    // Báo cáo lỗi từ người dùng: Chỉ cho phép người tạo đọc lại báo cáo của chính mình
     match /bug_reports/{reportId} {
       allow create: if true;
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource == null ||
+        resource.data.userId == request.auth.uid ||
+        (request.auth.token.email != null && resource.data.userEmail == request.auth.token.email)
+      );
       allow update, delete: if false; // Chỉ Server Admin mới được xóa/sửa
     }
 

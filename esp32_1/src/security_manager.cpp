@@ -133,6 +133,15 @@ String computeHmacSha256(const String& keyHex, const String& message) {
   return String(outHex);
 }
 
+bool verifyHmacSha256(const String& keyHex, const String& message, const String& sig) {
+  if (sig.length() < 32 || keyHex.length() < 32) {
+    return false;
+  }
+  String expected = computeHmacSha256(keyHex, message);
+  if (expected.length() < 32) return false;
+  return sig.equalsIgnoreCase(expected);
+}
+
 bool verifyFirmwareEcdsaSignature(const uint8_t* sha256Bytes, const String& sigHex) {
   if (sigHex.length() < 64) {
     return false;
@@ -505,13 +514,21 @@ void parseMembersJson(const String& jsonStr) {
                 cachedOwner.c_str(), (int)cachedMembers.size());
 }
 
+static String lastSavedMembersJson = "";
+
 void saveMembersToFlash(const String& jsonStr) {
+  if (jsonStr.length() == 0) return;
+  if (lastSavedMembersJson.length() > 0 && lastSavedMembersJson == jsonStr) {
+    Serial.println("[FLASH] ⏭️ Phân quyền thành viên không thay đổi, bỏ qua ghi Flash LittleFS để bảo vệ tuổi thọ chip!");
+    return;
+  }
   if (!lockFlash()) return;
   File f = LittleFS.open("/members.json", "w");
   if (f) {
     String encrypted = encryptStorageString(jsonStr);
     f.print(encrypted);
     f.close();
+    lastSavedMembersJson = jsonStr;
     Serial.println("[FLASH] 💾 Đã lưu cấu hình phân quyền /members.json (Mã hóa phần cứng) vào Flash!");
   } else {
     Serial.println("[FLASH] ❌ Lỗi mở file /members.json để ghi!");
@@ -531,6 +548,7 @@ void loadMembersFromFlash() {
           String decrypted = decryptStorageString(content);
           if (decrypted.length() > 0) {
             parseMembersJson(decrypted);
+            lastSavedMembersJson = decrypted;
             if (!content.startsWith("ZHENC1:")) {
               saveMembersToFlash(decrypted);
             }

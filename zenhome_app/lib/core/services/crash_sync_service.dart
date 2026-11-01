@@ -88,6 +88,16 @@ class CrashSyncService {
     );
   }
 
+  /// Làm sạch thông tin nhạy cảm (mật khẩu, Wi-Fi, secret, tokens) trước khi gửi lên Cloud
+  static String _sanitizeSensitive(String input) {
+    if (input.isEmpty) return input;
+    String sanitized = input;
+    sanitized = sanitized.replaceAll(RegExp(r'(wifi_pass|admin_pass|password|pass|secret|token)\s*[:=]\s*[^\s,;"]+', caseSensitive: false), r'$1: ***REDACTED***');
+    sanitized = sanitized.replaceAll(RegExp(r'Bearer\s+[A-Za-z0-9\-_\.]+', caseSensitive: false), 'Bearer ***REDACTED***');
+    sanitized = sanitized.replaceAll(RegExp(r'"(wifi_pass|admin_pass|password|pass|token|secret)"\s*:\s*"[^"]*"', caseSensitive: false), r'"$1": "***REDACTED***"');
+    return sanitized;
+  }
+
   /// Ghi nhận và đồng bộ lỗi runtime/exception
   static Future<void> recordCrash(
     dynamic error,
@@ -179,11 +189,11 @@ class CrashSyncService {
       'userId': userId,
       'userName': userName,
       'userEmail': userEmail,
-      'errorTitle': title,
-      'errorMessage': errorStr,
-      'stackTrace': stackTraceStr,
+      'errorTitle': _sanitizeSensitive(title),
+      'errorMessage': _sanitizeSensitive(errorStr),
+      'stackTrace': _sanitizeSensitive(stackTraceStr),
       'severity': effectiveSeverity,
-      'reason': reasonStr,
+      'reason': _sanitizeSensitive(reasonStr),
       'deviceModel': _deviceModel,
       'osVersion': _osVersion,
       'appVersion': _appVersion,

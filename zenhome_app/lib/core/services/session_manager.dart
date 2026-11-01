@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -15,23 +17,39 @@ class SessionManager {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static const _storage = FlutterSecureStorage();
 
+  static String _generateSecureId(String prefix) {
+    final rand = Random.secure();
+    final values = List<int>.generate(16, (i) => rand.nextInt(256));
+    values[6] = (values[6] & 0x0f) | 0x40; // UUID v4
+    values[8] = (values[8] & 0x3f) | 0x80; // Variant 10
+    final hexStr = values.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    final uuid = '${hexStr.substring(0, 8)}-${hexStr.substring(8, 12)}-${hexStr.substring(12, 16)}-${hexStr.substring(16, 20)}-${hexStr.substring(20, 32)}';
+    return '${prefix}_$uuid';
+  }
+
   static Future<String> getUniqueDeviceId() async {
     String? id = await _storage.read(key: 'zenhome_device_id');
-    if (id != null) return id;
+    // SEC-FIX: Tự động di chuyển các ID cũ bị trùng lặp do dùng Android Build ID (android_UP1A..., android_TP1A...)
+    final isLegacyCollisionId = id != null && (
+      id.startsWith('android_UP1A') ||
+      id.startsWith('android_TP1A') ||
+      id.startsWith('android_SP1A') ||
+      id.startsWith('android_QKQ1')
+    );
+    if (id != null && id.isNotEmpty && !isLegacyCollisionId) return id;
 
-    final deviceInfo = DeviceInfoPlugin();
     if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      id = 'android_${androidInfo.id}';
+      id = _generateSecureId('and');
     } else if (Platform.isIOS) {
+      final deviceInfo = DeviceInfoPlugin();
       final iosInfo = await deviceInfo.iosInfo;
       if (iosInfo.identifierForVendor != null && iosInfo.identifierForVendor!.isNotEmpty) {
-         id = 'ios_${iosInfo.identifierForVendor}';
+        id = 'ios_${iosInfo.identifierForVendor}';
+      } else {
+        id = _generateSecureId('ios');
       }
-    }
-    
-    if (id == null) {
-      id = 'dev_${DateTime.now().millisecondsSinceEpoch}';
+    } else {
+      id = _generateSecureId('dev');
     }
     
     await _storage.write(key: 'zenhome_device_id', value: id);
@@ -191,14 +209,7 @@ class SessionManager {
     if (username == null) return;
 
     try {
-      final deviceInfo = DeviceInfoPlugin();
-      String deviceId = 'unknown_id';
-
-      if (Platform.isAndroid) {
-        deviceId = await getUniqueDeviceId();
-      } else if (Platform.isIOS) {
-        deviceId = await getUniqueDeviceId();
-      }
+      final deviceId = await getUniqueDeviceId();
 
       final sessionRef = _firestore
           .collection('users')
@@ -273,8 +284,56 @@ class SessionManager {
     }
   }
 
+  static StreamSubscription<DocumentSnapshot>? _sessionSub;
+
+  /// Lắng nghe trạng thái phiên thời gian thực.
+  /// Nếu phiên bị Chủ nhà/Người dùng thu hồi từ xa (isActive == false) -> Tự động đăng xuất tức thì
+  static void listenToCurrentSession({void Function()? onSessionRevoked}) async {
+    _sessionSub?.cancel();
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      String? username;
+      final query = await _firestore.collection('users').where('uid', isEqualTo: user.uid).get();
+      if (query.docs.isNotEmpty) {
+        username = query.docs.first.id;
+      }
+      if (username == null) return;
+
+      final deviceId = await getUniqueDeviceId();
+      final sessionRef = _firestore
+          .collection('users')
+          .doc(username)
+          .collection('sessions')
+          .doc(deviceId);
+
+      _sessionSub = sessionRef.snapshots().listen((snapshot) async {
+        if (snapshot.exists) {
+          final data = snapshot.data();
+          if (data != null && data['isActive'] == false) {
+            print('[SESSION] ⚠️ Phiên đăng nhập đã bị vô hiệu hóa từ xa. Đang đăng xuất...');
+            stopListeningSession();
+            await _auth.signOut();
+            onSessionRevoked?.call();
+          }
+        }
+      }, onError: (err) {
+        print('[SESSION] Lỗi lắng nghe session: $err');
+      });
+    } catch (e) {
+      print('[SESSION] Không thể khởi chạy listener phiên: $e');
+    }
+  }
+
+  static void stopListeningSession() {
+    _sessionSub?.cancel();
+    _sessionSub = null;
+  }
+
   /// Clears the current session (used on Logout)
   static Future<void> clearSession() async {
+    stopListeningSession();
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -286,14 +345,7 @@ class SessionManager {
     if (username == null) return;
 
     try {
-      final deviceInfo = DeviceInfoPlugin();
-      String deviceId = 'unknown_id';
-
-      if (Platform.isAndroid) {
-        deviceId = await getUniqueDeviceId();
-      } else if (Platform.isIOS) {
-        deviceId = await getUniqueDeviceId();
-      }
+      final deviceId = await getUniqueDeviceId();
 
       final sessionRef = _firestore
           .collection('users')
@@ -323,14 +375,7 @@ class SessionManager {
     if (username == null) return false;
 
     try {
-      final deviceInfo = DeviceInfoPlugin();
-      String deviceId = 'unknown_id';
-
-      if (Platform.isAndroid) {
-        deviceId = await getUniqueDeviceId();
-      } else if (Platform.isIOS) {
-        deviceId = await getUniqueDeviceId();
-      }
+      final deviceId = await getUniqueDeviceId();
 
       final doc = await _firestore
           .collection('users')

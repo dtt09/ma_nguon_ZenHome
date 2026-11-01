@@ -78,6 +78,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
     super.initState();
 
     SessionManager.updateLastAccess();
+    SessionManager.listenToCurrentSession();
     _pageController = PageController(initialPage: _currentIndex);
 
     
@@ -153,7 +154,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
   @override
 
   void dispose() {
-
+    SessionManager.stopListeningSession();
     _notificationSubscription?.cancel();
     _pageController.dispose();
 

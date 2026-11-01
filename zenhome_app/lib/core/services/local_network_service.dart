@@ -222,6 +222,9 @@ class LocalNetworkService {
 
   void _setLocalAvailable(bool lanAvailable) {
     _isLanAvailable = lanAvailable;
+    // Báo cho BLE Service biết trạng thái LAN để tạm dừng quét BLE vô ích khi mạng LAN hoạt động tốt
+    BleLocalService().setNetworkOnlineStatus(isLanAvailable: lanAvailable);
+
     // Khả dụng cục bộ khi: hoặc mạng LAN ping thành công, hoặc BLE Hub sẵn sàng kết nối theo yêu cầu (Connect-on-Demand)
     final effectiveAvailable = lanAvailable || BleLocalService().isHubNearby || BleLocalService().isAuthenticated;
     if (_isLocalAvailable != effectiveAvailable) {

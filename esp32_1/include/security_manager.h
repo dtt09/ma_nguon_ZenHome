@@ -41,6 +41,7 @@ String dhModPow(const String& baseHex, const String& expHex, const String& modHe
 String computeSha256Hex(const String& inputHex);
 String computeSha256OfText(const String& text);
 String computeHmacSha256(const String& keyHex, const String& message);
+bool verifyHmacSha256(const String& keyHex, const String& message, const String& sig);
 bool verifyFirmwareEcdsaSignature(const uint8_t* sha256Bytes, const String& sigHex);
 
 // Hardware Storage at Rest Encryption

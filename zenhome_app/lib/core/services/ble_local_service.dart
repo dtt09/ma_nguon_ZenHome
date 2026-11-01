@@ -129,13 +129,35 @@ class BleLocalService {
     _role = role ?? 'owner';
     _allowedDevices = allowedDevices;
 
-    // Quét thụ động một lần đầu để nhận diện xem ESP32 có đang offline Wi-Fi và phát BLE không
-    _passiveDiscover();
+    // Quét thụ động một lần đầu nếu mạng chưa sẵn sàng
+    if (!_isNetworkOnline) {
+      _passiveDiscover();
+      _startPassiveDiscoveryTimer();
+    }
+  }
 
-    // Định kỳ 15 giây quét thụ động 2 giây để cập nhật trạng thái khả dụng của Hub (không duy trì kết nối)
+  bool _isNetworkOnline = false;
+
+  /// Cập nhật trạng thái mạng Online (LAN hoặc MQTT).
+  /// Khi mạng hoạt động tốt, ESP32 tắt hoàn toàn BLE radio -> App lập tức dừng quét để tiết kiệm pin.
+  void setNetworkOnlineStatus({required bool isLanAvailable, bool isMqttConnected = false}) {
+    final isOnline = isLanAvailable || isMqttConnected;
+    if (_isNetworkOnline == isOnline) return;
+    _isNetworkOnline = isOnline;
+
+    if (_isNetworkOnline) {
+      _passiveDiscoveryTimer?.cancel();
+      _passiveDiscoveryTimer = null;
+    } else {
+      _startPassiveDiscoveryTimer();
+      _passiveDiscover();
+    }
+  }
+
+  void _startPassiveDiscoveryTimer() {
     _passiveDiscoveryTimer?.cancel();
     _passiveDiscoveryTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      if (!_isConnected && !_isScanning && _taskQueue.isEmpty) {
+      if (!_isConnected && !_isScanning && _taskQueue.isEmpty && !_isNetworkOnline) {
         _passiveDiscover();
       }
     });
@@ -153,7 +175,7 @@ class BleLocalService {
   /// Quét thụ động (Passive Discovery): Không filter cứng service UUID ở tầng Native Android
   /// giúp nhận diện 100% thiết bị ESP32 kể cả khi Service UUID nằm trong Scan Response
   Future<void> _passiveDiscover() async {
-    if (_isScanning || _isConnected) return;
+    if (_isScanning || _isConnected || _isNetworkOnline) return;
 
     try {
       final isSupported = await FlutterBluePlus.isSupported;

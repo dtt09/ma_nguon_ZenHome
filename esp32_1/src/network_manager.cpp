@@ -362,15 +362,14 @@ void setupStationWebServer() {
     }
 
     String signPayload = "rotate:" + user + ":" + ts + ":" + nonce;
-    String expectedSig = computeHmacSha256(currentLocalSecretKey, signPayload);
-    bool authOk = sig.equalsIgnoreCase(expectedSig);
+    bool authOk = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
 
     if (!authOk && admin_pass.length() > 0) {
       String mac = WiFi.macAddress();
       mac.replace(":", "");
       mac.toUpperCase();
       String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
-      authOk = sig.equalsIgnoreCase(computeHmacSha256(masterKey, signPayload));
+      authOk = verifyHmacSha256(masterKey, signPayload, sig);
     }
 
     if (!authOk) {
@@ -478,8 +477,7 @@ void setupStationWebServer() {
 
     if (sig.length() > 0 && currentLocalSecretKey.length() > 0) {
       String signPayload = user + ":" + devId + ":" + cmd + ":" + ts + ":" + nonce;
-      String expectedSig = computeHmacSha256(currentLocalSecretKey, signPayload);
-      if (sig.equalsIgnoreCase(expectedSig)) {
+      if (verifyHmacSha256(currentLocalSecretKey, signPayload, sig)) {
         isAuthorized = true;
       }
     }
@@ -547,14 +545,13 @@ void setupStationWebServer() {
       }
 
       String signPayload = "members:" + ts + ":" + nonce;
-      String expectedSig = computeHmacSha256(currentLocalSecretKey, signPayload);
-      bool sigValid = sig.equalsIgnoreCase(expectedSig);
+      bool sigValid = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
       if (!sigValid && admin_pass.length() > 0) {
         String mac = WiFi.macAddress();
         mac.replace(":", "");
         mac.toUpperCase();
         String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
-        sigValid = sig.equalsIgnoreCase(computeHmacSha256(masterKey, signPayload));
+        sigValid = verifyHmacSha256(masterKey, signPayload, sig);
       }
       if (!sigValid) {
         request->send(401, "application/json", "{\"status\":\"error\",\"message\":\"Chữ ký bảo mật không hợp lệ!\"}");
@@ -609,9 +606,16 @@ void setupStationWebServer() {
     }
 
     String signPayload = "reboot:" + ts + ":" + nonce;
-    String expectedSig = computeHmacSha256(currentLocalSecretKey, signPayload);
+    bool authOk = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
+    if (!authOk && admin_pass.length() > 0) {
+      String mac = WiFi.macAddress();
+      mac.replace(":", "");
+      mac.toUpperCase();
+      String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
+      authOk = verifyHmacSha256(masterKey, signPayload, sig);
+    }
 
-    if (!sig.equalsIgnoreCase(expectedSig)) {
+    if (!authOk) {
       Serial.println("[LOCAL-SEC] ❌ Chữ ký bảo mật Local không hợp lệ cho lệnh reboot!");
       request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_BAD_SIG\",\"message\":\"Chữ ký HMAC không hợp lệ!\"}");
       return;
@@ -658,15 +662,14 @@ void setupStationWebServer() {
       }
 
       String signPayload = "reconfig:" + newSsid + ":" + ts + ":" + nonce;
-      String expectedSig = computeHmacSha256(currentLocalSecretKey, signPayload);
-      bool authOk = sig.equalsIgnoreCase(expectedSig);
+      bool authOk = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
 
       if (!authOk && admin_pass.length() > 0) {
         String mac = WiFi.macAddress();
         mac.replace(":", "");
         mac.toUpperCase();
         String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
-        authOk = sig.equalsIgnoreCase(computeHmacSha256(masterKey, signPayload));
+        authOk = verifyHmacSha256(masterKey, signPayload, sig);
       }
 
       if (!authOk) {
@@ -856,14 +859,13 @@ void setupStationWebServer() {
       }
 
       String signPayload = "rules:" + ts + ":" + nonce;
-      String expectedSig = computeHmacSha256(currentLocalSecretKey, signPayload);
-      bool sigValid = sig.equalsIgnoreCase(expectedSig);
+      bool sigValid = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
       if (!sigValid && admin_pass.length() > 0) {
         String mac = WiFi.macAddress();
         mac.replace(":", "");
         mac.toUpperCase();
         String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
-        sigValid = sig.equalsIgnoreCase(computeHmacSha256(masterKey, signPayload));
+        sigValid = verifyHmacSha256(masterKey, signPayload, sig);
       }
       if (!sigValid) {
         request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_BAD_SIG\",\"message\":\"Chữ ký bảo mật không hợp lệ!\"}");

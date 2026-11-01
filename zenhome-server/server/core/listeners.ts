@@ -4,7 +4,7 @@ import { state } from './state';
 import { processAlert } from './notifications';
 import { deleteScheduleFromFirebase } from './schedules';
 
-const userAlertsUnsubscribers: Record<string, () => void> = {};
+const lastSyncedMembersHash: Record<string, string> = {};
 
 function syncUserMembersToEsp32(userId: string, userData: any) {
     if (!userData) return;
@@ -31,6 +31,18 @@ function syncUserMembersToEsp32(userId: string, userData: any) {
         });
     }
 
+    // Fingerprint phân quyền thành viên để chống phát sóng MQTT liên tục gây hao mòn Flash ESP32
+    const membersFingerprint = JSON.stringify({
+        owner: userId,
+        members: membersList,
+        disabled: Array.isArray(userData.disabledMembers) ? userData.disabledMembers : []
+    });
+
+    if (lastSyncedMembersHash[userId] === membersFingerprint) {
+        return;
+    }
+    lastSyncedMembersHash[userId] = membersFingerprint;
+
     const payload = JSON.stringify({
         owner: userId,
         members: membersList,
@@ -47,40 +59,36 @@ function syncUserMembersToEsp32(userId: string, userData: any) {
 }
 
 export function startListeningToAlerts() {
-    console.log(`[FIREBASE] 🛡️ Đang khởi chạy trình lắng nghe Cảnh báo bảo mật...`);
+    console.log(`[FIREBASE] 🛡️ Đang khởi chạy trình lắng nghe Cảnh báo bảo mật tập trung (collectionGroup)...`);
+
+    // 1. Luồng tập trung duy nhất cho toàn bộ alerts bằng collectionGroup (Tối ưu kết nối & chi phí)
+    const alertsStartTime = new Date();
+    db.collectionGroup('alerts')
+        .where('timestamp', '>', alertsStartTime)
+        .onSnapshot(alertsSnap => {
+            alertsSnap.docChanges().forEach(alertChange => {
+                if (alertChange.type === 'added') {
+                    const userEmail = alertChange.doc.ref.parent.parent?.id;
+                    if (userEmail) {
+                        processAlert(alertChange.doc.data(), userEmail, userEmail);
+                    }
+                }
+            });
+        }, err => {
+            console.error(`[FIREBASE ERROR] ❌ Lỗi lắng nghe collectionGroup alerts:`, err);
+        });
+
+    // 2. Lắng nghe thay đổi tài khoản users
     db.collection('users').onSnapshot(snapshot => {
         snapshot.docChanges().forEach(async change => {
             const userEmail = change.doc.id;
             const userId = userEmail;
 
-            if (change.type === 'added') {
-                syncUserMembersToEsp32(userId, change.doc.data());
-                if (userAlertsUnsubscribers[userEmail]) {
-                    userAlertsUnsubscribers[userEmail]();
-                    delete userAlertsUnsubscribers[userEmail];
-                }
-                const now = new Date();
-                const unsub = db.collection('users').doc(userEmail).collection('alerts')
-                    .where('timestamp', '>', now)
-                    .onSnapshot(alertsSnap => {
-                        alertsSnap.docChanges().forEach(alertChange => {
-                            if (alertChange.type === 'added') {
-                                processAlert(alertChange.doc.data(), userEmail, userId);
-                            }
-                        });
-                    }, err => {
-                        console.error(`[FIREBASE ERROR] ❌ Lỗi lắng nghe alerts của ${userEmail}:`, err);
-                    });
-                userAlertsUnsubscribers[userEmail] = unsub;
-            }
-            else if (change.type === 'modified') {
+            if (change.type === 'added' || change.type === 'modified') {
                 syncUserMembersToEsp32(userId, change.doc.data());
             }
             else if (change.type === 'removed') {
-                if (userAlertsUnsubscribers[userEmail]) {
-                    userAlertsUnsubscribers[userEmail]();
-                    delete userAlertsUnsubscribers[userEmail];
-                }
+                delete lastSyncedMembersHash[userId];
 
                 // Xử lý khi user xóa tài khoản
                 const userData = change.doc.data();

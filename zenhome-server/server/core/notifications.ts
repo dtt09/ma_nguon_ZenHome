@@ -29,6 +29,7 @@ export async function sendPushToUserTokens(
 
         const tokensVi: string[] = [];
         const tokensEn: string[] = [];
+        const tokenMetaMap: Record<string, FirebaseFirestore.DocumentReference> = {};
 
         for (const targetUser of targetUsernames) {
             let userLang = 'vi';
@@ -48,32 +49,69 @@ export async function sendPushToUserTokens(
             const sessionsSnapshot = await query.get();
             sessionsSnapshot.forEach(doc => {
                 const data = doc.data();
-                if (data.fcmToken) {
+                if (data.fcmToken && typeof data.fcmToken === 'string' && data.fcmToken.trim().length > 15) {
+                    const token = data.fcmToken.trim();
+                    tokenMetaMap[token] = doc.ref;
                     if (userLang === 'en') {
-                        tokensEn.push(data.fcmToken);
+                        tokensEn.push(token);
                     } else {
-                        tokensVi.push(data.fcmToken);
+                        tokensVi.push(token);
                     }
                 }
             });
         }
 
+        const handleBatchResponse = async (response: any, tokensList: string[]) => {
+            if (!response || !Array.isArray(response.responses)) return;
+            const deadRefs: FirebaseFirestore.DocumentReference[] = [];
+            response.responses.forEach((res: any, idx: number) => {
+                if (!res.success && res.error) {
+                    const errCode = res.error.code || '';
+                    if (
+                        errCode === 'messaging/registration-token-not-registered' ||
+                        errCode === 'messaging/invalid-registration-token' ||
+                        errCode === 'messaging/invalid-argument'
+                    ) {
+                        const deadToken = tokensList[idx];
+                        if (deadToken && tokenMetaMap[deadToken]) {
+                            deadRefs.push(tokenMetaMap[deadToken]);
+                        }
+                    }
+                }
+            });
+
+            if (deadRefs.length > 0) {
+                try {
+                    const batch = db.batch();
+                    deadRefs.forEach(ref => batch.update(ref, { isActive: false, unregisterReason: 'fcm_dead_token' }));
+                    await batch.commit();
+                    console.log(`[FCM PRUNE] 🧹 Đã vô hiệu hóa ${deadRefs.length} phiên chứa token chết.`);
+                } catch (e) {
+                    console.warn('[FCM PRUNE] ⚠️ Lỗi dọn dẹp session chết:', e);
+                }
+            }
+        };
+
         const promises: Promise<any>[] = [];
 
         if (tokensVi.length > 0) {
-            promises.push(getMessaging().sendEachForMulticast({
-                notification: messageContentVi,
-                data: { category: category, homeId: actualHomeId },
-                tokens: tokensVi,
-            }));
+            promises.push(
+                getMessaging().sendEachForMulticast({
+                    notification: messageContentVi,
+                    data: { category: category, homeId: actualHomeId },
+                    tokens: tokensVi,
+                }).then(res => handleBatchResponse(res, tokensVi))
+            );
         }
 
         if (tokensEn.length > 0) {
-            promises.push(getMessaging().sendEachForMulticast({
-                notification: messageContentEn,
-                data: { category: category, homeId: actualHomeId },
-                tokens: tokensEn,
-            }));
+            promises.push(
+                getMessaging().sendEachForMulticast({
+                    notification: messageContentEn,
+                    data: { category: category, homeId: actualHomeId },
+                    tokens: tokensEn,
+                }).then(res => handleBatchResponse(res, tokensEn))
+            );
         }
 
         await Promise.all(promises);
