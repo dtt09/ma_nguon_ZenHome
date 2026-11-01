@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pinput/pinput.dart';
@@ -107,9 +107,11 @@ class _UpdateEmailPhoneScreenState extends State<UpdateEmailPhoneScreen> {
       }
       
       String? username;
+      Map<String, dynamic>? userDocData;
       final query = await FirebaseFirestore.instance.collection('users').where('uid', isEqualTo: user!.uid).get();
       if (query.docs.isNotEmpty) {
         username = query.docs.first.id;
+        userDocData = query.docs.first.data();
       }
       
       if (username != null) {
@@ -117,8 +119,33 @@ class _UpdateEmailPhoneScreenState extends State<UpdateEmailPhoneScreen> {
         if (phoneNumber.startsWith('0')) phoneNumber = '+84${phoneNumber.substring(1)}';
         else if (!phoneNumber.startsWith('+')) phoneNumber = '+$phoneNumber';
         
+        // Xóa SĐT cũ khỏi bảng tra cứu phone_lookup nếu đã đổi sang số khác
+        final oldPhone = userDocData?['phoneNumber'] as String?;
+        if (oldPhone != null && oldPhone.isNotEmpty && oldPhone != phoneNumber) {
+          try {
+            await FirebaseFirestore.instance.collection('phone_lookup').doc(oldPhone).delete();
+          } catch (_) {}
+        }
+
         await FirebaseFirestore.instance.collection('users').doc(username).update({
           'phoneNumber': phoneNumber
+        });
+
+        // Xác định email đăng nhập thật để ánh xạ vào phone_lookup
+        String emailForLookup = '';
+        if (user!.email != null && !user!.email!.endsWith('@zenhome.local') && user!.email!.isNotEmpty) {
+          emailForLookup = user!.email!;
+        } else if (userDocData != null && userDocData.containsKey('email') && userDocData['email'].toString().isNotEmpty) {
+          emailForLookup = userDocData['email'];
+        } else {
+          emailForLookup = '${phoneNumber.replaceAll('+', '')}@zenhome.local';
+        }
+
+        await FirebaseFirestore.instance.collection('phone_lookup').doc(phoneNumber).set({
+          'email': emailForLookup,
+          'username': username,
+          'uid': user!.uid,
+          'updatedAt': FieldValue.serverTimestamp(),
         });
       }
       

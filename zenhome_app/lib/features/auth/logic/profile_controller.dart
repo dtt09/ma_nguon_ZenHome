@@ -282,6 +282,15 @@ class ProfileController extends StateNotifier<ProfileState> {
         }
       }
 
+      if (state.phoneNumber != null && state.phoneNumber!.isNotEmpty) {
+        String phoneToDelete = state.phoneNumber!;
+        if (phoneToDelete.startsWith('0')) phoneToDelete = '+84${phoneToDelete.substring(1)}';
+        else if (!phoneToDelete.startsWith('+')) phoneToDelete = '+$phoneToDelete';
+        try {
+          await FirebaseFirestore.instance.collection('phone_lookup').doc(phoneToDelete).delete();
+        } catch (_) {}
+      }
+
       if (state.username.isNotEmpty) {
         await FirebaseFirestore.instance.collection('users').doc(state.username).update({
           'phoneNumber': FieldValue.delete(),

@@ -98,6 +98,28 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
         }
       }
     }
+
+    // Đồng bộ vào bảng phone_lookup để đảm bảo luôn tra cứu được khi đăng nhập bằng SĐT
+    if (phoneInDb.isNotEmpty) {
+      String expectedPhone = phoneInDb;
+      if (expectedPhone.startsWith('0')) expectedPhone = '+84${expectedPhone.substring(1)}';
+      else if (!expectedPhone.startsWith('+')) expectedPhone = '+$expectedPhone';
+
+      String targetEmail = currentAuthEmail.isNotEmpty
+          ? currentAuthEmail
+          : (data['email'] ?? '${expectedPhone.replaceAll('+', '')}@zenhome.local');
+
+      try {
+        await FirebaseFirestore.instance.collection('phone_lookup').doc(expectedPhone).set({
+          'email': targetEmail,
+          'username': username,
+          'uid': user.uid,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Could not sync phone_lookup in _verifyAndCleanEmail: $e');
+      }
+    }
   }
 
   Future<void> saveAndNavigate(String username) async {
@@ -178,12 +200,30 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
            if (phoneNumber!.startsWith('0')) phoneNumber = '+84${phoneNumber!.substring(1)}';
            else if (!phoneNumber!.startsWith('+')) phoneNumber = '+$phoneNumber';
            
-           final query = await FirebaseFirestore.instance.collection('users').where('phoneNumber', isEqualTo: phoneNumber).get();
-           if (query.docs.isNotEmpty) {
-               final data = query.docs.first.data() as Map<String, dynamic>;
+           // Tra cứu qua bảng phone_lookup với allow get: if true (O(1) và bảo mật tuyệt đối)
+           try {
+             final phoneLookupDoc = await FirebaseFirestore.instance.collection('phone_lookup').doc(phoneNumber).get();
+             if (phoneLookupDoc.exists) {
+               final data = phoneLookupDoc.data() as Map<String, dynamic>;
                if (data.containsKey('email') && data['email'].toString().isNotEmpty) {
-                   emailToLogin = data['email'];
+                 emailToLogin = data['email'];
                }
+             }
+           } catch (e) {
+             debugPrint('Lỗi tra cứu phone_lookup: $e');
+           }
+
+           // Fallback kiểm tra collection users nếu chưa có trong phone_lookup
+           if (emailToLogin == input || emailToLogin.isEmpty) {
+             try {
+               final query = await FirebaseFirestore.instance.collection('users').where('phoneNumber', isEqualTo: phoneNumber).get();
+               if (query.docs.isNotEmpty) {
+                   final data = query.docs.first.data() as Map<String, dynamic>;
+                   if (data.containsKey('email') && data['email'].toString().isNotEmpty) {
+                       emailToLogin = data['email'];
+                   }
+               }
+             } catch (_) {}
            }
         }
 

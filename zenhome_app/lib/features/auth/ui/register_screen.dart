@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -163,8 +163,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         phoneNumber = '+$phoneNumber';
       }
 
-      final query = await FirebaseFirestore.instance.collection('users').where('phoneNumber', isEqualTo: phoneNumber).get();
-      if (query.docs.isNotEmpty) {
+      bool isRegistered = false;
+      try {
+        final phoneDoc = await FirebaseFirestore.instance.collection('phone_lookup').doc(phoneNumber).get();
+        if (phoneDoc.exists) {
+          isRegistered = true;
+        }
+      } catch (_) {}
+
+      if (!isRegistered) {
+        try {
+          final query = await FirebaseFirestore.instance.collection('users').where('phoneNumber', isEqualTo: phoneNumber).get();
+          if (query.docs.isNotEmpty) {
+            isRegistered = true;
+          }
+        } catch (_) {}
+      }
+
+      if (isRegistered) {
         LoadingOverlay.hide();
         showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_phone_already_registered') ?? 'Số điện thoại này đã được đăng ký!', isError: true);
         return;
@@ -398,6 +414,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           return;
         }
         rethrow;
+      }
+
+      // Ánh xạ SĐT vào bảng tra cứu phone_lookup nếu đăng ký bằng SĐT
+      if (widget.phoneNumber != null && widget.phoneNumber!.isNotEmpty) {
+        String phoneToSave = widget.phoneNumber!;
+        if (phoneToSave.startsWith('0')) phoneToSave = '+84${phoneToSave.substring(1)}';
+        else if (!phoneToSave.startsWith('+')) phoneToSave = '+$phoneToSave';
+        
+        final String lookupEmail = emailToSave.isNotEmpty 
+            ? emailToSave 
+            : '${phoneToSave.replaceAll('+', '')}@zenhome.local';
+            
+        try {
+          await FirebaseFirestore.instance.collection('phone_lookup').doc(phoneToSave).set({
+            'email': lookupEmail,
+            'username': username,
+            'uid': updatedUser?.uid ?? widget.uid,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          debugPrint('Error saving phone_lookup in registration: $e');
+        }
       }
 
       // 4. Tạo cấu trúc config mẫu

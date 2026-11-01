@@ -104,6 +104,19 @@ service cloud.firestore {
       }
     }
 
+    // Bảng tra cứu SĐT nhanh (Phone Lookup Index):
+    // Cho phép đọc ĐÍCH DANH khi biết số điện thoại (get) để phục vụ đăng nhập SĐT + Mật khẩu và kiểm tra trùng lặp.
+    // TUYỆT ĐỐI CHẶN duyệt quét/cào dữ liệu (list: false) để chống lộ danh bạ người dùng.
+    match /phone_lookup/{phoneNumber} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if isSignedIn() && (
+        request.resource.data.uid == request.auth.uid ||
+        (resource != null && resource.data.uid == request.auth.uid)
+      );
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
     // Cấu hình hệ thống (app_version, server_config): Chỉ đọc công khai, chỉ Backend Admin được ghi
     match /system_config/{configId} {
       allow read: if true;

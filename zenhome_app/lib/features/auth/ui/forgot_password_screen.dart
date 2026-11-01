@@ -62,19 +62,42 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         userData = doc.data();
         username = doc.id;
       } else {
-        // Thử tìm theo SĐT
-        var phoneQuery = await FirebaseFirestore.instance.collection('users').where('phoneNumber', isEqualTo: normalizedInput).get();
-        if (phoneQuery.docs.isNotEmpty) {
-          userData = phoneQuery.docs.first.data();
-          username = phoneQuery.docs.first.id;
-        } else if (input.contains('@')) {
+        // Thử tìm theo SĐT qua bảng tra cứu phone_lookup trước
+        try {
+          var phoneDoc = await FirebaseFirestore.instance.collection('phone_lookup').doc(normalizedInput).get();
+          if (phoneDoc.exists) {
+            String targetUsername = phoneDoc.data()?['username'] ?? '';
+            if (targetUsername.isNotEmpty) {
+              var userDoc = await FirebaseFirestore.instance.collection('users').doc(targetUsername).get();
+              if (userDoc.exists) {
+                userData = userDoc.data();
+                username = userDoc.id;
+              }
+            }
+          }
+        } catch (_) {}
+
+        if (userData == null) {
+          // Thử tìm theo SĐT qua query users (dự phòng)
+          try {
+            var phoneQuery = await FirebaseFirestore.instance.collection('users').where('phoneNumber', isEqualTo: normalizedInput).get();
+            if (phoneQuery.docs.isNotEmpty) {
+              userData = phoneQuery.docs.first.data();
+              username = phoneQuery.docs.first.id;
+            }
+          } catch (_) {}
+        }
+
+        if (userData == null && input.contains('@')) {
           if (input.toLowerCase().endsWith('@gmail.com')) {
             // Thử tìm theo Email Google
-            var emailQuery = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: input).get();
-            if (emailQuery.docs.isNotEmpty) {
-              userData = emailQuery.docs.first.data();
-              username = emailQuery.docs.first.id;
-            }
+            try {
+              var emailQuery = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: input).get();
+              if (emailQuery.docs.isNotEmpty) {
+                userData = emailQuery.docs.first.data();
+                username = emailQuery.docs.first.id;
+              }
+            } catch (_) {}
           }
         }
       }
