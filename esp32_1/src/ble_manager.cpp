@@ -97,8 +97,8 @@ void checkBleSlotTimeouts() {
           Serial.printf("\n[BLE-SECURITY] ⚠️ Handle %d không xác thực Key trong 8s! Ngắt kết nối nhường slot...\n", bleSlots[i].connHandle);
           pBleServer->disconnect(bleSlots[i].connHandle);
           bleSlots[i].connHandle = 0;
-        } else if (bleSlots[i].isAuthenticated && (currentMillis - bleSlots[i].lastActivity >= 4000)) {
-          Serial.printf("\n[BLE-MULTIUSER] ⏱️ Handle %d rảnh rỗi quá 4s! Tự ngắt để giải phóng slot cho máy khác...\n", bleSlots[i].connHandle);
+        } else if (bleSlots[i].isAuthenticated && (currentMillis - bleSlots[i].lastActivity >= 15000)) {
+          Serial.printf("\n[BLE-MULTIUSER] ⏱️ Handle %d rảnh rỗi quá 15s! Tự ngắt để giải phóng slot cho máy khác...\n", bleSlots[i].connHandle);
           pBleServer->disconnect(bleSlots[i].connHandle);
           bleSlots[i].connHandle = 0;
         }

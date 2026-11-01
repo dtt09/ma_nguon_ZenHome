@@ -643,6 +643,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     
     resetToFactoryDefaults();
     Serial.println("Hệ thống sẽ khởi động lại và vào chế độ AP Setup sau 2 giây...");
+    rebootScheduledAt = millis();
     shouldReboot = true;
     return;
   }
@@ -825,7 +826,7 @@ void publishOtaMessage(const String& subTopic, const String& payload) {
     if (WiFi.status() == WL_CONNECTED) {
       String mac = WiFi.macAddress();
       mac.replace(":", "");
-      String clientId = "ESP32_OTA_" + mac;
+      String clientId = "ESP32_" + mac;
       String statusTopic = mqtt_prefix + "/esp_status";
       if (mqtt_user != "" && mqtt_pass != "") {
         mqttClient.connect(clientId.c_str(), mqtt_user.c_str(), mqtt_pass.c_str(), statusTopic.c_str(), 1, true, "offline");
@@ -956,7 +957,7 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
     if (Update.end(true)) {
       Serial.println("[SERVER-OTA] ✅ NÂNG CẤP THÀNH CÔNG RỰC RỠ! ESP32 sẽ khởi động lại vào Firmware mới sau 2 giây...");
       publishOtaMessage("/system/ota_result", "{\"status\":\"success\",\"message\":\"Nâng cấp Firmware OTA thành công 100%! Đang khởi động lại.\"}");
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < 15; i++) {
         mqttClient.loop();
         delay(100);
       }

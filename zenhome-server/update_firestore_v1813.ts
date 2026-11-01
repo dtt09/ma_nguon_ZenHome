@@ -22,7 +22,7 @@ async function updateFirestore() {
     directApkUrl: 'https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk',
     isForceUpdate: false,
     fileSizeBytes: 72242943,
-    sha256: '34A5DD06174F17814992535EE470C0F5A37BA1EABE427C9B3969FFF0FD8AD4A6',
+    sha256: 'A733030805780D189B6679F69FF1A552B3B8DBD032847DD79719529443F5EDF1',
     publishedAt: new Date().toISOString(),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
@@ -34,7 +34,7 @@ async function updateFirestore() {
     buildNumber: 201,
     directUrl: 'https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/firmware.bin',
     fileSizeBytes: 1381760,
-    sha256: 'F847874EFD5729B2AB623EACA52D8E54F963BDBC0B422CB029A0F5D0B1A49834',
+    sha256: '04ED702ED910C47346753980E5A551AAE6CF871D36CFC39BE5934FB071D610C2',
     exists: true,
     changelog: 'Bản cập nhật v2.5.7 (Build 201): Chống sụt áp nguồn Brownout Reset khi gạt rơ-le liên tiếp, đảm bảo ACK phản hồi mọi trạng thái (kể cả khi chạm Relay Guard), tối ưu WDT 45s và duy trì keep-alive trong chu kỳ nạp OTA',
     lastDeployedAt: new Date().toISOString(),

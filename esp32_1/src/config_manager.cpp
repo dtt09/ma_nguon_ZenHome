@@ -248,6 +248,7 @@ void backupRelayStatesToFlash() {
   static String lastBackupSignature = "";
   unsigned long now = millis();
   if (now - lastFlashWrite < 3000) {
+    needsBackupToFlash = true; // Giữ cờ để thử lại ở vòng lặp kế tiếp khi hết 3000ms cooldown
     return; // Giới hạn tần suất: Chống ghi dồn dập vào Flash LittleFS
   }
 

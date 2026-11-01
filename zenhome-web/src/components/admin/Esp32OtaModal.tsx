@@ -52,11 +52,11 @@ export const Esp32OtaModal: React.FC<Esp32OtaModalProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Form phát hành firmware mới
-  const [versionInput, setVersionInput] = useState('2.5.5');
-  const [buildInput, setBuildInput] = useState(199);
+  const [versionInput, setVersionInput] = useState('2.5.7');
+  const [buildInput, setBuildInput] = useState(201);
   const [directUrlInput, setDirectUrlInput] = useState('https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/firmware.bin');
-  const [sha256Input, setSha256Input] = useState('3B4F069E0A74D34C6E38BF3037EB329F5DCAF32A0F90391F8722D0AE3D0E4F4D');
-  const [fileSizeInput, setFileSizeInput] = useState(1380048);
+  const [sha256Input, setSha256Input] = useState('04ED702ED910C47346753980E5A551AAE6CF871D36CFC39BE5934FB071D610C2');
+  const [fileSizeInput, setFileSizeInput] = useState(1381760);
   const [releaseNotesVi, setReleaseNotesVi] = useState(
     '• Tối ưu hóa luồng truyền nhận trạng thái MQTT thời gian thực\n• Tích hợp đường dẫn tải firmware GitHub Releases toàn cầu không phụ thuộc IP LAN\n• Nâng cấp cơ chế Dual-Boot A/B Safe Rollback chống brick bo mạch 100%\n• Đồng bộ xác thực bảo mật 2 chiều User & MAC với Cloud Firestore'
   );
@@ -320,9 +320,9 @@ export const Esp32OtaModal: React.FC<Esp32OtaModalProps> = ({
               <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800">
                 <span className="text-[10px] text-slate-400 block font-medium">Phiên Bản</span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono text-sm">
-                  v{info?.version || '2.5.5'}
+                  v{info?.version || '2.5.7'}
                 </span>
-                <span className="text-[10px] text-slate-400 ml-1">({info?.buildNumber || 199})</span>
+                <span className="text-[10px] text-slate-400 ml-1">({info?.buildNumber || 201})</span>
               </div>
 
               <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800">
@@ -379,7 +379,7 @@ export const Esp32OtaModal: React.FC<Esp32OtaModalProps> = ({
                     type="text"
                     value={versionInput}
                     onChange={(e) => setVersionInput(e.target.value)}
-                    placeholder="Ví dụ: 2.5.5"
+                    placeholder="Ví dụ: 2.5.7"
                     required
                     className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-500 font-mono font-bold"
                   />

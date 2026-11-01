@@ -236,6 +236,43 @@ export function setupMqttHandlers() {
             return;
         }
 
+        // 0.9 BẮT TIẾN TRÌNH & KẾT QUẢ OTA TỪ ESP32
+        if (topic.endsWith('/system/ota_progress')) {
+            const macAddress = topicParts.length > 2 ? topicParts[1] : 'ESP32';
+            try {
+                const progData = JSON.parse(payload);
+                if (progData.progress !== undefined) {
+                    addLog('[OTA]', `⏳ Hub [${macAddress}] đang nạp Firmware: ${progData.progress}%`, 'info');
+                }
+            } catch (_) {}
+            return;
+        }
+
+        if (topic.endsWith('/system/ota_result')) {
+            const userId = topicParts[0];
+            const macAddress = topicParts.length > 2 ? topicParts[1] : 'ESP32';
+            try {
+                const resultData = JSON.parse(payload);
+                if (resultData.status === 'success') {
+                    addLog('[OTA]', `🎉 Hub [${macAddress}] nâng cấp Firmware OTA thành công 100%! Đang khởi động lại...`, 'info');
+                    sendPushToUserTokens(
+                        userId,
+                        {
+                            title: '🎉 Nâng Cấp Firmware Thành Công',
+                            body: `Hub trung tâm [${macAddress}] đã hoàn tất nạp firmware mới và đang khởi động lại.`
+                        },
+                        {
+                            title: '🎉 Firmware Update Successful',
+                            body: `Central Hub [${macAddress}] successfully updated firmware and is restarting.`
+                        }
+                    ).catch(() => {});
+                } else {
+                    addLog('[OTA]', `❌ Hub [${macAddress}] nâng cấp OTA thất bại: ${resultData.message || 'Lỗi không xác định'}`, 'warn');
+                }
+            } catch (_) {}
+            return;
+        }
+
         if (topicParts.length < 4) return;
 
         const action = topicParts.pop();

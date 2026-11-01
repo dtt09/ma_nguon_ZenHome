@@ -29,15 +29,15 @@ export const AppVersionModal: React.FC<AppVersionModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
-    latestVersion: '1.4.0',
-    latestBuildNumber: 140,
+    latestVersion: '1.8.13',
+    latestBuildNumber: 200,
     minVersion: '1.3.0',
     minBuildNumber: 10,
     titleVi: 'Bản Cập Nhật ZenHome Mới',
     titleEn: 'New ZenHome Update',
     releaseNotesVi: '• Đồng bộ dữ liệu Cloud Firestore thời gian thực 100%\n• Tăng tốc đăng nhập mượt mà, loại bỏ độ trễ sau khi hoàn tất\n• Tích hợp cơ chế kiểm tra và cập nhật phiên bản OTA\n• Nâng cấp giao diện RESTful API & Swagger UI Dark Mode',
     releaseNotesEn: '• 100% Realtime Firestore synchronization\n• Superfast login flow without delay\n• In-app OTA version update checker\n• Revamped RESTful API & Swagger UI',
-    downloadUrl: 'https://github.com/dtthuat/zenhome/releases/latest',
+    downloadUrl: 'https://github.com/dtt09/ma_nguon_ZenHome/releases/latest',
     directApkUrl: typeof window !== 'undefined'
       ? `${window.location.origin}/public/downloads/zenhome-app-release.apk`
       : '/public/downloads/zenhome-app-release.apk',
@@ -52,15 +52,15 @@ export const AppVersionModal: React.FC<AppVersionModalProps> = ({
       const data = await fetchAppVersionInfo();
       if (data) {
         setFormData({
-          latestVersion: data.latestVersion || '1.4.0',
-          latestBuildNumber: Number(data.latestBuildNumber) || 140,
+          latestVersion: data.latestVersion || '1.8.13',
+          latestBuildNumber: Number(data.latestBuildNumber) || 200,
           minVersion: data.minVersion || '1.3.0',
           minBuildNumber: Number(data.minBuildNumber) || 10,
           titleVi: data.titleVi || 'Bản Cập Nhật ZenHome Mới',
           titleEn: data.titleEn || 'New ZenHome Update',
           releaseNotesVi: data.releaseNotesVi || '',
           releaseNotesEn: data.releaseNotesEn || '',
-          downloadUrl: data.downloadUrl || 'https://github.com/dtthuat/zenhome/releases/latest',
+          downloadUrl: data.downloadUrl || 'https://github.com/dtt09/ma_nguon_ZenHome/releases/latest',
           directApkUrl: data.directApkUrl || '/public/downloads/zenhome-app-release.apk',
           isForceUpdate: Boolean(data.isForceUpdate),
           publishedAt: data.publishedAt || '',

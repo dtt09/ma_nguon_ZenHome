@@ -449,7 +449,7 @@ export const ApiDocsView: React.FC = () => {
         titleEn: "ZenHome Update v1.7.2 - Zero-Trust API Security",
         releaseNotesVi: "• Bảo vệ Zero-Trust cho toàn bộ endpoint phần cứng\n• Chống tấn công giả mạo IDOR\n• Đồng bộ hoàn hảo cổng 3000 và 5000",
         releaseNotesEn: "• Zero-Trust security across all hardware endpoints\n• IDOR defense enabled\n• Full port 3000-5000 sync",
-        downloadUrl: "https://github.com/dtthuat/zenhome/releases/latest",
+        downloadUrl: "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest",
         directApkUrl: "/public/downloads/zenhome-app-release.apk",
         isForceUpdate: false
       }, null, 2),

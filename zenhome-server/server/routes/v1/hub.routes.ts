@@ -585,7 +585,6 @@ hubRouter.post('/ota/trigger', async (req: Request, res: Response) => {
         `${user.id}/${formattedMac}/system/ota_update`,
         `${user.id.toLowerCase()}/${cleanMac}/system/ota_update`,
         `${user.id.toLowerCase()}/${formattedMac}/system/ota_update`,
-        `+/+/system/ota_update`,
       ];
       if (userId && userId !== user.id) {
         topics.push(`${userId}/${cleanMac}/system/ota_update`);
@@ -813,8 +812,6 @@ hubRouter.post('/ota/publish', requireAdminAuth, async (req: Request, res: Respo
           dispatchedCount++;
         }
 
-        // Bắn thêm topic broadcast toàn mạng
-        client.publish('+/+/system/ota_update', otaPayload);
         addLog('[OTA]', `📡 Đã phát tín hiệu OTA toàn đội tàu (Fleet OTA) tới ${dispatchedCount} Hub ESP32`, 'info');
       } catch (fleetErr: any) {
         console.warn('[OTA] Lỗi khi broadcast Fleet OTA:', fleetErr.message);

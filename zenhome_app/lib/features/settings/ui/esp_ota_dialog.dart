@@ -405,11 +405,25 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
       });
     });
 
+    // Tiến trình hiển thị mượt mà trong khi chờ phản hồi từng block Flash từ ESP32
+    Timer.periodic(const Duration(milliseconds: 700), (timer) {
+      if (!mounted || _isFinished) {
+        timer.cancel();
+        return;
+      }
+      if (_progress < 85) {
+        setState(() {
+          _progress = (_progress + 3).clamp(0, 85);
+          _statusMessage = 'Đang tải & nạp Flash vi điều khiển: $_progress%';
+        });
+      }
+    });
+
     // Dual-detection: Nếu ESP32 khởi động lại và online trở lại sau quá trình nạp
     _onlineSub = mqttRepo.espOnlineStream.listen((isOnline) {
       if (!mounted || _isFinished) return;
       final elapsedSec = DateTime.now().difference(_startTime).inSeconds;
-      if (isOnline && (_progress >= 85 || elapsedSec >= 25)) {
+      if (isOnline && (_progress >= 60 || elapsedSec >= 12)) {
         _timeoutTimer?.cancel();
         setState(() {
           _isFinished = true;
