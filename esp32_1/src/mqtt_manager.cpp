@@ -165,10 +165,9 @@ void connectMQTT() {
   String statusTopic = mqtt_prefix + "/esp_status";
 
   // Dọn dẹp triệt để TLS Socket cũ trước khi khởi tạo phiên bắt tay mới
-  if (espClient.connected()) {
-    espClient.stop();
-    delay(50);
-  }
+  espClient.stop();
+  delay(30);
+  espClient.setHandshakeTimeout(15);
   espClient.setInsecure(); // Bỏ qua kiểm tra độ sâu chuỗi chứng chỉ trung gian YR1 nhưng vẫn mã hóa TLS AES-256
 
   bool connected = false;

@@ -472,7 +472,7 @@ void triggerIntrusionTrap(AsyncWebServerRequest *request, const char* trapName) 
 }
 
 void parseMembersJson(const String& jsonStr) {
-  DynamicJsonDocument doc(4096);
+  DynamicJsonDocument doc(1536);
   DeserializationError err = deserializeJson(doc, jsonStr);
   if (err) {
     Serial.println("[RBAC] ⚠️ Lỗi phân tích cú pháp JSON danh sách thành viên!");
