@@ -295,13 +295,20 @@ class BleLocalService {
       _connectedDevice = target;
       await target.connect(
         license: License.nonprofit,
-        mtu: null,
+        mtu: 512,
         autoConnect: false,
         timeout: const Duration(seconds: 4),
       );
 
       _isConnected = true;
       LoggerService.i('[BLE] ⚡ Đã kết nối vật lý BLE tới Hub! Đang tìm kiếm GATT Service...');
+
+      // Yêu cầu nâng MTU lên 512 byte trên Android để truyền toàn vẹn gói xác thực HMAC/JSON
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        try {
+          await target.requestMtu(512);
+        } catch (_) {}
+      }
 
       // Lắng nghe trạng thái ngắt kết nối
       target.connectionState.listen((state) {

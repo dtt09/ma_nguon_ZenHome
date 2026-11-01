@@ -66,6 +66,7 @@ export function getDb(): sqlite3.Database {
         console.error('[SQLITE] ❌ Không thể mở cơ sở dữ liệu SQLite:', err.message);
       }
     });
+    dbInstance.configure('busyTimeout', 5000);
   }
   return dbInstance;
 }
@@ -108,6 +109,7 @@ export async function initSqliteDatabase(): Promise<void> {
 
   try {
     // 1. Kích hoạt chế độ WAL & tối ưu I/O đĩa
+    await dbRun('PRAGMA busy_timeout = 5000;');
     await dbRun('PRAGMA journal_mode = WAL;');
     await dbRun('PRAGMA synchronous = NORMAL;');
     await dbRun('PRAGMA temp_store = MEMORY;');

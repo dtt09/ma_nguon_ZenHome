@@ -32,15 +32,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp();
   }
-  LoggerService.i("[CHẠY NGẦM] Nhận thông báo: ${message.notification?.title}");
+  final notifTitle = message.notification?.title ?? message.data['title']?.toString();
+  final notifBody = message.notification?.body ?? message.data['body']?.toString();
+  LoggerService.i("[CHẠY NGẦM] Nhận thông báo: $notifTitle");
   
-  if (message.notification != null) {
+  if (notifTitle != null || message.notification != null || message.data.isNotEmpty) {
     try {
       final prefs = await SharedPreferences.getInstance();
       List<String> hist = prefs.getStringList('notification_history') ?? [];
       final newNotif = {
-        'title': message.notification!.title ?? 'ZenHome Notification',
-        'body': message.notification!.body ?? '',
+        'title': notifTitle ?? 'ZenHome Notification',
+        'body': notifBody ?? '',
         'timestamp': DateTime.now().millisecondsSinceEpoch,
         'isRead': false,
         'category': message.data['category'] ?? 'other',

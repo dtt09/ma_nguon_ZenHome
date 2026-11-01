@@ -26,8 +26,6 @@ import 'package:zenhome_app/features/home/ui/main_layout.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import 'package:zenhome_app/core/services/local_network_service.dart';
-
 import 'package:zenhome_app/core/services/ble_local_service.dart';
 import 'package:zenhome_app/core/providers/local_network_provider.dart';
 
@@ -396,6 +394,8 @@ mixin HomeSyncMixin on ConsumerState<MainLayout> {
         userId: activeConfig.userId,
 
         role: activeConfig.role,
+
+        isDisabled: activeConfig.isDisabled,
 
         allowedDevices: activeConfig.allowedDevices,
 

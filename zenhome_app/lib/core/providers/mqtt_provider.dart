@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:zenhome_app/core/repositories/mqtt_repository.dart';
-import 'package:zenhome_app/core/models/smart_config.dart';
 
 part 'mqtt_provider.g.dart';
 
@@ -55,6 +54,10 @@ class GlobalDeviceStates extends _$GlobalDeviceStates {
 
   void updateState(String deviceId, bool isOn) {
     state = {...state, deviceId: isOn};
+  }
+
+  void clearStates() {
+    state = {};
   }
 }
 

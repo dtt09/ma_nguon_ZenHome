@@ -485,6 +485,7 @@ void setupBLE() {
   NimBLEDevice::init(devName.c_str());
   NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Công suất phát +9dBm
   NimBLEDevice::setSecurityAuth(false, false, false);
+  NimBLEDevice::setMTU(512);
 
   pBleServer = NimBLEDevice::createServer();
   pBleServer->setCallbacks(new BleServerCallbacks());

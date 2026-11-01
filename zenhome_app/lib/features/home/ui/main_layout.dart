@@ -180,7 +180,11 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
         if (mounted) setState(() => isDisabled = false);
         initHomeSync();
         
-        // 1. Dọn dẹp kết nối mạng cục bộ LAN & BLE của ngôi nhà cũ trước khi chuyển
+        // 1. Dọn dẹp trạng thái thiết bị và cờ pending của ngôi nhà cũ trước khi đổi
+        ref.read(globalDeviceStatesProvider.notifier).clearStates();
+        ref.read(pendingDeviceOperationsProvider.notifier).clearAll();
+
+        // 2. Dọn dẹp kết nối mạng cục bộ LAN & BLE của ngôi nhà cũ trước khi chuyển
         ref.read(localNetworkServiceProvider).stopMonitoring();
 
         final activeConfig = next.activeConfig;

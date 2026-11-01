@@ -14,7 +14,7 @@ export function setupMqttHandlers() {
         state.mqttStatus.connected = true;
         state.mqttStatus.lastConnectedAt = new Date().toISOString();
         console.log(`🔌 Background Worker NodeJS đã kết nối thành công vào MQTT Broker!`);
-        client.subscribe('+/+/+/#');
+        client.subscribe(['+/+/+/#', '+/+/#', '+']);
     });
 
     client.on('error', (err: any) => {
@@ -126,10 +126,10 @@ export function setupMqttHandlers() {
                         clearTimeout(state.offlineDebounceTimers[userId]);
                         delete state.offlineDebounceTimers[userId];
                         if (payload !== 'online_power_restored') {
-                            console.log(`[ESP] 🔄 ESP32 ${macAddress} (user ${userId}) đã phục hồi kết nối trong thời gian ân hạn (WiFi chập chờn). Đã hủy cảnh báo giả!`);
-                            return;
+                            console.log(`[ESP] 🔄 ESP32 ${macAddress} (user ${userId}) đã phục hồi kết nối trong thời gian ân hạn (WiFi chập chờn). Đã hủy cảnh báo giả và tiếp tục đồng bộ trạng thái!`);
+                        } else {
+                            console.log(`[ESP] ⚡ ESP32 ${macAddress} (user ${userId}) kết nối lại với tín hiệu CÓ ĐIỆN LẠI (online_power_restored). Tiếp tục quy trình an toàn điện!`);
                         }
-                        console.log(`[ESP] ⚡ ESP32 ${macAddress} (user ${userId}) kết nối lại với tín hiệu CÓ ĐIỆN LẠI (online_power_restored). Tiếp tục quy trình an toàn điện!`);
                     }
 
                     if (payload === 'online_power_restored') {
