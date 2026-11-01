@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:zenhome_app/core/providers/theme_provider.dart';
 import 'package:zenhome_app/core/widgets/animations/telegram_theme_transition.dart';
 
@@ -117,12 +117,20 @@ class SettingsScreen extends ConsumerWidget {
           if (currentUsername == null) return;
 
           // Xóa mình khỏi danh sách của chủ nhà
-          await FirebaseFirestore.instance.collection('users').doc(ownerUsername).update({
-            'sharedWith': FieldValue.arrayRemove([currentUsername]),
-            'automationEditors': FieldValue.arrayRemove([currentUsername]),
-            'disabledMembers': FieldValue.arrayRemove([currentUsername]),
-            'memberRoles.$currentUsername': FieldValue.delete(),
-          });
+          try {
+            final Map<String, dynamic> leaveUpdates = {
+              'sharedWith': FieldValue.arrayRemove([currentUsername]),
+              'automationEditors': FieldValue.arrayRemove([currentUsername]),
+              'disabledMembers': FieldValue.arrayRemove([currentUsername]),
+            };
+            if (currentUser.uid.isNotEmpty) {
+              leaveUpdates['sharedUids'] = FieldValue.arrayRemove([currentUser.uid]);
+              leaveUpdates['disabledUids'] = FieldValue.arrayRemove([currentUser.uid]);
+            }
+            await FirebaseFirestore.instance.collection('users').doc(ownerUsername).update(leaveUpdates);
+          } catch (e) {
+            debugPrint('Error leaving owner document: $e');
+          }
           
           // Xóa liên kết chủ nhà ở bản thân
           await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({

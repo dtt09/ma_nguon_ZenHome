@@ -186,10 +186,18 @@ class MemberController extends StateNotifier<bool> {
     }
 
     try {
-      // 2. Thêm người dùng vào sharedWith của Chủ nhà
-      await FirebaseFirestore.instance.collection('users').doc(ownerUsername).set({
-        'sharedWith': FieldValue.arrayUnion([currentUsername])
-      }, SetOptions(merge: true));
+      // 2. Thêm người dùng vào sharedWith và sharedUids của Chủ nhà
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      final updateData = <String, dynamic>{
+        'sharedWith': FieldValue.arrayUnion([currentUsername]),
+      };
+      if (currentUid != null && currentUid.isNotEmpty) {
+        updateData['sharedUids'] = FieldValue.arrayUnion([currentUid]);
+      }
+      await FirebaseFirestore.instance.collection('users').doc(ownerUsername).set(
+        updateData,
+        SetOptions(merge: true),
+      );
 
       // 3. Cập nhật ownerUsername cho chính mình và gỡ khỏi danh sách chờ
       await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
@@ -294,13 +302,29 @@ class MemberController extends StateNotifier<bool> {
   Future<MemberOperationResult> removeMember(String memberUsername) async {
     if (currentUsername == null) await loadCurrentUsername();
     try {
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
+      String? memberUid;
+      try {
+        final memberDoc = await FirebaseFirestore.instance.collection('users').doc(memberUsername).get();
+        if (memberDoc.exists) {
+          memberUid = memberDoc.data()?['uid'];
+        }
+      } catch (e) {
+        debugPrint('Lỗi tra cứu member UID: $e');
+      }
+
+      final Map<String, dynamic> ownerUpdates = {
         'sharedWith': FieldValue.arrayRemove([memberUsername]),
         'automationEditors': FieldValue.arrayRemove([memberUsername]),
         'disabledMembers': FieldValue.arrayRemove([memberUsername]),
         'memberRoles.$memberUsername': FieldValue.delete(),
         'memberDevicePermissions.$memberUsername': FieldValue.delete(),
-      });
+      };
+      if (memberUid != null && memberUid.isNotEmpty) {
+        ownerUpdates['sharedUids'] = FieldValue.arrayRemove([memberUid]);
+        ownerUpdates['disabledUids'] = FieldValue.arrayRemove([memberUid]);
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update(ownerUpdates);
       await FirebaseFirestore.instance.collection('users').doc(memberUsername).update({
         'ownerUsername': FieldValue.delete(),
         'ownerEmail': FieldValue.delete()
@@ -342,11 +366,28 @@ class MemberController extends StateNotifier<bool> {
   Future<MemberOperationResult> toggleDisableMember(String memberUsername, bool isDisabled) async {
     if (currentUsername == null) await loadCurrentUsername();
     try {
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
+      String? memberUid;
+      try {
+        final memberDoc = await FirebaseFirestore.instance.collection('users').doc(memberUsername).get();
+        if (memberDoc.exists) {
+          memberUid = memberDoc.data()?['uid'];
+        }
+      } catch (e) {
+        debugPrint('Lỗi tra cứu member UID: $e');
+      }
+
+      final Map<String, dynamic> ownerUpdates = {
         'disabledMembers': isDisabled
             ? FieldValue.arrayUnion([memberUsername])
             : FieldValue.arrayRemove([memberUsername])
-      });
+      };
+      if (memberUid != null && memberUid.isNotEmpty) {
+        ownerUpdates['disabledUids'] = isDisabled
+            ? FieldValue.arrayUnion([memberUid])
+            : FieldValue.arrayRemove([memberUid]);
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update(ownerUpdates);
       _syncToLocalHubIfAvailable();
       return MemberOperationResult(
         success: true,

@@ -25,22 +25,28 @@ service cloud.firestore {
       );
     }
 
-    // Kiểm tra xem thành viên có đang bị vô hiệu hóa / khóa quyền không (SEC-FIX: Lọc mảng disabledMembers)
+    // Kiểm tra xem thành viên có đang bị vô hiệu hóa / khóa quyền không (SEC-FIX: Lọc mảng disabledMembers và disabledUids)
     function isMemberDisabled(userData) {
-      return userData != null && userData.disabledMembers is list && (
-        userData.disabledMembers.hasAny([request.auth.token.email, request.auth.uid]) ||
-        (request.auth.token.email != null && userData.disabledMembers.hasAny([request.auth.token.email.split('@')[0]]))
+      return userData != null && (
+        (userData.disabledMembers is list && (
+          userData.disabledMembers.hasAny([request.auth.token.email, request.auth.uid]) ||
+          (request.auth.token.email != null && userData.disabledMembers.hasAny([request.auth.token.email.split('@')[0]]))
+        )) ||
+        (userData.disabledUids is list && userData.disabledUids.hasAny([request.auth.uid]))
       );
     }
 
-    // Kiểm tra xem người dùng hiện tại có nằm trong danh sách thành viên đã chấp thuận chia sẻ không
+    // Kiểm tra xem người dùng hiện tại có nằm trong danh sách thành viên đã chấp thuận chia sẻ không (hỗ trợ cả UID và Username)
     function isSharedMember(userData) {
       return isSignedIn() && userData != null &&
         !isMemberDisabled(userData) &&
-        (userData.sharedWith is list && (
-          userData.sharedWith.hasAny([request.auth.token.email, request.auth.uid]) ||
-          (request.auth.token.email != null && userData.sharedWith.hasAny([request.auth.token.email.split('@')[0]]))
-        ));
+        (
+          (userData.sharedWith is list && (
+            userData.sharedWith.hasAny([request.auth.token.email, request.auth.uid]) ||
+            (request.auth.token.email != null && userData.sharedWith.hasAny([request.auth.token.email.split('@')[0]]))
+          )) ||
+          (userData.sharedUids is list && userData.sharedUids.hasAny([request.auth.uid]))
+        );
     }
 
     // Hồ sơ người dùng
@@ -67,15 +73,24 @@ service cloud.firestore {
         request.auth.uid == userId ||
         // Người khác gửi lời mời tham gia nhà: chỉ được phép thêm vào pendingInvitations
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingInvitations']) ||
-        // Người nhận lời mời: chấp nhận lời mời (thêm vào sharedWith, xóa sentInvitations) hoặc từ chối (xóa sentInvitations)
+        // Người nhận lời mời: chấp nhận lời mời (thêm vào sharedWith, sharedUids, xóa sentInvitations) hoặc từ chối (xóa sentInvitations)
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedUids']) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sentInvitations']) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'sentInvitations']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedUids', 'sentInvitations']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'sharedUids']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedWith', 'sharedUids', 'sentInvitations']) ||
+        // Cho phép thành viên tự rời nhà (xóa mình khỏi sharedWith, sharedUids, automationEditors, disabledMembers, disabledUids)
+        (isSharedMember(resource.data) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           'sharedWith', 'sharedUids', 'automationEditors', 'disabledMembers', 'disabledUids'
+         ])) ||
         // Thành viên phụ (Shared Member) cập nhật các cài đặt không can thiệp vào bảo mật nhạy cảm
         (isSharedMember(resource.data) &&
          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-           'adminPass', 'macAddress', 'devices', 'sharedWith', 'memberRoles',
-           'disabledMembers', 'memberDevicePermissions', 'uid', 'email', 'phone'
+           'adminPass', 'macAddress', 'devices', 'sharedWith', 'sharedUids', 'memberRoles',
+           'disabledMembers', 'disabledUids', 'memberDevicePermissions', 'uid', 'email', 'phone'
          ]))
       );
 

@@ -7,7 +7,7 @@ import 'package:zenhome_app/core/services/logger_service.dart';
 
 class MqttRepository {
   MqttServerClient? client;
-  final List<Map<String, String>> _cmdQueue = [];
+  final List<Map<String, dynamic>> _cmdQueue = [];
   Timer? _silentRetryTimer;
   Timer? _heartbeatWatchdogTimer;
 
@@ -264,8 +264,17 @@ class MqttRepository {
     });
 
     if (_cmdQueue.isNotEmpty) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      const ttlMs = 15000; // TTL: 15 giây chống xung đột lệnh quá hạn khi khôi phục mạng
       for (var cmd in _cmdQueue) {
-        _sendActualPublish(cmd['topic']!, cmd['message']!);
+        final timestamp = cmd['timestamp'] as int? ?? 0;
+        final topic = cmd['topic'] as String? ?? '';
+        final message = cmd['message'] as String? ?? '';
+        if (topic.isNotEmpty && (now - timestamp <= ttlMs)) {
+          _sendActualPublish(topic, message);
+        } else if (topic.isNotEmpty) {
+          LoggerService.w('[MQTT] ⏱️ Lệnh đã hết hạn TTL (${((now - timestamp) / 1000).toStringAsFixed(1)}s > 15s), hủy gửi: $topic');
+        }
       }
       _cmdQueue.clear();
     }
@@ -317,12 +326,21 @@ class MqttRepository {
   void publishCmd(String topic, String message) {
     if (client?.connectionStatus?.state != MqttConnectionState.connected) {
       if (!_isHardDisconnected) {
-        // Chỉ lưu lệnh cuối cùng cho mỗi topic để tránh spam khi có mạng lại
+        final now = DateTime.now().millisecondsSinceEpoch;
+        // Chỉ lưu lệnh cuối cùng cho mỗi topic kèm timestamp để quản lý TTL chống xung đột
         final existingIndex = _cmdQueue.indexWhere((cmd) => cmd['topic'] == topic);
         if (existingIndex >= 0) {
-          _cmdQueue[existingIndex] = {'topic': topic, 'message': message};
+          _cmdQueue[existingIndex] = {
+            'topic': topic,
+            'message': message,
+            'timestamp': now,
+          };
         } else {
-          _cmdQueue.add({'topic': topic, 'message': message});
+          _cmdQueue.add({
+            'topic': topic,
+            'message': message,
+            'timestamp': now,
+          });
         }
       }
       return;
@@ -337,7 +355,11 @@ class MqttRepository {
         builder.addString(message);
         client?.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
       } else {
-        _cmdQueue.add({'topic': topic, 'message': message});
+        _cmdQueue.add({
+          'topic': topic,
+          'message': message,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        });
       }
     } catch (e) {
       LoggerService.w('[MQTT] Không thể gửi lệnh xuất bản: $e');
@@ -346,6 +368,7 @@ class MqttRepository {
 
   void disconnect() {
     _isIntentionalDisconnect = true;
+    _cmdQueue.clear(); // Hủy toàn bộ hàng đợi lệnh dở dang của phiên cũ tránh rò rỉ sang nhà khác
     _isEspOnline = false;
     _espOnlineController.add(false);
     _heartbeatWatchdogTimer?.cancel();

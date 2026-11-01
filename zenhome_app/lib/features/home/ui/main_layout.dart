@@ -1,4 +1,4 @@
-﻿import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
+import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
 
 import 'dart:async';
 
@@ -42,6 +42,7 @@ import 'package:zenhome_app/features/home/logic/home_sync_mixin.dart';
 import 'package:zenhome_app/features/home/ui/components/disabled_view.dart';
 
 import 'package:zenhome_app/core/theme/app_theme.dart';
+import 'package:zenhome_app/core/providers/local_network_provider.dart';
 
 
 
@@ -173,39 +174,41 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
     // Reload connection when activeConfig changes
 
     ref.listen(homeConfigProvider, (previous, next) {
-
       if (previous?.activeConfig.userId != next.activeConfig.userId || previous?.activeConfig.role != next.activeConfig.role) {
-
         disposeHomeSync();
-
         if (mounted) setState(() => isDisabled = false);
-
         initHomeSync();
-
         
+        // 1. Dọn dẹp kết nối mạng cục bộ LAN & BLE của ngôi nhà cũ trước khi chuyển
+        ref.read(localNetworkServiceProvider).stopMonitoring();
 
         final activeConfig = next.activeConfig;
 
+        // 2. Ngắt MQTT cũ và kết nối MQTT tới broker với không gian nhà mới
         ref.read(mqttRepositoryProvider).disconnect();
-
         ref.read(mqttRepositoryProvider).connect(
-
           userId: activeConfig.userId,
-
           mqttServer: activeConfig.mqttServer,
-
           mqttPrefix: activeConfig.mqttPrefix,
-
           dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
-
           mqttUser: activeConfig.mqttUser,
-
           mqttPass: activeConfig.mqttPass,
-
         );
 
+        // 3. Khởi động lại giám sát mạng cục bộ LAN & BLE với cấu hình nhà mới (nếu có Hub)
+        if (activeConfig.macAddress.isNotEmpty &&
+            activeConfig.macAddress != 'unknown_mac' &&
+            activeConfig.macAddress != 'unknown') {
+          ref.read(localNetworkServiceProvider).startMonitoring(
+            targetMac: activeConfig.macAddress,
+            adminPass: activeConfig.adminPass,
+            userId: activeConfig.userId,
+            role: activeConfig.role,
+            isDisabled: activeConfig.isDisabled,
+            allowedDevices: activeConfig.allowedDevices,
+          );
+        }
       }
-
     });
 
 
