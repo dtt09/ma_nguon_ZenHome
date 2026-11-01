@@ -347,7 +347,7 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
     final user = FirebaseAuth.instance.currentUser;
     String currentUsername = activeConfig.userId;
     if (user != null) {
-      currentUsername = user.displayName ?? (user.email?.split('@')[0] ?? user.uid);
+      currentUsername = user.email?.split('@')[0] ?? (activeConfig.userId.isNotEmpty ? activeConfig.userId : (user.displayName ?? user.uid));
     }
 
     int delayMs = 0;

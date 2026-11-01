@@ -216,7 +216,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
       try {
         final mqttPrefix = activeConfig.mqttPrefix;
         final topicCmd1 = '$mqttPrefix/$roomId/$devId/cmd';
-        final senderUser = FirebaseAuth.instance.currentUser?.displayName ?? FirebaseAuth.instance.currentUser?.email ?? 'member';
+        final senderUser = FirebaseAuth.instance.currentUser?.email?.split('@')[0] ?? (activeConfig.role == 'owner' ? activeConfig.userId : 'member');
         final payload = jsonEncode({
           'action': cmd,
           'user': senderUser,

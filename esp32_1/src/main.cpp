@@ -259,18 +259,27 @@ void loop() {
   // 10. Kiểm tra Timeout giai đoạn Setup (Fallback AP Mode nếu không hoàn thành sau 3 phút)
   checkSetupTimeout();
 
-  // 11. Đọc và đẩy dữ liệu cảm biến định kỳ mỗi 30s
+  // 11. Đọc cảm biến mỗi 15s và lập tức cảnh báo nếu phát hiện nhiệt độ tăng vọt/nguy cơ hỏa hoạn
   static unsigned long lastDhtPublish = 0;
-  if (isProvisioned && !isSetupPending && (lastDHTRead == 0 || (currentMillis - lastDHTRead >= 30000))) {
+  static float lastPublishedTemp = NAN;
+  if (isProvisioned && !isSetupPending && (lastDHTRead == 0 || (currentMillis - lastDHTRead >= 15000))) {
     lastDHTRead = currentMillis;
     readSensors();
     if (!isnan(cachedTemperature)) {
-      bool shouldPub = (currentMillis - lastDhtPublish >= 300000) || (lastDhtPublish == 0);
+      bool isEmergencyHeat = (cachedTemperature >= 45.0f);
+      bool tempSpike = (!isnan(lastPublishedTemp) && abs(cachedTemperature - lastPublishedTemp) >= 1.5f);
+      bool regularInterval = (currentMillis - lastDhtPublish >= 300000) || (lastDhtPublish == 0);
+      bool shouldPub = regularInterval || ((tempSpike || isEmergencyHeat) && (currentMillis - lastDhtPublish >= 10000));
+
       if (shouldPub && mqttClient.connected()) {
         lastDhtPublish = currentMillis;
+        lastPublishedTemp = cachedTemperature;
         String tempStr = String(cachedTemperature, 1);
         String topic = mqtt_prefix + "/nhiet_do_trong_nha";
         mqttClient.publish(topic.c_str(), tempStr.c_str());
+        if (isEmergencyHeat) {
+          Serial.printf("[FIRE-SAFETY] 🔥 Cảnh báo nhiệt độ cao phát hiện trên ESP32: %.1f°C! Đã lập tức phát MQTT.\n", cachedTemperature);
+        }
       }
     }
   }

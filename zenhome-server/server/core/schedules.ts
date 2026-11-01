@@ -337,6 +337,8 @@ export function startCronJob(sendCommandWithRetry: (baseTopic: string, stateStr:
                 console.log(`[CRON-QA] 💬 Trả lời: Khớp lệnh [${item.baseTopic} -> ${item.action}]. Đã phát tín hiệu.`);
             }
         }
+    }, {
+        timezone: 'Asia/Ho_Chi_Minh'
     });
 
     console.log('[CRON-QA] 🚀 Cơ chế Lịch trình Thông minh (Hỏi - Trả lời) đã kích hoạt: Tự động giữ yên lặng khi không có sự kiện.');

@@ -748,8 +748,8 @@ void setupStationWebServer() {
   }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
     if (!index) {
       String adminReq = request->hasParam("adminPass", true) ? request->getParam("adminPass", true)->value() : "";
-      if (admin_pass.length() > 0 && adminReq != admin_pass) {
-        Serial.println("[WEB-OTA] ⛔ Từ chối nâng cấp firmware: Sai mật khẩu quản trị!");
+      if (admin_pass.length() == 0 || adminReq != admin_pass) {
+        Serial.println("[WEB-OTA] ⛔ Từ chối nâng cấp firmware: Sai hoặc chưa cấu hình mật khẩu quản trị!");
         return;
       }
 
@@ -787,8 +787,8 @@ void setupStationWebServer() {
     }
 
     String sentAdmin = doc.containsKey("adminPass") ? doc["adminPass"].as<String>() : (doc.containsKey("admin_pass") ? doc["admin_pass"].as<String>() : "");
-    if (admin_pass.length() > 0 && sentAdmin != admin_pass) {
-      request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_ADMIN\",\"message\":\"Sai mật khẩu quản trị!\"}");
+    if (admin_pass.length() == 0 || sentAdmin != admin_pass) {
+      request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_ADMIN\",\"message\":\"Sai hoặc chưa cấu hình mật khẩu quản trị!\"}");
       return;
     }
 
