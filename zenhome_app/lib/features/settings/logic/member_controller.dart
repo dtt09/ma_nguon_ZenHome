@@ -247,7 +247,9 @@ class MemberController extends StateNotifier<bool> {
         final newConfig = SmartConfig(
           userId: ownerUsername,
           macAddress: (data['macAddress'] == 'unknown_mac' || data['macAddress'] == 'unknown' || data['macAddress'] == null) ? '' : data['macAddress'],
-          mqttServer: data['mqttServer'] ?? 'broker.emqx.io',
+          mqttServer: (data['mqttServer'] != null && data['mqttServer'].toString().isNotEmpty && data['mqttServer'] != 'broker.emqx.io')
+              ? data['mqttServer']
+              : 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud',
           mqttUser: data['mqttUser'],
           mqttPass: data['mqttPass'],
           devices: restoredDevices,

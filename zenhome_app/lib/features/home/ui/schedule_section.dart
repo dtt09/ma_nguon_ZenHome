@@ -54,11 +54,13 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
         .listen((snap) async {
       final prefs = await SharedPreferences.getInstance();
       String? schedulesString = prefs.getString('schedules_data_$targetId');
-      List<dynamic> localSchedules = (schedulesString != null) ? jsonDecode(schedulesString) : [];
+      List<dynamic> localRaw = (schedulesString != null) ? jsonDecode(schedulesString) : [];
+      // CHỈ giữ lại lịch cá nhân cục bộ, loại bỏ triệt để lịch chia sẻ cũ đã bị xóa trên Firestore (Chống Zombie Document)
+      List<dynamic> localPersonalSchedules = localRaw.where((e) => e['isShared'] != true).toList();
       List<dynamic> firestoreSchedules = snap.docs.map((doc) => doc.data()).toList();
 
       List<Map<String, dynamic>> combined = [];
-      combined.addAll(localSchedules.map((e) => Map<String, dynamic>.from(e)));
+      combined.addAll(localPersonalSchedules.map((e) => Map<String, dynamic>.from(e)));
       combined.addAll(firestoreSchedules.map((e) => Map<String, dynamic>.from(e)));
 
       Map<String, Map<String, dynamic>> uniqueMap = {};
@@ -1121,17 +1123,16 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
           FirebaseFirestore.instance.collection('users').doc(targetId).collection('schedules').doc(id).delete();
           
           if (activeConfig.role != 'owner' && FirebaseAuth.instance.currentUser != null) {
-            String name = FirebaseAuth.instance.currentUser!.displayName ?? FirebaseAuth.instance.currentUser!.email ?? context.tr('a_member') ?? 'Một thành viên';
+            String name = FirebaseAuth.instance.currentUser!.displayName ?? FirebaseAuth.instance.currentUser!.email ?? context.tr('a_member');
             FirebaseFirestore.instance.collection('users').doc(targetId).collection('alerts').add({
               'type': 'automation_edit',
               'author': name,
-              'actionName': context.tr('act_delete_schedule') ?? 'vừa xóa một lịch trình',
+              'actionName': context.tr('act_delete_schedule'),
               'timestamp': FieldValue.serverTimestamp(),
             });
           }
-        } else {
-          _saveSchedulesToDisk();
         }
+        _saveSchedulesToDisk();
         
         showFloatingToast(context, context.tr('msg_deleted_title'), context.tr('msg_schedule_deleted_desc'));
       },

@@ -474,7 +474,7 @@ void triggerIntrusionTrap(AsyncWebServerRequest *request, const char* trapName) 
     alertDoc["action"] = "IP_BLOCKED_24H";
     String alertMsg;
     serializeJson(alertDoc, alertMsg);
-    mqttClient.publish(alertTopic.c_str(), alertMsg.c_str(), true);
+    safeMqttPublish(alertTopic.c_str(), alertMsg.c_str(), true);
   }
 
   request->send(403, "application/json", "{\"status\":\"error\",\"code\":\"ACCESS_DENIED\",\"message\":\"Intrusion detected. Your IP has been blacklisted.\"}");

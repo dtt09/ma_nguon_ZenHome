@@ -175,7 +175,7 @@ class HomeConfigNotifier extends ChangeNotifier {
         'homeName': trimmedName,
         'role': 'owner',
         'macAddress': cleanMac,
-        'mqttServer': 'broker.emqx.io',
+        'mqttServer': 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud',
         'devices': <Map<String, dynamic>>[],
         'isSubHome': true,
         'homeIcon': homeIcon,
@@ -201,7 +201,7 @@ class HomeConfigNotifier extends ChangeNotifier {
       final newHomeConfig = SmartConfig(
         userId: homeId,
         macAddress: cleanMac,
-        mqttServer: 'broker.emqx.io',
+        mqttServer: 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud',
         devices: [],
         role: 'owner',
         homeName: trimmedName,
@@ -432,7 +432,9 @@ class HomeConfigNotifier extends ChangeNotifier {
         updatedHomes.add(SmartConfig(
           userId: homeId,
           macAddress: cleanHomeMac,
-          mqttServer: data['mqttServer'] ?? 'broker.emqx.io',
+          mqttServer: (data['mqttServer'] != null && data['mqttServer'].toString().isNotEmpty && data['mqttServer'] != 'broker.emqx.io')
+              ? data['mqttServer']
+              : 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud',
           mqttUser: data['mqttUser'],
           mqttPass: data['mqttPass'],
           devices: restoredDevices,
@@ -530,7 +532,9 @@ class HomeConfigNotifier extends ChangeNotifier {
             updatedHomes.add(SmartConfig(
               userId: ownerUsername,
               macAddress: cleanOwnerMac,
-              mqttServer: ownerData['mqttServer'] ?? 'broker.emqx.io',
+              mqttServer: (ownerData['mqttServer'] != null && ownerData['mqttServer'].toString().isNotEmpty && ownerData['mqttServer'] != 'broker.emqx.io')
+                  ? ownerData['mqttServer']
+                  : 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud',
               mqttUser: ownerData['mqttUser'],
               mqttPass: ownerData['mqttPass'],
               devices: ownerDevices,

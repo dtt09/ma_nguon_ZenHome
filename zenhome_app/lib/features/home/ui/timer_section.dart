@@ -328,11 +328,13 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
         .listen((snap) async {
       final prefs = await SharedPreferences.getInstance();
       String? data = prefs.getString('timer_history_data_$targetId');
-      List<dynamic> localTimers = (data != null) ? jsonDecode(data) : [];
+      List<dynamic> localRaw = (data != null) ? jsonDecode(data) : [];
+      // CHỈ giữ lại timer cá nhân cục bộ, loại bỏ triệt để timer chia sẻ cũ đã bị xóa trên Firestore (Chống Zombie Document)
+      List<dynamic> localPersonalTimers = localRaw.where((e) => e['isShared'] != true).toList();
       List<dynamic> firestoreTimers = snap.docs.map((doc) => doc.data()).toList();
 
       List<Map<String, dynamic>> combined = [];
-      combined.addAll(localTimers.map((e) => Map<String, dynamic>.from(e)));
+      combined.addAll(localPersonalTimers.map((e) => Map<String, dynamic>.from(e)));
       combined.addAll(firestoreTimers.map((e) => Map<String, dynamic>.from(e)));
 
       Map<String, Map<String, dynamic>> uniqueMap = {};

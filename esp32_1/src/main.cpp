@@ -199,8 +199,8 @@ void loop() {
         if (mqttClient.connected()) {
           String hwResetTopic = mqtt_prefix + "/system/hardware_reset";
           String resetTopic = mqtt_prefix + "/system/reset";
-          mqttClient.publish(hwResetTopic.c_str(), "1", true);
-          mqttClient.publish(resetTopic.c_str(), "1", true);
+          safeMqttPublish(hwResetTopic.c_str(), "1", true);
+          safeMqttPublish(resetTopic.c_str(), "1", true);
           delay(600);
         }
         resetToFactoryDefaults();
@@ -278,7 +278,7 @@ void loop() {
         lastPublishedTemp = cachedTemperature;
         String tempStr = String(cachedTemperature, 1);
         String topic = mqtt_prefix + "/nhiet_do_trong_nha";
-        mqttClient.publish(topic.c_str(), tempStr.c_str());
+        safeMqttPublish(topic.c_str(), tempStr.c_str());
         if (isEmergencyHeat) {
           Serial.printf("[FIRE-SAFETY] 🔥 Cảnh báo nhiệt độ cao phát hiện trên ESP32: %.1f°C! Đã lập tức phát MQTT.\n", cachedTemperature);
         }

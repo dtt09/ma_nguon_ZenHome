@@ -30,7 +30,7 @@ mixin AuthHelperMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       final fallbackHome = SmartConfig(
         userId: username,
         macAddress: '',
-        mqttServer: 'broker.emqx.io',
+        mqttServer: 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud',
         devices: [],
         role: 'owner',
         homeName: context.tr('my_home_default'),

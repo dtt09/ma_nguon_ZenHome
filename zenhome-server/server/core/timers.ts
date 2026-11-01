@@ -9,12 +9,39 @@ export async function loadTimersFromFirebase() {
     try {
         const snapshot = await db.collection('server_timers').get();
         let loaded = 0;
+        let garbageCount = 0;
         const now = Date.now();
+        const validUsers = new Set<string>();
+        const invalidUsers = new Set<string>();
         
         for (const doc of snapshot.docs) {
             const data = doc.data();
             const { baseTopic, action, triggerAt } = data;
             const timerKey = `${baseTopic}_${action === '1' ? 'on' : 'off'}`;
+            const userId = baseTopic.split('/')[0];
+
+            let userExists = false;
+            if (validUsers.has(userId)) {
+                userExists = true;
+            } else if (invalidUsers.has(userId)) {
+                userExists = false;
+            } else {
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (userDoc.exists) {
+                    validUsers.add(userId);
+                    userExists = true;
+                } else {
+                    invalidUsers.add(userId);
+                    userExists = false;
+                }
+            }
+
+            if (!userExists) {
+                console.log(`[BACKEND] 🧹 Phát hiện tài khoản rác (${userId}) không tồn tại. Xóa timer ngầm: ${doc.id}`);
+                await doc.ref.delete();
+                garbageCount++;
+                continue;
+            }
             
             const remaining = triggerAt - now;
             if (remaining > 0) {
@@ -35,7 +62,7 @@ export async function loadTimersFromFirebase() {
                 deleteTimerFromFirebase(timerKey);
             }
         }
-        console.log(`[FIREBASE] ⏱️ Đã nạp ${loaded} hẹn giờ (timers) từ DB vào RAM.`);
+        console.log(`[FIREBASE] ⏱️ Đã nạp ${loaded} hẹn giờ (timers) từ DB vào RAM (Dọn dẹp: ${garbageCount}).`);
     } catch (e) {
         console.error("[FIREBASE ERROR] ❌ Lỗi nạp timers:", e);
     }
@@ -52,6 +79,10 @@ export async function saveTimerToFirebase(timerKey: string, baseTopic: string, a
 
 export async function deleteTimerFromFirebase(timerKey: string) {
     try {
+        if (state.activeTimers && state.activeTimers[timerKey]) {
+            clearTimeout(state.activeTimers[timerKey]);
+            delete state.activeTimers[timerKey];
+        }
         const docId = timerKey.replace(/\//g, '___');
         await db.collection('server_timers').doc(docId).delete();
     } catch (e) {
