@@ -268,11 +268,12 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
       String signPayload = "reconfig:" + newSsid + ":" + ts + ":" + nonce;
       bool authOk = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
 
-      if (!authOk && admin_pass.length() > 0) {
+      if (!authOk) {
+        String effectivePass = (admin_pass.length() > 0) ? admin_pass : "admin";
         String mac = WiFi.macAddress();
         mac.replace(":", "");
         mac.toUpperCase();
-        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
+        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + effectivePass + ":" + mac);
         authOk = verifyHmacSha256(masterKey, signPayload, sig);
       }
 
@@ -309,6 +310,16 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
     if (doc.containsKey("action") && doc["action"] == "auth") {
       if (!doc.containsKey("ts") || !doc.containsKey("nonce") || !doc.containsKey("sig")) {
         Serial.println("[BLE-AUTH] ⛔ Gói tin Auth thiếu tham số chữ ký Key!");
+        if (pBleStatusChar) {
+          StaticJsonDocument<128> res;
+          res["status"] = "auth_failed";
+          res["authenticated"] = false;
+          res["error"] = "missing_params";
+          String out;
+          serializeJson(res, out);
+          pBleStatusChar->setValue(out.c_str());
+          pBleStatusChar->notify();
+        }
         return;
       }
       String ts = doc["ts"].as<String>();
@@ -317,10 +328,30 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
 
       if (isNonceReplayedOrInvalid(nonce)) {
         Serial.println("[BLE-AUTH] ⛔ Phát hiện Replay Attack hoặc Nonce không hợp lệ!");
+        if (pBleStatusChar) {
+          StaticJsonDocument<128> res;
+          res["status"] = "auth_failed";
+          res["authenticated"] = false;
+          res["error"] = "replay_nonce";
+          String out;
+          serializeJson(res, out);
+          pBleStatusChar->setValue(out.c_str());
+          pBleStatusChar->notify();
+        }
         return;
       }
       if (isTimestampExpired(ts)) {
         Serial.println("[BLE-AUTH] ⛔ Gói tin Auth đã hết hạn thời gian!");
+        if (pBleStatusChar) {
+          StaticJsonDocument<128> res;
+          res["status"] = "auth_failed";
+          res["authenticated"] = false;
+          res["error"] = "expired_ts";
+          String out;
+          serializeJson(res, out);
+          pBleStatusChar->setValue(out.c_str());
+          pBleStatusChar->notify();
+        }
         return;
       }
 
@@ -330,8 +361,9 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
 
       String expectedAuthPayload = "auth:" + mac + ":" + ts + ":" + nonce;
       bool authOk = verifyHmacSha256(currentLocalSecretKey, expectedAuthPayload, sig);
-      if (!authOk && admin_pass.length() > 0) {
-        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
+      if (!authOk) {
+        String effectivePass = (admin_pass.length() > 0) ? admin_pass : "admin";
+        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + effectivePass + ":" + mac);
         if (verifyHmacSha256(masterKey, expectedAuthPayload, sig)) {
           authOk = true;
           currentLocalSecretKey = masterKey;
@@ -347,6 +379,10 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
           slot->lastActivity = millis();
         }
         isBleAuthenticated = true;
+        if (ts.length() > 0) {
+          softSyncClockFromApp(ts.toInt());
+        }
+        triggerLedActionBlip();
         Serial.printf("[BLE-AUTH] 🔐 Xác thực Key kết nối Bluetooth thành công (Handle: %d)! Cho phép giao tiếp.\n", connHandle);
 
         if (pBleStatusChar) {
@@ -363,6 +399,16 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
         if (slot) slot->failedAuthAttempts++;
         int fails = slot ? slot->failedAuthAttempts : 1;
         Serial.printf("[BLE-AUTH] ❌ Xác thực Key thất bại (Handle: %d)! (Lần %d/3)\n", connHandle, fails);
+        if (pBleStatusChar) {
+          StaticJsonDocument<128> res;
+          res["status"] = "auth_failed";
+          res["authenticated"] = false;
+          res["error"] = "bad_signature";
+          String out;
+          serializeJson(res, out);
+          pBleStatusChar->setValue(out.c_str());
+          pBleStatusChar->notify();
+        }
         if (fails >= 3 && pBleServer && connHandle != 0) {
           Serial.printf("[BLE-AUTH] ⛔ Handle %d quá 3 lần sai Key! Chủ động ngắt kết nối BLE...\n", connHandle);
           pBleServer->disconnect(connHandle);
@@ -405,11 +451,12 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
         }
       }
 
-      if (!cmdSigOk && admin_pass.length() > 0) {
+      if (!cmdSigOk) {
+        String effectivePass = (admin_pass.length() > 0) ? admin_pass : "admin";
         String mac = WiFi.macAddress();
         mac.replace(":", "");
         mac.toUpperCase();
-        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
+        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + effectivePass + ":" + mac);
         if (verifyHmacSha256(masterKey, signPayload, sig)) {
           cmdSigOk = true;
           currentLocalSecretKey = masterKey;
@@ -423,6 +470,16 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
 
       if (!cmdSigOk) {
         Serial.printf("[BLE-CONTROL] ⛔ Chữ ký bảo mật không hợp lệ (Handle: %d)! Từ chối điều khiển.\n", connHandle);
+        if (pBleStatusChar) {
+          StaticJsonDocument<128> res;
+          res["id"] = devId;
+          res["status"] = "cmd_failed";
+          res["error"] = "bad_signature";
+          String out;
+          serializeJson(res, out);
+          pBleStatusChar->setValue(out.c_str());
+          pBleStatusChar->notify();
+        }
         if (slot) slot->failedAuthAttempts++;
         int fails = slot ? slot->failedAuthAttempts : 1;
         if (fails >= 3 && pBleServer && connHandle != 0) {

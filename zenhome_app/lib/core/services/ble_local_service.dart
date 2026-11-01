@@ -50,6 +50,8 @@ class BleLocalService {
   DateTime? _lastDiscoveredAt;
   BluetoothCharacteristic? _controlChar;
   BluetoothCharacteristic? _statusChar;
+  StreamSubscription? _statusCharSub;
+  Completer<bool>? _authCompleter;
 
   bool _isScanning = false;
   bool _isConnected = false;
@@ -332,7 +334,8 @@ class BleLocalService {
             } else if (c.uuid == _statusCharUuid) {
               _statusChar = c;
               await c.setNotifyValue(true);
-              c.onValueReceived.listen((value) {
+              _statusCharSub?.cancel();
+              _statusCharSub = c.onValueReceived.listen((value) {
                 _handleStatusNotification(value);
               });
             }
@@ -340,21 +343,32 @@ class BleLocalService {
         }
       }
 
-      // Bắt tay xác thực Key
+      // Bắt tay xác thực Key hai chiều có Timeout & Reactive ACK
       if (_controlChar != null) {
+        _authCompleter?.complete(false);
+        _authCompleter = Completer<bool>();
         await _authenticateWithKey();
-        int elapsed = 0;
-        while (!_isAuthenticated && elapsed < 3000) {
-          await Future.delayed(const Duration(milliseconds: 100));
-          elapsed += 100;
+
+        try {
+          final authOk = await _authCompleter!.future.timeout(const Duration(milliseconds: 2500));
+          _isAuthenticated = authOk;
+        } catch (_) {
+          _isAuthenticated = false;
+        } finally {
+          _authCompleter = null;
         }
+      }
+
+      if (!_isAuthenticated) {
+        LoggerService.w('[BLE] ❌ Xác thực Key thất bại hoặc quá hạn 2.5s! Chủ động ngắt kết nối BLE.');
+        await disconnect();
+        return false;
       }
 
       return _isAuthenticated && _controlChar != null;
     } catch (e) {
       LoggerService.w('[BLE] Kết nối trực tiếp thất bại: $e');
-      _isConnected = false;
-      _isAuthenticated = false;
+      await disconnect();
       return false;
     }
   }
@@ -406,7 +420,17 @@ class BleLocalService {
           _isAuthenticated = true;
           _bleAuthenticatedController.add(true);
           _bleAvailableController.add(true);
+          if (_authCompleter != null && !_authCompleter!.isCompleted) {
+            _authCompleter!.complete(true);
+          }
           LoggerService.i('[BLE-KEY] 🔐 Hub đã xác nhận Key thành công! Kênh BLE sẵn sàng.');
+        } else if (json['status'] == 'auth_failed' || json['authenticated'] == false) {
+          _isAuthenticated = false;
+          _bleAuthenticatedController.add(false);
+          if (_authCompleter != null && !_authCompleter!.isCompleted) {
+            _authCompleter!.complete(false);
+          }
+          LoggerService.w('[BLE-KEY] ⛔ Hub từ chối xác thực Key: ${json['error'] ?? 'auth_failed'}');
         }
 
         if (json.containsKey('id') && json.containsKey('state')) {
@@ -625,6 +649,12 @@ class BleLocalService {
   Future<void> disconnect() async {
     _idleDisconnectTimer?.cancel();
     _idleDisconnectTimer = null;
+    _statusCharSub?.cancel();
+    _statusCharSub = null;
+    if (_authCompleter != null && !_authCompleter!.isCompleted) {
+      _authCompleter!.complete(false);
+      _authCompleter = null;
+    }
     try {
       await _connectedDevice?.disconnect();
     } catch (_) {}

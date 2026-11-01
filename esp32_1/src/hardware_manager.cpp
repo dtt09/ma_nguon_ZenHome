@@ -27,6 +27,99 @@ const unsigned long SWITCH_MIN_TOGGLE_INTERVAL = 1500;
 
 static SemaphoreHandle_t i2cMutex = NULL;
 
+static LedStatusPattern currentLedPattern = LED_PATTERN_AP_MODE;
+static unsigned long ledBlipUntil = 0;
+static unsigned long lastLedPatternStep = 0;
+static uint8_t ledStepIndex = 0;
+
+void setLedPattern(LedStatusPattern pattern) {
+  if (currentLedPattern != pattern) {
+    currentLedPattern = pattern;
+    ledStepIndex = 0;
+    lastLedPatternStep = 0;
+  }
+}
+
+void triggerLedActionBlip() {
+  ledBlipUntil = millis() + 65; // Chớp 65ms phản hồi thao tác tức thì
+  digitalWrite(STATUS_LED_PIN, !digitalRead(STATUS_LED_PIN)); // Đảo trạng thái hiện tại
+}
+
+void updateLedIndicator() {
+  unsigned long now = millis();
+
+  // 1. Ưu tiên xử lý Action Blip (phản hồi thị giác khi relay bật/tắt hoặc BLE handshake)
+  if (ledBlipUntil > 0) {
+    if (now < ledBlipUntil) {
+      return; // Giữ trạng thái blip
+    } else {
+      ledBlipUntil = 0; // Hết hạn blip, quay về pattern bình thường
+    }
+  }
+
+  // 2. Xử lý mẫu chớp theo trạng thái hệ thống
+  switch (currentLedPattern) {
+    case LED_PATTERN_ONLINE_ALL:
+      // Solid ON: Sáng liên tục báo hiệu hệ thống đã hoàn toàn online (Wi-Fi + Cloud MQTT)
+      digitalWrite(STATUS_LED_PIN, HIGH);
+      break;
+
+    case LED_PATTERN_WIFI_CONNECTING:
+      // Nhấp nháy nhanh đều 100ms ON / 100ms OFF: Đang kết nối hoặc reconnect Wi-Fi
+      if (now - lastLedPatternStep >= 100) {
+        lastLedPatternStep = now;
+        ledStepIndex = (ledStepIndex + 1) % 2;
+        digitalWrite(STATUS_LED_PIN, (ledStepIndex == 0) ? HIGH : LOW);
+      }
+      break;
+
+    case LED_PATTERN_WIFI_CONNECTED:
+      // Nhấp nháy vừa 250ms ON / 250ms OFF: Đã có Wi-Fi, đang đợi kết nối MQTT Broker
+      if (now - lastLedPatternStep >= 250) {
+        lastLedPatternStep = now;
+        ledStepIndex = (ledStepIndex + 1) % 2;
+        digitalWrite(STATUS_LED_PIN, (ledStepIndex == 0) ? HIGH : LOW);
+      }
+      break;
+
+    case LED_PATTERN_OFFLINE_LOCAL:
+      // Nhấp nháy chậm 500ms ON / 500ms OFF: Router Wi-Fi mất kết nối, hệ thống chạy tự trị + BLE Fallback
+      if (now - lastLedPatternStep >= 500) {
+        lastLedPatternStep = now;
+        ledStepIndex = (ledStepIndex + 1) % 2;
+        digitalWrite(STATUS_LED_PIN, (ledStepIndex == 0) ? HIGH : LOW);
+      }
+      break;
+
+    case LED_PATTERN_AP_MODE:
+    default:
+      // Nháy đúp (Double-Blink): ON 100ms -> OFF 100ms -> ON 100ms -> OFF 700ms (Tổng chu kỳ 1000ms)
+      // Thể hiện trực quan ESP32 đang phát Wi-Fi AP Setup chờ cài đặt
+      if (ledStepIndex == 0 && (now - lastLedPatternStep >= 100)) {
+        lastLedPatternStep = now;
+        ledStepIndex = 1;
+        digitalWrite(STATUS_LED_PIN, LOW);
+      } else if (ledStepIndex == 1 && (now - lastLedPatternStep >= 100)) {
+        lastLedPatternStep = now;
+        ledStepIndex = 2;
+        digitalWrite(STATUS_LED_PIN, HIGH);
+      } else if (ledStepIndex == 2 && (now - lastLedPatternStep >= 100)) {
+        lastLedPatternStep = now;
+        ledStepIndex = 3;
+        digitalWrite(STATUS_LED_PIN, LOW);
+      } else if (ledStepIndex == 3 && (now - lastLedPatternStep >= 700)) {
+        lastLedPatternStep = now;
+        ledStepIndex = 0;
+        digitalWrite(STATUS_LED_PIN, HIGH);
+      } else if (lastLedPatternStep == 0) {
+        lastLedPatternStep = now;
+        ledStepIndex = 0;
+        digitalWrite(STATUS_LED_PIN, HIGH);
+      }
+      break;
+  }
+}
+
 void initHardwareMutex() {
   if (i2cMutex == NULL) {
     i2cMutex = xSemaphoreCreateMutex();
@@ -189,6 +282,9 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
 
         // Cập nhật bộ đếm lùi tự ngắt (Micro Rule Engine)
         updateRelayCountdownTimer(devId, targetState);
+
+        // Chớp đèn LED trạng thái phản hồi thị giác tức thì
+        triggerLedActionBlip();
 
         // Thông báo trạng thái mới tới App điện thoại qua BLE ngầm nếu đang kết nối
         notifyBleRelayState(devId, targetState);

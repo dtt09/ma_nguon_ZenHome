@@ -40,6 +40,19 @@ extern Adafruit_PCF8574 pcf;
 extern bool pcfFound;
 extern DHT dht;
 
+// LED Indication State Machine
+enum LedStatusPattern {
+  LED_PATTERN_AP_MODE,          // Chế độ AP Setup: Nháy đúp (100ms ON, 100ms OFF, 100ms ON, 700ms OFF)
+  LED_PATTERN_WIFI_CONNECTING,  // Đang dò / kết nối Wi-Fi: Nháy nhanh đều (100ms ON / 100ms OFF)
+  LED_PATTERN_WIFI_CONNECTED,   // Wi-Fi OK, đang kết nối MQTT: Nháy vừa (250ms ON / 250ms OFF)
+  LED_PATTERN_ONLINE_ALL,       // Wi-Fi + MQTT Cloud hoàn tất: Sáng đứng (Solid ON)
+  LED_PATTERN_OFFLINE_LOCAL     // Wi-Fi rớt / Offline (BLE Fallback): Nháy chậm (500ms ON / 500ms OFF)
+};
+
+void setLedPattern(LedStatusPattern pattern);
+void triggerLedActionBlip();
+void updateLedIndicator();
+
 extern float cachedTemperature;
 extern float cachedHumidity;
 extern unsigned long lastRuleEvalTime;

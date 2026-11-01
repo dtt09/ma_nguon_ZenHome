@@ -9,17 +9,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 import 'package:zenhome_app/features/auth/logic/auth_provider.dart';
-import 'package:zenhome_app/core/utils/constants.dart';
 import 'package:zenhome_app/core/utils/helpers.dart'; 
 import 'package:zenhome_app/features/home/ui/device_card.dart';
 import 'package:zenhome_app/features/home/ui/weather_card.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/models/smart_config.dart';
-import 'package:zenhome_app/main.dart'; 
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
-import 'package:zenhome_app/core/utils/localization_extension.dart';
-import 'package:zenhome_app/features/notifications/logic/notification_helper.dart';
 import 'package:zenhome_app/features/notifications/ui/notification_history_screen.dart';
 import 'package:zenhome_app/features/auth/ui/profile_screen.dart';
 import 'package:zenhome_app/core/widgets/user_avatar.dart';
@@ -28,7 +24,6 @@ import 'package:zenhome_app/features/home/ui/room_tab.dart';
 import 'package:zenhome_app/features/notifications/ui/notification_badge.dart';
 import 'package:zenhome_app/features/home/ui/scene_section.dart';
 import 'package:zenhome_app/features/home/ui/scenes_screen.dart';
-import 'package:zenhome_app/core/services/local_network_service.dart';
 import 'package:zenhome_app/core/utils/home_helper.dart';
 import 'package:zenhome_app/core/services/ble_local_service.dart';
 import 'package:zenhome_app/core/providers/local_network_provider.dart';
@@ -250,17 +245,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     }
   }
 
-  void _sendViaMqtt(
-    String devId,
-    String roomId,
-    bool currentState,
-    String cmd,
-    String actionText,
-    SmartConfig activeConfig,
-  ) {
-    // Được gộp vào quy trình song song tối ưu của _toggleDevice
-  }
-
   void _logHistoryToFirebase(String devId, String actionText) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -300,12 +284,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         final localService = ref.read(localNetworkServiceProvider);
-        final isLocalAvailable = ref.watch(isLocalNetworkAvailableProvider).value ?? localService.isLocalAvailable;
-        final localIp = ref.watch(localHubIpProvider).value ?? localService.cachedHubIp;
+        final isLanAvailable = ref.watch(isLanAvailableProvider).value ?? localService.isLanAvailable;
+        final localIp = ref.watch(localHubIpProvider).value ?? (isLanAvailable ? localService.cachedHubIp : null);
         final isEspOnline = ref.watch(espOnlineStateProvider);
         final isBleConnected = BleLocalService().isConnected;
         final isBleNearby = BleLocalService().isHubNearby;
-        final isLanConnected = isLocalAvailable && localIp != null && localIp.isNotEmpty;
+        final isLanConnected = isLanAvailable && localIp != null && localIp.isNotEmpty;
         final isUnlinked = activeConfig.macAddress == 'unknown_mac' || activeConfig.macAddress.isEmpty;
 
         // Xác định Kênh kết nối ưu tiên đang hoạt động
@@ -884,7 +868,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                             const SizedBox(width: 8),
                             Builder(
                               builder: (context) {
-                                final isLocalAvailable = ref.watch(isLocalNetworkAvailableProvider).value ?? ref.watch(localNetworkServiceProvider).isLocalAvailable;
+                                final isLanAvailable = ref.watch(isLanAvailableProvider).value ?? ref.watch(localNetworkServiceProvider).isLanAvailable;
+                                final isBleConnected = BleLocalService().isConnected;
+                                final isBleNearby = BleLocalService().isHubNearby;
                                 bool isOnline = ref.watch(espOnlineStateProvider);
                                 bool isUnlinked = activeConfig.macAddress == 'unknown_mac' || activeConfig.macAddress.isEmpty;
 
@@ -896,10 +882,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                                   statusText = context.tr('unlinked') ?? 'Chưa l.kết';
                                   statusColor = const Color(0xFFF59E0B);
                                   statusIcon = Icons.link_off_rounded;
-                                } else if (isLocalAvailable) {
-                                  statusText = 'Local ⚡';
+                                } else if (isLanAvailable) {
+                                  statusText = 'LAN ⚡';
                                   statusColor = const Color(0xFF10B981);
                                   statusIcon = Icons.bolt_rounded;
+                                } else if (isBleConnected || isBleNearby) {
+                                  statusText = isBleConnected ? 'BLE 🔐' : 'BLE 📱';
+                                  statusColor = const Color(0xFF6366F1);
+                                  statusIcon = isBleConnected ? Icons.bluetooth_connected_rounded : Icons.bluetooth_searching_rounded;
                                 } else if (isOnline) {
                                   statusText = 'Cloud';
                                   statusColor = const Color(0xFF0EA5E9);

@@ -10,7 +10,13 @@ final localNetworkServiceProvider = Provider<LocalNetworkService>((ref) {
   return service;
 });
 
-/// Theo dõi trạng thái khả dụng của mạng cục bộ LAN (true: Đang kết nối trực tiếp với ESP32)
+/// Theo dõi trạng thái khả dụng thực sự của Wi-Fi LAN (true: Ping HTTP thành công tới ESP32)
+final isLanAvailableProvider = StreamProvider<bool>((ref) {
+  final service = ref.watch(localNetworkServiceProvider);
+  return service.lanAvailableStream;
+});
+
+/// Theo dõi trạng thái khả dụng của mạng cục bộ LAN/BLE (true: Đang kết nối trực tiếp với ESP32)
 final isLocalNetworkAvailableProvider = StreamProvider<bool>((ref) {
   final service = ref.watch(localNetworkServiceProvider);
   return service.localAvailableStream;

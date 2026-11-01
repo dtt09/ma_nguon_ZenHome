@@ -52,17 +52,20 @@ class LocalNetworkService {
   String? _lastKnownTemp;
 
   final _localAvailableController = StreamController<bool>.broadcast();
+  final _lanAvailableController = StreamController<bool>.broadcast();
   final _hubIpController = StreamController<String?>.broadcast();
   final _localTempController = StreamController<String?>.broadcast();
   final _localDeviceStateController = StreamController<Map<String, bool>>.broadcast();
 
   Stream<bool> get localAvailableStream => _localAvailableController.stream;
+  Stream<bool> get lanAvailableStream => _lanAvailableController.stream;
   Stream<String?> get hubIpStream => _hubIpController.stream;
   Stream<String?> get localTempStream => _localTempController.stream;
   Stream<Map<String, bool>> get localDeviceStateStream => _localDeviceStateController.stream;
 
   String? get cachedHubIp => _cachedHubIp;
   bool get isLocalAvailable => _isLocalAvailable;
+  bool get isLanAvailable => _isLanAvailable;
 
   /// Bắt đầu giám sát kết nối mạng cục bộ với Hub kèm thông tin phân quyền tài khoản
   void startMonitoring({
@@ -221,7 +224,17 @@ class LocalNetworkService {
   }
 
   void _setLocalAvailable(bool lanAvailable) {
+    final lanChanged = (_isLanAvailable != lanAvailable);
     _isLanAvailable = lanAvailable;
+    if (lanChanged) {
+      _lanAvailableController.add(lanAvailable);
+      if (!lanAvailable) {
+        _hubIpController.add(null);
+      } else if (_cachedHubIp != null) {
+        _hubIpController.add(_cachedHubIp);
+      }
+    }
+
     // Báo cho BLE Service biết trạng thái LAN để tạm dừng quét BLE vô ích khi mạng LAN hoạt động tốt
     BleLocalService().setNetworkOnlineStatus(isLanAvailable: lanAvailable);
 
@@ -231,7 +244,7 @@ class LocalNetworkService {
       _isLocalAvailable = effectiveAvailable;
       _localAvailableController.add(effectiveAvailable);
       LoggerService.i(effectiveAvailable
-          ? '[LocalNet] Đã kết nối cục bộ an toàn với Hub (LAN: $_cachedHubIp, BLE Sẵn sàng: ${BleLocalService().isHubNearby})!'
+          ? '[LocalNet] Đã kết nối cục bộ an toàn với Hub (LAN: ${lanAvailable ? _cachedHubIp : "Mất Wi-Fi"}, BLE Sẵn sàng: ${BleLocalService().isHubNearby})!'
           : '[LocalNet] Mất toàn bộ kết nối cục bộ (cả LAN & BLE).');
     }
   }

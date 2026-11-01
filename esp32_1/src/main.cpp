@@ -14,14 +14,6 @@
 static unsigned long buttonPressTime = 0;
 static bool isButtonPressed = false;
 
-// Trạng thái hiển thị LED
-enum SystemState {
-  STATE_AP_MODE,      // Chưa liên kết (Nháy nhanh)
-  STATE_DISCONNECTED, // Mất kết nối (Nháy chậm)
-  STATE_CONNECTED     // Kết nối thành công (Sáng đứng)
-};
-static SystemState currentState = STATE_AP_MODE;
-
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -286,29 +278,19 @@ void loop() {
     }
   }
 
-  // 12. Hiển thị Đèn LED trạng thái
+  // 12. Quản lý và hiển thị Đèn LED trạng thái đa chế độ (Non-blocking State Machine)
   if (!isConfigured && !isSetupPending) {
-    currentState = STATE_AP_MODE;
+    setLedPattern(LED_PATTERN_AP_MODE); // Nháy đúp: Đang ở chế độ AP Setup chưa cấu hình
   } else if (isSetupPending) {
-    currentState = STATE_DISCONNECTED; // Nháy 500ms báo đang chờ hoàn tất thiết lập
-  } else if (WiFi.status() != WL_CONNECTED || !mqttClient.connected()) {
-    currentState = STATE_DISCONNECTED;
+    setLedPattern(LED_PATTERN_WIFI_CONNECTING); // Nháy nhanh: Đang cấu hình liên kết
+  } else if (WiFi.status() != WL_CONNECTED) {
+    setLedPattern(LED_PATTERN_OFFLINE_LOCAL); // Nháy chậm: Router Wi-Fi mất kết nối, chạy tự trị + BLE Fallback
+  } else if (!mqttClient.connected()) {
+    setLedPattern(LED_PATTERN_WIFI_CONNECTED); // Nháy vừa: Wi-Fi OK, đang kết nối Cloud MQTT
   } else {
-    currentState = STATE_CONNECTED;
+    setLedPattern(LED_PATTERN_ONLINE_ALL); // Sáng liên tục: Wi-Fi + Cloud MQTT trực tuyến hoàn toàn
   }
-
-  static unsigned long lastLedToggle = 0;
-  static bool ledState = LOW;
-  if (currentState == STATE_CONNECTED) {
-    digitalWrite(STATUS_LED_PIN, HIGH);
-  } else {
-    unsigned long interval = (currentState == STATE_AP_MODE) ? 200 : 1000;
-    if (currentMillis - lastLedToggle >= interval) {
-      lastLedToggle = currentMillis;
-      ledState = !ledState;
-      digitalWrite(STATUS_LED_PIN, ledState);
-    }
-  }
+  updateLedIndicator();
 
   delay(5);
 }
