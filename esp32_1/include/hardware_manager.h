@@ -52,6 +52,10 @@ extern PhysicalSwitch physicalSwitches[];
 extern const int physicalSwitchCount;
 
 // Functions
+void initHardwareMutex();
+bool lockI2C(TickType_t waitTicks = pdMS_TO_TICKS(500));
+void unlockI2C();
+void recoverI2CBus();
 void initHardware();
 void safeSetRelayPin(int pin, int level);
 bool applyRelayCommand(const String& devId, const String& targetState, const String& source = "manual", uint8_t priority = 2);

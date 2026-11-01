@@ -248,16 +248,46 @@ class LocalNetworkService {
       socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
       socket.broadcastEnabled = true;
 
+      // Thu thập danh sách các địa chỉ Broadcast (Cả toàn cục 255.255.255.255 lẫn Subnet Broadcast riêng từng Interface mạng)
+      final Set<String> targetBroadcastIps = {'255.255.255.255'};
+      try {
+        final interfaces = await NetworkInterface.list(
+          includeLoopback: false,
+          type: InternetAddressType.IPv4,
+        );
+        for (final iface in interfaces) {
+          for (final addr in iface.addresses) {
+            final parts = addr.address.split('.');
+            if (parts.length == 4) {
+              // Đối với mạng gia đình IPv4 (/24), tính địa chỉ directed subnet broadcast ví dụ: 192.168.1.255
+              final subnetBcast = '${parts[0]}.${parts[1]}.${parts[2]}.255';
+              targetBroadcastIps.add(subnetBcast);
+            }
+          }
+        }
+      } catch (ifaceErr) {
+        debugPrint('[LocalNet] Không thể liệt kê NetworkInterface: $ifaceErr');
+      }
+
       // Gửi bản tin Discovery an toàn (bảo vệ chống ngoại lệ Network is unreachable / Operation not permitted trên Android)
       final message = utf8.encode('ZENHOME_DISCOVER');
-      try {
-        socket.send(message, InternetAddress('255.255.255.255'), udpDiscoveryPort);
-      } catch (sendErr) {
-        debugPrint('[LocalNet] ℹ️ Không thể phát sóng UDP (máy không kết nối Wi-Fi hoặc hạn chế quyền OS): $sendErr');
-        if (!completer.isCompleted) completer.complete(null);
-        socket.close();
-        return null;
+      void sendBroadcasts() {
+        for (final ipStr in targetBroadcastIps) {
+          try {
+            socket?.send(message, InternetAddress(ipStr), udpDiscoveryPort);
+          } catch (_) {}
+        }
       }
+
+      // Phát đợt 1 ngay lập tức
+      sendBroadcasts();
+
+      // Phát đợt 2 sau 80ms để bù đắp tỉ lệ rớt gói tin trên Wi-Fi sóng yếu
+      Future.delayed(const Duration(milliseconds: 80), () {
+        if (!completer.isCompleted && socket != null) {
+          sendBroadcasts();
+        }
+      });
 
       Timer(timeout, () {
         if (!completer.isCompleted) {

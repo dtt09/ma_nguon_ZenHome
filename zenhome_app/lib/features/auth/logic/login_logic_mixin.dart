@@ -157,7 +157,8 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
   }
 
   void handlePhoneLogin() async {
-    final String input = phoneController.text.trim().replaceAll(' ', '');
+    final String rawInput = phoneController.text.trim();
+    final String input = rawInput.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
     final String password = passwordController.text;
     
     setState(() {
@@ -175,14 +176,14 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
       String? phoneNumber;
       
       if (!input.contains('@')) {
-        final phoneRegex = RegExp(r'^(\+84|0)\d{9,10}$');
-        bool isPhone = phoneRegex.hasMatch(input) || RegExp(r'^\+\d{10,14}$').hasMatch(input);
+        final phoneDigits = input.replaceAll('+', '');
+        final bool isPhone = RegExp(r'^\d{9,15}$').hasMatch(phoneDigits);
         
         if (!isPhone) {
            final doc = await FirebaseFirestore.instance.collection('users').doc(input).get();
            if (!doc.exists) {
               await LoadingOverlay.hideError();
-              showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_user_not_found') ?? 'Tài khoản không tồn tại!', isError: true);
+              showFloatingToast(context, context.tr('error'), context.tr('err_user_not_found'), isError: true);
               return;
            }
            final data = doc.data() as Map<String, dynamic>;
@@ -192,38 +193,40 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
               phoneNumber = data['phoneNumber'];
            } else {
               await LoadingOverlay.hideError();
-              showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_unlinked_account') ?? 'Tài khoản chưa liên kết SĐT/Email!', isError: true);
+              showFloatingToast(context, context.tr('error'), context.tr('err_unlinked_account'), isError: true);
               return;
            }
         } else {
-           phoneNumber = input;
-           if (phoneNumber!.startsWith('0')) phoneNumber = '+84${phoneNumber!.substring(1)}';
-           else if (!phoneNumber!.startsWith('+')) phoneNumber = '+$phoneNumber';
-           
-           // Tra cứu qua bảng phone_lookup với allow get: if true (O(1) và bảo mật tuyệt đối)
-           try {
-             final phoneLookupDoc = await FirebaseFirestore.instance.collection('phone_lookup').doc(phoneNumber).get();
-             if (phoneLookupDoc.exists) {
-               final data = phoneLookupDoc.data() as Map<String, dynamic>;
-               if (data.containsKey('email') && data['email'].toString().isNotEmpty) {
-                 emailToLogin = data['email'];
-               }
-             }
-           } catch (e) {
-             debugPrint('Lỗi tra cứu phone_lookup: $e');
-           }
+           // Chuẩn hóa các biến thể của SĐT (+84..., 0..., và chuỗi số thuần)
+           String plusVariant = input.startsWith('0') ? '+84${input.substring(1)}' : (input.startsWith('+') ? input : '+$input');
+           String zeroVariant = input.startsWith('+84') ? '0${input.substring(3)}' : (input.startsWith('0') ? input : '0$phoneDigits');
+           phoneNumber = plusVariant;
 
-           // Fallback kiểm tra collection users nếu chưa có trong phone_lookup
-           if (emailToLogin == input || emailToLogin.isEmpty) {
+           // Tra cứu qua bảng phone_lookup với allow get: if true (O(1) tuyệt đối an toàn)
+           final candidates = [plusVariant, zeroVariant, phoneDigits];
+           for (final candidate in candidates) {
              try {
-               final query = await FirebaseFirestore.instance.collection('users').where('phoneNumber', isEqualTo: phoneNumber).get();
-               if (query.docs.isNotEmpty) {
-                   final data = query.docs.first.data() as Map<String, dynamic>;
-                   if (data.containsKey('email') && data['email'].toString().isNotEmpty) {
-                       emailToLogin = data['email'];
+               final phoneLookupDoc = await FirebaseFirestore.instance.collection('phone_lookup').doc(candidate).get();
+               if (phoneLookupDoc.exists) {
+                 final data = phoneLookupDoc.data() as Map<String, dynamic>;
+                 if (data.containsKey('email') && data['email'].toString().isNotEmpty) {
+                   emailToLogin = data['email'];
+                   break;
+                 } else if (data.containsKey('username') && data['username'].toString().isNotEmpty) {
+                   // Tra cứu tiếp hồ sơ người dùng qua username (get O(1) được phép công khai)
+                   final userDoc = await FirebaseFirestore.instance.collection('users').doc(data['username'].toString()).get();
+                   if (userDoc.exists) {
+                     final uData = userDoc.data() as Map<String, dynamic>;
+                     if (uData.containsKey('email') && uData['email'].toString().isNotEmpty) {
+                       emailToLogin = uData['email'];
+                       break;
+                     }
                    }
+                 }
                }
-             } catch (_) {}
+             } catch (e) {
+               debugPrint('Lỗi tra cứu phone_lookup ($candidate): $e');
+             }
            }
         }
 
@@ -248,16 +251,6 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
            
            if (phoneNumber != null) {
                dummyEmailToTry = '${phoneNumber!.replaceAll('+', '')}@zenhome.local';
-           } else if (input.contains('@')) {
-               // Nhập bằng email nhưng có thể tk gốc là SĐT (dummy email), 
-               // ta đi tìm SĐT của họ trong Firestore để lấy dummy email thử lại
-               final emailQuery = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: input).get();
-               if (emailQuery.docs.isNotEmpty) {
-                   final data = emailQuery.docs.first.data() as Map<String, dynamic>;
-                   if (data.containsKey('phoneNumber') && data['phoneNumber'].toString().isNotEmpty) {
-                       dummyEmailToTry = '${data['phoneNumber'].toString().replaceAll('+', '')}@zenhome.local';
-                   }
-               }
            }
            
            if (dummyEmailToTry != null && dummyEmailToTry != emailToLogin) {
@@ -281,16 +274,20 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
       } else {
           await FirebaseAuth.instance.signOut();
           await LoadingOverlay.hideError();
-          showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_user_not_found') ?? 'Tài khoản không tồn tại', isError: true);
+          showFloatingToast(context, context.tr('error'), context.tr('err_user_not_found'), isError: true);
       }
     } on FirebaseAuthException catch (e) {
       await LoadingOverlay.hideError();
       if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-          showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_invalid_login') ?? 'Sai tài khoản hoặc mật khẩu', isError: true);
+          final isGoogleCandidate = emailToLogin.toLowerCase().endsWith('@gmail.com');
+          final errorMsg = isGoogleCandidate
+              ? 'Sai mật khẩu! Nếu tài khoản này đăng ký qua Google, vui lòng chọn "Đăng nhập bằng Google".'
+              : context.tr('err_invalid_login');
+          showFloatingToast(context, context.tr('error'), errorMsg, isError: true);
       } else if (e.code == 'too-many-requests') {
-          showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_too_many_requests') ?? 'Tài khoản đang bị khóa tạm thời do nhập sai quá nhiều lần. Vui lòng thử lại sau.', isError: true);
+          showFloatingToast(context, context.tr('error'), context.tr('err_too_many_requests'), isError: true);
       } else if (e.code == 'user-not-found' || e.code == 'invalid-email') {
-          showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_phone_not_registered') ?? 'Tài khoản chưa được đăng ký!', isError: true);
+          showFloatingToast(context, context.tr('error'), context.tr('err_phone_not_registered'), isError: true);
       } else {
           showFloatingToast(context, context.tr('error'), '${context.tr('error')}: ${e.message}', isError: true);
       }

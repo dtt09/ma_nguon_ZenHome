@@ -25,31 +25,54 @@ const int physicalSwitchCount = sizeof(physicalSwitches) / sizeof(physicalSwitch
 const unsigned long SWITCH_DEBOUNCE_MS = 200;
 const unsigned long SWITCH_MIN_TOGGLE_INTERVAL = 1500;
 
+static SemaphoreHandle_t i2cMutex = NULL;
+
+void initHardwareMutex() {
+  if (i2cMutex == NULL) {
+    i2cMutex = xSemaphoreCreateMutex();
+  }
+}
+
+bool lockI2C(TickType_t waitTicks) {
+  if (i2cMutex == NULL) return true;
+  return xSemaphoreTake(i2cMutex, waitTicks) == pdTRUE;
+}
+
+void unlockI2C() {
+  if (i2cMutex != NULL) {
+    xSemaphoreGive(i2cMutex);
+  }
+}
+
 void initHardware() {
+  initHardwareMutex();
   pinMode(RESET_BTN_PIN, INPUT_PULLUP);
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, LOW);
 
   dht.begin();
 
-  Wire.begin();
-  Wire.setTimeOut(50); // Timeout 50ms chống treo bus I2C khi lỏng cáp hoặc nhiễu xung
-  if (pcf.begin(0x20, &Wire)) {
-    pcfFound = true;
-    Serial.println("OK: Tìm thấy PCF8574 tại 0x20");
-  } else if (pcf.begin(0x27, &Wire)) {
-    pcfFound = true;
-    Serial.println("OK: Tìm thấy PCF8574 tại 0x27");
-  } else if (pcf.begin(0x38, &Wire)) {
-    pcfFound = true;
-    Serial.println("OK: Tìm thấy PCF8574A tại 0x38");
-  } else {
-    pcfFound = false;
-    Serial.println("CẢNH BÁO: Không tìm thấy mô-đun PCF8574 ở bất kỳ địa chỉ nào!");
+  if (lockI2C(pdMS_TO_TICKS(1000))) {
+    Wire.begin();
+    Wire.setTimeOut(50); // Timeout 50ms chống treo bus I2C khi lỏng cáp hoặc nhiễu xung
+    if (pcf.begin(0x20, &Wire)) {
+      pcfFound = true;
+      Serial.println("OK: Tìm thấy PCF8574 tại 0x20");
+    } else if (pcf.begin(0x27, &Wire)) {
+      pcfFound = true;
+      Serial.println("OK: Tìm thấy PCF8574 tại 0x27");
+    } else if (pcf.begin(0x38, &Wire)) {
+      pcfFound = true;
+      Serial.println("OK: Tìm thấy PCF8574A tại 0x38");
+    } else {
+      pcfFound = false;
+      Serial.println("CẢNH BÁO: Không tìm thấy mô-đun PCF8574 ở bất kỳ địa chỉ nào!");
+    }
+    unlockI2C();
   }
 }
 
-void recoverI2CBus() {
+static void recoverI2CBusInternal() {
   Serial.println("[HARDWARE] 🔄 Tiến hành khôi phục I2C Bus Recovery (9 xung SCL clock)...");
   Wire.end();
   pinMode(SDA, INPUT_PULLUP);
@@ -76,10 +99,21 @@ void recoverI2CBus() {
   }
 }
 
+void recoverI2CBus() {
+  if (lockI2C(pdMS_TO_TICKS(1000))) {
+    recoverI2CBusInternal();
+    unlockI2C();
+  }
+}
+
 void safeSetRelayPin(int pin, int level) {
   if (pin >= 0 && pin <= 7) {
+    if (!lockI2C(pdMS_TO_TICKS(1000))) {
+      Serial.println("[HARDWARE] ⚠️ Hết thời gian chờ Mutex I2C khi điều khiển relay!");
+      return;
+    }
     if (!pcfFound) {
-      recoverI2CBus();
+      recoverI2CBusInternal();
     }
     if (pcfFound) {
       // Chống sụt áp nguồn (Brownout Protection): Nếu đóng cuộn hút rơ-le (Active-Low LOW),
@@ -94,6 +128,7 @@ void safeSetRelayPin(int pin, int level) {
       }
       pcf.digitalWrite(pin, level);
     }
+    unlockI2C();
   }
 }
 
@@ -131,7 +166,7 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
         if (WiFi.status() == WL_CONNECTED && mqttClient.connected()) {
           String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
           String stateTopic = mqtt_prefix + "/" + rName + "/" + devId + "/state";
-          mqttClient.publish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
+          safeMqttPublish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
         }
         return false;
       }
@@ -166,12 +201,12 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
         // Luôn gửi xác nhận trạng thái thực tế về MQTT để giải phóng pending trên App/Server
         String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
         String stateTopic = mqtt_prefix + "/" + rName + "/" + devId + "/state";
-        mqttClient.publish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
+        safeMqttPublish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
         String cleanP = mqtt_prefix;
         cleanP.replace(":", "");
         String stateTopic2 = cleanP + "/" + rName + "/" + devId + "/state";
         if (stateTopic2 != stateTopic) {
-          mqttClient.publish(stateTopic2.c_str(), myRelays[i].state.c_str(), true);
+          safeMqttPublish(stateTopic2.c_str(), myRelays[i].state.c_str(), true);
         }
       } else {
         if (stateActuallyChanged) {

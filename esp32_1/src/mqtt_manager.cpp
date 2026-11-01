@@ -18,7 +18,35 @@ unsigned long lastMQTTRetry = 0;
 bool isBindingVerified = false;
 static unsigned long currentMqttRetryInterval = 5000; // Khởi đầu thử lại sau 5s
 
+static SemaphoreHandle_t mqttMutex = NULL;
+
+void initMqttMutex() {
+  if (mqttMutex == NULL) {
+    mqttMutex = xSemaphoreCreateMutex();
+  }
+}
+
+bool lockMqtt(TickType_t waitTicks) {
+  if (mqttMutex == NULL) return true;
+  return xSemaphoreTake(mqttMutex, waitTicks) == pdTRUE;
+}
+
+void unlockMqtt() {
+  if (mqttMutex != NULL) {
+    xSemaphoreGive(mqttMutex);
+  }
+}
+
+bool safeMqttPublish(const char* topic, const char* payload, bool retained) {
+  if (WiFi.status() != WL_CONNECTED || !mqttClient.connected()) return false;
+  if (!lockMqtt(pdMS_TO_TICKS(1000))) return false;
+  bool ok = mqttClient.publish(topic, payload, retained);
+  unlockMqtt();
+  return ok;
+}
+
 void initMqttClient() {
+  initMqttMutex();
   espClient.setInsecure(); // Sử dụng TLS Encryption (Port 8883) tương thích HiveMQ Cloud cross-signed chain
   espClient.setTimeout(15); // 15 giây timeout cho phiên bắt tay TLS
   mqttClient.setServer(mqtt_server.c_str(), 8883);
@@ -369,7 +397,10 @@ void checkMqttConnection() {
       }
     } else {
       wasMqttPreviouslyConnected = true;
-      mqttClient.loop();
+      if (lockMqtt(pdMS_TO_TICKS(100))) {
+        mqttClient.loop();
+        unlockMqtt();
+      }
 
       // Định kỳ gửi Heartbeat mỗi 15s để App và Broker luôn nhận biết ESP32 đang hoạt động thực tế
       static unsigned long lastHeartbeatTime = 0;
@@ -892,7 +923,10 @@ void publishOtaMessage(const String& subTopic, const String& payload) {
   if (t2 != t1) {
     mqttClient.publish(t2.c_str(), payload.c_str(), false);
   }
-  mqttClient.loop();
+  if (lockMqtt(pdMS_TO_TICKS(100))) {
+    mqttClient.loop();
+    unlockMqtt();
+  }
 }
 
 void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, const String& signatureHex) {
@@ -986,7 +1020,10 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, c
     if (millis() - lastWdt >= 1000) {
       lastWdt = millis();
       esp_task_wdt_reset();
-      mqttClient.loop();
+      if (lockMqtt(pdMS_TO_TICKS(100))) {
+        mqttClient.loop();
+        unlockMqtt();
+      }
     }
     delay(1);
   }
@@ -1027,7 +1064,10 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, c
       Serial.println("[SERVER-OTA] ✅ NÂNG CẤP THÀNH CÔNG RỰC RỠ! ESP32 sẽ khởi động lại vào Firmware mới sau 2 giây...");
       publishOtaMessage("/system/ota_result", "{\"status\":\"success\",\"version\":\"" FIRMWARE_VERSION_STR "\",\"build\":" + String(FIRMWARE_BUILD_NUM) + ",\"message\":\"Nâng cấp Firmware OTA thành công 100%! Đang khởi động lại.\"}");
       for (int i = 0; i < 15; i++) {
-        mqttClient.loop();
+        if (lockMqtt(pdMS_TO_TICKS(100))) {
+          mqttClient.loop();
+          unlockMqtt();
+        }
         delay(100);
       }
       delay(1500);

@@ -10,6 +10,11 @@ extern bool wasMqttPreviouslyConnected;
 extern unsigned long lastMQTTRetry;
 extern bool isBindingVerified;
 
+void initMqttMutex();
+bool lockMqtt(TickType_t waitTicks = pdMS_TO_TICKS(500));
+void unlockMqtt();
+bool safeMqttPublish(const char* topic, const char* payload, bool retained = false);
+
 void initMqttClient();
 bool verifyBindingWithDatabase();
 void connectMQTT();

@@ -169,7 +169,9 @@ export function askScheduleStatus(options: {
                     sendCommandFn(baseTopic, '1', 'schedule_qa');
                     schedule.isTriggeredOn = true;
                 }
-            } else {
+            } else if (execute) {
+                // CHỈ reset chốt kích hoạt khi đang ở chế độ thực thi (execute == true)
+                // Tuyệt đối không xóa chốt khi đang ở chế độ Dry-Run / Tra cứu API
                 schedule.isTriggeredOn = false;
             }
 
@@ -192,7 +194,7 @@ export function askScheduleStatus(options: {
                     sendCommandFn(baseTopic, '0', 'schedule_qa');
                     schedule.isTriggeredOff = true;
                 }
-            } else {
+            } else if (execute) {
                 schedule.isTriggeredOff = false;
             }
         }
@@ -235,6 +237,7 @@ export async function loadSchedulesFromFirebase() {
         let garbageCount = 0;
         const validUsers = new Set<string>();
         const invalidUsers = new Set<string>();
+        const newSchedules: Record<string, any> = {};
 
         for (const doc of snapshot.docs) {
             const docId = doc.id;
@@ -263,11 +266,14 @@ export async function loadSchedulesFromFirebase() {
                 continue;
             }
 
-            state.activeSchedules[docId] = doc.data() as any;
-            state.activeSchedules[docId].isTriggeredOn = false;
-            state.activeSchedules[docId].isTriggeredOff = false;
+            newSchedules[docId] = doc.data() as any;
+            newSchedules[docId].isTriggeredOn = false;
+            newSchedules[docId].isTriggeredOff = false;
             loadedCount++;
         }
+
+        // Cập nhật nguyên tử RAM state.activeSchedules, triệt tiêu lịch trình rác đã xóa khỏi DB
+        state.activeSchedules = newSchedules;
 
         const next = getNextUpcomingSchedule();
         const nextInfo = next ? ` | Lần chạy kế tiếp: ${next.targetDayName} ${next.time} (${next.action})` : ' | Chưa có lịch kích hoạt sắp tới';
@@ -281,6 +287,13 @@ export async function saveScheduleToFirebase(baseTopic: string, scheduleData: an
     try {
         const docId = baseTopic.replace(/\//g, '___');
         await db.collection('server_schedules').doc(docId).set(scheduleData);
+        if (state.activeSchedules) {
+            state.activeSchedules[docId] = {
+                ...scheduleData,
+                isTriggeredOn: state.activeSchedules[docId]?.isTriggeredOn ?? false,
+                isTriggeredOff: state.activeSchedules[docId]?.isTriggeredOff ?? false,
+            };
+        }
         const next = getNextUpcomingSchedule();
         const nextText = next ? ` (Kế tiếp: ${next.targetDayName} ${next.time} - ${next.action})` : '';
         console.log(`[CRON-QA] 📋 Đã lưu cấu hình lịch trình: ${baseTopic}${nextText}`);
@@ -293,7 +306,10 @@ export async function deleteScheduleFromFirebase(baseTopic: string) {
     try {
         const docId = baseTopic.replace(/\//g, '___');
         await db.collection('server_schedules').doc(docId).delete();
-        console.log(`[CRON-QA] 🗑️ Đã xóa lịch trình: ${baseTopic}`);
+        if (state.activeSchedules && state.activeSchedules[docId]) {
+            delete state.activeSchedules[docId];
+        }
+        console.log(`[CRON-QA] 🗑️ Đã xóa lịch trình: ${baseTopic} (Đã dọn sạch Firestore & RAM)`);
     } catch (error) {
         console.error("[FIREBASE ERROR] ❌ Lỗi xóa lịch trình:", error);
     }
