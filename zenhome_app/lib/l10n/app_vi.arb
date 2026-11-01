@@ -869,7 +869,7 @@
   "hub_channel_unavailable": "Không kết nối",
   "hub_btn_diagnose": "Chẩn đoán & Quét lại kết nối",
   "hub_diagnosing": "Đang quét cả LAN & BLE...",
-  "hub_ble_gatt_secured": "GATT Service: 19b10000... 🔐 (Key HMAC-SHA256 OK)",
+  "hub_ble_gatt_secured": "GATT Service: 19b10000... 🔐 (Đã bảo mật)",
   "hub_ble_gatt_verifying": "GATT Service: 19b10000... (Đang kiểm tra Key...)",
   "hub_ble_key_ready": "Key 🔐 Sẵn sàng",
   "hub_ble_key_waiting": "Chờ xác thực",

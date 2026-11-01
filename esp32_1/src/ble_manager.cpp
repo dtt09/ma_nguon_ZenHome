@@ -428,7 +428,7 @@ class BleControlCallbacks : public NimBLECharacteristicCallbacks {
       }
 
       if (!cmdSigOk) {
-        Serial.printf("[BLE-CONTROL] ⛔ Chữ ký Key HMAC-SHA256 không hợp lệ (Handle: %d)! Từ chối điều khiển.\n", connHandle);
+        Serial.printf("[BLE-CONTROL] ⛔ Chữ ký bảo mật không hợp lệ (Handle: %d)! Từ chối điều khiển.\n", connHandle);
         if (slot) slot->failedAuthAttempts++;
         int fails = slot ? slot->failedAuthAttempts : 1;
         if (fails >= 3 && pBleServer && connHandle != 0) {

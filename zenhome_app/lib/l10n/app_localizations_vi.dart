@@ -2482,7 +2482,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get hub_ble_gatt_secured =>
-      'GATT Service: 19b10000... 🔐 (Key HMAC-SHA256 OK)';
+      'GATT Service: 19b10000... 🔐 (Đã bảo mật)';
 
   @override
   String get hub_ble_gatt_verifying =>

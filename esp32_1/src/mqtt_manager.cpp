@@ -992,16 +992,15 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
   String calculatedSha = String(calculatedShaHex);
 
   if (expectedSha256.length() == 64 && !expectedSha256.equalsIgnoreCase(calculatedSha)) {
-    Serial.println("[SERVER-OTA] ❌ BẢO MẬT: Băm SHA-256 không khớp! Từ chối firmware rác.");
-    Serial.printf("Kỳ vọng: %s\nThực tế: %s\n", expectedSha256.c_str(), calculatedSha.c_str());
+    Serial.println("[SERVER-OTA] ❌ BẢO MẬT: Kiểm tra tính toàn vẹn thất bại! Từ chối firmware không hợp lệ.");
     Update.abort();
-    publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Xác thực SHA-256 thất bại! Firmware có thể bị sửa đổi hoặc lỗi mạng.\"}");
+    publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Xác thực tính toàn vẹn thất bại! Firmware có thể bị sửa đổi hoặc lỗi mạng.\"}");
     isOtaInProgress = false;
     return;
   }
 
   if (written == (size_t)contentLength) {
-    Serial.println("[SERVER-OTA] 📥 Đã nhận đủ 100% Firmware và xác thực SHA-256 hợp lệ! Đang hoán đổi phân vùng boot...");
+    Serial.println("[SERVER-OTA] 📥 Đã nhận đủ 100% Firmware và xác thực tính toàn vẹn hợp lệ! Đang hoán đổi phân vùng boot...");
     if (Update.end(true)) {
       Serial.println("[SERVER-OTA] ✅ NÂNG CẤP THÀNH CÔNG RỰC RỠ! ESP32 sẽ khởi động lại vào Firmware mới sau 2 giây...");
       publishOtaMessage("/system/ota_result", "{\"status\":\"success\",\"version\":\"" FIRMWARE_VERSION_STR "\",\"build\":" + String(FIRMWARE_BUILD_NUM) + ",\"message\":\"Nâng cấp Firmware OTA thành công 100%! Đang khởi động lại.\"}");

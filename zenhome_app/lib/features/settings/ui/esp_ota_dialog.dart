@@ -301,7 +301,6 @@ class EspOtaDialog {
     final fileSizeBytes = firmwareInfo['fileSizeBytes'] is int ? firmwareInfo['fileSizeBytes'] as int : 0;
     final fileSizeMb = (fileSizeBytes / (1024 * 1024)).toStringAsFixed(2);
     final sha256 = firmwareInfo['sha256']?.toString() ?? '';
-    final shortSha = sha256.length > 16 ? '${sha256.substring(0, 8)}...${sha256.substring(sha256.length - 8)}' : sha256;
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -354,7 +353,7 @@ class EspOtaDialog {
                   const Divider(height: 14),
                   _buildMetaRow('Dung lượng', '$fileSizeMb MB ($fileSizeBytes bytes)', Icons.folder_zip_outlined, Colors.purple),
                   const Divider(height: 14),
-                  _buildMetaRow('Kiểm tra SHA-256', shortSha, Icons.verified_user_outlined, Colors.green),
+                  _buildMetaRow('Xác thực bảo mật', 'Toàn vẹn phần cứng', Icons.verified_user_outlined, Colors.green),
                   const Divider(height: 14),
                   _buildMetaRow('Mục tiêu', MaskingHelper.maskMac(activeConfig.macAddress), Icons.memory_rounded, Colors.teal),
                 ],
@@ -752,7 +751,7 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
                   const Icon(Icons.done_all_rounded, color: Color(0xFF10B981), size: 48),
                   const SizedBox(height: 12),
                   const Text(
-                    'Đã nạp 100% Firmware và xác thực SHA-256 toàn vẹn!',
+                    'Đã nạp 100% Firmware và bảo vệ toàn vẹn thành công!',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),

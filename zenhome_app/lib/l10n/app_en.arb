@@ -869,7 +869,7 @@
   "hub_channel_unavailable": "Disconnected",
   "hub_btn_diagnose": "Diagnose & Re-scan",
   "hub_diagnosing": "Scanning LAN & BLE...",
-  "hub_ble_gatt_secured": "GATT Service: 19b10000... 🔐 (Key HMAC-SHA256 OK)",
+  "hub_ble_gatt_secured": "GATT Service: 19b10000... 🔐 (Secured)",
   "hub_ble_gatt_verifying": "GATT Service: 19b10000... (Verifying Key...)",
   "hub_ble_key_ready": "Key 🔐 Ready",
   "hub_ble_key_waiting": "Awaiting Auth",
