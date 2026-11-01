@@ -218,6 +218,18 @@ async function main() {
     }
   }
 
+  // 2.1 Đọc phiên bản ESP32
+  let espVersion = '2.5.8';
+  let espBuild = 202;
+  const configHeaderPath = path.join(ROOT_DIR, 'esp32_1', 'include', 'config_manager.h');
+  if (fs.existsSync(configHeaderPath)) {
+    const raw = fs.readFileSync(configHeaderPath, 'utf8');
+    const mv = raw.match(/#define\s+FIRMWARE_VERSION_STR\s+"([^"]+)"/);
+    const mb = raw.match(/#define\s+FIRMWARE_BUILD_NUM\s+([0-9]+)/);
+    if (mv && mv[1]) espVersion = mv[1].trim();
+    if (mb && mb[1]) espBuild = parseInt(mb[1].trim(), 10);
+  }
+
   let tagVersion = `v${pubspecVersion}`;
   const tagIdx = args.indexOf('--tag');
   if (tagIdx !== -1 && args[tagIdx + 1]) {
@@ -226,38 +238,36 @@ async function main() {
     tagVersion = await ask('Phiên bản tag Release phát hành', `v${pubspecVersion}`);
   }
 
-  const releaseTitle = `ZenHome ${tagVersion} - System Harmony, Anti-Crosstalk & Brownout Protection`;
-  const releaseNotes = `## 🌟 Điểm nổi bật trong bản phát hành ${tagVersion} (Build ${pubspecBuild})
+  const releaseTitle = `ZenHome ${tagVersion} - BLE MTU 512, Fast Wi-Fi Sync & SQLite Concurrency`;
+  const releaseNotes = `## 🌟 Điểm nổi bật trong bản phát hành ${tagVersion} (App Build ${pubspecBuild} / ESP32 v${espVersion} Build ${espBuild})
 
 ### 📱 Ứng dụng Di động (Mobile App v${pubspecVersion}+${pubspecBuild}):
-- 🛡️ **Khắc phục triệt để Giao thoa / Rò rỉ Trạng thái (Anti-Crosstalk)**:
-  - Loại bỏ hoàn toàn wildcard subscriptions (\`+/+/+/+/state\`, \`+/+/esp_status\`), chỉ lắng nghe và áp dụng trạng thái từ đúng tiền tố \`userId/macAddress\` của ngôi nhà đang chọn. Không bao giờ bị nhảy trạng thái công tắc chéo giữa các gia đình trên HiveMQ Broker.
-- ⚡ **Khử xung đột phát lệnh song song (LAN Priority & Sequential Fallback)**:
-  - Tối ưu luồng điều khiển: Khi ở mạng nhà, ưu tiên gửi qua LAN HTTP/BLE tức thì; chỉ khi LAN thất bại mới tự động chuyển hướng sang Cloud MQTT. Loại bỏ hiện tượng gửi 2 gói tin cùng lúc gây nghẽn rơ-le và xung đột Relay Guard.
-- ⏱️ **Phản hồi chính xác trạng thái & Chống timeout giả**:
-  - Khi một lệnh điều khiển đơn lẻ timeout, App chỉ thông báo lỗi kết nối cục bộ của thiết bị đó, tuyệt đối không đánh dấu toàn bộ Hub là offline (\`markEspOffline\`).
-- 💎 **Bảo vệ sụt áp nguồn khi kích hoạt Ngữ cảnh (Staggered Scene Execution)**:
-  - Chèn độ trễ xen kẽ 60ms giữa các lệnh kích hoạt rơ-le liên tiếp trong ngữ cảnh, triệt tiêu đỉnh dòng tức thời (Inrush Current) gây sụt áp nguồn vi điều khiển.
-- 💎 **Giao diện Hộp thoại ZenHome Luxury Glassmorphism**: Thay thế hoàn toàn giao diện ZaloPay cũ bằng chuẩn Luxury Glassmorphism đồng bộ bo góc 28px, hiệu ứng Breathing Aura Glow và chống tràn chữ.
-- 🔒 **Che giấu dữ liệu nhạy cảm (Security Masking)**: Tự động che mờ IP, MAC, Admin Pass, Email và SĐT trên toàn bộ giao diện quản trị.
-- 🌐 **Chuẩn hóa Đa ngôn ngữ (i18n)**: Rà soát và hoàn tất 100% bản dịch song ngữ Việt - Anh.
+- 📶 **Nâng cấp BLE MTU lên 512 byte (Android & ESP32)**:
+  - Tự động thương lượng MTU 512 byte ngay sau khi kết nối BLE, cho phép truyền toàn vẹn gói xác thực hai chiều HMAC-SHA256 (150+ byte) và gói cấu hình nhanh (200+ byte) trong 1 chu kỳ ATT duy nhất.
+- 🏠 **Cách ly triệt để bộ nhớ trạng thái Đa Gia Đình (Multi-Home State Isolation)**:
+  - Khi chuyển đổi không gian nhà trong MainLayout, tự động dọn sạch \`GlobalDeviceStates\` và giải phóng \`PendingDeviceOperations\`, triệt tiêu hoàn toàn hiện tượng hiển thị lẫn lộn trạng thái công tắc của nhà cũ sang nhà mới.
+- 🛡️ **Bịt kín lỗ hổng phân quyền mạng cục bộ LAN (RBAC LAN Permission Enforcement)**:
+  - Truyền đầy đủ cờ \`isDisabled\` vào tiến trình giám sát mạng cục bộ, ngăn chặn thành viên gia đình bị vô hiệu hóa gửi lệnh điều khiển phần cứng qua LAN HTTP.
+- 🔔 **Lưu trữ toàn diện thông báo đẩy ngầm (Data-only Push Persistence)**:
+  - Xử lý lưu lịch sử cả khi thông báo FCM gửi dưới dạng \`data\` payload mà không có \`notification\`, bảo đảm không bao giờ thất lạc cảnh báo nhiệt độ khẩn cấp, honeytoken hay trạng thái ngoại tuyến.
 
-### ⚡ Firmware ESP32 (v2.5.7 Build 201):
-- 🛡️ **Khắc phục ESP32 Brownout / Sập nguồn ngẫu nhiên**:
-  - Tích hợp bộ đệm an toàn nguồn điện trong \`safeSetRelayPin\`: Tự động giãn cách 50ms giữa các lần đóng cuộn hút rơ-le, ngăn chặn sụt áp đường nguồn 5V/3.3V gây ngắt bảo vệ Brownout Reset.
-- 🤝 **Luôn phản hồi xác nhận trạng thái (Guaranteed Hardware State ACK)**:
-  - Kể cả khi lệnh bị chặn bởi Relay Guard (<800ms) hoặc lệnh gửi trạng thái trùng với hiện tại, ESP32 vẫn công bố ngay trạng thái vật lý thực tế về MQTT và LAN HTTP để App giải phóng cờ pending tức thì, không bị đơ 3.5s.
-- 📶 **Khắc phục lỗi treo OTA 0%**:
-  - Duy trì chu kỳ \`mqttClient.loop()\` trong suốt quá trình tải firmware 30-40s, ngăn HiveMQ broker ngắt socket.
-- ⏱️ **Tối ưu hóa FreeRTOS WDT 45s & Socket Timeout 15s**: Loại bỏ triệt để hiện tượng Watchdog reset khi mạng Wi-Fi chập chờn.
+### ⚡ Firmware ESP32 (v${espVersion} Build ${espBuild}):
+- 📶 **Hỗ trợ BLE MTU 512 byte (\`NimBLEDevice::setMTU(512)\`)**:
+  - Tương thích tối đa với điện thoại Android/iOS khi trao đổi dữ liệu mã hóa mật mã học và gói cấu hình Wi-Fi/MQTT.
+- 🔒 **Đồng bộ khóa FreeRTOS Mutex bảo vệ phần cứng (\`i2cMutex\` & \`mqttMutex\`)**:
+  - Cách ly thread-safe tuyệt đối giữa Core 0 (AsyncTCP HTTP) và Core 1 (Main Loop, PCF8574 I2C, PubSubClient loop), ngăn chặn triệt để xung đột bus I2C và ngắt kết nối TLS do gọi đè socket.
+- ⚡ **Thuật toán phục hồi bus I2C 9 xung xung nhịp (9-Pulse Recovery)**:
+  - Tự động phát hiện và giải phóng thiết bị ngoại vi treo chân SDA mà không gây deadlock mutex.
 
 ### 🖥️ Backend Server & Cloud Sync:
-- 🔄 **Tôn trọng chân lý phần cứng khi phục hồi mạng (Single Source of Truth)**:
-  - Khi có mạng trở lại sau sự cố, Server tiếp nhận báo cáo \`/sync/report\` từ ESP32 để cập nhật cơ sở dữ liệu, không phát lệnh cũ đè ngược lên phần cứng.
-- 🔑 **Chuẩn hóa khóa tra cứu Task (MAC Colon Normalization)**:
-  - Chuẩn hóa topic loại bỏ dấu hai chấm trong \`state.pendingTasks\`, giải phóng chính xác tiến trình kiểm tra retry.
-- 🛡️ **Bảo vệ an toàn phần cứng Đa Hub (Multi-Hub Safety)**:
-  - Hỗ trợ mảng danh sách Hub, không tự tiện gửi lệnh Factory Reset phá hủy dữ liệu của thiết bị khác trên cùng tài khoản.
+- 🌐 **Mở rộng cơ chế lắng nghe đa tầng MQTT Wildcard (\`+/+/+/#\`, \`+/+/#\`, \`+\`)**:
+  - Không bao giờ bỏ sót các topic 2 cấp như \`<userId>/esp_status\`, \`<userId>/heartbeat\`.
+- ⏱️ **Khắc phục bẫy hủy ân hạn ngoại tuyến (Offline Debounce Early Return)**:
+  - Khi ESP32 khôi phục mạng Wi-Fi nhanh trong 35s, Server hủy cảnh báo mất điện giả và lập tức đồng bộ hóa trạng thái công tắc vật lý qua \`handleEspNetworkRestored()\`.
+- 💾 **Khử triệt để lỗi khóa SQLite (\`SQLITE_BUSY: database is locked\`)**:
+  - Cấu hình \`PRAGMA busy_timeout = 5000;\` và \`dbInstance.configure('busyTimeout', 5000)\` chịu tải ghi nhật ký và sao lưu đồng thời.
+- 🧹 **Tự động dọn dẹp Lịch trình & Hẹn giờ mồ côi (Orphaned Schedules/Timers Purge)**:
+  - Đồng bộ RAM và Firestore, dọn sạch tác vụ hẹn giờ của tài khoản đã xóa.
 
 ---
 *Phát hành chính thức bởi ZenHome Automation Release Engine*`;
@@ -275,7 +285,10 @@ async function main() {
         const compiledBin = path.join(ROOT_DIR, 'esp32_1', '.pio', 'build', 'esp32dev', 'firmware.bin');
         if (fs.existsSync(compiledBin)) {
           fs.copyFileSync(compiledBin, espBin);
-          console.log(`   ✅ Đã sao chép firmware.bin (${fs.statSync(espBin).size} bytes)`);
+          const srvEspPath = path.join(ROOT_DIR, 'zenhome-server', 'public', 'firmware', 'esp32', 'firmware.bin');
+          fs.mkdirSync(path.dirname(srvEspPath), { recursive: true });
+          fs.copyFileSync(compiledBin, srvEspPath);
+          console.log(`   ✅ Đã sao chép firmware.bin (${fs.statSync(espBin).size} bytes) vào root & server`);
         }
       } catch (e) {
         console.error('❌ Lỗi biên dịch ESP32 Firmware:', e.message);
@@ -292,7 +305,14 @@ async function main() {
         const srcApk = fs.existsSync(compiledApk) ? compiledApk : altApk;
         if (fs.existsSync(srcApk)) {
           fs.copyFileSync(srcApk, apkBin);
-          console.log(`   ✅ Đã sao chép ZenHome_Release.apk (${fs.statSync(apkBin).size} bytes)`);
+          const rootAltApk = path.join(ROOT_DIR, 'zenhome-app-release.apk');
+          fs.copyFileSync(srcApk, rootAltApk);
+          const srvApk1 = path.join(ROOT_DIR, 'zenhome-server', 'public', 'downloads', 'ZenHome_Release.apk');
+          const srvApk2 = path.join(ROOT_DIR, 'zenhome-server', 'public', 'downloads', 'zenhome-app-release.apk');
+          fs.mkdirSync(path.dirname(srvApk1), { recursive: true });
+          fs.copyFileSync(srcApk, srvApk1);
+          fs.copyFileSync(srcApk, srvApk2);
+          console.log(`   ✅ Đã sao chép ZenHome_Release.apk (${fs.statSync(apkBin).size} bytes) vào root & server public downloads`);
         }
       } catch (e) {
         console.error('❌ Lỗi biên dịch Flutter APK:', e.message);
@@ -390,6 +410,15 @@ async function main() {
   if (!onlyEsp && fs.existsSync(apkBin)) {
     await uploadReleaseAsset(release.upload_url, token, apkBin, 'ZenHome_Release.apk');
     console.log(`   🎉 Đã đẩy thành công ZenHome_Release.apk lên GitHub Releases!`);
+  }
+
+  // 8. Cập nhật Cloud Firestore & Server Metadata
+  console.log('\n🔥 ĐANG ĐỒNG BỘ PHIÊN BẢN LÊN CLOUD FIRESTORE & SERVER...');
+  try {
+    execSync('npx tsx update_firestore_release.ts', { cwd: path.join(ROOT_DIR, 'zenhome-server'), stdio: 'inherit' });
+    console.log('   ✅ Đã cập nhật thành công Metadata lên Cloud Firestore & Server!');
+  } catch (err) {
+    console.warn('   ⚠️ Lỗi khi chạy update_firestore_release.ts:', err.message);
   }
 
   console.log('\n=================================================================');

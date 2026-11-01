@@ -2473,8 +2473,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hub_diagnosing => 'Scanning LAN & BLE...';
 
   @override
-  String get hub_ble_gatt_secured =>
-      'GATT Service: 19b10000... 🔐 (Secured)';
+  String get hub_ble_gatt_secured => 'GATT Service: 19b10000... 🔐 (Secured)';
 
   @override
   String get hub_ble_gatt_verifying =>

@@ -171,9 +171,9 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
     }
 
     LoadingOverlay.show(context);
+    String emailToLogin = input;
+    String? phoneNumber;
     try {
-      String emailToLogin = input;
-      String? phoneNumber;
       
       if (!input.contains('@')) {
         final phoneDigits = input.replaceAll('+', '');
@@ -269,7 +269,7 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
       final QuerySnapshot query = await FirebaseFirestore.instance.collection('users').where('uid', isEqualTo: userCred.user!.uid).get();
       
       if (query.docs.isNotEmpty) {
-          await _verifyAndCleanEmail(userCred!.user!, query.docs.first.data() as Map<String, dynamic>, query.docs.first.id);
+          await _verifyAndCleanEmail(userCred.user!, query.docs.first.data() as Map<String, dynamic>, query.docs.first.id);
           await saveAndNavigate(query.docs.first.id);
       } else {
           await FirebaseAuth.instance.signOut();

@@ -282,8 +282,8 @@ class ProfileController extends StateNotifier<ProfileState> {
         }
       }
 
-      if (state.phoneNumber != null && state.phoneNumber!.isNotEmpty) {
-        String phoneToDelete = state.phoneNumber!;
+      if (state.phone.isNotEmpty) {
+        String phoneToDelete = state.phone;
         if (phoneToDelete.startsWith('0')) phoneToDelete = '+84${phoneToDelete.substring(1)}';
         else if (!phoneToDelete.startsWith('+')) phoneToDelete = '+$phoneToDelete';
         try {

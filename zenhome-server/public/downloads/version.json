@@ -1,16 +1,16 @@
 {
-  "version": "1.8.13",
-  "buildNumber": 200,
+  "version": "1.8.14",
+  "buildNumber": 201,
   "minVersion": "1.8.0",
   "minBuildNumber": 180,
-  "titleVi": "Bản Cập Nhật ZenHome v1.8.13 (Luxury Glassmorphism & Fast Switch)",
-  "titleEn": "ZenHome Update v1.8.13 (Luxury Glassmorphism & Fast Switch)",
-  "releaseNotesVi": "• Khắc phục triệt để lỗi liên kết số điện thoại (\"không tra cứu được dữ liệu\") bằng xác thực Firebase Auth nguyên tử\n• Thiết kế lại toàn bộ hệ thống thông báo thành công / thất bại sang phong cách ZenHome Luxury Glassmorphism đẳng cấp (loại bỏ ZaloPay cũ)\n• Tối ưu chuyển tab siêu mượt mà với PageView 60/120fps và giữ nguyên trạng thái công tắc, thanh trượt, ngữ cảnh khi chuyển trang\n• Che giấu và bảo mật toàn diện thông tin nhạy cảm: địa chỉ MAC, IP, Email, Số điện thoại và mật khẩu quản trị\n• Khắc phục dứt điểm lỗi nâng cấp OTA ESP32: Dual-detection tự động nhận diện thiết bị khởi động lại và nhịp tim MQTT\n• Firmware ESP32 v2.5.7 (Build 201): Tối ưu hóa WDT 45s, xử lý timeout TLS 15s, chống tự động restart và tự động flush hàng đợi trước khi reboot",
-  "releaseNotesEn": "• Completely fixed phone number linking error with atomic Firebase Auth verification\n• Redesigned success/failure modal system into ZenHome Luxury Glassmorphism (discarded legacy ZaloPay styling)\n• Ultra-smooth 60/120fps PageView tab switching with full state preservation across tabs\n• System-wide data masking for MAC, IP, Email, Phone, and Admin passwords\n• Fixed ESP32 OTA upgrade: Dual-detection for instant reboot recovery and MQTT heartbeat\n• ESP32 Firmware v2.5.7 (Build 201): WDT 45s, TLS socket timeout 15s, anti-crash, and pre-reboot queue flush",
+  "titleVi": "Bản Cập Nhật ZenHome v1.8.14 (BLE MTU 512, Fast Wi-Fi Sync & SQLite Concurrency)",
+  "titleEn": "ZenHome Update v1.8.14 (BLE MTU 512, Fast Wi-Fi Sync & SQLite Concurrency)",
+  "releaseNotesVi": "• Nâng cấp giao thức BLE MTU 512 byte: Truyền toàn vẹn gói xác thực hai chiều HMAC và cấu hình nhanh không phân mảnh\n• Đồng bộ hóa tức thì trạng thái phần cứng sau sự cố mạng mà không bị bỏ sót lệnh\n• Khắc phục triệt để lỗi khóa cơ sở dữ liệu SQLITE_BUSY với cơ chế chờ 5000ms\n• Mở rộng cơ chế lắng nghe đa tầng MQTT Topic không bỏ lọt gói tin 2 cấp\n• Cách ly hoàn toàn bộ nhớ trạng thái công tắc và cờ pending giữa các gia đình khi chuyển Home\n• Tăng cường bảo mật RBAC: Thực thi triệt để quyền bị vô hiệu hóa trên mạng cục bộ LAN\n• Firmware ESP32 v2.5.8 (Build 202): Hỗ trợ BLE MTU 512 byte, bảo vệ khóa đa nhiệm FreeRTOS I2C và an toàn socket MQTT",
+  "releaseNotesEn": "• BLE MTU 512-byte negotiation: High-throughput lossless HMAC auth and rapid config payloads\n• Instant hardware state synchronization on network recovery without early return drops\n• Resolved SQLITE_BUSY concurrency conflicts with 5000ms busy timeout\n• Multi-level MQTT wildcard subscription coverage for 2-level topics\n• Complete switch state and pending operation memory isolation on multi-home switching\n• Enforced RBAC LAN permission checks for disabled members\n• ESP32 Firmware v2.5.8 (Build 202): 512-byte BLE MTU, FreeRTOS I2C multi-task mutex, thread-safe MQTT",
   "downloadUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "directApkUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "isForceUpdate": false,
-  "fileSizeBytes": 72242943,
-  "sha256": "34A5DD06174F17814992535EE470C0F5A37BA1EABE427C9B3969FFF0FD8AD4A6",
-  "publishedAt": "2026-11-01T07:08:00.000Z"
+  "fileSizeBytes": 72292067,
+  "sha256": "7F20A6810C93B762C3CF88A2060BE13AAA00FA79FCAA732BFC015A93649B5B74",
+  "publishedAt": "2026-11-01T14:20:05.435Z"
 }

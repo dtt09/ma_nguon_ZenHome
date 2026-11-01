@@ -4631,7 +4631,7 @@ abstract class AppLocalizations {
   /// No description provided for @hub_ble_gatt_secured.
   ///
   /// In en, this message translates to:
-  /// **'GATT Service: 19b10000... 🔐 (Key HMAC-SHA256 OK)'**
+  /// **'GATT Service: 19b10000... 🔐 (Secured)'**
   String get hub_ble_gatt_secured;
 
   /// No description provided for @hub_ble_gatt_verifying.
