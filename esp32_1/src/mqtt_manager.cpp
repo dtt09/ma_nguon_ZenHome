@@ -646,7 +646,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
       String fwUrl = otaDoc["url"].as<String>();
       String expectedSha = otaDoc.containsKey("sha256") ? otaDoc["sha256"].as<String>() : "";
-      performServerOtaUpdate(fwUrl, expectedSha);
+      String sigHex = otaDoc.containsKey("sig") ? otaDoc["sig"].as<String>() : "";
+      performServerOtaUpdate(fwUrl, expectedSha, sigHex);
     } else {
       Serial.println("[OTA] ❌ Gói tin OTA thiếu trường URL hoặc JSON không hợp lệ!");
     }
@@ -885,7 +886,7 @@ void publishOtaMessage(const String& subTopic, const String& payload) {
   mqttClient.loop();
 }
 
-void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
+void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, const String& signatureHex) {
   if (fwUrl.length() < 10) return;
   if (isOtaInProgress) {
     Serial.println("[SERVER-OTA] ⚠️ Đang có tiến trình nạp OTA chạy trong nền, bỏ qua yêu cầu trùng lặp!");
@@ -997,6 +998,18 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
     publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Xác thực tính toàn vẹn thất bại! Firmware có thể bị sửa đổi hoặc lỗi mạng.\"}");
     isOtaInProgress = false;
     return;
+  }
+
+  // 🔐 BẢO MẬT NÂNG CAO (SECURE OTA): Xác thực chữ ký số phi đối xứng ECDSA P-256
+  if (signatureHex.length() >= 64) {
+    if (!verifyFirmwareEcdsaSignature(calculatedShaBytes, signatureHex)) {
+      Serial.println("[SERVER-OTA] ⛔ BẢO MẬT TỐI CAO: Chữ ký số nhà phát triển KHÔNG HỢP LỆ! Nghi vấn firmware giả mạo.");
+      Update.abort();
+      publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Chữ ký số phát hành không hợp lệ! Từ chối nạp firmware lạ.\"}");
+      isOtaInProgress = false;
+      return;
+    }
+    Serial.println("[SERVER-OTA] 🔐 XÁC THỰC THÀNH CÔNG: Chữ ký số nhà phát triển ECDSA P-256 hợp lệ 100%!");
   }
 
   if (written == (size_t)contentLength) {

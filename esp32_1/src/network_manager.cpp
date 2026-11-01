@@ -790,8 +790,9 @@ void setupStationWebServer() {
 
     String fwUrl = doc["url"].as<String>();
     String expectedSha = doc.containsKey("sha256") ? doc["sha256"].as<String>() : "";
+    String sigHex = doc.containsKey("sig") ? doc["sig"].as<String>() : "";
     request->send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Đã tiếp nhận yêu cầu OTA. Đang bắt đầu tải firmware...\"}");
-    performServerOtaUpdate(fwUrl, expectedSha);
+    performServerOtaUpdate(fwUrl, expectedSha, sigHex);
   });
 
   server.on("/api/rules", HTTP_GET, [](AsyncWebServerRequest *request) {

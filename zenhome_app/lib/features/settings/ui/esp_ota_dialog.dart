@@ -301,6 +301,7 @@ class EspOtaDialog {
     final fileSizeBytes = firmwareInfo['fileSizeBytes'] is int ? firmwareInfo['fileSizeBytes'] as int : 0;
     final fileSizeMb = (fileSizeBytes / (1024 * 1024)).toStringAsFixed(2);
     final sha256 = firmwareInfo['sha256']?.toString() ?? '';
+    final signature = firmwareInfo['sig']?.toString() ?? '';
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -353,7 +354,7 @@ class EspOtaDialog {
                   const Divider(height: 14),
                   _buildMetaRow('Dung lượng', '$fileSizeMb MB ($fileSizeBytes bytes)', Icons.folder_zip_outlined, Colors.purple),
                   const Divider(height: 14),
-                  _buildMetaRow('Xác thực bảo mật', 'Toàn vẹn phần cứng', Icons.verified_user_outlined, Colors.green),
+                  _buildMetaRow('Xác thực bảo mật', 'Ký số điện tử ECDSA (Chính chủ)', Icons.verified_user_rounded, Colors.green),
                   const Divider(height: 14),
                   _buildMetaRow('Mục tiêu', MaskingHelper.maskMac(activeConfig.macAddress), Icons.memory_rounded, Colors.teal),
                 ],
@@ -420,6 +421,7 @@ class EspOtaDialog {
         serverBaseUrl: serverBaseUrl!,
         version: version,
         expectedSha256: sha256,
+        signature: signature,
         directUrl: directFwUrl,
         isDark: isDark,
       ),
@@ -466,6 +468,7 @@ class _EspOtaProgressDialog extends ConsumerStatefulWidget {
   final String serverBaseUrl;
   final String version;
   final String expectedSha256;
+  final String signature;
   final String directUrl;
   final bool isDark;
 
@@ -474,6 +477,7 @@ class _EspOtaProgressDialog extends ConsumerStatefulWidget {
     required this.serverBaseUrl,
     required this.version,
     required this.expectedSha256,
+    this.signature = '',
     required this.directUrl,
     required this.isDark,
   });
@@ -610,6 +614,7 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
       'url': widget.directUrl,
       'version': widget.version,
       'sha256': widget.expectedSha256,
+      if (widget.signature.isNotEmpty) 'sig': widget.signature,
       'admin_pass': widget.activeConfig.adminPass ?? 'admin',
       'server_authorized': true,
       'timestamp': DateTime.now().toIso8601String(),

@@ -6,6 +6,8 @@
 #include <mbedtls/md.h>
 #include <mbedtls/sha256.h>
 #include <mbedtls/aes.h>
+#include <mbedtls/pk.h>
+#include "firmware_signer_pubkey.h"
 #include <WiFi.h>
 
 const char* DH_PRIME_1536 = 
@@ -129,6 +131,35 @@ String computeHmacSha256(const String& keyHex, const String& message) {
   char outHex[65];
   bytesToHex(output, 32, outHex);
   return String(outHex);
+}
+
+bool verifyFirmwareEcdsaSignature(const uint8_t* sha256Bytes, const String& sigHex) {
+  if (sigHex.length() < 64) {
+    return false;
+  }
+
+  // Chuyển đổi mã hex signature thành buffer nhị phân DER
+  size_t sigLen = sigHex.length() / 2;
+  std::vector<uint8_t> derSig(sigLen);
+  for (size_t i = 0; i < sigLen; i++) {
+    derSig[i] = (hexNibble(sigHex[i * 2]) << 4) | hexNibble(sigHex[i * 2 + 1]);
+  }
+
+  mbedtls_pk_context pk;
+  mbedtls_pk_init(&pk);
+
+  int ret = mbedtls_pk_parse_public_key(&pk, (const unsigned char*)FIRMWARE_SIGNER_PUBLIC_KEY, strlen(FIRMWARE_SIGNER_PUBLIC_KEY) + 1);
+  if (ret != 0) {
+    Serial.printf("[SECURITY] ❌ Lỗi phân tích Public Key nhà phát triển (mbedtls: -0x%04x)\n", -ret);
+    mbedtls_pk_free(&pk);
+    return false;
+  }
+
+  // Xác thực băm SHA-256 với chữ ký điện tử ECDSA DER bằng khóa công khai
+  ret = mbedtls_pk_verify(&pk, MBEDTLS_MD_SHA256, sha256Bytes, 32, derSig.data(), sigLen);
+  mbedtls_pk_free(&pk);
+
+  return (ret == 0);
 }
 
 void getHardwareStorageKey(uint8_t outKey[32]) {

@@ -15,7 +15,7 @@ bool verifyBindingWithDatabase();
 void connectMQTT();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
 void publishHomeAssistantDiscovery();
-void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256);
+void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, const String& signatureHex = "");
 void checkMqttConnection();
 void checkSetupTimeout();
 void revertToAPMode(const String& reason);

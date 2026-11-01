@@ -58,3 +58,6 @@ zenhome-server/server/data/backups/
 *.bin
 *_backup.docx
 report_text.txt
+
+scripts/keys/*private*.pem
+*.pem

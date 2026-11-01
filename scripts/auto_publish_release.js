@@ -18,6 +18,7 @@ const https = require('https');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 const readline = require('readline');
+const { signFirmwareBinary, ensureKeysExist } = require('./generate_firmware_keys');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const REPO_OWNER = 'dtt09';
@@ -314,9 +315,20 @@ async function main() {
 
   const espSha = fs.existsSync(espBin) ? computeSha256(espBin) : '';
   const apkSha = fs.existsSync(apkBin) ? computeSha256(apkBin) : '';
+  let espSig = '';
+  if (fs.existsSync(espBin)) {
+    try {
+      ensureKeysExist();
+      const signed = signFirmwareBinary(espBin);
+      espSig = signed.sigHex;
+    } catch (e) {
+      console.warn('   ⚠️ Không thể tạo chữ ký số ECDSA:', e.message);
+    }
+  }
 
   console.log('\n📋 THÔNG TIN GÓI PHÁT HÀNH:');
   if (espSha) console.log(`   - Firmware:  ${espBin} (${fs.statSync(espBin).size} bytes | SHA: ${espSha})`);
+  if (espSig) console.log(`   - Chữ ký số: ECDSA P-256 (${espSig.substring(0, 32)}...)`);
   if (apkSha) console.log(`   - App APK:   ${apkBin} (${fs.statSync(apkBin).size} bytes | SHA: ${apkSha})`);
 
   // 5. Tìm hoặc tạo GitHub Release
@@ -340,8 +352,21 @@ async function main() {
 
   // 6. Dọn dẹp asset cũ trùng tên nếu có
   if (release.assets && release.assets.length > 0) {
+    const metaPath = path.join(ROOT_DIR, 'release_metadata.json');
+    fs.writeFileSync(metaPath, JSON.stringify({
+      version: pubspecVersion,
+      build: pubspecBuild,
+      tag: tagVersion,
+      sha256: espSha,
+      sig: espSig,
+      fileSizeBytes: fs.existsSync(espBin) ? fs.statSync(espBin).size : 0,
+      updatedAt: new Date().toISOString()
+    }, null, 2), 'utf8');
+
     for (const asset of release.assets) {
-      const isTarget = (!onlyApk && asset.name === 'firmware.bin') || (!onlyEsp && asset.name === 'ZenHome_Release.apk');
+      const isTarget = (!onlyApk && asset.name === 'firmware.bin') || 
+                       (!onlyEsp && asset.name === 'ZenHome_Release.apk') ||
+                       (asset.name === 'release_metadata.json');
       if (isTarget) {
         console.log(`   🗑️  Xóa asset cũ [${asset.name}] (ID: ${asset.id}) để tải lên bản mới...`);
         try {
@@ -356,6 +381,11 @@ async function main() {
   if (!onlyApk && fs.existsSync(espBin)) {
     await uploadReleaseAsset(release.upload_url, token, espBin, 'firmware.bin');
     console.log(`   🎉 Đã đẩy thành công firmware.bin lên GitHub Releases!`);
+  }
+  const metaPath = path.join(ROOT_DIR, 'release_metadata.json');
+  if (fs.existsSync(metaPath)) {
+    await uploadReleaseAsset(release.upload_url, token, metaPath, 'release_metadata.json');
+    console.log(`   🎉 Đã đẩy thành công release_metadata.json lên GitHub Releases!`);
   }
   if (!onlyEsp && fs.existsSync(apkBin)) {
     await uploadReleaseAsset(release.upload_url, token, apkBin, 'ZenHome_Release.apk');
