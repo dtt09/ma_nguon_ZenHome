@@ -787,6 +787,14 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       } else if (doc.containsKey("state")) {
         targetState = doc["state"].as<String>();
       }
+      if (doc.containsKey("user")) {
+        String reqUser = doc["user"].as<String>();
+        bool isOwnerUser = reqUser.equalsIgnoreCase("owner") || (cachedOwner.length() > 0 && reqUser.equalsIgnoreCase(cachedOwner));
+        if (!isOwnerUser && reqUser.length() > 0 && !isUserAuthorizedForDevice(reqUser, devId)) {
+          Serial.printf("[MQTT-RBAC] 🚫 Từ chối user '%s' điều khiển '%s' qua MQTT (Không có quyền/Bị khóa)!\n", reqUser.c_str(), devId.c_str());
+          return;
+        }
+      }
     }
   } else {
     targetState = message;

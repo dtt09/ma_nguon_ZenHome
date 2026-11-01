@@ -489,7 +489,8 @@ void setupStationWebServer() {
       return;
     }
 
-    if (!isAdminAuthorized && user.length() > 0 && !isUserAuthorizedForDevice(user, devId)) {
+    bool isOwnerUser = user.equalsIgnoreCase("owner") || (cachedOwner.length() > 0 && user.equalsIgnoreCase(cachedOwner));
+    if (!isOwnerUser && user.length() > 0 && !isUserAuthorizedForDevice(user, devId)) {
       request->send(403, "application/json", "{\"status\":\"error\",\"code\":\"FORBIDDEN\",\"message\":\"Không có quyền điều khiển thiết bị này!\"}");
       return;
     }

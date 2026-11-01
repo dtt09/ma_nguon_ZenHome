@@ -48,6 +48,7 @@ class SmartConfig {
   String homeType;
   String homeColor;
   List<String> homeRules;
+  bool isDisabled;
 
   SmartConfig({
     required this.userId,
@@ -67,6 +68,7 @@ class SmartConfig {
     this.homeType = 'townhouse',
     this.homeColor = '#0F766E',
     this.homeRules = const [],
+    this.isDisabled = false,
   });
 
   String get mqttPrefix => '$userId/$macAddress';
@@ -89,6 +91,7 @@ class SmartConfig {
         'homeType': homeType,
         'homeColor': homeColor,
         'homeRules': homeRules,
+        'isDisabled': isDisabled,
         'devices': devices.map((e) => e.toJson()).toList(),
       };
 
@@ -123,6 +126,7 @@ class SmartConfig {
         homeType: json['homeType'] ?? 'townhouse',
         homeColor: json['homeColor'] ?? '#0F766E',
         homeRules: json['homeRules'] != null ? List<String>.from(json['homeRules']) : [],
+        isDisabled: json['isDisabled'] ?? false,
       );
   }
 }

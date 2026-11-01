@@ -491,9 +491,11 @@ void parseMembersJson(const String& jsonStr) {
     m.user = mObj["user"] | "";
     m.role = mObj["role"] | "member";
     m.disabled = mObj["disabled"] | false;
-    JsonArray devArr = mObj["allowedDevices"].as<JsonArray>();
-    for (JsonVariant d : devArr) {
-      m.allowedDevices.push_back(d.as<String>());
+    JsonArray devArr = mObj.containsKey("allowedDevices") ? mObj["allowedDevices"].as<JsonArray>() : mObj["allowed"].as<JsonArray>();
+    if (!devArr.isNull()) {
+      for (JsonVariant d : devArr) {
+        m.allowedDevices.push_back(d.as<String>());
+      }
     }
     if (m.user.length() > 0) {
       cachedMembers.push_back(m);

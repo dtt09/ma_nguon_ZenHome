@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
@@ -232,27 +232,20 @@ mixin HomeSyncMixin on ConsumerState<MainLayout> {
 
 
       if (data.containsKey('disabledMembers')) {
-
         final List<dynamic> disabledMembers = data['disabledMembers'];
-
         bool currentlyDisabled = disabledMembers.contains(cachedUsername);
-
-        if (isDisabled != currentlyDisabled) {
-
+        if (isDisabled != currentlyDisabled || activeConfig.isDisabled != currentlyDisabled) {
           if (mounted) setState(() => isDisabled = currentlyDisabled);
-
+          activeConfig.isDisabled = currentlyDisabled;
+          configChanged = true;
           if (currentlyDisabled) {
-
             ref.read(mqttRepositoryProvider).disconnect();
-
+            ref.read(localNetworkServiceProvider).stopMonitoring();
+            BleLocalService().stop();
           } else {
-
             needReconnect = true;
-
           }
-
         }
-
       }
 
 

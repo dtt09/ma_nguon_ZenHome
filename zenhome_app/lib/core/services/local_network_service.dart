@@ -43,6 +43,7 @@ class LocalNetworkService {
   String? _currentUserId;
   String? _currentUserRole;
   List<String>? _allowedDevices;
+  bool _isDisabled = false;
   bool _isChecking = false;
   String? _cachedAdminPass;
   StreamSubscription? _bleStateSub;
@@ -69,11 +70,13 @@ class LocalNetworkService {
     String? adminPass,
     String? userId,
     String? role,
+    bool isDisabled = false,
     List<String>? allowedDevices,
   }) {
     _cachedAdminPass = adminPass;
     _currentUserId = userId;
     _currentUserRole = role ?? 'owner';
+    _isDisabled = isDisabled;
     _allowedDevices = allowedDevices;
 
     if (targetMac.isEmpty || targetMac == 'unknown_mac' || targetMac == 'unknown') {
@@ -448,6 +451,10 @@ class LocalNetworkService {
   /// Tự động xác thực chữ ký HMAC-SHA256 theo chuẩn bảo mật Zero-Knowledge và Phân quyền RBAC
   Future<bool> sendLocalControl({required String devId, required String cmd}) async {
     // 0. Kiểm tra phân quyền thành viên (RBAC)
+    if (_isDisabled || _currentUserRole == 'disabled') {
+      LoggerService.w('[LocalNet-RBAC] 🚫 Tài khoản đang bị Chủ nhà tạm khóa quyền điều khiển!');
+      return false;
+    }
     if (_currentUserRole == 'member' && _allowedDevices != null && !_allowedDevices!.contains(devId)) {
       LoggerService.w('[LocalNet-RBAC] 🚫 Thành viên không có quyền điều khiển thiết bị $devId!');
       return false;
@@ -458,12 +465,13 @@ class LocalNetworkService {
       try {
         final uri = Uri.parse('http://$_cachedHubIp/api/control');
         final user = _currentUserId ?? 'owner';
-        final effectiveAdmin = _cachedAdminPass ?? 'admin';
+        // Bảo vệ RBAC: Chỉ Chủ nhà (owner / co_owner) mới được gửi adminPass để tránh thành viên qua mặt phân quyền
+        final effectiveAdmin = (_currentUserRole == 'owner' || _currentUserRole == 'co_owner') ? (_cachedAdminPass ?? 'admin') : '';
         final body = jsonEncode({
           'id': devId,
           'cmd': cmd,
           'user': user,
-          'adminPass': effectiveAdmin,
+          if (effectiveAdmin.isNotEmpty) 'adminPass': effectiveAdmin,
         });
 
         // Lấy hoặc tự động trao đổi khóa bảo mật với ESP32

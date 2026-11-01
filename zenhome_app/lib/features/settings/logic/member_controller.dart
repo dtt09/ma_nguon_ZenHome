@@ -1,4 +1,5 @@
-﻿import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zenhome_app/core/models/smart_config.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/services/local_network_service.dart';
+import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 
 class MemberOperationResult {
   final bool success;
@@ -229,6 +231,11 @@ class MemberController extends StateNotifier<bool> {
           allowedDevs = List<String>.from(data['memberDevicePermissions'][currentUsername]);
         }
 
+        bool isUserDisabled = false;
+        if (data['disabledMembers'] != null && (data['disabledMembers'] as List).contains(currentUsername)) {
+          isUserDisabled = true;
+        }
+
         final newConfig = SmartConfig(
           userId: ownerUsername,
           macAddress: (data['macAddress'] == 'unknown_mac' || data['macAddress'] == 'unknown' || data['macAddress'] == null) ? '' : data['macAddress'],
@@ -241,6 +248,7 @@ class MemberController extends StateNotifier<bool> {
           ownerEmail: ownerUsername,
           canEditAutomation: canEdit,
           allowedDevices: allowedDevs,
+          isDisabled: isUserDisabled,
         );
 
         await _ref.read(homeConfigProvider).saveConfigToStorage(newConfig);
@@ -407,6 +415,7 @@ class MemberController extends StateNotifier<bool> {
             'role': role,
             'disabled': disabled,
             'allowed': allowed,
+            'allowedDevices': allowed,
           });
         }
       }
@@ -416,7 +425,21 @@ class MemberController extends StateNotifier<bool> {
         'disabled': data['disabledMembers'] ?? [],
         'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
       };
+
+      // 1. Đồng bộ qua mạng nội bộ LAN nếu đang cùng mạng Wi-Fi
       await LocalNetworkService().syncMembersToHub(payload);
+
+      // 2. Đồng bộ tức thời qua Cloud MQTT để Hub nhận lệnh ngay cả khi Chủ nhà ở xa (4G/Công tác)
+      final activeConfig = _ref.read(homeConfigProvider).activeConfig;
+      if (activeConfig.mqttPrefix.isNotEmpty && !activeConfig.mqttPrefix.startsWith('guest/')) {
+        final mqttTopic = '${activeConfig.mqttPrefix}/system/members';
+        _ref.read(mqttRepositoryProvider).publishCmd(mqttTopic, jsonEncode(payload));
+
+        final cleanPrefix = activeConfig.mqttPrefix.replaceAll(':', '');
+        if (cleanPrefix != activeConfig.mqttPrefix) {
+          _ref.read(mqttRepositoryProvider).publishCmd('$cleanPrefix/system/members', jsonEncode(payload));
+        }
+      }
     } catch (_) {}
   }
 }

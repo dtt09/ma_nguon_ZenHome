@@ -75,6 +75,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         adminPass: activeConfig.adminPass,
         userId: activeConfig.userId,
         role: activeConfig.role,
+        isDisabled: activeConfig.isDisabled,
         allowedDevices: activeConfig.allowedDevices,
       );
     });
@@ -124,6 +125,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     if (ref.read(pendingDeviceOperationsProvider).contains(devId)) return; 
 
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
+
+    // Kiểm tra nếu tài khoản đang bị Chủ nhà tạm khóa quyền điều khiển
+    if (activeConfig.isDisabled) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('member_disabled_msg') ?? 'Tài khoản của bạn đã bị Chủ nhà tạm khóa quyền điều khiển!',
+        isError: true,
+      );
+      return;
+    }
 
     // Kiểm tra quyền điều khiển thiết bị của thành viên
     if (activeConfig.role == 'member' &&
@@ -204,12 +216,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
       try {
         final mqttPrefix = activeConfig.mqttPrefix;
         final topicCmd1 = '$mqttPrefix/$roomId/$devId/cmd';
-        ref.read(mqttRepositoryProvider).publishCmd(topicCmd1, cmd);
+        final senderUser = FirebaseAuth.instance.currentUser?.displayName ?? FirebaseAuth.instance.currentUser?.email ?? 'member';
+        final payload = jsonEncode({
+          'action': cmd,
+          'user': senderUser,
+        });
+        ref.read(mqttRepositoryProvider).publishCmd(topicCmd1, payload);
 
         final cleanPrefix = mqttPrefix.replaceAll(':', '');
         if (cleanPrefix != mqttPrefix) {
           final topicCmd2 = '$cleanPrefix/$roomId/$devId/cmd';
-          ref.read(mqttRepositoryProvider).publishCmd(topicCmd2, cmd);
+          ref.read(mqttRepositoryProvider).publishCmd(topicCmd2, payload);
         }
       } catch (e) {
         debugPrint('[MQTT] Lỗi publish lệnh relay: $e');

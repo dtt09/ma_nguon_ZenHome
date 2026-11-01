@@ -500,6 +500,11 @@ class HomeConfigNotifier extends ChangeNotifier {
               allowedDevs = List<String>.from(ownerData['memberDevicePermissions'][primaryUsername]);
             }
 
+            bool isUserDisabled = false;
+            if (ownerData['disabledMembers'] != null && (ownerData['disabledMembers'] as List).contains(primaryUsername)) {
+              isUserDisabled = true;
+            }
+
             final rawOwnerMac = ownerData['macAddress']?.toString() ?? '';
             final cleanOwnerMac = (rawOwnerMac == 'unknown_mac' || rawOwnerMac == 'unknown') ? '' : rawOwnerMac;
 
@@ -515,6 +520,7 @@ class HomeConfigNotifier extends ChangeNotifier {
               ownerEmail: ownerUsername,
               canEditAutomation: canEdit,
               allowedDevices: allowedDevs,
+              isDisabled: isUserDisabled,
               isSubHome: false,
               homeIcon: ownerData['homeIcon'] ?? 'home',
               homeType: ownerData['homeType'] ?? 'townhouse',
