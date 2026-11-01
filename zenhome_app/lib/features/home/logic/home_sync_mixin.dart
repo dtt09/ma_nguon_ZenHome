@@ -211,29 +211,25 @@ mixin HomeSyncMixin on ConsumerState<MainLayout> {
 
 
 
-    // Kiểm tra quyền thành viên nếu là nhà được mời
-
-    if (cachedUsername != null && activeConfig.role != 'owner') {
-
-      if (data.containsKey('sharedWith')) {
-
-        List<dynamic> shared = data['sharedWith'];
-
-        if (!shared.contains(cachedUsername)) {
-
+    // Kiểm tra quyền thành viên nếu là nhà được mời (Đối chiếu cả Username và UID)
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (activeConfig.role != 'owner') {
+      if (data.containsKey('sharedWith') || data.containsKey('sharedUids')) {
+        List<dynamic> shared = data['sharedWith'] is List ? data['sharedWith'] : [];
+        List<dynamic> sharedUids = data['sharedUids'] is List ? data['sharedUids'] : [];
+        bool isMemberValid = (cachedUsername != null && shared.contains(cachedUsername)) ||
+                             (currentUser != null && sharedUids.contains(currentUser.uid));
+        if (!isMemberValid && (shared.isNotEmpty || sharedUids.isNotEmpty)) {
           _handleKickedFromHome();
-
           return;
-
         }
-
       }
 
-
-
-      if (data.containsKey('disabledMembers')) {
-        final List<dynamic> disabledMembers = data['disabledMembers'];
-        bool currentlyDisabled = disabledMembers.contains(cachedUsername);
+      if (data.containsKey('disabledMembers') || data.containsKey('disabledUids')) {
+        final List<dynamic> disabledMembers = data['disabledMembers'] is List ? data['disabledMembers'] : [];
+        final List<dynamic> disabledUids = data['disabledUids'] is List ? data['disabledUids'] : [];
+        bool currentlyDisabled = (cachedUsername != null && disabledMembers.contains(cachedUsername)) ||
+                                 (currentUser != null && disabledUids.contains(currentUser.uid));
         if (isDisabled != currentlyDisabled || activeConfig.isDisabled != currentlyDisabled) {
           if (mounted) setState(() => isDisabled = currentlyDisabled);
           activeConfig.isDisabled = currentlyDisabled;

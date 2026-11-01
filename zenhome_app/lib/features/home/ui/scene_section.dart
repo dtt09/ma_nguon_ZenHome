@@ -294,6 +294,19 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
       return;
     }
 
+    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+
+    // Kiểm tra nếu tài khoản đang bị Chủ nhà tạm khóa quyền điều khiển
+    if (activeConfig.isDisabled) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('member_disabled_msg') ?? 'Tài khoản của bạn đã bị Chủ nhà tạm khóa quyền điều khiển!',
+        isError: true,
+      );
+      return;
+    }
+
     final localService = ref.read(localNetworkServiceProvider);
     final isLocalAvailable = localService.isLocalAvailable;
     final mqttState = ref.read(mqttConnectionStateProvider);
@@ -303,17 +316,39 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
       showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
       return;
     }
+
+    // Lọc các thiết bị mà thành viên được phép điều khiển
+    Map<String, String> actions = Map<String, String>.from(scene['actions'] ?? {});
+    if (activeConfig.role != 'owner' && activeConfig.role != 'co_owner' && activeConfig.allowedDevices != null) {
+      actions.removeWhere((topic, _) {
+        String devId = topic.split('/').last;
+        return !activeConfig.allowedDevices!.contains(devId);
+      });
+    }
+
+    if (actions.isEmpty) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        'Bạn không có quyền điều khiển các thiết bị trong ngữ cảnh này!',
+        isError: true,
+      );
+      return;
+    }
     
     setState(() => _isSceneOnCooldown = true);
     
     HapticFeedback.heavyImpact(); // Rung mạnh khi kích hoạt ngữ cảnh
 
-    Map<String, String> actions = scene['actions'];
-
     // Thực thi các hành động với độ trễ xen kẽ (Staggered Execution: 60ms) chống sụt áp nguồn (Brownout Protection)
-    final activeConfig = ref.read(homeConfigProvider).activeConfig;
     final mqttPrefix = activeConfig.mqttPrefix;
     final cleanPrefix = mqttPrefix.replaceAll(':', '');
+
+    final user = FirebaseAuth.instance.currentUser;
+    String currentUsername = activeConfig.userId;
+    if (user != null) {
+      currentUsername = user.displayName ?? (user.email?.split('@')[0] ?? user.uid);
+    }
 
     int delayMs = 0;
     actions.forEach((topic, command) {
@@ -324,6 +359,13 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
         roomId = parts[parts.length - 2];
       }
 
+      final payloadMap = {
+        'action': command,
+        'user': currentUsername,
+        'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      };
+      final mqttPayload = jsonEncode(payloadMap);
+
       Future.delayed(Duration(milliseconds: delayMs), () {
         ref.read(pendingDeviceOperationsProvider.notifier).setPending(devId, true);
 
@@ -331,14 +373,14 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
           localService.sendLocalControl(devId: devId, cmd: command).then((success) {
             if (!success) {
               // Dự phòng sang MQTT Cloud nếu LAN không nhận lệnh
-              ref.read(mqttRepositoryProvider).publishCmd('$mqttPrefix/$roomId/$devId/cmd', command);
+              ref.read(mqttRepositoryProvider).publishCmd('$mqttPrefix/$roomId/$devId/cmd', mqttPayload);
             }
           });
         } else {
           final targetTopic = '$mqttPrefix/$roomId/$devId/cmd';
-          ref.read(mqttRepositoryProvider).publishCmd(targetTopic, command);
+          ref.read(mqttRepositoryProvider).publishCmd(targetTopic, mqttPayload);
           if (cleanPrefix != mqttPrefix) {
-            ref.read(mqttRepositoryProvider).publishCmd('$cleanPrefix/$roomId/$devId/cmd', command);
+            ref.read(mqttRepositoryProvider).publishCmd('$cleanPrefix/$roomId/$devId/cmd', mqttPayload);
           }
         }
       });
@@ -359,13 +401,36 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
   }
 
   void _showAddSceneBottomSheet({Map<String, dynamic>? editScene}) {
+    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+
+    // Kiểm tra nếu tài khoản đang bị Chủ nhà tạm khóa
+    if (activeConfig.isDisabled) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('member_disabled_msg') ?? 'Tài khoản của bạn đã bị Chủ nhà tạm khóa quyền điều khiển!',
+        isError: true,
+      );
+      return;
+    }
+
+    // Kiểm tra quyền chỉnh sửa tự động hóa
+    if (activeConfig.role != 'owner' && activeConfig.role != 'co_owner' && !activeConfig.canEditAutomation) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        'Bạn chưa được cấp quyền quản lý tự động hóa.',
+        isError: true,
+      );
+      return;
+    }
+
     bool isEdit = editScene != null;
     String newSceneName = isEdit ? editScene['name'] : '';
     IconData selectedIcon = isEdit ? editScene['icon'] : Icons.auto_awesome;
     Color selectedColor = isEdit ? editScene['color'] : Colors.purple;
     bool _shareWithAll = isEdit ? (editScene['isShared'] ?? false) : false;
     
-    final activeConfig = ref.read(homeConfigProvider).activeConfig;
     final allTopics = getSortedDeviceTopicsList(context, activeConfig);
     final dynamicDeviceTopicsList = allTopics.where((topic) {
       if (activeConfig.role == 'owner' || activeConfig.role == 'co_owner' || activeConfig.allowedDevices == null) {

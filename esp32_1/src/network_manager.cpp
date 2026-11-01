@@ -784,7 +784,7 @@ void setupStationWebServer() {
     }
 
     String sentAdmin = doc.containsKey("adminPass") ? doc["adminPass"].as<String>() : (doc.containsKey("admin_pass") ? doc["admin_pass"].as<String>() : "");
-    if (admin_pass.length() > 0 && sentAdmin != admin_pass && sentAdmin != "admin") {
+    if (admin_pass.length() > 0 && sentAdmin != admin_pass) {
       request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_ADMIN\",\"message\":\"Sai mật khẩu quản trị!\"}");
       return;
     }

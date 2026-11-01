@@ -916,6 +916,30 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
   }
 
   void _executeTimer() {
+    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+
+    // Kiểm tra nếu tài khoản đang bị Chủ nhà tạm khóa
+    if (activeConfig.isDisabled) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('member_disabled_msg') ?? 'Tài khoản của bạn đã bị Chủ nhà tạm khóa quyền điều khiển!',
+        isError: true,
+      );
+      return;
+    }
+
+    // Kiểm tra quyền chỉnh sửa tự động hóa
+    if (activeConfig.role != 'owner' && activeConfig.role != 'co_owner' && !activeConfig.canEditAutomation) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        'Bạn chưa được cấp quyền quản lý tự động hóa.',
+        isError: true,
+      );
+      return;
+    }
+
     final mqttState = ref.read(mqttConnectionStateProvider);
     final isOnline = ref.read(espOnlineStateProvider);
     if (mqttState != 2 || !isOnline) {
@@ -930,7 +954,6 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
 
     int mins = _timerMinutes.toInt();
     String actionText = _timerAction == 'delay_off' ? (context.tr('timer_action_off') ?? 'Tắt sau') : (context.tr('timer_action_on') ?? 'Bật sau');
-    final activeConfig = ref.read(homeConfigProvider).activeConfig;
     String targetId = activeConfig.userId;
     final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final currentName = FirebaseAuth.instance.currentUser?.displayName ?? 

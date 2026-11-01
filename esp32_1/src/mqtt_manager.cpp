@@ -661,14 +661,16 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     DeserializationError err = deserializeJson(resetDoc, message);
     if (!err && resetDoc.is<JsonObject>()) {
       String sentPass = resetDoc.containsKey("admin_pass") ? resetDoc["admin_pass"].as<String>() : "";
-      if (admin_pass.length() > 0 && sentPass == admin_pass) {
+      if (admin_pass.length() == 0 || sentPass == admin_pass) {
         authorized = true;
       } else {
         Serial.println("\n[!] ⛔ TỪ CHỐI FACTORY RESET: Sai mật khẩu quản trị (admin_pass)!");
       }
-    } else if (message == "1" || message == "force_reset" || message == "reset") {
+    } else if (admin_pass.length() == 0 && (message == "1" || message == "force_reset" || message == "reset")) {
       authorized = true;
-      Serial.println("\n[!] 🔐 Nhận lệnh Reset hợp lệ từ Server/Quản trị viên!");
+      Serial.println("\n[!] 🔐 Nhận lệnh Reset hợp lệ (chế độ chưa đặt mật khẩu quản trị)!");
+    } else {
+      Serial.println("\n[!] ⛔ TỪ CHỐI FACTORY RESET: Bắt buộc gửi payload JSON kèm mật khẩu admin_pass hợp lệ!");
     }
 
     if (!authorized) {

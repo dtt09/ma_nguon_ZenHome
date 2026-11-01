@@ -458,7 +458,7 @@ class HomeConfigNotifier extends ChangeNotifier {
         sharedOwnerUsernames.add(primaryData['ownerUsername'].toString());
       }
 
-      // B. Qua trường sharedWith trên các document khác
+      // B. Qua trường sharedWith và sharedUids trên các document khác
       try {
         final sharedWithQuery = await FirebaseFirestore.instance.collection('users')
             .where('sharedWith', arrayContains: primaryUsername)
@@ -470,6 +470,22 @@ class HomeConfigNotifier extends ChangeNotifier {
         }
       } catch (e) {
         debugPrint("Lỗi query sharedWith: $e");
+      }
+
+      try {
+        final currentUid = currentUser?.uid;
+        if (currentUid != null && currentUid.isNotEmpty) {
+          final sharedUidsQuery = await FirebaseFirestore.instance.collection('users')
+              .where('sharedUids', arrayContains: currentUid)
+              .get();
+          for (var doc in sharedUidsQuery.docs) {
+            if (!sharedOwnerUsernames.contains(doc.id) && doc.id != primaryUsername) {
+              sharedOwnerUsernames.add(doc.id);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint("Lỗi query sharedUids: $e");
       }
 
       // Tải thông tin từng nhà được chia sẻ
@@ -501,7 +517,10 @@ class HomeConfigNotifier extends ChangeNotifier {
             }
 
             bool isUserDisabled = false;
+            final curUid = currentUser?.uid;
             if (ownerData['disabledMembers'] != null && (ownerData['disabledMembers'] as List).contains(primaryUsername)) {
+              isUserDisabled = true;
+            } else if (curUid != null && ownerData['disabledUids'] != null && (ownerData['disabledUids'] as List).contains(curUid)) {
               isUserDisabled = true;
             }
 

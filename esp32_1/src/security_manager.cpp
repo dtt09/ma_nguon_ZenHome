@@ -552,16 +552,30 @@ void loadMembersFromFlash() {
 }
 
 bool isUserAuthorizedForDevice(const String& user, const String& devId) {
-  if (user.length() == 0 || user.equalsIgnoreCase("owner") || user.equalsIgnoreCase("admin")) {
-    return true;
-  }
-
+  // 1. Kiểm tra danh tính Chủ sở hữu thật sự (khớp với cachedOwner hoặc prefix tài khoản)
   if (cachedOwner.length() > 0 && user.equalsIgnoreCase(cachedOwner)) {
     return true;
   }
   if (mqtt_prefix.indexOf('/') > 0) {
     String owner = mqtt_prefix.substring(0, mqtt_prefix.indexOf('/'));
-    if (user.equalsIgnoreCase(owner)) return true;
+    if (owner.length() > 0 && user.equalsIgnoreCase(owner)) {
+      return true;
+    }
+  }
+
+  // Chế độ tương thích ngược: Cho phép lệnh khuyết danh (user rỗng) chỉ khi nhà chưa cấu hình thành viên nào
+  if (cachedMembers.empty() && user.length() == 0) {
+    return true;
+  }
+
+  // 2. Chặn các chuỗi mạo danh rỗng hoặc "owner" / "admin" giả mạo
+  if (user.length() == 0) {
+    Serial.printf("[RBAC] ⛔ Từ chối lệnh khuyết danh tính trên thiết bị '%s'!\n", devId.c_str());
+    return false;
+  }
+  if (user.equalsIgnoreCase("owner") || user.equalsIgnoreCase("admin")) {
+    Serial.printf("[RBAC] ⛔ CẢNH BÁO BẢO MẬT: Phát hiện chuỗi mạo danh '%s' không hợp lệ!\n", user.c_str());
+    return false;
   }
 
   if (cachedMembers.empty()) {

@@ -49,19 +49,51 @@ void initHardware() {
   }
 }
 
-void safeSetRelayPin(int pin, int level) {
-  if (pcfFound && pin >= 0 && pin <= 7) {
-    // Chống sụt áp nguồn (Brownout Protection): Nếu đóng cuộn hút rơ-le (Active-Low LOW),
-    // chèn độ trễ nhỏ 50ms giữa các lần kích hoạt để triệt tiêu sốc dòng tức thời (Inrush Current)
-    static unsigned long lastRelayOnTime = 0;
-    if (level == LOW) {
-      unsigned long now = millis();
-      if (now - lastRelayOnTime < 50) {
-        delay(50 - (now - lastRelayOnTime));
+void recoverI2CBus() {
+  Serial.println("[HARDWARE] 🔄 Tiến hành khôi phục I2C Bus Recovery (9 xung SCL clock)...");
+  Wire.end();
+  pinMode(SDA, INPUT_PULLUP);
+  pinMode(SCL, OUTPUT);
+  for (int i = 0; i < 9; i++) {
+    digitalWrite(SCL, HIGH);
+    delayMicroseconds(5);
+    digitalWrite(SCL, LOW);
+    delayMicroseconds(5);
+  }
+  Wire.begin();
+  Wire.setTimeOut(50);
+  if (pcf.begin(0x20, &Wire) || pcf.begin(0x27, &Wire) || pcf.begin(0x38, &Wire)) {
+    pcfFound = true;
+    Serial.println("[HARDWARE] ✅ Phục hồi bus I2C và tái kết nối PCF8574 thành công!");
+    for (int i = 0; i < relayCount; i++) {
+      if (myRelays[i].pin <= 7) {
+        pcf.pinMode(myRelays[i].pin, OUTPUT);
+        pcf.digitalWrite(myRelays[i].pin, (myRelays[i].state == "1") ? LOW : HIGH);
       }
-      lastRelayOnTime = millis();
     }
-    pcf.digitalWrite(pin, level);
+  } else {
+    Serial.println("[HARDWARE] ⚠️ Phục hồi bus thất bại. Sẽ thử lại ở lần thao tác kế tiếp.");
+  }
+}
+
+void safeSetRelayPin(int pin, int level) {
+  if (pin >= 0 && pin <= 7) {
+    if (!pcfFound) {
+      recoverI2CBus();
+    }
+    if (pcfFound) {
+      // Chống sụt áp nguồn (Brownout Protection): Nếu đóng cuộn hút rơ-le (Active-Low LOW),
+      // chèn độ trễ nhỏ 50ms giữa các lần kích hoạt để triệt tiêu sốc dòng tức thời (Inrush Current)
+      static unsigned long lastRelayOnTime = 0;
+      if (level == LOW) {
+        unsigned long now = millis();
+        if (now - lastRelayOnTime < 50) {
+          delay(50 - (now - lastRelayOnTime));
+        }
+        lastRelayOnTime = millis();
+      }
+      pcf.digitalWrite(pin, level);
+    }
   }
 }
 
@@ -281,11 +313,12 @@ void evaluateLocalRules(float currentTemp) {
 
     // 1. QUY TẮC NHIỆT ĐỘ TỰ ĐỘNG
     if (strcmp(localRules[i].type, "temp_auto") == 0 && !isnan(currentTemp)) {
+      const float HYSTERESIS = 0.4f; // Trễ nhiệt 0.4°C chống đóng ngắt relay liên tục quanh ngưỡng
       bool conditionMet = false;
       if (strcmp(localRules[i].tempCond, ">=") == 0) {
-        conditionMet = (currentTemp >= localRules[i].triggerTemp);
+        conditionMet = (currentTemp >= (localRules[i].triggerTemp + HYSTERESIS));
       } else if (strcmp(localRules[i].tempCond, "<=") == 0) {
-        conditionMet = (currentTemp <= localRules[i].triggerTemp);
+        conditionMet = (currentTemp <= (localRules[i].triggerTemp - HYSTERESIS));
       }
 
       if (conditionMet) {

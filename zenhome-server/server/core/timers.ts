@@ -25,9 +25,13 @@ export async function loadTimersFromFirebase() {
                     deleteTimerFromFirebase(timerKey);
                 }, safeRemaining);
                 loaded++;
-            } else {
-                console.log(`[TIMER] ⏱️ Hẹn giờ ${timerKey} đã quá hạn, thực thi bắn lệnh ngay...`);
+            } else if (now - triggerAt <= 5 * 60 * 1000) {
+                // Chỉ thực thi bù nếu thời gian trễ không quá 5 phút
+                console.log(`[TIMER] ⏱️ Hẹn giờ ${timerKey} vừa quá hạn (<5 phút), thực thi bù...`);
                 sendCommandWithRetry(baseTopic, action, 'timer');
+                deleteTimerFromFirebase(timerKey);
+            } else {
+                console.warn(`[TIMER WARNING] ⚠️ Hẹn giờ ${timerKey} đã quá hạn quá lâu (${Math.round((now - triggerAt) / 60000)} phút). Hủy bỏ an toàn tránh kích hoạt ma!`);
                 deleteTimerFromFirebase(timerKey);
             }
         }

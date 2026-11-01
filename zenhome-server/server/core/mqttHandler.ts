@@ -125,8 +125,11 @@ export function setupMqttHandlers() {
                     if (state.offlineDebounceTimers && state.offlineDebounceTimers[userId]) {
                         clearTimeout(state.offlineDebounceTimers[userId]);
                         delete state.offlineDebounceTimers[userId];
-                        console.log(`[ESP] 🔄 ESP32 ${macAddress} (user ${userId}) đã phục hồi kết nối trong thời gian ân hạn (WiFi chập chờn). Đã hủy cảnh báo giả!`);
-                        return;
+                        if (payload !== 'online_power_restored') {
+                            console.log(`[ESP] 🔄 ESP32 ${macAddress} (user ${userId}) đã phục hồi kết nối trong thời gian ân hạn (WiFi chập chờn). Đã hủy cảnh báo giả!`);
+                            return;
+                        }
+                        console.log(`[ESP] ⚡ ESP32 ${macAddress} (user ${userId}) kết nối lại với tín hiệu CÓ ĐIỆN LẠI (online_power_restored). Tiếp tục quy trình an toàn điện!`);
                     }
 
                     if (payload === 'online_power_restored') {

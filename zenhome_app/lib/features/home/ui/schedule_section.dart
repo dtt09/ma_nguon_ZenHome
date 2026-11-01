@@ -288,6 +288,29 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
 
   void _showScheduleBottomSheet({Map<String, dynamic>? editSchedule}) {
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
+
+    // Kiểm tra nếu tài khoản đang bị Chủ nhà tạm khóa
+    if (activeConfig.isDisabled) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('member_disabled_msg') ?? 'Tài khoản của bạn đã bị Chủ nhà tạm khóa quyền điều khiển!',
+        isError: true,
+      );
+      return;
+    }
+
+    // Kiểm tra quyền chỉnh sửa tự động hóa
+    if (activeConfig.role != 'owner' && activeConfig.role != 'co_owner' && !activeConfig.canEditAutomation) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        'Bạn chưa được cấp quyền quản lý tự động hóa.',
+        isError: true,
+      );
+      return;
+    }
+
     final allTopics = getSortedDeviceTopicsList(context, activeConfig);
     final dynamicDeviceTopicsList = allTopics.where((topic) {
       if (activeConfig.role == 'owner' || activeConfig.role == 'co_owner' || activeConfig.allowedDevices == null) {
