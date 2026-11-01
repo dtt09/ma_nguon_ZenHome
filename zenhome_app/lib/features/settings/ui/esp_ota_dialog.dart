@@ -53,7 +53,8 @@ class EspOtaDialog {
       return;
     }
 
-    final isEspOnline = ref.read(mqttRepositoryProvider).isEspOnline;
+    final mqttRepo = ref.read(mqttRepositoryProvider);
+    final isEspOnline = mqttRepo.isEspOnline;
     if (!isEspOnline) {
       showZenHomeErrorDialog(
         context,
@@ -179,10 +180,124 @@ class EspOtaDialog {
       return;
     }
 
+    final version = firmwareInfo['version']?.toString() ?? '2.5.7';
+    final targetBuild = (firmwareInfo['buildNumber'] as num?)?.toInt() ?? 201;
+
+    // -------------------------------------------------------------
+    // BƯỚC 5.5: KIỂM TRA PHIÊN BẢN HIỆN TẠI CỦA HUB ESP32
+    // -------------------------------------------------------------
+    String? currentVersion = mqttRepo.currentFirmwareVersion;
+    int? currentBuild = mqttRepo.currentFirmwareBuild;
+
+    if (currentVersion == null || currentVersion.isEmpty) {
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(activeConfig.userId)
+            .get()
+            .timeout(const Duration(seconds: 3));
+        if (userDoc.exists && userDoc.data() != null) {
+          currentVersion = userDoc.data()!['firmwareVersion']?.toString();
+          currentBuild = (userDoc.data()!['firmwareBuild'] as num?)?.toInt();
+        }
+      } catch (_) {}
+    }
+
+    // So sánh xem Hub ESP32 đã ở phiên bản mới nhất hay chưa
+    bool isAlreadyLatest = false;
+    if (currentVersion != null && currentVersion.isNotEmpty) {
+      final hasNewer = _isNewerVersion(version, targetBuild, currentVersion, currentBuild ?? 0);
+      isAlreadyLatest = !hasNewer;
+    }
+
+    if (isAlreadyLatest) {
+      final shouldForceReinstall = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: isDark ? const Color(0xFF131B2E) : Colors.white,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text('Hub ESP32 Đã Cập Nhật', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Thiết bị Hub ESP32 của bạn hiện đang chạy phiên bản Firmware mới nhất. Toàn bộ hệ thống đang hoạt động tối ưu!',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  children: [
+                    _buildMetaRow('Phiên bản Hub', 'v$currentVersion${currentBuild != null && currentBuild > 0 ? " (Build $currentBuild)" : ""}', Icons.memory_rounded, Colors.green),
+                    const Divider(height: 14),
+                    _buildMetaRow('Bản mới nhất máy chủ', 'v$version (Build $targetBuild)', Icons.cloud_done_rounded, const Color(0xFF0284C7)),
+                    const Divider(height: 14),
+                    _buildMetaRow('Trạng thái', 'Đang hoạt động tối ưu', Icons.verified_rounded, Colors.teal),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Bạn chỉ cần nạp lại nếu muốn xóa bộ nhớ phân vùng Flash sạch sẽ hoặc khôi phục firmware.',
+                style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true), // Force re-flash
+              child: Text(
+                'Nạp lại (Re-flash)',
+                style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 13),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0284C7),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Đã hiểu', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldForceReinstall != true) {
+        return;
+      }
+    }
+
     // -------------------------------------------------------------
     // BƯỚC 6: HIỂN THỊ HỘP THOẠI XÁC NHẬN NÂNG CẤP
     // -------------------------------------------------------------
-    final version = firmwareInfo['version']?.toString() ?? '1.7.9';
     final fileSizeBytes = firmwareInfo['fileSizeBytes'] is int ? firmwareInfo['fileSizeBytes'] as int : 0;
     final fileSizeMb = (fileSizeBytes / (1024 * 1024)).toStringAsFixed(2);
     final sha256 = firmwareInfo['sha256']?.toString() ?? '';
@@ -312,6 +427,23 @@ class EspOtaDialog {
     );
   }
 
+  static bool _isNewerVersion(String targetVer, int targetBuild, String currentVer, int currentBuild) {
+    if (targetBuild > 0 && currentBuild > 0) {
+      return targetBuild > currentBuild;
+    }
+    List<int> parseParts(String v) {
+      final clean = v.replaceAll(RegExp(r'[^0-9.]'), '');
+      return clean.split('.').map((p) => int.tryParse(p) ?? 0).toList();
+    }
+    final tParts = parseParts(targetVer);
+    final cParts = parseParts(currentVer);
+    for (int i = 0; i < tParts.length && i < cParts.length; i++) {
+      if (tParts[i] > cParts[i]) return true;
+      if (tParts[i] < cParts[i]) return false;
+    }
+    return tParts.length > cParts.length;
+  }
+
   static Widget _buildMetaRow(String label, String value, IconData icon, Color color) {
     return Row(
       children: [
@@ -393,12 +525,27 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
 
       _timeoutTimer?.cancel();
       setState(() {
-        _isFinished = true;
         if (status == 'success') {
+          _isFinished = true;
           _isSuccess = true;
           _progress = 100;
           _statusMessage = 'Nâng cấp thành công! Hub ESP32 đang khởi động lại...';
+          mqttRepo.currentFirmwareVersion = widget.version;
+          mqttRepo.currentFirmwareBuild = 201;
+          try {
+            FirebaseFirestore.instance.collection('users').doc(widget.activeConfig.userId).set({
+              'firmwareVersion': widget.version,
+              'firmwareBuild': 201,
+              'lastFirmwareUpdate': DateTime.now().toIso8601String(),
+            }, SetOptions(merge: true));
+          } catch (_) {}
         } else {
+          // Bảo vệ chống lỗi giả từ lệnh gửi kép (nếu thiết bị đang nạp thực tế >= 10% thì bỏ qua lỗi phân bổ flash trùng)
+          if (_progress >= 10 && (msg.contains('phân bổ') || msg.contains('Flash'))) {
+            debugPrint('[OTA] ⚠️ Bỏ qua phản hồi lỗi trùng từ broker do tiến trình nạp chính vẫn đang chạy.');
+            return;
+          }
+          _isFinished = true;
           _isSuccess = false;
           _errorMessage = msg.isNotEmpty ? msg : 'Lỗi trong quá trình nạp firmware!';
         }
@@ -430,6 +577,15 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
           _isSuccess = true;
           _progress = 100;
           _statusMessage = 'Nâng cấp thành công! Hub ESP32 đã hoạt động trở lại.';
+          mqttRepo.currentFirmwareVersion = widget.version;
+          mqttRepo.currentFirmwareBuild = 201;
+          try {
+            FirebaseFirestore.instance.collection('users').doc(widget.activeConfig.userId).set({
+              'firmwareVersion': widget.version,
+              'firmwareBuild': 201,
+              'lastFirmwareUpdate': DateTime.now().toIso8601String(),
+            }, SetOptions(merge: true));
+          } catch (_) {}
         });
       }
     });
@@ -446,7 +602,7 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
     });
 
     // -----------------------------------------------------------------
-    // CƠ CHẾ DUAL-TRIGGER: PHÁT ĐỒNG THỜI QUA MQTT BROKER VÀ HTTP SERVER
+    // PHÁT LỆNH OTA CHUẨN XÁC TỚI HUB ESP32
     // -----------------------------------------------------------------
     final cleanMac = widget.activeConfig.macAddress.replaceAll(':', '').replaceAll('-', '').toUpperCase();
     final formattedMac = widget.activeConfig.macAddress;
@@ -460,68 +616,55 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
       'timestamp': DateTime.now().toIso8601String(),
     });
 
-    // 1. Phóng thẳng lệnh qua MQTT từ App tới mọi topic biến thể của Hub
+    // 1. Phóng lệnh OTA chuẩn xác qua MQTT tới Hub ESP32
     try {
       final mqttPrefix = widget.activeConfig.mqttPrefix.isNotEmpty
           ? widget.activeConfig.mqttPrefix
           : '${widget.activeConfig.userId}/$formattedMac';
 
       mqttRepo.publishCmd('$mqttPrefix/system/ota_update', otaPayload);
-      mqttRepo.publishCmd('${widget.activeConfig.userId}/$cleanMac/system/ota_update', otaPayload);
-      mqttRepo.publishCmd('${widget.activeConfig.userId}/$formattedMac/system/ota_update', otaPayload);
-      mqttRepo.publishCmd('${widget.activeConfig.userId.toLowerCase()}/$cleanMac/system/ota_update', otaPayload);
-      mqttRepo.publishCmd('${widget.activeConfig.userId.toLowerCase()}/$formattedMac/system/ota_update', otaPayload);
-      debugPrint('[OTA] 📡 Đã phát trực tiếp lệnh OTA qua MQTT tới các topic Hub');
+      final cleanPrefix = '${widget.activeConfig.userId}/$cleanMac';
+      if (cleanPrefix != mqttPrefix) {
+        mqttRepo.publishCmd('$cleanPrefix/system/ota_update', otaPayload);
+      }
+      debugPrint('[OTA] 📡 Đã phát lệnh OTA trực tiếp tới Hub qua MQTT topic: $mqttPrefix/system/ota_update');
     } catch (e) {
       debugPrint('[OTA] ⚠️ Không thể phát lệnh qua MQTT App: $e');
     }
 
-    // 2. Thử kích hoạt qua Local HTTP nếu có IP LAN
-    try {
-      final localIpCandidates = ['192.168.1.11', '192.168.1.10', '192.168.1.12'];
-      for (final ip in localIpCandidates) {
-        http.post(
-          Uri.parse('http://$ip/api/ota'),
-          headers: {'Content-Type': 'application/json'},
+    // 2. Dự phòng qua Web Server Backend API nếu sau 3 giây Hub chưa phản hồi tiến trình nạp
+    Timer(const Duration(seconds: 3), () async {
+      if (!mounted || _isFinished || _progress > 0) return;
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        final token = await user?.getIdToken();
+
+        final triggerUrl = Uri.parse('${widget.serverBaseUrl}/api/v1/hub/ota/trigger');
+        final res = await http.post(
+          triggerUrl,
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
           body: jsonEncode({
-            'url': widget.directUrl,
-            'sha256': widget.expectedSha256,
+            'userId': widget.activeConfig.userId,
+            'macAddress': widget.activeConfig.macAddress,
             'adminPass': widget.activeConfig.adminPass ?? 'admin',
+            'version': widget.version,
           }),
-        ).timeout(const Duration(milliseconds: 1500)).catchError((_) => http.Response('', 408));
-      }
-    } catch (_) {}
+        ).timeout(const Duration(seconds: 10));
 
-    // 3. Gửi lệnh qua Web Server HTTP Backend API
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      final token = await user?.getIdToken();
-
-      final triggerUrl = Uri.parse('${widget.serverBaseUrl}/api/v1/hub/ota/trigger');
-      final res = await http.post(
-        triggerUrl,
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'userId': widget.activeConfig.userId,
-          'macAddress': widget.activeConfig.macAddress,
-          'adminPass': widget.activeConfig.adminPass ?? 'admin',
-          'version': widget.version,
-        }),
-      ).timeout(const Duration(seconds: 10));
-
-      if (res.statusCode == 200) {
-        if (mounted && !_isFinished) {
-          setState(() {
-            _statusMessage = 'Hub ESP32 đã tiếp nhận lệnh. Đang tải Firmware...';
-          });
+        if (res.statusCode == 200) {
+          if (mounted && !_isFinished && _progress == 0) {
+            setState(() {
+              _statusMessage = 'Hub ESP32 đã tiếp nhận lệnh qua Server. Đang tải Firmware...';
+            });
+          }
         }
+      } catch (e) {
+        debugPrint('[OTA] Server HTTP trigger error: $e');
       }
-    } catch (e) {
-      debugPrint('[OTA] Server HTTP trigger error: $e');
-    }
+    });
   }
 
   @override

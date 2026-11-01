@@ -38,6 +38,9 @@ class MqttRepository {
   bool _isEspOnline = false;
   bool get isEspOnline => _isEspOnline;
 
+  String? currentFirmwareVersion;
+  int? currentFirmwareBuild;
+
   Future<void> connect({
     required String userId,
     required String mqttServer,
@@ -188,6 +191,15 @@ class MqttRepository {
           _isEspOnline = true;
           _espOnlineController.add(true);
           _resetHeartbeatWatchdog();
+          try {
+            final json = jsonDecode(payload) as Map<String, dynamic>;
+            if (json.containsKey('version')) {
+              currentFirmwareVersion = json['version']?.toString();
+            }
+            if (json.containsKey('build')) {
+              currentFirmwareBuild = (json['build'] as num?)?.toInt();
+            }
+          } catch (_) {}
         }
 
         if (cleanCurrent.endsWith('/setup/handshake') && 
@@ -218,6 +230,12 @@ class MqttRepository {
                    (cleanCurrent.startsWith(cleanPrefix) || cleanCurrent.startsWith(cleanPrefixNoColon))) {
           try {
             final json = jsonDecode(payload) as Map<String, dynamic>;
+            if (json['status'] == 'success' && json.containsKey('version')) {
+              currentFirmwareVersion = json['version']?.toString();
+              if (json.containsKey('build')) {
+                currentFirmwareBuild = (json['build'] as num?)?.toInt();
+              }
+            }
             _otaResultController.add(json);
           } catch (_) {}
         } else if (cleanCurrent.endsWith('/state')) {

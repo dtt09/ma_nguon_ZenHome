@@ -236,6 +236,22 @@ export function setupMqttHandlers() {
             return;
         }
 
+        // 0.85 BẮT HEARTBEAT TỪ ESP32 ĐỒNG BỘ PHIÊN BẢN FIRMWARE VÀ TRẠNG THÁI SỐNG
+        if (topic.endsWith('/heartbeat')) {
+            const userId = topicParts[0];
+            try {
+                const hb = JSON.parse(payload);
+                if (hb.version && db) {
+                    db.collection('users').doc(userId).set({
+                        firmwareVersion: hb.version,
+                        firmwareBuild: hb.build || 0,
+                        lastHeartbeat: new Date().toISOString(),
+                    }, { merge: true }).catch(() => {});
+                }
+            } catch (_) {}
+            return;
+        }
+
         // 0.9 BẮT TIẾN TRÌNH & KẾT QUẢ OTA TỪ ESP32
         if (topic.endsWith('/system/ota_progress')) {
             const macAddress = topicParts.length > 2 ? topicParts[1] : 'ESP32';
@@ -255,6 +271,13 @@ export function setupMqttHandlers() {
                 const resultData = JSON.parse(payload);
                 if (resultData.status === 'success') {
                     addLog('[OTA]', `🎉 Hub [${macAddress}] nâng cấp Firmware OTA thành công 100%! Đang khởi động lại...`, 'info');
+                    if (db) {
+                        db.collection('users').doc(userId).set({
+                            firmwareVersion: resultData.version || '2.5.7',
+                            firmwareBuild: resultData.build || 201,
+                            lastFirmwareUpdate: new Date().toISOString(),
+                        }, { merge: true }).catch(() => {});
+                    }
                     sendPushToUserTokens(
                         userId,
                         {

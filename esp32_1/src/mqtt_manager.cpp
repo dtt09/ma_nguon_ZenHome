@@ -272,11 +272,32 @@ void connectMQTT() {
     String cleanMacOtaTopic = mqtt_prefix;
     cleanMacOtaTopic.replace(":", "");
     cleanMacOtaTopic += "/system/ota_update";
-    mqttClient.subscribe(cleanMacOtaTopic.c_str());
-    mqttClient.subscribe("+/+/system/ota_update");
+    if (cleanMacOtaTopic != systemOtaTopic) {
+      mqttClient.subscribe(cleanMacOtaTopic.c_str());
+    }
 
     String systemMembersTopic = mqtt_prefix + "/system/members";
     mqttClient.subscribe(systemMembersTopic.c_str());
+
+    // Phát Heartbeat ban đầu thông báo phiên bản Firmware ngay khi kết nối
+    {
+      String heartbeatTopic = mqtt_prefix + "/heartbeat";
+      StaticJsonDocument<256> hbDoc;
+      hbDoc["online"] = true;
+      hbDoc["uptime"] = millis() / 1000;
+      hbDoc["heap"] = ESP.getFreeHeap();
+      hbDoc["version"] = FIRMWARE_VERSION_STR;
+      hbDoc["build"] = FIRMWARE_BUILD_NUM;
+      String hbPayload;
+      serializeJson(hbDoc, hbPayload);
+      mqttClient.publish(heartbeatTopic.c_str(), hbPayload.c_str(), false);
+      String cleanP = mqtt_prefix;
+      cleanP.replace(":", "");
+      if (cleanP != mqtt_prefix) {
+        String cleanHbTopic = cleanP + "/heartbeat";
+        mqttClient.publish(cleanHbTopic.c_str(), hbPayload.c_str(), false);
+      }
+    }
 
     publishHomeAssistantDiscovery();
   } else {
@@ -356,13 +377,21 @@ void checkMqttConnection() {
       if (currentMillis - lastHeartbeatTime >= 15000) {
         lastHeartbeatTime = currentMillis;
         String heartbeatTopic = mqtt_prefix + "/heartbeat";
-        StaticJsonDocument<128> hbDoc;
+        StaticJsonDocument<256> hbDoc;
         hbDoc["online"] = true;
         hbDoc["uptime"] = millis() / 1000;
         hbDoc["heap"] = ESP.getFreeHeap();
+        hbDoc["version"] = FIRMWARE_VERSION_STR;
+        hbDoc["build"] = FIRMWARE_BUILD_NUM;
         String hbPayload;
         serializeJson(hbDoc, hbPayload);
         mqttClient.publish(heartbeatTopic.c_str(), hbPayload.c_str(), false);
+        String cleanP = mqtt_prefix;
+        cleanP.replace(":", "");
+        if (cleanP != mqtt_prefix) {
+          String cleanHbTopic = cleanP + "/heartbeat";
+          mqttClient.publish(cleanHbTopic.c_str(), hbPayload.c_str(), false);
+        }
       }
     }
   }
@@ -434,8 +463,9 @@ void unlockAllFeatures() {
   String cleanMacOtaTopic = mqtt_prefix;
   cleanMacOtaTopic.replace(":", "");
   cleanMacOtaTopic += "/system/ota_update";
-  mqttClient.subscribe(cleanMacOtaTopic.c_str());
-  mqttClient.subscribe("+/+/system/ota_update");
+  if (cleanMacOtaTopic != systemOtaTopic) {
+    mqttClient.subscribe(cleanMacOtaTopic.c_str());
+  }
 
   String systemMembersTopic = mqtt_prefix + "/system/members";
   mqttClient.subscribe(systemMembersTopic.c_str());
@@ -581,7 +611,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
   // Lệnh OTA
   String systemOtaTopic = mqtt_prefix + "/system/ota_update";
-  if (topicStr == systemOtaTopic || topicStr.endsWith("/system/ota_update")) {
+  String cleanMacOtaTopic = mqtt_prefix;
+  cleanMacOtaTopic.replace(":", "");
+  cleanMacOtaTopic += "/system/ota_update";
+
+  if (topicStr == systemOtaTopic || topicStr == cleanMacOtaTopic) {
+    if (isOtaInProgress) {
+      Serial.println("\n[OTA] ⚠️ Đang có tiến trình nạp OTA chạy trong nền. Bỏ qua lệnh trùng lặp!");
+      return;
+    }
     Serial.println("\n[!] 🚀 NHẬN ĐƯỢC LỆNH NÂNG CẤP FIRMWARE OTA TỪ SERVER/APP! Topic: " + topicStr);
     StaticJsonDocument<512> otaDoc;
     DeserializationError err = deserializeJson(otaDoc, message);
@@ -849,6 +887,11 @@ void publishOtaMessage(const String& subTopic, const String& payload) {
 
 void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
   if (fwUrl.length() < 10) return;
+  if (isOtaInProgress) {
+    Serial.println("[SERVER-OTA] ⚠️ Đang có tiến trình nạp OTA chạy trong nền, bỏ qua yêu cầu trùng lặp!");
+    return;
+  }
+  isOtaInProgress = true;
   Serial.println("\n[SERVER-OTA] 🚀 Bắt đầu quá trình nâng cấp Firmware: " + fwUrl);
 
   publishOtaMessage("/system/ota_progress", "{\"progress\":0,\"status\":\"starting\"}");
@@ -869,6 +912,7 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
   if (!beginOk) {
     Serial.println("[SERVER-OTA] ❌ Không thể khởi tạo kết nối HTTP/HTTPS!");
     publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Không thể kết nối tới URL tải firmware!\"}");
+    isOtaInProgress = false;
     return;
   }
 
@@ -877,6 +921,7 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
     Serial.printf("[SERVER-OTA] ❌ Server trả về lỗi HTTP: %d\n", httpCode);
     publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"httpCode\":" + String(httpCode) + "}");
     http.end();
+    isOtaInProgress = false;
     return;
   }
 
@@ -887,6 +932,7 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
     Serial.println("[SERVER-OTA] ❌ Dung lượng firmware không hợp lệ (vượt quá 1.9MB partition)!");
     publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Dung lượng firmware không hợp lệ!\"}");
     http.end();
+    isOtaInProgress = false;
     return;
   }
 
@@ -896,6 +942,7 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
     Update.printError(Serial);
     publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Không thể phân bổ phân vùng Flash OTA!\"}");
     http.end();
+    isOtaInProgress = false;
     return;
   }
 
@@ -949,6 +996,7 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
     Serial.printf("Kỳ vọng: %s\nThực tế: %s\n", expectedSha256.c_str(), calculatedSha.c_str());
     Update.abort();
     publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Xác thực SHA-256 thất bại! Firmware có thể bị sửa đổi hoặc lỗi mạng.\"}");
+    isOtaInProgress = false;
     return;
   }
 
@@ -956,7 +1004,7 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
     Serial.println("[SERVER-OTA] 📥 Đã nhận đủ 100% Firmware và xác thực SHA-256 hợp lệ! Đang hoán đổi phân vùng boot...");
     if (Update.end(true)) {
       Serial.println("[SERVER-OTA] ✅ NÂNG CẤP THÀNH CÔNG RỰC RỠ! ESP32 sẽ khởi động lại vào Firmware mới sau 2 giây...");
-      publishOtaMessage("/system/ota_result", "{\"status\":\"success\",\"message\":\"Nâng cấp Firmware OTA thành công 100%! Đang khởi động lại.\"}");
+      publishOtaMessage("/system/ota_result", "{\"status\":\"success\",\"version\":\"" FIRMWARE_VERSION_STR "\",\"build\":" + String(FIRMWARE_BUILD_NUM) + ",\"message\":\"Nâng cấp Firmware OTA thành công 100%! Đang khởi động lại.\"}");
       for (int i = 0; i < 15; i++) {
         mqttClient.loop();
         delay(100);
@@ -967,10 +1015,12 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256) {
       Serial.println("[SERVER-OTA] ❌ Lỗi Update.end()!");
       Update.printError(Serial);
       publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Lỗi ghi phân vùng boot Update.end()\"}");
+      isOtaInProgress = false;
     }
   } else {
     Serial.printf("[SERVER-OTA] ❌ Quá trình tải bị đứt quãng (%u / %d bytes). Hủy cập nhật phòng ngừa lỗi!\n", written, contentLength);
     Update.abort();
     publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Quá trình tải bị đứt quãng\"}");
+    isOtaInProgress = false;
   }
 }

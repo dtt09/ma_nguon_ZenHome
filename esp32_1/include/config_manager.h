@@ -5,6 +5,8 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
+#define FIRMWARE_VERSION_STR "2.5.7"
+#define FIRMWARE_BUILD_NUM 201
 #define FIRMWARE_VERSION "2.5.7 (Build 201)"
 #define MAX_RELAYS 16
 #define MIN_RELAY_DWELL_MS 800                // Thời gian trễ tối thiểu 800ms giữa 2 lần đổi trạng thái
@@ -42,6 +44,7 @@ extern unsigned long setupPhaseStartTime;
 extern bool isPowerOutageBoot;
 extern bool hasOfflineBackup;
 extern bool needsBackupToFlash;
+extern bool isOtaInProgress;
 extern unsigned long lastRelayStateChangeAt;
 
 extern bool shouldReboot;

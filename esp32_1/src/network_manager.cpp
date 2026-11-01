@@ -215,6 +215,8 @@ void setupStationWebServer() {
     doc["mode"] = "provisioned";
     doc["macAddress"] = WiFi.macAddress();
     doc["ip"] = WiFi.localIP().toString();
+    doc["version"] = FIRMWARE_VERSION_STR;
+    doc["build"] = FIRMWARE_BUILD_NUM;
     doc["rssi"] = WiFi.RSSI();
     doc["mqttConnected"] = mqttClient.connected();
     doc["uptime"] = millis() / 1000;
@@ -769,6 +771,10 @@ void setupStationWebServer() {
   });
 
   server.on("/api/ota", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+    if (isOtaInProgress) {
+      request->send(409, "application/json", "{\"status\":\"busy\",\"message\":\"Quá trình OTA đang diễn ra. Vui lòng đợi!\"}");
+      return;
+    }
     String payload((char*)data, len);
     StaticJsonDocument<256> doc;
     if (deserializeJson(doc, payload) || !doc.containsKey("url")) {

@@ -13,6 +13,7 @@ unsigned long setupPhaseStartTime = 0;
 bool isPowerOutageBoot = false;
 bool hasOfflineBackup = false;
 bool needsBackupToFlash = false;
+bool isOtaInProgress = false;
 unsigned long lastRelayStateChangeAt = 0;
 
 // Trạng thái khởi động lại theo lịch
