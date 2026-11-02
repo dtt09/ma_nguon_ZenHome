@@ -90,6 +90,10 @@ tasks.matching { it.name.contains("NativeSymbolTables") }.configureEach {
     enabled = false
 }
 
+tasks.matching { it.name.contains("uploadCrashlyticsMappingFile") }.configureEach {
+    enabled = false
+}
+
 tasks.matching { it.name.startsWith("cleanMerge") }.configureEach {
     enabled = false
 }

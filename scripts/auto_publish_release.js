@@ -238,36 +238,32 @@ async function main() {
     tagVersion = await ask('Phiên bản tag Release phát hành', `v${pubspecVersion}`);
   }
 
-  const releaseTitle = `ZenHome ${tagVersion} - BLE MTU 512, Fast Wi-Fi Sync & SQLite Concurrency`;
+  const releaseTitle = `ZenHome ${tagVersion} - Reactive BLE Handshake, Isolated LAN Status & Multi-State Hardware LED`;
   const releaseNotes = `## 🌟 Điểm nổi bật trong bản phát hành ${tagVersion} (App Build ${pubspecBuild} / ESP32 v${espVersion} Build ${espBuild})
 
 ### 📱 Ứng dụng Di động (Mobile App v${pubspecVersion}+${pubspecBuild}):
-- 📶 **Nâng cấp BLE MTU lên 512 byte (Android & ESP32)**:
-  - Tự động thương lượng MTU 512 byte ngay sau khi kết nối BLE, cho phép truyền toàn vẹn gói xác thực hai chiều HMAC-SHA256 (150+ byte) và gói cấu hình nhanh (200+ byte) trong 1 chu kỳ ATT duy nhất.
-- 🏠 **Cách ly triệt để bộ nhớ trạng thái Đa Gia Đình (Multi-Home State Isolation)**:
-  - Khi chuyển đổi không gian nhà trong MainLayout, tự động dọn sạch \`GlobalDeviceStates\` và giải phóng \`PendingDeviceOperations\`, triệt tiêu hoàn toàn hiện tượng hiển thị lẫn lộn trạng thái công tắc của nhà cũ sang nhà mới.
-- 🛡️ **Bịt kín lỗ hổng phân quyền mạng cục bộ LAN (RBAC LAN Permission Enforcement)**:
-  - Truyền đầy đủ cờ \`isDisabled\` vào tiến trình giám sát mạng cục bộ, ngăn chặn thành viên gia đình bị vô hiệu hóa gửi lệnh điều khiển phần cứng qua LAN HTTP.
-- 🔔 **Lưu trữ toàn diện thông báo đẩy ngầm (Data-only Push Persistence)**:
-  - Xử lý lưu lịch sử cả khi thông báo FCM gửi dưới dạng \`data\` payload mà không có \`notification\`, bảo đảm không bao giờ thất lạc cảnh báo nhiệt độ khẩn cấp, honeytoken hay trạng thái ngoại tuyến.
+- ⚡ **Khắc phục triệt để lỗi kẹt xác thực BLE (Reactive BLE Handshake)**:
+  - Thay thế vòng lặp chờ 3 giây bằng cơ chế bất đồng bộ \`Completer<bool>\` phản ứng tức thì trong 10-30ms khi nhận ACK từ ESP32.
+  - Tự động ngắt kết nối GATT dứt điểm (\`disconnect()\`) khi xác thực Key thất bại hoặc quá hạn 2.5s, triệt tiêu hoàn toàn lỗi hiển thị vô tận "Đang xác thực Key..." và "Chờ xác thực".
+  - Quản lý hủy \`StreamSubscription\` an toàn trên Characteristic trạng thái chống rò rỉ bộ nhớ.
+- 🌐 **Tách biệt độc lập trạng thái Wi-Fi LAN và Bluetooth LE**:
+  - Không còn hiện nhầm "Local ⚡" khi ESP32 đã mất kết nối Wi-Fi. Tách riêng \`isLanAvailableProvider\` (chỉ sáng khi ping HTTP hoặc UDP subnet broadcast thành công).
+  - Phân loại 4 trạng thái trực quan trên Dashboard: **LAN ⚡** (xanh lá ~5ms), **BLE 📱** (tím indigo ~20ms), **Cloud** (xanh cyan ~200ms), **Offline** (đỏ).
+  - Bottom Sheet hiển thị chính xác trạng thái từng kênh kết nối (Kênh 1 LAN chuyển xám "Không khả dụng" khi router mất mạng, Kênh 2 BLE sáng lên nhận lệnh Connect-on-Demand).
 
 ### ⚡ Firmware ESP32 (v${espVersion} Build ${espBuild}):
-- 📶 **Hỗ trợ BLE MTU 512 byte (\`NimBLEDevice::setMTU(512)\`)**:
-  - Tương thích tối đa với điện thoại Android/iOS khi trao đổi dữ liệu mã hóa mật mã học và gói cấu hình Wi-Fi/MQTT.
-- 🔒 **Đồng bộ khóa FreeRTOS Mutex bảo vệ phần cứng (\`i2cMutex\` & \`mqttMutex\`)**:
-  - Cách ly thread-safe tuyệt đối giữa Core 0 (AsyncTCP HTTP) và Core 1 (Main Loop, PCF8574 I2C, PubSubClient loop), ngăn chặn triệt để xung đột bus I2C và ngắt kết nối TLS do gọi đè socket.
-- ⚡ **Thuật toán phục hồi bus I2C 9 xung xung nhịp (9-Pulse Recovery)**:
-  - Tự động phát hiện và giải phóng thiết bị ngoại vi treo chân SDA mà không gây deadlock mutex.
-
-### 🖥️ Backend Server & Cloud Sync:
-- 🌐 **Mở rộng cơ chế lắng nghe đa tầng MQTT Wildcard (\`+/+/+/#\`, \`+/+/#\`, \`+\`)**:
-  - Không bao giờ bỏ sót các topic 2 cấp như \`<userId>/esp_status\`, \`<userId>/heartbeat\`.
-- ⏱️ **Khắc phục bẫy hủy ân hạn ngoại tuyến (Offline Debounce Early Return)**:
-  - Khi ESP32 khôi phục mạng Wi-Fi nhanh trong 35s, Server hủy cảnh báo mất điện giả và lập tức đồng bộ hóa trạng thái công tắc vật lý qua \`handleEspNetworkRestored()\`.
-- 💾 **Khử triệt để lỗi khóa SQLite (\`SQLITE_BUSY: database is locked\`)**:
-  - Cấu hình \`PRAGMA busy_timeout = 5000;\` và \`dbInstance.configure('busyTimeout', 5000)\` chịu tải ghi nhật ký và sao lưu đồng thời.
-- 🧹 **Tự động dọn dẹp Lịch trình & Hẹn giờ mồ côi (Orphaned Schedules/Timers Purge)**:
-  - Đồng bộ RAM và Firestore, dọn sạch tác vụ hẹn giờ của tài khoản đã xóa.
+- 💡 **Hệ thống đèn LED đa trạng thái phần cứng chuyên nghiệp (GPIO 2)**:
+  - Cỗ máy trạng thái non-blocking dựa trên \`millis()\` (không dùng \`delay()\`), tương thích tuyệt đối với FreeRTOS đa luồng:
+    * **Chế độ AP Setup**: Nháy đúp (Double-Blink: 100ms ON / 100ms OFF / 100ms ON / 700ms OFF) dễ nhận biết khi thiết bị chưa liên kết.
+    * **Đang kết nối Wi-Fi**: Nháy nhanh đều 100ms ON / 100ms OFF.
+    * **Đã có Wi-Fi, đang đợi Cloud**: Nháy vừa 250ms ON / 250ms OFF.
+    * **Trực tuyến hoàn toàn (Wi-Fi + Cloud MQTT)**: Sáng liên tục (Solid ON).
+    * **Mất kết nối Wi-Fi (Offline BLE Fallback)**: Nhấp nháy chậm 500ms ON / 500ms OFF báo hiệu mạch vẫn sống và sẵn sàng nhận lệnh BLE.
+    * **Action Blip (Phản hồi thao tác tức thì)**: Chớp đảo trạng thái 65ms mỗi khi bật/tắt rơ-le hoặc khi bắt tay BLE thành công.
+- 🔐 **Phản hồi Reactive ACK hai chiều qua BLE**:
+  - Gửi notify tức thì \`auth_ok\` khi thành công và \`auth_failed\` khi sai chữ ký HMAC, giúp App giải phóng hàng đợi ngay lập tức.
+  - Đồng bộ đồng hồ nội bộ (\`softSyncClockFromApp\`) ngay tại thời điểm xác thực BLE thành công.
+  - Chuẩn hóa quy tắc Master Key Salt khi mật khẩu quản trị chưa cấu hình.
 
 ---
 *Phát hành chính thức bởi ZenHome Automation Release Engine*`;
