@@ -238,32 +238,25 @@ async function main() {
     tagVersion = await ask('Phiên bản tag Release phát hành', `v${pubspecVersion}`);
   }
 
-  const releaseTitle = `ZenHome ${tagVersion} - Reactive BLE Handshake, Isolated LAN Status & Multi-State Hardware LED`;
+  const releaseTitle = `ZenHome ${tagVersion} - Luxury Liquid Glass UI Overhaul & Haptic Polish`;
   const releaseNotes = `## 🌟 Điểm nổi bật trong bản phát hành ${tagVersion} (App Build ${pubspecBuild} / ESP32 v${espVersion} Build ${espBuild})
 
 ### 📱 Ứng dụng Di động (Mobile App v${pubspecVersion}+${pubspecBuild}):
-- ⚡ **Khắc phục triệt để lỗi kẹt xác thực BLE (Reactive BLE Handshake)**:
-  - Thay thế vòng lặp chờ 3 giây bằng cơ chế bất đồng bộ \`Completer<bool>\` phản ứng tức thì trong 10-30ms khi nhận ACK từ ESP32.
-  - Tự động ngắt kết nối GATT dứt điểm (\`disconnect()\`) khi xác thực Key thất bại hoặc quá hạn 2.5s, triệt tiêu hoàn toàn lỗi hiển thị vô tận "Đang xác thực Key..." và "Chờ xác thực".
-  - Quản lý hủy \`StreamSubscription\` an toàn trên Characteristic trạng thái chống rò rỉ bộ nhớ.
-- 🌐 **Tách biệt độc lập trạng thái Wi-Fi LAN và Bluetooth LE**:
-  - Không còn hiện nhầm "Local ⚡" khi ESP32 đã mất kết nối Wi-Fi. Tách riêng \`isLanAvailableProvider\` (chỉ sáng khi ping HTTP hoặc UDP subnet broadcast thành công).
-  - Phân loại 4 trạng thái trực quan trên Dashboard: **LAN ⚡** (xanh lá ~5ms), **BLE 📱** (tím indigo ~20ms), **Cloud** (xanh cyan ~200ms), **Offline** (đỏ).
-  - Bottom Sheet hiển thị chính xác trạng thái từng kênh kết nối (Kênh 1 LAN chuyển xám "Không khả dụng" khi router mất mạng, Kênh 2 BLE sáng lên nhận lệnh Connect-on-Demand).
+- 💎 **Nâng cấp giao diện Zen Liquid Glass Đột Phá**:
+  - Tích hợp widget hiệu ứng kính mờ động đa tầng (\`ZenLiquidGlass\`), bóng đổ chiều sâu sang trọng, viền phát quang ánh kim trên toàn bộ Dashboard, Thẻ thiết bị, Tab phòng và Ngữ cảnh.
+  - Tối ưu hóa hiệu năng render, khử hoàn toàn hiện tượng drop frame khi cuộn danh sách thiết bị.
+- 🎨 **Hoàn thiện hệ thống Theme Sáng / Tối Cao Cấp**:
+  - Tinh chỉnh dải màu tương phản cao trên cả Light Mode và Dark Mode (\`AppTheme\`), tối ưu hóa hiển thị thẻ điều khiển, thanh trượt đa tầng và hiệu ứng sóng động (\`WaveBackground\`).
+- 📳 **Tương tác rung phản hồi xúc giác Haptic Polish**:
+  - Bổ sung rung xúc giác tinh tế (\`HapticHelper\`) trên từng cử chỉ gạt công tắc, bấm nút, trượt độ sáng và chuyển đổi tab, mang lại trải nghiệm điều khiển chân thực và cao cấp.
+- 🌐 **Nâng cấp toàn diện Đa ngôn ngữ (L10n & Localization)**:
+  - Cập nhật và chuẩn hóa 100% từ khóa song ngữ Anh - Việt cho tất cả màn hình cài đặt, thông tin tài khoản, xác thực mật khẩu quản trị và quản lý thành viên.
 
 ### ⚡ Firmware ESP32 (v${espVersion} Build ${espBuild}):
 - 💡 **Hệ thống đèn LED đa trạng thái phần cứng chuyên nghiệp (GPIO 2)**:
-  - Cỗ máy trạng thái non-blocking dựa trên \`millis()\` (không dùng \`delay()\`), tương thích tuyệt đối với FreeRTOS đa luồng:
-    * **Chế độ AP Setup**: Nháy đúp (Double-Blink: 100ms ON / 100ms OFF / 100ms ON / 700ms OFF) dễ nhận biết khi thiết bị chưa liên kết.
-    * **Đang kết nối Wi-Fi**: Nháy nhanh đều 100ms ON / 100ms OFF.
-    * **Đã có Wi-Fi, đang đợi Cloud**: Nháy vừa 250ms ON / 250ms OFF.
-    * **Trực tuyến hoàn toàn (Wi-Fi + Cloud MQTT)**: Sáng liên tục (Solid ON).
-    * **Mất kết nối Wi-Fi (Offline BLE Fallback)**: Nhấp nháy chậm 500ms ON / 500ms OFF báo hiệu mạch vẫn sống và sẵn sàng nhận lệnh BLE.
-    * **Action Blip (Phản hồi thao tác tức thì)**: Chớp đảo trạng thái 65ms mỗi khi bật/tắt rơ-le hoặc khi bắt tay BLE thành công.
-- 🔐 **Phản hồi Reactive ACK hai chiều qua BLE**:
-  - Gửi notify tức thì \`auth_ok\` khi thành công và \`auth_failed\` khi sai chữ ký HMAC, giúp App giải phóng hàng đợi ngay lập tức.
-  - Đồng bộ đồng hồ nội bộ (\`softSyncClockFromApp\`) ngay tại thời điểm xác thực BLE thành công.
-  - Chuẩn hóa quy tắc Master Key Salt khi mật khẩu quản trị chưa cấu hình.
+  - Cỗ máy trạng thái non-blocking: AP Mode (nháy đúp), Wi-Fi Connecting (nháy nhanh), Wi-Fi Connected (nháy vừa), Online hoàn toàn (sáng liên tục), Offline BLE (nháy chậm) và Action Blip 65ms phản hồi tức thì.
+- 🔐 **Bảo mật và truyền thông BLE/LAN tối ưu**:
+  - Duy trì kênh dự phòng BLE ngầm với khả năng đàm phán MTU 512 byte, Reactive ACK hai chiều và đồng bộ RTC tự động.
 
 ---
 *Phát hành chính thức bởi ZenHome Automation Release Engine*`;

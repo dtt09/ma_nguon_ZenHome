@@ -2609,7 +2609,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get technical_info_title => 'Technical Details';
 
   @override
-  String get perm_view_activate_only => 'Permissions: View & Activate only';
+  String get perm_view_activate_only => 'View & activate only';
 
   @override
   String get device_permissions_title => 'Device Permissions';
@@ -2948,4 +2948,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String delete_device_confirm(Object name) {
     return 'Are you sure you want to delete device \"$name\"?';
   }
+
+  @override
+  String get member_disabled_msg =>
+      'Your account control permissions have been temporarily locked by the Owner!';
+
+  @override
+  String get timer_single_device => 'Default: 1 device';
+
+  @override
+  String get timer_multi_device => 'Multiple devices';
+
+  @override
+  String get invite_pending_confirm => 'Waiting for recipient to confirm...';
+
+  @override
+  String get quick_timer_custom_title => 'Custom timer duration...';
+
+  @override
+  String get quick_timer_enter_minutes => 'Enter minutes for timer:';
+
+  @override
+  String get quick_timer_invalid_minutes =>
+      'Please enter valid minutes (1 - 1440)';
+
+  @override
+  String get periodic_schedule => 'Periodic Schedule';
+
+  @override
+  String get periodic_schedule_desc =>
+      'Automatically toggle on/off repeating weekly';
+
+  @override
+  String get theme_preset_title => 'Color Themes';
+
+  @override
+  String get theme_preset_subtitle =>
+      'Customize full-app smart ambient palette to your style';
+
+  @override
+  String get theme_preset_emerald => 'Emerald Zen';
+
+  @override
+  String get theme_preset_sapphire => 'Midnight Sapphire';
+
+  @override
+  String get theme_preset_amethyst => 'Amethyst Twilight';
+
+  @override
+  String get theme_preset_gold => 'Champagne Gold';
+
+  @override
+  String get theme_preset_ruby => 'Ruby Coral';
+
+  @override
+  String get theme_preset_cyber => 'Titanium Slate';
 }

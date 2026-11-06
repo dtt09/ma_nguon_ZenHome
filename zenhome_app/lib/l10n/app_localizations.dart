@@ -4883,7 +4883,7 @@ abstract class AppLocalizations {
   /// No description provided for @perm_view_activate_only.
   ///
   /// In en, this message translates to:
-  /// **'Permissions: View & Activate only'**
+  /// **'View & activate only'**
   String get perm_view_activate_only;
 
   /// No description provided for @device_permissions_title.
@@ -5485,6 +5485,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Are you sure you want to delete device \"{name}\"?'**
   String delete_device_confirm(Object name);
+
+  /// No description provided for @member_disabled_msg.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account control permissions have been temporarily locked by the Owner!'**
+  String get member_disabled_msg;
+
+  /// No description provided for @timer_single_device.
+  ///
+  /// In en, this message translates to:
+  /// **'Default: 1 device'**
+  String get timer_single_device;
+
+  /// No description provided for @timer_multi_device.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple devices'**
+  String get timer_multi_device;
+
+  /// No description provided for @invite_pending_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for recipient to confirm...'**
+  String get invite_pending_confirm;
+
+  /// No description provided for @quick_timer_custom_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom timer duration...'**
+  String get quick_timer_custom_title;
+
+  /// No description provided for @quick_timer_enter_minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter minutes for timer:'**
+  String get quick_timer_enter_minutes;
+
+  /// No description provided for @quick_timer_invalid_minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter valid minutes (1 - 1440)'**
+  String get quick_timer_invalid_minutes;
+
+  /// No description provided for @periodic_schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Periodic Schedule'**
+  String get periodic_schedule;
+
+  /// No description provided for @periodic_schedule_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically toggle on/off repeating weekly'**
+  String get periodic_schedule_desc;
+
+  /// No description provided for @theme_preset_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Color Themes'**
+  String get theme_preset_title;
+
+  /// No description provided for @theme_preset_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize full-app smart ambient palette to your style'**
+  String get theme_preset_subtitle;
+
+  /// No description provided for @theme_preset_emerald.
+  ///
+  /// In en, this message translates to:
+  /// **'Emerald Zen'**
+  String get theme_preset_emerald;
+
+  /// No description provided for @theme_preset_sapphire.
+  ///
+  /// In en, this message translates to:
+  /// **'Midnight Sapphire'**
+  String get theme_preset_sapphire;
+
+  /// No description provided for @theme_preset_amethyst.
+  ///
+  /// In en, this message translates to:
+  /// **'Amethyst Twilight'**
+  String get theme_preset_amethyst;
+
+  /// No description provided for @theme_preset_gold.
+  ///
+  /// In en, this message translates to:
+  /// **'Champagne Gold'**
+  String get theme_preset_gold;
+
+  /// No description provided for @theme_preset_ruby.
+  ///
+  /// In en, this message translates to:
+  /// **'Ruby Coral'**
+  String get theme_preset_ruby;
+
+  /// No description provided for @theme_preset_cyber.
+  ///
+  /// In en, this message translates to:
+  /// **'Titanium Slate'**
+  String get theme_preset_cyber;
 }
 
 class _AppLocalizationsDelegate

@@ -1,7 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/features/settings/data/settings_repository.dart';
 
 part 'theme_provider.g.dart';
@@ -10,6 +12,28 @@ part 'theme_provider.g.dart';
 SettingsRepository settingsRepository(SettingsRepositoryRef ref) {
   return SettingsRepository();
 }
+
+/// Quản lý Theme Preset (Bảng màu cá nhân hóa toàn diện cho App)
+class ThemePresetNotifier extends Notifier<AppThemePreset> {
+  @override
+  AppThemePreset build() {
+    Future.microtask(() => _loadPreset());
+    return AppThemePreset.emeraldZen;
+  }
+
+  Future<void> _loadPreset() async {
+    state = await ref.read(settingsRepositoryProvider).getThemePreset();
+  }
+
+  Future<void> setThemePreset(AppThemePreset preset) async {
+    await ref.read(settingsRepositoryProvider).setThemePreset(preset);
+    state = preset;
+  }
+}
+
+final themePresetNotifierProvider = NotifierProvider<ThemePresetNotifier, AppThemePreset>(() {
+  return ThemePresetNotifier();
+});
 
 @riverpod
 class ThemeModeNotifier extends _$ThemeModeNotifier {

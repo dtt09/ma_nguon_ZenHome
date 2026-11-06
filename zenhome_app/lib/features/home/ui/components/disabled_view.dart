@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';

@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import 'dart:io';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';

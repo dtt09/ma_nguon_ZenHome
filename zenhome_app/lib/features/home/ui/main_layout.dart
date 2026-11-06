@@ -1,4 +1,4 @@
-import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
+﻿import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
 
 import 'dart:async';
 
@@ -248,7 +248,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
 
           extendBody: true,
 
-          backgroundColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF0F2F5),
+          backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
 
           body: isDisabled 
 
@@ -277,15 +277,15 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
 
                 color: isDark 
 
-                    ? const Color(0xFF0F172A).withOpacity(0.82) 
+                    ? AppColors.darkCard.withOpacity(0.85) 
 
-                    : Colors.white.withOpacity(0.88),
+                    : Colors.white.withOpacity(0.92),
 
                 borderRadius: BorderRadius.circular(40),
 
                 border: Border.all(
 
-                  color: isDark ? const Color(0x33FFFFFF) : const Color(0x14000000),
+                  color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
 
                   width: 1.2,
 
@@ -539,7 +539,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
 
                   padding: const EdgeInsets.all(25),
 
-                  decoration: BoxDecoration(color: isDark ? const Color(0xFF121827) : Colors.white, borderRadius: BorderRadius.circular(20)),
+                  decoration: BoxDecoration(color: isDark ? AppColors.darkCard : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder, width: 1.2)),
 
                   child: Column(
 
@@ -565,7 +565,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
 
                         child: ElevatedButton(
 
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
 
                           onPressed: () {
 
@@ -619,7 +619,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
 
     final bool isSelected = _currentIndex == index;
 
-    final Color activeColor = isDark ? AppColors.primaryLight : AppColors.primary;
+    final Color activeColor = isDark ? context.zenColors.primaryLight : context.zenColors.primary;
 
     final Color inactiveColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:zenhome_app/l10n/app_localizations.dart';
 
 extension LocalizationContext on BuildContext {
@@ -826,7 +826,6 @@ extension LocalizationContext on BuildContext {
       case 'reauth_with_google': return l.reauth_with_google;
       case 'reauth_via_sms': return l.reauth_via_sms;
       case 'reauth_password_title': return l.reauth_password_title;
-      case 'err_invalid_otp': return l.err_invalid_otp;
       case 'build_number_label': return l.build_number_label;
       case 'release_date_label': return l.release_date_label;
       case 'package_name_label': return l.package_name_label;
@@ -878,7 +877,6 @@ extension LocalizationContext on BuildContext {
       case 'home_rules_desc': return l.home_rules_desc;
       case 'home_props_saved': return l.home_props_saved;
       case 'err_save_home_props': return l.err_save_home_props;
-      case 'btn_save_changes': return l.btn_save_changes;
       case 'home_type_townhouse': return l.home_type_townhouse;
       case 'home_type_apartment': return l.home_type_apartment;
       case 'home_type_villa': return l.home_type_villa;
@@ -899,19 +897,44 @@ extension LocalizationContext on BuildContext {
       case 'rule_vacation_simulation_desc': return l.rule_vacation_simulation_desc;
       case 'rule_quiet_hours_title': return l.rule_quiet_hours_title;
       case 'rule_quiet_hours_desc': return l.rule_quiet_hours_desc;
-      case 'scene_tap_to_change_icon': return l.localeName == 'en' ? 'Tap to change icon' : 'Chạm để đổi biểu tượng';
-      case 'scene_action_keep': return l.localeName == 'en' ? 'Skip' : 'Bỏ qua';
-      case 'scene_action_turn_on': return l.localeName == 'en' ? 'On' : 'Bật';
-      case 'scene_action_turn_off': return l.localeName == 'en' ? 'Off' : 'Tắt';
-      case 'scene_setup_device_state': return l.localeName == 'en' ? 'Configure device states in this scene' : 'Thiết lập trạng thái thiết bị trong kịch bản';
-      case 'schedule_auto_desc': return l.localeName == 'en' ? 'Automatically activate devices at set times' : 'Tự động kích hoạt thiết bị theo thời gian định sẵn';
-      case 'schedule_activity_duration': return l.localeName == 'en' ? 'Estimated active duration' : 'Thời lượng bật dự kiến';
-      case 'schedule_tap_to_change': return l.localeName == 'en' ? 'Tap to change' : 'Chạm để đổi';
-      case 'schedule_preset_all': return l.localeName == 'en' ? 'All week' : 'Cả tuần';
-      case 'schedule_preset_weekdays': return l.localeName == 'en' ? 'Mon - Fri' : 'T2 - T6';
-      case 'schedule_preset_weekends': return l.localeName == 'en' ? 'Weekend' : 'Cuối tuần';
-      case 'schedule_shared_hint': return l.localeName == 'en' ? 'All household members can view this schedule' : 'Mọi thành viên trong nhà đều có thể theo dõi';
-      case 'schedule_author': return l.localeName == 'en' ? 'Creator' : 'Người tạo';
+      case 'scene_tap_to_change_icon': return l.scene_tap_to_change_icon;
+      case 'scene_action_keep': return l.scene_action_keep;
+      case 'scene_action_turn_on': return l.scene_action_turn_on;
+      case 'scene_action_turn_off': return l.scene_action_turn_off;
+      case 'scene_setup_device_state': return l.scene_setup_device_state;
+      case 'schedule_auto_desc': return l.schedule_auto_desc;
+      case 'schedule_activity_duration': return l.schedule_activity_duration;
+      case 'schedule_tap_to_change': return l.schedule_tap_to_change;
+      case 'schedule_preset_all': return l.schedule_preset_all;
+      case 'schedule_preset_weekdays': return l.schedule_preset_weekdays;
+      case 'schedule_preset_weekends': return l.schedule_preset_weekends;
+      case 'schedule_shared_hint': return l.schedule_shared_hint;
+      case 'schedule_author': return l.schedule_author;
+      case 'action_turn_off': return l.action_turn_off;
+      case 'action_turn_on': return l.action_turn_on;
+      case 'member_disabled_msg': return l.member_disabled_msg;
+      case 'hide_sensitive_info': return l.hide_sensitive_info;
+      case 'show_sensitive_info': return l.show_sensitive_info;
+      case 'no_permission_device': return l.no_permission_device;
+      case 'sec_linked_info': return l.sec_linked_info;
+      case 'timer_quick_title': return l.timer_quick_title;
+      case 'timer_quick_after': return l.timer_quick_after;
+      case 'timer_single_device': return l.timer_single_device;
+      case 'timer_multi_device': return l.timer_multi_device;
+      case 'invite_pending_confirm': return l.invite_pending_confirm;
+      case 'quick_timer_custom_title': return l.quick_timer_custom_title;
+      case 'quick_timer_enter_minutes': return l.quick_timer_enter_minutes;
+      case 'quick_timer_invalid_minutes': return l.quick_timer_invalid_minutes;
+      case 'periodic_schedule': return l.periodic_schedule;
+      case 'periodic_schedule_desc': return l.periodic_schedule_desc;
+      case 'theme_preset_title': return l.theme_preset_title;
+      case 'theme_preset_subtitle': return l.theme_preset_subtitle;
+      case 'theme_preset_emerald': return l.theme_preset_emerald;
+      case 'theme_preset_sapphire': return l.theme_preset_sapphire;
+      case 'theme_preset_amethyst': return l.theme_preset_amethyst;
+      case 'theme_preset_gold': return l.theme_preset_gold;
+      case 'theme_preset_ruby': return l.theme_preset_ruby;
+      case 'theme_preset_cyber': return l.theme_preset_cyber;
       default: return key;
     }
   }

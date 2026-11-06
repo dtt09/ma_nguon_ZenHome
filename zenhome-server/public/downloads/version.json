@@ -1,16 +1,16 @@
 {
-  "version": "1.8.15",
-  "buildNumber": 203,
+  "version": "1.8.16",
+  "buildNumber": 204,
   "minVersion": "1.8.0",
   "minBuildNumber": 180,
-  "titleVi": "Bản Cập Nhật ZenHome v1.8.15 (Reactive BLE Handshake, Isolated LAN & Multi-State LED)",
-  "titleEn": "ZenHome Update v1.8.15 (Reactive BLE Handshake, Isolated LAN & Multi-State LED)",
-  "releaseNotesVi": "• Khắc phục triệt để lỗi kẹt xác thực BLE: Thay vòng lặp chờ bằng Completer bất đồng bộ phản ứng tức thì (10-30ms) và tự động ngắt kết nối dứt điểm khi lỗi\n• Tách biệt độc lập trạng thái Wi-Fi LAN và BLE: Không còn hiển thị sai 'Local ⚡' khi ESP32 mất Wi-Fi, phân định 4 trạng thái trực quan: LAN, BLE, Cloud, Offline\n• Firmware ESP32 v2.5.9 (Build 203): Hệ thống đèn LED đa trạng thái phần cứng chuyên nghiệp (AP Mode Double-Blink, Wi-Fi Connecting, Wi-Fi Connected, Offline BLE Fallback và Action Blip 65ms phản hồi thao tác tức thì)\n• Đồng bộ đồng hồ nội bộ ESP32 tức thì ngay tại thời điểm bắt tay BLE thành công\n• Chuẩn hóa Master Key Salt mật mã học giữa App di động và vi điều khiển ESP32",
-  "releaseNotesEn": "• Resolved BLE handshake infinite loop: Reactive Completer ACK handling (10-30ms) and automatic clean GATT disconnection on failure\n• Isolated Wi-Fi LAN and BLE network status: Eliminated false 'Local ⚡' indicator when Wi-Fi drops, providing 4 clear connection states\n• ESP32 Firmware v2.5.9 (Build 203): Professional multi-state hardware LED indicator (AP Double-Blink, Wi-Fi Connecting, Wi-Fi Connected, Offline BLE Fallback, and 65ms Action Blip)\n• Instant RTC time synchronization directly upon successful BLE handshake\n• Standardized Master Key cryptographic salt derivation between Mobile App and ESP32",
+  "titleVi": "Bản Cập Nhật ZenHome v1.8.16 (Luxury Liquid Glass UI & Haptic Polish)",
+  "titleEn": "ZenHome Update v1.8.16 (Luxury Liquid Glass UI & Haptic Polish)",
+  "releaseNotesVi": "• Nâng cấp giao diện Zen Liquid Glass: Hiệu ứng kính mờ động đa tầng sang trọng, viền phát quang ánh kim trên toàn bộ Dashboard, Thẻ thiết bị và Ngữ cảnh\n• Hoàn thiện bộ Theme Sáng / Tối: Tinh chỉnh độ tương phản cao, tối ưu sóng nền động WaveBackground và thanh trượt phát quang\n• Tương tác rung xúc giác Haptic Feedback: Trải nghiệm chạm gạt công tắc và trượt điều khiển sống động\n• Chuẩn hóa 100% từ khóa song ngữ Anh - Việt cho cài đặt, phân quyền và hồ sơ\n• Firmware ESP32 v2.5.9 (Build 203): Đèn LED đa trạng thái GPIO 2, Reactive BLE ACK hai chiều và bảo mật tối ưu",
+  "releaseNotesEn": "• Zen Liquid Glass UI Overhaul: Elegant layered glassmorphism, glowing borders on Dashboard, Device Cards, and Scenes\n• Refined Dark & Light Theme: High-contrast palettes, optimized dynamic WaveBackground, and neon sliders\n• Haptic Feedback Polish: Tactile vibration responses for switches, sliders, and navigation\n• Complete bilingual localization (EN/VI) across settings, RBAC, and user profiles\n• ESP32 Firmware v2.5.9 (Build 203): Multi-state GPIO 2 LED, 2-way Reactive BLE ACK, and hardened security",
   "downloadUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "directApkUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "isForceUpdate": false,
-  "fileSizeBytes": 72308451,
-  "sha256": "0F5BD33760F7DFA5403FA2A8E53E3F070BF621368013DF8CDBD32A831BF35D7A",
-  "publishedAt": "2026-11-02T14:45:02.120Z"
+  "fileSizeBytes": 72587283,
+  "sha256": "479F051153193BD217D6F2F5AB7BF6CA36AC789A29EE1E988BAA5216EAB8C05E",
+  "publishedAt": "2026-11-06T13:12:19.256Z"
 }

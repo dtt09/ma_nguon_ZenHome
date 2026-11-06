@@ -1,4 +1,5 @@
-import 'dart:convert';
+﻿import 'dart:convert';
+import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/providers/theme_provider.dart';
 import 'package:zenhome_app/core/widgets/animations/telegram_theme_transition.dart';
 
@@ -248,6 +249,8 @@ class SettingsScreen extends ConsumerWidget {
             bool isDark = Theme.of(context).brightness == Brightness.dark;
             bool isEng = currentLang == 'en';
             final activeConfig = ref.watch(homeConfigProvider).activeConfig;
+            final currentPreset = ref.watch(themePresetNotifierProvider);
+            final currentPresetConfig = ThemePresetConfig.fromPreset(currentPreset);
             
             return SafeArea(
               bottom: false,
@@ -647,6 +650,130 @@ class SettingsScreen extends ConsumerWidget {
                                     ),
                                   ],
                                 ),
+                              ),
+                            ),
+                            
+                            Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+                            
+                            // --- CÁ NHÂN HÓA BẢNG MÀU CHỦ ĐỀ (THEME PRESETS) ---
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(9),
+                                        decoration: BoxDecoration(
+                                          gradient: currentPresetConfig.brandHero,
+                                          borderRadius: BorderRadius.circular(14),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: currentPresetConfig.primary.withOpacity(0.35),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Icon(currentPresetConfig.icon, color: Colors.white, size: 22),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              context.tr('theme_preset_title'),
+                                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              isEng ? currentPresetConfig.titleEn : currentPresetConfig.titleVi,
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w500,
+                                                color: currentPresetConfig.primaryLight,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  // Danh sách các viên ngọc màu Liquid Glass Chủ đề
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    physics: const BouncingScrollPhysics(),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.start,
+                                      children: ThemePresetConfig.presets.map((cfg) {
+                                        final isSelected = cfg.preset == currentPreset;
+                                        return GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () {
+                                            if (isSelected) return;
+                                            HapticFeedback.mediumImpact();
+                                            ref.read(themePresetNotifierProvider.notifier).setThemePreset(cfg.preset);
+                                          },
+                                          child: Container(
+                                            margin: const EdgeInsets.only(right: 12),
+                                            child: Column(
+                                              children: [
+                                                AnimatedContainer(
+                                                  duration: const Duration(milliseconds: 250),
+                                                  curve: Curves.easeOutCubic,
+                                                  width: 44,
+                                                  height: 44,
+                                                  decoration: BoxDecoration(
+                                                    gradient: cfg.brandHero,
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    border: Border.all(
+                                                      color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
+                                                      width: isSelected ? 2.5 : 1,
+                                                    ),
+                                                    boxShadow: [
+                                                      if (isSelected)
+                                                        BoxShadow(
+                                                          color: cfg.primary.withOpacity(0.6),
+                                                          blurRadius: 12,
+                                                          spreadRadius: 1,
+                                                          offset: const Offset(0, 3),
+                                                        )
+                                                      else
+                                                        BoxShadow(
+                                                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                                                          blurRadius: 4,
+                                                          offset: const Offset(0, 2),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                  child: isSelected
+                                                      ? const Center(
+                                                          child: Icon(Icons.check_rounded, color: Colors.white, size: 22),
+                                                        )
+                                                      : null,
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  isEng ? cfg.titleEn.split(' ').first : cfg.titleVi.split(' ').first,
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                                    color: isSelected
+                                                        ? (isDark ? Colors.white : Colors.black87)
+                                                        : (isDark ? Colors.white54 : Colors.black45),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],

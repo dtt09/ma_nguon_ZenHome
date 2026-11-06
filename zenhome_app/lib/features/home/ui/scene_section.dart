@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
@@ -1627,9 +1627,13 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                                                 ),
                                                 title: Text(context.tr('perm_view_activate_only'), style: const TextStyle(fontWeight: FontWeight.w600)),
                                                 subtitle: Text(
-                                                  scene["authorName"] != null && scene["authorName"].toString().isNotEmpty
-                                                      ? "Ngữ cảnh này do " + scene["authorName"].toString() + " tạo. Bạn có thể bấm để kích hoạt nhưng không có quyền sửa hoặc xóa."
-                                                      : "Bạn có thể bấm để kích hoạt nhưng không có quyền sửa hoặc xóa ngữ cảnh chung này.",
+                                                  (Localizations.localeOf(context).languageCode == 'en')
+                                                      ? (scene["authorName"] != null && scene["authorName"].toString().isNotEmpty
+                                                          ? "Created by ${scene["authorName"]}. You can activate it but cannot edit or delete."
+                                                          : "You can activate this shared scene but cannot edit or delete it.")
+                                                      : (scene["authorName"] != null && scene["authorName"].toString().isNotEmpty
+                                                          ? "Ngữ cảnh này do ${scene["authorName"]} tạo. Bạn có thể bấm để kích hoạt nhưng không có quyền sửa hoặc xóa."
+                                                          : "Bạn có thể bấm để kích hoạt nhưng không có quyền sửa hoặc xóa ngữ cảnh chung này."),
                                                   style: const TextStyle(fontSize: 12),
                                                 ),
                                               ),
@@ -1648,17 +1652,21 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                             ),
                           ],
                         ),
-                        const Spacer(),
-                        // Bottom info: Scene Name and Action Count
-                        Text(
-                          _getSceneName(scene),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? AppColors.darkText : AppColors.lightText,
+                        const SizedBox(height: 10),
+                        // Bottom info: Scene Name and Action Count (FittedBox chống tràn chữ)
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _getSceneName(scene),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? AppColors.darkText : AppColors.lightText,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
                         Text(

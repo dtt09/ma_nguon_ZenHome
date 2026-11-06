@@ -1,4 +1,4 @@
-import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
+﻿import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
 import 'dart:async';
 import 'dart:convert'; 
 import 'package:flutter/material.dart';
@@ -27,6 +27,8 @@ import 'package:zenhome_app/features/home/ui/scenes_screen.dart';
 import 'package:zenhome_app/core/utils/home_helper.dart';
 import 'package:zenhome_app/core/services/ble_local_service.dart';
 import 'package:zenhome_app/core/providers/local_network_provider.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -744,20 +746,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header cao cấp: Logo + Lời chào + Chọn nhà + Nút thông báo/Avatar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
+              // Header Kiến Trúc Kính Lỏng (Liquid Glass Tiered Architecture)
+              // Tầng 1: Lời chào, Logo, Vai trò + Nút Thông báo & Avatar
+              // Tầng 2: Thanh Kính Lỏng Tên nhà & Chip trạng thái mạng phát quang
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Lời chào + Role badge
-                        Row(
+                  // TẦNG 1: Lời chào, Logo, Vai trò + Nút Thông báo & Avatar
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Cụm Lời chào + Vai trò
+                      Expanded(
+                        child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(2),
+                              padding: const EdgeInsets.all(2.5),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: Theme.of(context).brightness == Brightness.dark
@@ -797,7 +802,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                                         ? const Color(0xFF3B82F6)
                                         : const Color(0xFF10B981));
                                 return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: roleColor.withOpacity(0.12),
                                     borderRadius: BorderRadius.circular(8),
@@ -812,41 +817,77 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        // Tên Nhà (Home Selector Capsule) + Trạng thái ESP32
-                        Row(
-                          children: [
-                            Flexible(
-                              child: GestureDetector(
-                                onTap: () => showHomeSwitcherBottomSheet(context, ref),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      ),
+                      const SizedBox(width: 12),
+                      // Nút Thông báo & Avatar góc phải
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          NotificationBadge(
+                            unreadCount: ref.watch(notificationProvider).where((n) => n['isRead'] == false).length,
+                            onPressed: () async {
+                              await Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationHistoryScreen()));
+                            },
+                          ),
+                          const SizedBox(width: 10),
+                          UserAvatar(
+                            onTap: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 10),
+                  
+                  // TẦNG 2: THANH KÍNH LỎNG QUANG HỌC (ZEN LIQUID GLASS CAPSULE)
+                  // Thiết kế độc quyền: Không gian tên nhà rộng mở 100%, chip kết nối phát quang tinh tế, tuyệt đối không bao giờ đè lấn nhau
+                  ZenLiquidGlass(
+                    borderRadius: 20,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Cột Bên trái: Home Selector (Icon nhà + Tên nhà to rõ + Chevron)
+                        Expanded(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => showHomeSwitcherBottomSheet(context, ref),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  margin: const EdgeInsets.only(right: 9),
+                                  decoration: BoxDecoration(
+                                    color: HomeHelper.getThemeColor(activeConfig.homeColor).withOpacity(0.18),
+                                    borderRadius: BorderRadius.circular(11),
+                                    border: Border.all(
+                                      color: HomeHelper.getThemeColor(activeConfig.homeColor).withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    HomeHelper.getIconData(activeConfig.homeIcon),
+                                    color: HomeHelper.getThemeColor(activeConfig.homeColor),
+                                    size: 19,
+                                  ),
+                                ),
+                                Expanded(
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(5),
-                                        margin: const EdgeInsets.only(right: 8),
-                                        decoration: BoxDecoration(
-                                          color: HomeHelper.getThemeColor(activeConfig.homeColor).withOpacity(0.18),
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                        child: Icon(
-                                          HomeHelper.getIconData(activeConfig.homeIcon),
-                                          color: HomeHelper.getThemeColor(activeConfig.homeColor),
-                                          size: 18,
-                                        ),
-                                      ),
                                       Flexible(
                                         child: Text(
                                           activeConfig.homeName,
                                           style: TextStyle(
-                                            fontSize: 24,
+                                            fontSize: 20,
                                             fontWeight: FontWeight.w800,
                                             color: Theme.of(context).brightness == Brightness.dark
                                                 ? const Color(0xFFF8FAFC)
                                                 : const Color(0xFF0F172A),
-                                            letterSpacing: -0.5,
+                                            letterSpacing: -0.4,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -858,101 +899,110 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                                         color: Theme.of(context).brightness == Brightness.dark
                                             ? Colors.white70
                                             : Colors.black54,
-                                        size: 22,
+                                        size: 20,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 10),
+
+                        // Cột Bên phải: Connection Capsule với hiệu ứng đèn thở quang học (Pulsing Glow)
+                        Builder(
+                          builder: (context) {
+                            final isLanAvailable = ref.watch(isLanAvailableProvider).value ?? ref.watch(localNetworkServiceProvider).isLanAvailable;
+                            final isBleConnected = BleLocalService().isConnected;
+                            final isBleNearby = BleLocalService().isHubNearby;
+                            bool isOnline = ref.watch(espOnlineStateProvider);
+                            bool isUnlinked = activeConfig.macAddress == 'unknown_mac' || activeConfig.macAddress.isEmpty;
+
+                            String statusText;
+                            Color statusColor;
+                            IconData statusIcon;
+
+                            if (isUnlinked) {
+                              statusText = context.tr('unlinked') ?? 'Chưa liên kết';
+                              statusColor = const Color(0xFFF59E0B);
+                              statusIcon = Icons.link_off_rounded;
+                            } else if (isLanAvailable) {
+                              statusText = 'LAN ⚡';
+                              statusColor = const Color(0xFF10B981);
+                              statusIcon = Icons.bolt_rounded;
+                            } else if (isBleConnected || isBleNearby) {
+                              statusText = isBleConnected ? 'BLE 🔐' : 'BLE 📱';
+                              statusColor = const Color(0xFF6366F1);
+                              statusIcon = isBleConnected ? Icons.bluetooth_connected_rounded : Icons.bluetooth_searching_rounded;
+                            } else if (isOnline) {
+                              statusText = 'Cloud';
+                              statusColor = const Color(0xFF0EA5E9);
+                              statusIcon = Icons.cloud_done_rounded;
+                            } else {
+                              statusText = 'Offline';
+                              statusColor = const Color(0xFFEF4444);
+                              statusIcon = Icons.cloud_off_rounded;
+                            }
+
+                            return Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => _showConnectionDetailSheet(context, activeConfig),
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: statusColor.withOpacity(0.35), width: 1),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: statusColor.withOpacity(0.12),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: statusColor,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: statusColor.withOpacity(0.8),
+                                              blurRadius: 4,
+                                              spreadRadius: 1,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Icon(statusIcon, size: 12.5, color: statusColor),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        statusText,
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: statusColor,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Builder(
-                              builder: (context) {
-                                final isLanAvailable = ref.watch(isLanAvailableProvider).value ?? ref.watch(localNetworkServiceProvider).isLanAvailable;
-                                final isBleConnected = BleLocalService().isConnected;
-                                final isBleNearby = BleLocalService().isHubNearby;
-                                bool isOnline = ref.watch(espOnlineStateProvider);
-                                bool isUnlinked = activeConfig.macAddress == 'unknown_mac' || activeConfig.macAddress.isEmpty;
-
-                                String statusText;
-                                Color statusColor;
-                                IconData statusIcon;
-
-                                if (isUnlinked) {
-                                  statusText = context.tr('unlinked') ?? 'Chưa l.kết';
-                                  statusColor = const Color(0xFFF59E0B);
-                                  statusIcon = Icons.link_off_rounded;
-                                } else if (isLanAvailable) {
-                                  statusText = 'LAN ⚡';
-                                  statusColor = const Color(0xFF10B981);
-                                  statusIcon = Icons.bolt_rounded;
-                                } else if (isBleConnected || isBleNearby) {
-                                  statusText = isBleConnected ? 'BLE 🔐' : 'BLE 📱';
-                                  statusColor = const Color(0xFF6366F1);
-                                  statusIcon = isBleConnected ? Icons.bluetooth_connected_rounded : Icons.bluetooth_searching_rounded;
-                                } else if (isOnline) {
-                                  statusText = 'Cloud';
-                                  statusColor = const Color(0xFF0EA5E9);
-                                  statusIcon = Icons.cloud_done_rounded;
-                                } else {
-                                  statusText = 'Offline';
-                                  statusColor = const Color(0xFFEF4444);
-                                  statusIcon = Icons.cloud_off_rounded;
-                                }
-
-                                return Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () => _showConnectionDetailSheet(context, activeConfig),
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                                      decoration: BoxDecoration(
-                                        color: statusColor.withOpacity(0.12),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: statusColor.withOpacity(0.3), width: 1),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(statusIcon, size: 12, color: statusColor),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            statusText,
-                                            style: TextStyle(
-                                              fontSize: 10.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: statusColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
+                            );
+                          },
                         ),
                       ],
                     ),
-                  ),
-                  // Nút Thông báo & Avatar góc phải
-                  Row(
-                    children: [
-                      NotificationBadge(
-                        unreadCount: ref.watch(notificationProvider).where((n) => n['isRead'] == false).length,
-                        onPressed: () async {
-                          await Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationHistoryScreen()));
-                        },
-                      ),
-                      const SizedBox(width: 10),
-                      UserAvatar(
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
-                        },
-                      ),
-                    ],
                   ),
                 ],
               ).animate().slideY(begin: -0.15, end: 0, curve: Curves.easeOutCubic),
@@ -1048,16 +1098,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                     child: GridView.count(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.82,
+                      crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 0.86,
                       children: activeDevices.asMap().entries.map((entry) {
+                        final delayMs = (entry.key * 25).clamp(0, 150);
                         return entry.value
                             .animate(
                               key: ValueKey('anim_${_selectedRoomCode}_${entry.key}'),
-                              delay: (entry.key * 45).ms,
+                              delay: Duration(milliseconds: delayMs),
                             )
-                            .fade(duration: 320.ms, curve: Curves.easeOutCubic)
-                            .slideY(begin: 0.12, end: 0, duration: 320.ms, curve: Curves.easeOutBack)
-                            .scale(begin: const Offset(0.92, 0.92), end: const Offset(1.0, 1.0), duration: 320.ms, curve: Curves.easeOutBack);
+                            .fade(duration: 280.ms, curve: Curves.easeOutQuart)
+                            .slideY(begin: 0.08, end: 0, duration: 280.ms, curve: Curves.easeOutQuart)
+                            .scale(begin: const Offset(0.96, 0.96), end: const Offset(1.0, 1.0), duration: 280.ms, curve: Curves.easeOutQuart);
                       }).toList(),
                     ),
                   );
@@ -1080,8 +1131,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
     final deviceTopic = '${activeConfig.mqttPrefix}/${dev.room}/${dev.id}';
     final targetAction = currentIsOn ? 'delay_off' : 'delay_on';
-    final targetActionText = currentIsOn ? (context.tr('action_turn_off') ?? 'Tắt') : (context.tr('action_turn_on') ?? 'Bật');
-    final targetColor = currentIsOn ? const Color(0xFFEF4444) : const Color(0xFF0F766E);
+    final targetActionText = currentIsOn ? context.tr('action_turn_off') : context.tr('action_turn_on');
+    final targetColor = currentIsOn ? AppColors.roseGlow : AppColors.primary;
 
     showModalBottomSheet(
       context: context,
@@ -1091,8 +1142,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF131D31) : Colors.white,
+            color: isDark ? AppColors.darkCard : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(
+              color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+              width: 1.2,
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
@@ -1230,7 +1285,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                       side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
                     ),
                     icon: const Icon(Icons.edit_calendar_rounded, size: 18),
-                    label: const Text('Tùy chỉnh thời gian hẹn giờ...'),
+                    label: Text(context.tr('quick_timer_custom_title')),
                     onPressed: () {
                       Navigator.pop(ctx);
                       _showCustomQuickTimerDialog(dev, deviceTopic, targetAction, targetActionText);
@@ -1248,13 +1303,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                   leading: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.12),
+                      color: AppColors.purpleGlow.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.calendar_month_rounded, color: Colors.purple, size: 22),
+                    child: const Icon(Icons.calendar_month_rounded, color: AppColors.purpleGlow, size: 22),
                   ),
                   title: Text(
-                    'Lịch trình định kỳ',
+                    context.tr('periodic_schedule'),
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -1262,7 +1317,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                     ),
                   ),
                   subtitle: Text(
-                    'Cài đặt tự động bật/tắt lặp lại các ngày trong tuần',
+                    context.tr('periodic_schedule_desc'),
                     style: TextStyle(
                       fontSize: 12.5,
                       color: isDark ? Colors.white60 : Colors.black54,
@@ -1323,7 +1378,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
               ),
               const SizedBox(height: 2),
               Text(
-                minutes < 60 ? 'phút' : 'giờ',
+                minutes < 60 ? context.tr('minutes') : context.tr('hours'),
                 style: TextStyle(
                   fontSize: 11,
                   color: isDark ? Colors.white60 : Colors.black54,
@@ -1403,11 +1458,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.timer_outlined, color: Color(0xFF0F766E)),
+            const Icon(Icons.timer_outlined, color: AppColors.primary),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Hẹn giờ $targetActionText ${dev.name}',
+                '${context.tr('timer')} $targetActionText: ${dev.name}',
                 style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
               ),
             ),
@@ -1417,7 +1472,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Nhập số phút muốn hẹn giờ:', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+            Text(context.tr('quick_timer_enter_minutes'), style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
             const SizedBox(height: 12),
             TextField(
               controller: minutesCtrl,
@@ -1426,7 +1481,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               decoration: InputDecoration(
-                suffixText: 'phút',
+                suffixText: context.tr('minutes'),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
@@ -1435,11 +1490,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('btn_cancel') ?? 'Hủy', style: const TextStyle(color: Colors.grey)),
+            child: Text(context.tr('btn_cancel'), style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F766E),
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -1449,10 +1504,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                 Navigator.pop(ctx);
                 _applyQuickTimer(dev, deviceTopic, targetAction, targetActionText, mins);
               } else {
-                showFloatingToast(context, 'Lỗi', 'Vui lòng nhập số phút hợp lệ (1 - 1440)', isError: true);
+                showFloatingToast(context, context.tr('error'), context.tr('quick_timer_invalid_minutes'), isError: true);
               }
             },
-            child: Text(context.tr('btn_confirm') ?? 'Xác nhận'),
+            child: Text(context.tr('btn_confirm')),
           ),
         ],
       ),

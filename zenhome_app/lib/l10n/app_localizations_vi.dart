@@ -2619,7 +2619,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get technical_info_title => 'Thông số kỹ thuật';
 
   @override
-  String get perm_view_activate_only => 'Quyền hạn: Chỉ xem & Kích hoạt';
+  String get perm_view_activate_only => 'Quyền xem & kích hoạt';
 
   @override
   String get device_permissions_title => 'Phân quyền thiết bị';
@@ -2960,4 +2960,59 @@ class AppLocalizationsVi extends AppLocalizations {
   String delete_device_confirm(Object name) {
     return 'Bạn có chắc chắn muốn xóa thiết bị \"$name\"?';
   }
+
+  @override
+  String get member_disabled_msg =>
+      'Tài khoản của bạn đã bị Chủ nhà tạm khóa quyền điều khiển!';
+
+  @override
+  String get timer_single_device => 'Mặc định: 1 thiết bị';
+
+  @override
+  String get timer_multi_device => 'Nhiều thiết bị';
+
+  @override
+  String get invite_pending_confirm => 'Đang chờ người nhận xác nhận...';
+
+  @override
+  String get quick_timer_custom_title => 'Tùy chỉnh thời gian hẹn giờ...';
+
+  @override
+  String get quick_timer_enter_minutes => 'Nhập số phút muốn hẹn giờ:';
+
+  @override
+  String get quick_timer_invalid_minutes =>
+      'Vui lòng nhập số phút hợp lệ (1 - 1440)';
+
+  @override
+  String get periodic_schedule => 'Lịch trình định kỳ';
+
+  @override
+  String get periodic_schedule_desc =>
+      'Cài đặt tự động bật/tắt lặp lại các ngày trong tuần';
+
+  @override
+  String get theme_preset_title => 'Chủ đề màu sắc';
+
+  @override
+  String get theme_preset_subtitle =>
+      'Tùy biến bảng màu giao diện thông minh toàn diện';
+
+  @override
+  String get theme_preset_emerald => 'Ngọc Lục Bảo Zen';
+
+  @override
+  String get theme_preset_sapphire => 'Lam Biển Sapphire';
+
+  @override
+  String get theme_preset_amethyst => 'Thạch Anh Tím';
+
+  @override
+  String get theme_preset_gold => 'Hoàng Kim Hổ Phách';
+
+  @override
+  String get theme_preset_ruby => 'Hồng Ngọc San Hô';
+
+  @override
+  String get theme_preset_cyber => 'Titanium Công Nghệ';
 }

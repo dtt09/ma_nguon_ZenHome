@@ -220,6 +220,7 @@ class ZenHomeApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentMode = ref.watch(themeModeNotifierProvider);
+    final currentPreset = ref.watch(themePresetNotifierProvider);
     final locale = ref.watch(localeNotifierProvider);
 
     return MaterialApp(
@@ -235,8 +236,8 @@ class ZenHomeApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       locale: locale,
       
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.getLightTheme(currentPreset),
+      darkTheme: AppTheme.getDarkTheme(currentPreset),
       builder: (context, child) {
         return ConnectivityBannerWrapper(
           child: TelegramThemeTransition(

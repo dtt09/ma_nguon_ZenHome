@@ -1330,7 +1330,7 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                                       Flexible(
                                         child: Text(
                                           schedule['authorUid'] == FirebaseAuth.instance.currentUser?.uid
-                                              ? '${context.tr('shared')} (Bạn tạo)'
+                                              ? '${context.tr('shared')} (${Localizations.localeOf(context).languageCode == 'en' ? 'You' : 'Bạn tạo'})'
                                               : ((schedule['authorName'] != null && schedule['authorName'].toString().isNotEmpty)
                                                   ? '${context.tr('shared')} (${schedule['authorName']})'
                                                   : context.tr('shared')),

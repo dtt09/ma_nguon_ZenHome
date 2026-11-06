@@ -3,10 +3,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
 
 class SettingsRepository {
   static const String _themeKey = 'app_theme';
   static const String _langKey = 'app_lang';
+  static const String _presetKey = 'app_theme_preset';
+
+  Future<AppThemePreset> getThemePreset() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPreset = prefs.getString(_presetKey);
+    return ThemePresetConfig.fromString(savedPreset);
+  }
+
+  Future<void> setThemePreset(AppThemePreset preset) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_presetKey, preset.name);
+  }
 
   Future<ThemeMode> getThemeMode() async {
     final prefs = await SharedPreferences.getInstance();

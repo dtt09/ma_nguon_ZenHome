@@ -480,7 +480,7 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                                       ),
                                       child: Center(
                                         child: Text(
-                                          'Mặc định: 1 thiết bị',
+                                          context.tr('timer_single_device'),
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: !_isMultiDeviceMode ? FontWeight.bold : FontWeight.w500,
@@ -522,7 +522,7 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                                       ),
                                       child: Center(
                                         child: Text(
-                                          'Nhiều thiết bị',
+                                          context.tr('timer_multi_device'),
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: _isMultiDeviceMode ? FontWeight.bold : FontWeight.w500,
