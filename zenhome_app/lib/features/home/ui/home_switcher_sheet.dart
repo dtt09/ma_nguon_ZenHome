@@ -13,18 +13,16 @@ import 'package:zenhome_app/core/widgets/loading_overlay.dart';
 import 'package:zenhome_app/features/setup/ui/wifi_setup_screen.dart';
 import 'package:zenhome_app/core/utils/home_helper.dart';
 import 'package:zenhome_app/features/home/ui/edit_home_properties_sheet.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 void showHomeSwitcherBottomSheet(BuildContext context, WidgetRef ref) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   
   HapticFeedback.lightImpact();
 
-  showModalBottomSheet(
+  showZenGlassBottomSheet(
     context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    elevation: 0,
-    barrierColor: Colors.black.withOpacity(0.55),
+    maxHeightFactor: 0.85,
     builder: (sheetContext) {
       return Consumer(
         builder: (context, refWatch, _) {
@@ -32,41 +30,11 @@ void showHomeSwitcherBottomSheet(BuildContext context, WidgetRef ref) {
           final allHomes = homeNotifier.availableHomes;
           final activeConfig = homeNotifier.activeConfig;
 
-          return Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.82,
-            ),
-            padding: const EdgeInsets.only(top: 16, left: 20, right: 20, bottom: 32),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF101625) : Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-              border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 30,
-                  offset: const Offset(0, -8),
-                ),
-              ],
-            ),
+          return Padding(
+            padding: const EdgeInsets.only(top: 8, left: 20, right: 20, bottom: 32),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Thanh kéo pill mềm mại
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-
                 // Tiêu đề & Nút Thêm nhà mới (Bảo vệ chống tràn chữ)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -244,20 +212,12 @@ void showHomeSwitcherBottomSheet(BuildContext context, WidgetRef ref) {
                                 }
                               }
                             },
-                            child: Container(
+                            child: ZenGlassCard(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? typeColor.withOpacity(isDark ? 0.22 : 0.08)
-                                    : (isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC)),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? typeColor
-                                      : (isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFE2E8F0)),
-                                  width: isSelected ? 1.6 : 1,
-                                ),
-                              ),
+                              borderRadius: 20,
+                              isActive: isSelected,
+                              glowColor: typeColor,
+                              blurSigma: 8,
                               child: Row(
                                 children: [
                                   Container(

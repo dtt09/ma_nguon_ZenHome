@@ -1,4 +1,4 @@
-﻿import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
+import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
 import 'dart:async';
 import 'dart:convert'; 
 import 'package:flutter/material.dart';
@@ -279,10 +279,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
 
 
   void _showConnectionDetailSheet(BuildContext context, SmartConfig activeConfig) {
-    showModalBottomSheet(
+    showZenGlassBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         final localService = ref.read(localNetworkServiceProvider);
@@ -333,34 +331,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
           activeIcon = Icons.cloud_rounded;
         }
 
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 20,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white24 : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Container(
@@ -414,18 +391,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
               ),
               const SizedBox(height: 20),
 
-              // Thẻ kênh ưu tiên hiện tại
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: gradientColors,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(18),
+              // Thẻ kênh ưu tiên hiện tại dạng Kính Lỏng phát quang
+              ZenLiquidGlass(
+                borderRadius: 20,
+                blurSigma: 12,
+                customGradient: LinearGradient(
+                  colors: gradientColors,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                customBorder: Border.all(
+                  color: Colors.white.withOpacity(0.24),
+                  width: 1.2,
+                ),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -479,13 +458,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
               const SizedBox(height: 18),
 
               // Bảng thông số 3 tầng kết nối: Local LAN, Bluetooth LE ngầm, Cloud MQTT
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06),
-                  ),
+              ZenLiquidGlass(
+                borderRadius: 20,
+                blurSigma: 0,
+                surfaceColor: isDark ? const Color(0xFF0F172A).withOpacity(0.65) : const Color(0xFFF8FAFC).withOpacity(0.85),
+                customBorder: Border.all(
+                  color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFCBD5E1).withOpacity(0.7),
+                  width: 1.1,
                 ),
                 child: Column(
                   children: [

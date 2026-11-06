@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
 
 import 'package:zenhome_app/core/utils/localization_extension.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 
 
@@ -259,80 +260,13 @@ class RoomTabWidget extends StatelessWidget {
 
       scaleFactor: 0.93,
 
-      child: AnimatedContainer(
-
-        duration: const Duration(milliseconds: 280),
-
-        curve: Curves.easeOutBack,
-
+      child: ZenGlassPill(
+        isSelected: isSelected,
+        glowColor: roomColor,
+        customGradient: isSelected ? roomGradient : null,
+        borderRadius: 22,
         margin: const EdgeInsets.only(right: 10),
-
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-
-        decoration: isSelected
-
-            ? BoxDecoration(
-
-                gradient: roomGradient,
-
-                borderRadius: BorderRadius.circular(22),
-
-                boxShadow: [
-
-                  BoxShadow(
-
-                    color: roomColor.withOpacity(0.4),
-
-                    blurRadius: 14,
-
-                    spreadRadius: 0,
-
-                    offset: const Offset(0, 4),
-
-                  ),
-
-                ],
-
-              )
-
-            : BoxDecoration(
-
-                color: isDark ? const Color(0xFF131B2E) : Colors.white,
-
-                borderRadius: BorderRadius.circular(22),
-
-                border: Border.all(
-
-                  color: isDark
-
-                      ? roomColor.withOpacity(0.18)
-
-                      : roomColor.withOpacity(0.12),
-
-                  width: 1.2,
-
-                ),
-
-                boxShadow: [
-
-                  BoxShadow(
-
-                    color: isDark
-
-                        ? Colors.black.withOpacity(0.15)
-
-                        : const Color(0xFF0F172A).withOpacity(0.03),
-
-                    blurRadius: 8,
-
-                    offset: const Offset(0, 2),
-
-                  ),
-
-                ],
-
-              ),
-
         child: Row(
 
           mainAxisSize: MainAxisSize.min,

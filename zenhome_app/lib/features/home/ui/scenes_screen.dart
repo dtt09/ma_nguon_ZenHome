@@ -14,6 +14,7 @@ import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/features/setup/ui/wifi_setup_screen.dart';
 import 'package:zenhome_app/core/services/local_network_service.dart';
 import 'package:zenhome_app/core/providers/local_network_provider.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 class ScenesScreen extends ConsumerStatefulWidget {
   const ScenesScreen({super.key});
@@ -130,17 +131,12 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                             ),
                           ),
                           const SizedBox(width: 12),
-                          // Connection Status Chip
-                          Container(
+                          // Connection Status Chip (Zen Glass Pill)
+                          ZenGlassPill(
+                            color: statusColor,
+                            isSelected: true,
+                            blurSigma: 8,
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: statusColor.withOpacity(0.3),
-                                width: 1,
-                              ),
-                            ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -174,81 +170,58 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                       ),
                     ).animate().fade(duration: 350.ms).slideY(begin: -0.1),
 
-                    // Segmented Switcher Bar (Glassmorphic Sliding Indicator Pill - matching main_layout style)
-                    Container(
+                    // Segmented Switcher Bar (Zen Liquid Glass Sliding Indicator Pill)
+                    ZenLiquidGlass(
                       margin: const EdgeInsets.only(bottom: 22),
                       height: 52,
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkCard : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(32),
-                        border: Border.all(
-                          color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(isDark ? 0.35 : 0.06),
-                            blurRadius: 20,
-                            offset: const Offset(0, 6),
-                          ),
-                          if (isDark)
-                            BoxShadow(
-                              color: AppColors.primaryLight.withOpacity(0.08),
-                              blurRadius: 14,
-                              offset: const Offset(0, -1),
-                            ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(32),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                          child: Stack(
-                            children: [
-                              // Sliding Indicator Pill
-                              Positioned.fill(
-                                child: AnimatedAlign(
-                                  duration: const Duration(milliseconds: 360),
-                                  curve: Curves.easeOutBack,
-                                  alignment: _selectedTabIndex == 0
-                                      ? Alignment.centerLeft
-                                      : Alignment.centerRight,
-                                  child: FractionallySizedBox(
-                                    widthFactor: 0.5,
-                                    child: Container(
-                                      margin: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        gradient: _selectedTabIndex == 0
-                                            ? const LinearGradient(
-                                                colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
-                                              )
-                                            : const LinearGradient(
-                                                colors: [Color(0xFF0D9488), Color(0xFF059669)],
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
-                                              ),
-                                        borderRadius: BorderRadius.circular(26),
-                                        border: Border.all(
-                                          color: (_selectedTabIndex == 0 ? const Color(0xFF8B5CF6) : const Color(0xFF0D9488)).withOpacity(0.35),
-                                          width: 1,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: (_selectedTabIndex == 0 ? const Color(0xFF8B5CF6) : const Color(0xFF0D9488)).withOpacity(0.35),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 2),
+                      borderRadius: 32,
+                      blurSigma: 18,
+                      child: Stack(
+                        children: [
+                          // Sliding Indicator Pill
+                          Positioned.fill(
+                            child: AnimatedAlign(
+                              duration: const Duration(milliseconds: 360),
+                              curve: Curves.easeOutBack,
+                              alignment: _selectedTabIndex == 0
+                                  ? Alignment.centerLeft
+                                  : Alignment.centerRight,
+                              child: FractionallySizedBox(
+                                widthFactor: 0.5,
+                                child: Container(
+                                  margin: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    gradient: _selectedTabIndex == 0
+                                        ? const LinearGradient(
+                                            colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          )
+                                        : const LinearGradient(
+                                            colors: [Color(0xFF0D9488), Color(0xFF059669)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
                                           ),
-                                        ],
-                                      ),
+                                    borderRadius: BorderRadius.circular(26),
+                                    border: Border.all(
+                                      color: (_selectedTabIndex == 0 ? const Color(0xFF8B5CF6) : const Color(0xFF0D9488)).withOpacity(0.35),
+                                      width: 1,
                                     ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: (_selectedTabIndex == 0 ? const Color(0xFF8B5CF6) : const Color(0xFF0D9488)).withOpacity(0.35),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                              // Tab Items
-                              Row(
-                                children: [
+                            ),
+                          ),
+                          // Tab Items
+                          Row(
+                            children: [
                                   Expanded(
                                     child: InkWell(
                                       borderRadius: BorderRadius.circular(32),
@@ -362,8 +335,6 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                             ],
                           ),
                         ),
-                      ),
-                    ),
 
                     // Tab 0: Ngữ cảnh
                     if (_selectedTabIndex == 0) ...[
@@ -400,26 +371,22 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                   child: Center(
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
-                      child: Container(
+                      child: ZenLiquidGlass(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkCard : Colors.white,
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(
-                          color: isUnlinked
-                              ? const Color(0xFFF59E0B).withOpacity(0.4)
-                              : const Color(0xFFEF4444).withOpacity(0.4),
+                        borderRadius: 28,
+                        blurSigma: 24,
+                        glowColor: isUnlinked ? const Color(0xFFF59E0B) : const Color(0xFFEF4444),
+                        surfaceColor: isDark
+                            ? const Color(0xFF0F172A).withOpacity(0.85)
+                            : Colors.white.withOpacity(0.92),
+                        customBorder: Border.all(
+                          color: (isUnlinked
+                                  ? const Color(0xFFF59E0B)
+                                  : const Color(0xFFEF4444))
+                              .withOpacity(0.45),
                           width: 1.5,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(isDark ? 0.6 : 0.12),
-                            blurRadius: 30,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Column(
+                        child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           // Glowing Icon Container

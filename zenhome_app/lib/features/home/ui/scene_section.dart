@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
@@ -17,6 +17,7 @@ import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
 import 'package:zenhome_app/core/services/local_network_service.dart';
 import 'package:zenhome_app/core/providers/local_network_provider.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 class SceneSection extends ConsumerStatefulWidget {
   const SceneSection({super.key});
@@ -1404,15 +1405,10 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
         const SizedBox(height: 14),
         
         if (_customScenes.isEmpty)
-          Container(
+          ZenGlassCard(
+            borderRadius: 22,
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : AppColors.lightCard,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-              ),
-            ),
+            blurSigma: 12,
             child: Center(
               child: Column(
                 children: [
@@ -1485,32 +1481,14 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                     HapticFeedback.mediumImpact();
                     _executeCustomScene(scene);
                   },
-                  child: Container(
+                  child: ZenGlassCard(
                     width: 136,
                     margin: const EdgeInsets.only(right: 14, bottom: 4),
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                      gradient: LinearGradient(
-                        colors: isDark
-                            ? [sceneColor.withOpacity(0.14), AppColors.darkCard]
-                            : [sceneColor.withOpacity(0.08), Colors.white],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color: sceneColor.withOpacity(isDark ? 0.3 : 0.2),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: sceneColor.withOpacity(isDark ? 0.15 : 0.08),
-                          blurRadius: 14,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
+                    borderRadius: 22,
+                    glowColor: sceneColor,
+                    isActive: true,
+                    blurSigma: 10,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

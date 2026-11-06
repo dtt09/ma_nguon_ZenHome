@@ -1,4 +1,4 @@
-﻿import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
+import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
 
 import 'dart:async';
 
@@ -32,6 +32,7 @@ import 'package:zenhome_app/features/settings/ui/settings_screen.dart';
 import 'package:zenhome_app/core/services/session_manager.dart';
 
 import 'package:zenhome_app/core/services/app_update_service.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 
 
@@ -264,70 +265,14 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
               ),
 
           bottomNavigationBar: isDisabled ? null : SafeArea(
-
             bottom: false,
-
-            child: Container(
-
+            child: ZenGlassContainer(
+              borderRadius: 36,
               margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-
-              decoration: BoxDecoration(
-
-                color: isDark 
-
-                    ? AppColors.darkCard.withOpacity(0.85) 
-
-                    : Colors.white.withOpacity(0.92),
-
-                borderRadius: BorderRadius.circular(40),
-
-                border: Border.all(
-
-                  color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-
-                  width: 1.2,
-
-                ),
-
-                boxShadow: [
-
-                  BoxShadow(
-
-                    color: Colors.black.withOpacity(isDark ? 0.45 : 0.08),
-
-                    blurRadius: 28,
-
-                    offset: const Offset(0, 10),
-
-                  ),
-
-                  if (isDark)
-
-                    BoxShadow(
-
-                      color: AppColors.primaryLight.withOpacity(0.08),
-
-                      blurRadius: 16,
-
-                      offset: const Offset(0, -2),
-
-                    ),
-
-                ],
-
-              ),
-
-              child: ClipRRect(
-
-                borderRadius: BorderRadius.circular(40),
-
-                child: BackdropFilter(
-
-                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-
-                  child: GestureDetector(
+              glowColor: isDark ? AppColors.primaryLight : null,
+              blurSigma: 24,
+              child: GestureDetector(
 
                     onHorizontalDragStart: (details) {
 
@@ -514,12 +459,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> with AuthSyncMixin, Hom
                 ),
 
               ),
-
             ),
-
-          ),
-
-        ),
 
         if (isHardDisconnected)
 

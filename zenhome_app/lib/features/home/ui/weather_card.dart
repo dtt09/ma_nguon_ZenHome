@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/animations/animated_counting_number.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 class WeatherCard extends ConsumerStatefulWidget {
   const WeatherCard({super.key});
@@ -127,26 +128,24 @@ class _WeatherCardState extends ConsumerState<WeatherCard> {
             end: Alignment.bottomRight,
           );
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: cardGradient,
-        border: Border.all(
-          color: Colors.white.withOpacity(isDark ? 0.12 : 0.22),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (isDark ? const Color(0xFF0F172A) : const Color(0xFF0284C7)).withOpacity(0.35),
-            blurRadius: 24,
-            spreadRadius: 0,
-            offset: const Offset(0, 10),
-          ),
-        ],
+    return ZenLiquidGlass(
+      borderRadius: 28,
+      blurSigma: 20.0,
+      glowColor: isDark ? const Color(0xFF6366F1) : const Color(0xFF0284C7),
+      customGradient: cardGradient,
+      customBorder: Border.all(
+        color: Colors.white.withOpacity(isDark ? 0.16 : 0.28),
+        width: 1.2,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Stack(
+      customShadows: [
+        BoxShadow(
+          color: (isDark ? const Color(0xFF0F172A) : const Color(0xFF0284C7)).withOpacity(0.35),
+          blurRadius: 24,
+          spreadRadius: 0,
+          offset: const Offset(0, 10),
+        ),
+      ],
+      child: Stack(
           children: [
             // Ánh sáng phản chiếu nền (Ambient Backlight Circle)
             Positioned(
@@ -422,7 +421,6 @@ class _WeatherCardState extends ConsumerState<WeatherCard> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/providers/theme_provider.dart';
 import 'package:zenhome_app/core/widgets/animations/telegram_theme_transition.dart';
@@ -45,6 +45,7 @@ import 'package:zenhome_app/core/providers/local_network_provider.dart';
 import 'package:zenhome_app/core/services/ble_local_service.dart';
 import 'package:zenhome_app/core/utils/masking_helper.dart';
 import 'package:zenhome_app/features/home/ui/home_switcher_sheet.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -280,30 +281,29 @@ class SettingsScreen extends ConsumerWidget {
                   const SizedBox(height: 25),
                   
                   // --- GROUP 1: TÀI KHOẢN ---
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05)),
-                      boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
+                  ZenLiquidGlass(
+                    borderRadius: 24,
+                    blurSigma: 12,
+                    surfaceColor: isDark
+                        ? const Color(0xFF0F172A).withOpacity(0.65)
+                        : Colors.white.withOpacity(0.85),
+                    customBorder: Border.all(
+                      color: isDark
+                          ? Colors.white.withOpacity(0.12)
+                          : const Color(0xFFCBD5E1).withOpacity(0.7),
+                      width: 1.1,
                     ),
-                    child: Material(
-                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      clipBehavior: Clip.antiAlias,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                        child: ListTile(
-                          leading: const UserAvatar(radius: 25),
-                          title: Text(FirebaseAuth.instance.currentUser?.displayName ?? context.tr('profile_title'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          subtitle: Text(getDisplayEmailOrPhone(FirebaseAuth.instance.currentUser)),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen())).then((_) {
-                              (context as Element).markNeedsBuild();
-                            });
-                          },
-                        ),
-                      ),
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                    child: ListTile(
+                      leading: const UserAvatar(radius: 25),
+                      title: Text(FirebaseAuth.instance.currentUser?.displayName ?? context.tr('profile_title'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      subtitle: Text(getDisplayEmailOrPhone(FirebaseAuth.instance.currentUser)),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen())).then((_) {
+                          (context as Element).markNeedsBuild();
+                        });
+                      },
                     ),
                   ).animate(delay: 100.ms).fade(duration: 400.ms).slideX(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuart),
                   const SizedBox(height: 25),
@@ -312,19 +312,20 @@ class SettingsScreen extends ConsumerWidget {
                   Text(context.tr('general_settings'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500))
                       .animate(delay: 200.ms).fade(duration: 400.ms),
                   const SizedBox(height: 10),
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05)),
-                      boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
+                  ZenLiquidGlass(
+                    borderRadius: 24,
+                    blurSigma: 12,
+                    surfaceColor: isDark
+                        ? const Color(0xFF0F172A).withOpacity(0.65)
+                        : Colors.white.withOpacity(0.85),
+                    customBorder: Border.all(
+                      color: isDark
+                          ? Colors.white.withOpacity(0.12)
+                          : const Color(0xFFCBD5E1).withOpacity(0.7),
+                      width: 1.1,
                     ),
-                    child: Material(
-                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      clipBehavior: Clip.antiAlias,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Column(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
                           children: [
                             // --- QUẢN LÝ NGÔI NHÀ & CHUYỂN ĐỔI NHÀ ---
                             ListTile(
@@ -778,9 +779,7 @@ class SettingsScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  ).animate(delay: 250.ms).fade(duration: 400.ms).slideX(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuart),
+                    ).animate(delay: 250.ms).fade(duration: 400.ms).slideX(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuart),
                   const SizedBox(height: 25),
                   
                   // --- GROUP 3: HỆ THỐNG ESP32 ---
@@ -788,19 +787,20 @@ class SettingsScreen extends ConsumerWidget {
                     Text(context.tr('system_settings'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500))
                         .animate(delay: 300.ms).fade(duration: 400.ms),
                     const SizedBox(height: 10),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05)),
-                        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
+                    ZenLiquidGlass(
+                      borderRadius: 24,
+                      blurSigma: 12,
+                      surfaceColor: isDark
+                          ? const Color(0xFF0F172A).withOpacity(0.65)
+                          : Colors.white.withOpacity(0.85),
+                      customBorder: Border.all(
+                        color: isDark
+                            ? Colors.white.withOpacity(0.12)
+                            : const Color(0xFFCBD5E1).withOpacity(0.7),
+                        width: 1.1,
                       ),
-                      child: Material(
-                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        clipBehavior: Clip.antiAlias,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Column(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
                             children: [
                               ListTile(
                                 leading: Container(
@@ -1202,8 +1202,6 @@ class SettingsScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
-                        ),
-                      ),
                     ).animate(delay: 350.ms).fade(duration: 400.ms).slideX(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuart),
                   ],
                   
@@ -1212,32 +1210,29 @@ class SettingsScreen extends ConsumerWidget {
                     Text(context.tr('leave_home_title') ?? 'QUẢN LÝ QUYỀN TRUY CẬP', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500))
                         .animate(delay: 400.ms).fade(duration: 400.ms),
                     const SizedBox(height: 10),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05)),
-                        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
+                    ZenLiquidGlass(
+                      borderRadius: 24,
+                      blurSigma: 12,
+                      surfaceColor: isDark
+                          ? const Color(0xFF0F172A).withOpacity(0.65)
+                          : Colors.white.withOpacity(0.85),
+                      customBorder: Border.all(
+                        color: Colors.red.withOpacity(0.25),
+                        width: 1.1,
                       ),
-                      child: Material(
-                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        clipBehavior: Clip.antiAlias,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: ListTile(
-                            leading: Container(
-                              padding: const EdgeInsets.all(9),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Icon(Icons.exit_to_app_rounded, color: Colors.red, size: 22),
-                            ),
-                            title: Text(context.tr('btn_leave_home') ?? 'Rời khỏi nhà này', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.red)),
-                            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
-                            onTap: () => _handleLeaveHome(context, ref, activeConfig.ownerEmail, activeConfig.userId),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
                           ),
+                          child: const Icon(Icons.exit_to_app_rounded, color: Colors.red, size: 22),
                         ),
+                        title: Text(context.tr('btn_leave_home') ?? 'Rời khỏi nhà này', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.red)),
+                        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
+                        onTap: () => _handleLeaveHome(context, ref, activeConfig.ownerEmail, activeConfig.userId),
                       ),
                     ).animate().slideX(begin: 0.1, end: 0),
                   ],
@@ -1247,36 +1242,33 @@ class SettingsScreen extends ConsumerWidget {
                     Text(context.tr('manage_sub_home_title') ?? 'QUẢN LÝ NGÔI NHÀ PHỤ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500))
                         .animate(delay: 400.ms).fade(duration: 400.ms),
                     const SizedBox(height: 10),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05)),
-                        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
+                    ZenLiquidGlass(
+                      borderRadius: 24,
+                      blurSigma: 12,
+                      surfaceColor: isDark
+                          ? const Color(0xFF0F172A).withOpacity(0.65)
+                          : Colors.white.withOpacity(0.85),
+                      customBorder: Border.all(
+                        color: Colors.red.withOpacity(0.25),
+                        width: 1.1,
                       ),
-                      child: Material(
-                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        clipBehavior: Clip.antiAlias,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: ListTile(
-                            leading: Container(
-                              padding: const EdgeInsets.all(9),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 22),
-                            ),
-                            title: Text(context.tr('delete_this_sub_home') ?? 'Xóa ngôi nhà phụ này', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.red)),
-                            subtitle: Text(
-                              'Xóa vĩnh viễn ${activeConfig.homeName} và trở về nhà chính',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                            ),
-                            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
-                            onTap: () => _handleDeleteCurrentSubHome(context, ref, activeConfig),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
                           ),
+                          child: const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 22),
                         ),
+                        title: Text(context.tr('delete_this_sub_home') ?? 'Xóa ngôi nhà phụ này', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.red)),
+                        subtitle: Text(
+                          'Xóa vĩnh viễn ${activeConfig.homeName} và trở về nhà chính',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
+                        onTap: () => _handleDeleteCurrentSubHome(context, ref, activeConfig),
                       ),
                     ).animate().slideX(begin: 0.1, end: 0),
                   ],
@@ -1286,19 +1278,20 @@ class SettingsScreen extends ConsumerWidget {
                   Text(context.tr('app_version_title'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500))
                       .animate(delay: 420.ms).fade(duration: 400.ms),
                   const SizedBox(height: 10),
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05)),
-                      boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
+                  ZenLiquidGlass(
+                    borderRadius: 24,
+                    blurSigma: 12,
+                    surfaceColor: isDark
+                        ? const Color(0xFF0F172A).withOpacity(0.65)
+                        : Colors.white.withOpacity(0.85),
+                    customBorder: Border.all(
+                      color: isDark
+                          ? Colors.white.withOpacity(0.12)
+                          : const Color(0xFFCBD5E1).withOpacity(0.7),
+                      width: 1.1,
                     ),
-                    child: Material(
-                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      clipBehavior: Clip.antiAlias,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Column(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
                           children: [
                             ListTile(
                               leading: Container(
@@ -1469,25 +1462,27 @@ class SettingsScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  ).animate(delay: 450.ms).fade(duration: 400.ms).slideX(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuart),
+                    ).animate(delay: 450.ms).fade(duration: 400.ms).slideX(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuart),
 
                   const SizedBox(height: 35),
                   // --- ĐĂNG XUẤT ---
-                  SizedBox(
-                    width: double.infinity,
+                  ZenLiquidGlass(
+                    borderRadius: 20,
+                    blurSigma: 10,
+                    surfaceColor: Colors.red.withOpacity(isDark ? 0.15 : 0.08),
+                    glowColor: Colors.red,
+                    customBorder: Border.all(color: Colors.red.withOpacity(0.3), width: 1.2),
                     height: 55,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.red.withOpacity(0.1),
-                        foregroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        elevation: 0,
+                    onTap: () => _handleLogout(context, ref),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.logout_rounded, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Text(context.tr('btn_logout'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
+                        ],
                       ),
-                      icon: const Icon(Icons.logout_rounded),
-                      label: Text(context.tr('btn_logout'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      onPressed: () => _handleLogout(context, ref),
                     ),
                   ).animate(delay: 500.ms).fade(duration: 400.ms).scaleXY(begin: 0.9, end: 1, duration: 400.ms, curve: Curves.easeOutBack),
                   const SizedBox(height: 100),

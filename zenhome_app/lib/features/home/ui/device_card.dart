@@ -6,6 +6,7 @@ import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 class DeviceCard extends StatelessWidget {
   final String deviceName;
@@ -64,78 +65,22 @@ class DeviceCard extends StatelessWidget {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color glowColor = _getGlowColor();
 
-    // Box Decoration theo phong cách Zen Luxury Luminescent cao cấp
-    final BoxDecoration decoration = isOn
-        ? BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [
-                      glowColor.withOpacity(0.18),
-                      const Color(0xFF0F1626),
-                      const Color(0xFF0F1626),
-                    ]
-                  : [
-                      glowColor.withOpacity(0.10),
-                      Colors.white,
-                      Colors.white,
-                    ],
-              stops: const [0.0, 0.45, 1.0],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(
-              color: glowColor.withOpacity(isDark ? 0.55 : 0.45),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: glowColor.withOpacity(isDark ? 0.22 : 0.12),
-                blurRadius: 18,
-                spreadRadius: 0,
-                offset: const Offset(0, 6),
-              ),
-              if (isDark)
-                BoxShadow(
-                  color: glowColor.withOpacity(0.08),
-                  blurRadius: 6,
-                  offset: const Offset(0, 0),
-                ),
-            ],
-          )
-        : BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            color: isDark ? AppColors.darkCard : AppColors.lightCard,
-            border: Border.all(
-              color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
-                blurRadius: 12,
-                spreadRadius: 0,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          );
-
     final Color primaryTextColor = isDark ? AppColors.darkText : AppColors.lightText;
     final Color secondaryTextColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final Color iconColor = isOn
         ? (isDark ? Colors.white : glowColor)
         : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
 
-    final Widget card = AnimatedContainer(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
-      decoration: decoration,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
+    final Widget card = ZenGlassCard(
+      borderRadius: 26,
+      isActive: isOn,
+      glowColor: glowColor,
+      blurSigma: 12.0,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
             // Header hàng trên: Icon tròn + Mini Switch Capsule
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -346,8 +291,7 @@ class DeviceCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
+      );
 
     return BouncingButton(
       onTap: isCooldown ? null : () {
