@@ -23,6 +23,75 @@ import { client as mqttClient } from '../core/mqtt';
 import { getCpuMetrics, getRamMetrics, getDiskMetrics, formatUptimeString } from '../core/systemTelemetry';
 import { createRealDatabaseBackup, getBackupFilePath, restoreDatabaseFromBackup } from '../core/backupEngine';
 import path from 'path';
+import net from 'net';
+import dns from 'dns';
+
+function isPrivateIp(ip: string): boolean {
+  const cleanIp = ip.replace(/^\[|\]$/g, '');
+  const ipType = net.isIP(cleanIp);
+  if (ipType === 4) {
+    const parts = cleanIp.split('.').map(p => parseInt(p, 10));
+    if (parts.length !== 4 || parts.some(isNaN)) return true;
+    // 0.0.0.0/8 (Mạng hiện tại)
+    if (parts[0] === 0) return true;
+    // 127.0.0.0/8 (Loopback)
+    if (parts[0] === 127) return true;
+    // 10.0.0.0/8 (Private RFC 1918)
+    if (parts[0] === 10) return true;
+    // 172.16.0.0/12 (Private RFC 1918)
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    // 192.168.0.0/16 (Private RFC 1918)
+    if (parts[0] === 192 && parts[1] === 168) return true;
+    // 169.254.0.0/16 (Link-local / Cloud metadata)
+    if (parts[0] === 169 && parts[1] === 254) return true;
+    // 100.64.0.0/10 (Carrier-Grade NAT)
+    if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
+    // 224.0.0.0/4 (Multicast và Reserved)
+    if (parts[0] >= 224) return true;
+  } else if (ipType === 6) {
+    if (cleanIp === '::1' || cleanIp === '::') return true;
+    if (cleanIp.startsWith('fc') || cleanIp.startsWith('fd')) return true;
+    if (/^fe[89ab]/i.test(cleanIp)) return true;
+    if (cleanIp.startsWith('::ffff:')) {
+      return isPrivateIp(cleanIp.substring(7));
+    }
+  }
+  return false;
+}
+
+async function isSafePublicHost(hostname: string): Promise<boolean> {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  // 1. Chặn các tên miền cục bộ, metadata và DNS đặc biệt
+  if (
+    host === 'localhost' ||
+    host === 'metadata.google.internal' ||
+    host.endsWith('.internal') ||
+    host.endsWith('.local') ||
+    host.endsWith('.localhost') ||
+    host.endsWith('.lan')
+  ) {
+    return false;
+  }
+
+  // 2. Nếu là IP literal, kiểm tra dải IP
+  if (net.isIP(host)) {
+    return !isPrivateIp(host);
+  }
+
+  // 3. Phân giải DNS nhằm chống triệt để kỹ thuật DNS Rebinding (127.0.0.1.nip.io, v.v.)
+  try {
+    const records = await dns.promises.lookup(host, { all: true });
+    if (!records || records.length === 0) return false;
+    for (const record of records) {
+      if (isPrivateIp(record.address)) {
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 
 export const apiRouter = Router();
@@ -171,9 +240,10 @@ apiRouter.post('/backup-server/proxy-ping', requireAdminAuth, actionLimiter, asy
       return res.status(400).json({ connected: false, error: 'Giao thức serverUrl không hợp lệ (chỉ chấp nhận http hoặc https)' });
     }
     const host = parsed.hostname.toLowerCase();
-    // Chống SSRF: cấm truy cập dải địa chỉ metadata và loopback
-    if (host === '169.254.169.254' || host === 'metadata.google.internal' || host === '0.0.0.0') {
-      return res.status(400).json({ connected: false, error: 'Địa chỉ IP nội bộ không được phép (Chống SSRF)' });
+    // Chống SSRF & DNS Rebinding: cấm truy cập dải địa chỉ nội bộ, loopback, private IP và metadata (ZH-09)
+    const isSafe = await isSafePublicHost(host);
+    if (!isSafe) {
+      return res.status(400).json({ connected: false, error: 'Địa chỉ IP hoặc tên miền không an toàn (Chống SSRF / DNS Rebinding)' });
     }
     const target = serverUrl.replace(/\/+$/, '') + '/render-heartbeat';
     const controller = new AbortController();

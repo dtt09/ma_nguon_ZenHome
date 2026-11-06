@@ -1,16 +1,16 @@
 {
-  "version": "1.8.16",
-  "buildNumber": 204,
+  "version": "1.8.18",
+  "buildNumber": 206,
   "minVersion": "1.8.0",
   "minBuildNumber": 180,
-  "titleVi": "Bản Cập Nhật ZenHome v1.8.16 (Luxury Liquid Glass UI & Haptic Polish)",
-  "titleEn": "ZenHome Update v1.8.16 (Luxury Liquid Glass UI & Haptic Polish)",
-  "releaseNotesVi": "• Nâng cấp giao diện Zen Liquid Glass: Hiệu ứng kính mờ động đa tầng sang trọng, viền phát quang ánh kim trên toàn bộ Dashboard, Thẻ thiết bị và Ngữ cảnh\n• Hoàn thiện bộ Theme Sáng / Tối: Tinh chỉnh độ tương phản cao, tối ưu sóng nền động WaveBackground và thanh trượt phát quang\n• Tương tác rung xúc giác Haptic Feedback: Trải nghiệm chạm gạt công tắc và trượt điều khiển sống động\n• Chuẩn hóa 100% từ khóa song ngữ Anh - Việt cho cài đặt, phân quyền và hồ sơ\n• Firmware ESP32 v2.5.9 (Build 203): Đèn LED đa trạng thái GPIO 2, Reactive BLE ACK hai chiều và bảo mật tối ưu",
-  "releaseNotesEn": "• Zen Liquid Glass UI Overhaul: Elegant layered glassmorphism, glowing borders on Dashboard, Device Cards, and Scenes\n• Refined Dark & Light Theme: High-contrast palettes, optimized dynamic WaveBackground, and neon sliders\n• Haptic Feedback Polish: Tactile vibration responses for switches, sliders, and navigation\n• Complete bilingual localization (EN/VI) across settings, RBAC, and user profiles\n• ESP32 Firmware v2.5.9 (Build 203): Multi-state GPIO 2 LED, 2-way Reactive BLE ACK, and hardened security",
+  "titleVi": "Bản Cập Nhật ZenHome v1.8.18 (Toàn Diện Bản Vá Bảo Mật & Hardened Architecture)",
+  "titleEn": "ZenHome Update v1.8.18 (Hardened Security Architecture & Full Patches)",
+  "releaseNotesVi": "• Khắc phục triệt để 9/9 lỗ hổng bảo mật kiểm toán Cloudflare Security Audit\n• Đóng kín Firestore Rules, chặn đọc công khai và khóa chặt IDOR xóa tài khoản / giải phóng định danh\n• Firmware ESP32 v2.6.0 (Build 204): Bắt buộc chữ ký số ECDSA P-256 khi nạp OTA, loại bỏ bypass IP subnet LAN, nâng cấp mã hóa AES-256 CTR\n• Server Backend: Chống SSRF & DNS Rebinding trên proxy-ping, ngăn chặn auto-bind Hub trái phép\n• Ứng dụng di động: Loại bỏ toàn bộ tài khoản MQTT hardcode dự phòng",
+  "releaseNotesEn": "• Fully remediated 9/9 vulnerabilities from Cloudflare Security Audit\n• Hardened Firestore Rules, blocked public profile reads, and prevented IDOR attacks\n• ESP32 Firmware v2.6.0 (Build 204): Enforced mandatory ECDSA P-256 OTA signature verification, removed LAN subnet bypass, upgraded AES-256 CTR storage encryption\n• Server Backend: Hardened SSRF & DNS Rebinding defenses and secured Hub binding endpoints\n• Mobile App: Removed all hardcoded MQTT fallback credentials",
   "downloadUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "directApkUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "isForceUpdate": false,
-  "fileSizeBytes": 72587283,
-  "sha256": "479F051153193BD217D6F2F5AB7BF6CA36AC789A29EE1E988BAA5216EAB8C05E",
-  "publishedAt": "2026-11-06T13:12:19.256Z"
+  "fileSizeBytes": 72969575,
+  "sha256": "B135065A0DE63F134A1E586A5C1C077E0D31458EEFDCE0C8545E0527C0407B59",
+  "publishedAt": "2026-11-06T19:09:47.239Z"
 }

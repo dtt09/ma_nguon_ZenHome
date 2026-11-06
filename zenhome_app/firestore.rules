@@ -62,10 +62,14 @@ service cloud.firestore {
 
     // Hồ sơ người dùng
     match /users/{userId} {
-      // 1. Cho phép đọc thông tin chi tiết (get) từng tài khoản khi biết trước document ID:
-      // Phục vụ kiểm tra username trùng lặp khi đăng ký, tra cứu email để đăng nhập,
-      // và cho phép chính chủ / thành viên chia sẻ truy cập hồ sơ.
-      allow get: if true;
+      // 1. Cho phép đọc thông tin chi tiết (get) từng tài khoản:
+      // CHỈ cho phép khi người dùng đã đăng nhập và là chính chủ hoặc thành viên chia sẻ hợp lệ.
+      // Khắc phục lỗ hổng ZH-02-FIRESTORE-OPEN-GET (chặn đọc công khai không xác thực).
+      allow get: if isSignedIn() && (
+        request.auth.uid == userId ||
+        (resource != null && request.auth.uid == resource.data.uid) ||
+        isSharedMember(resource.data)
+      );
 
       // 2. Chặn việc query / list toàn bộ collection 'users':
       // CHỈ cho phép khi người dùng đã đăng nhập và là chính chủ hoặc thành viên chia sẻ của document đó.
@@ -164,15 +168,21 @@ service cloud.firestore {
       allow update, delete: if false; // Chỉ Server Admin mới được xóa/sửa
     }
 
-    // Yêu cầu xóa tài khoản: User chỉ được tạo request cho chính mình, không được sửa/xóa/đọc trộm của người khác
+    // Yêu cầu xóa tài khoản: Chống tấn công IDOR (ZH-03)
+    // Document ID bắt buộc phải thuộc sở hữu của người gửi yêu cầu (UID hoặc Username)
+    // và UID trong payload bắt buộc phải khớp chính xác với Firebase Auth UID của người gửi.
     match /delete_requests/{userId} {
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
+      allow create: if isSignedIn() &&
+        (request.auth.uid == userId || isParentOwner(userId)) &&
+        request.auth.uid == request.resource.data.uid;
       allow read, update, delete: if false; // Chỉ Backend Worker xử lý
     }
 
     // Yêu cầu giải phóng định danh / email ảo: Chỉ user sở hữu UID mới được gửi
     match /unlink_requests/{userId} {
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
+      allow create: if isSignedIn() &&
+        (request.auth.uid == userId || isParentOwner(userId)) &&
+        request.auth.uid == request.resource.data.uid;
       allow read, update, delete: if false; // Chỉ Backend Worker xử lý
     }
 

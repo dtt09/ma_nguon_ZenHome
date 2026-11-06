@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 import { addLog, state } from '../../zenhomeState';
 import { findUser } from '../../utils/firestoreHelper';
 import { client } from '../../core/mqtt';
-import { requireAuth, requireAdminAuth, checkUserPermission, checkOwnerOrAdminPermission } from '../../middlewares/auth';
+import { requireAuth, requireAdminAuth, checkUserPermission, checkOwnerOrAdminPermission, safeCompare } from '../../middlewares/auth';
 import { validateMacAddress } from '../../middlewares/validation';
 import { getCurrentServerConfig } from '../../core/networkSync';
 import { db, FieldValue } from '../../core/firebase';
@@ -113,9 +113,9 @@ hubRouter.get('/verify-binding', async (req: Request, res: Response) => {
 
     // Trường hợp 1: Database đang ở trạng thái CHƯA LIÊN KẾT (hoặc vừa hủy liên kết)
     if (isDbUnlinked) {
-      const expectedPass = (user.data?.adminPass || '').trim();
-      // Nếu tài khoản trong DB có mật khẩu admin và ESP32 truyền lên sai mật khẩu -> từ chối
-      if (expectedPass && reqAdminPass && expectedPass !== reqAdminPass) {
+      const expectedPass = (user.data?.adminPass || 'admin').trim();
+      // Bắt buộc xác thực mật khẩu quản trị (mặc định 'admin' nếu chưa đổi, chống tấn công auto-bind ZH-06)
+      if (!reqAdminPass || !safeCompare(expectedPass, reqAdminPass)) {
         return res.json({
           success: true,
           valid: false,
@@ -174,6 +174,17 @@ hubRouter.get('/verify-binding', async (req: Request, res: Response) => {
     }
 
     // Trường hợp 3: Trùng khớp 100%
+    const expectedPass = (user.data?.adminPass || 'admin').trim();
+    if (expectedPass && reqAdminPass && !safeCompare(expectedPass, reqAdminPass)) {
+      return res.json({
+        success: true,
+        valid: false,
+        reason: 'ADMIN_PASS_INVALID',
+        message: `Mật khẩu quản trị Hub không chính xác với tài khoản '${user.id}'.`,
+        userId: user.id,
+        reqMac: cleanMac,
+      });
+    }
     return res.json({
       success: true,
       valid: true,

@@ -210,24 +210,35 @@ export function startListeningToDeleteRequests() {
                 console.log(`[BACKEND] 🗑️ Nhận lệnh xóa tài khoản cho user: ${username} (UID: ${uid})`);
                 
                 try {
-                    // 1. Gửi lệnh Factory Reset tới ESP32 (nếu có liên kết)
+                    // 1. Kiểm tra xác thực quyền sở hữu tài khoản (Chống lỗ hổng IDOR - ZH-03)
                     const userDoc = await db.collection('users').doc(username).get();
-                    if (userDoc.exists) {
-                        const userData = userDoc.data() || {};
-                        const isOwner = (!userData.role || userData.role === 'owner');
-                        const macAddress = userData.macAddress;
-                        
-                        if (isOwner && macAddress && macAddress !== 'unknown_mac' && macAddress !== 'unknown') {
-                            const resetTopic = `${username}/${macAddress}/system/reset`;
-                            const resetPayload = JSON.stringify({
-                                action: 'factory_reset',
-                                admin_pass: userData.adminPass || 'admin',
-                                server_authorized: true,
-                                timestamp: Date.now()
-                            });
-                            client.publish(resetTopic, resetPayload, { qos: 1, retain: true });
-                            console.log(`[BACKEND] ✅ Đã gửi lệnh Factory Reset bảo mật tới ESP32 do Owner xóa tài khoản: ${resetTopic}`);
-                        }
+                    if (!userDoc.exists) {
+                        console.warn(`[BACKEND WARNING] ⚠️ Bỏ qua lệnh xóa: Không tìm thấy user '${username}'.`);
+                        await change.doc.ref.delete();
+                        return;
+                    }
+
+                    const userData = userDoc.data() || {};
+                    // BẢO VỆ CHỐNG IDOR: UID của người gửi yêu cầu bắt buộc phải trùng khớp với UID chủ sở hữu tài khoản
+                    if (!userData.uid || !uid || userData.uid !== uid) {
+                        console.error(`[SECURITY ALERT] 🚨 PHÁT HIỆN TẤN CÔNG IDOR hoặc YÊU CẦU KHÔNG HỢP LỆ! UID [${uid}] cố tình xóa tài khoản [${username}] thuộc về UID [${userData.uid}]!`);
+                        await change.doc.ref.delete();
+                        return;
+                    }
+
+                    const isOwner = (!userData.role || userData.role === 'owner');
+                    const macAddress = userData.macAddress;
+                    
+                    if (isOwner && macAddress && macAddress !== 'unknown_mac' && macAddress !== 'unknown') {
+                        const resetTopic = `${username}/${macAddress}/system/reset`;
+                        const resetPayload = JSON.stringify({
+                            action: 'factory_reset',
+                            admin_pass: userData.adminPass || 'admin',
+                            server_authorized: true,
+                            timestamp: Date.now()
+                        });
+                        client.publish(resetTopic, resetPayload, { qos: 1, retain: true });
+                        console.log(`[BACKEND] ✅ Đã gửi lệnh Factory Reset bảo mật tới ESP32 do Owner xóa tài khoản: ${resetTopic}`);
                     }
 
                     // 2. Xóa Firebase Auth User
@@ -267,13 +278,20 @@ export function startListeningToUnlinkRequests() {
         snapshot.docChanges().forEach(async change => {
             if (change.type === 'added') {
                 const data = change.doc.data();
+                const docId = change.doc.id;
                 const uid = data.uid;
                 const fallbackEmail = data.fallbackEmail;
                 
                 console.log(`[BACKEND] 🔓 Nhận lệnh giải phóng định danh cho UID: ${uid}`);
                 
                 try {
-                    if (fallbackEmail) {
+                    // Xác thực an toàn: uid trong payload bắt buộc phải khớp với docId hoặc tài khoản hợp lệ
+                    if (!uid || typeof uid !== 'string' || (docId !== uid && !docId.startsWith(uid))) {
+                        console.error(`[SECURITY ALERT] 🚨 Bỏ qua unlink_request không hợp lệ: docId [${docId}] không khớp với UID [${uid}]!`);
+                        await change.doc.ref.delete();
+                        return;
+                    }
+                    if (fallbackEmail && typeof fallbackEmail === 'string' && fallbackEmail.includes('@')) {
                         await getAuth().updateUser(uid, { email: fallbackEmail });
                         console.log(`[BACKEND] ✅ Đã cập nhật email thành ${fallbackEmail} để giải phóng email thật cho ${uid}`);
                     }

@@ -78,13 +78,12 @@ class MqttRepository {
     client!.connectionMessage = connMess;
 
     try {
-      // Tự động bảo vệ xác thực nếu dùng HiveMQ Cloud
+      // Xác thực MQTT client credentials
       String effectiveUser = mqttUser ?? '';
       String effectivePass = mqttPass ?? '';
       if (mqttServer.contains('hivemq.cloud')) {
-        if (effectiveUser.isEmpty || effectiveUser.startsWith('user_') || effectivePass.isEmpty) {
-          effectiveUser = 'DTC_ZenHome';
-          effectivePass = 'DTC_ZenHome2103';
+        if (effectiveUser.isEmpty || effectivePass.isEmpty) {
+          LoggerService.w('[MQTT] ⚠️ Chưa cung cấp thông tin xác thực (User/Pass) cho broker đám mây HiveMQ TLS.');
         }
       }
 

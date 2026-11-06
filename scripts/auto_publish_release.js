@@ -238,25 +238,22 @@ async function main() {
     tagVersion = await ask('Phiên bản tag Release phát hành', `v${pubspecVersion}`);
   }
 
-  const releaseTitle = `ZenHome ${tagVersion} - Luxury Liquid Glass UI Overhaul & Haptic Polish`;
+  const releaseTitle = `ZenHome ${tagVersion} - Toàn Diện Bản Vá Bảo Mật & Hardened Architecture`;
   const releaseNotes = `## 🌟 Điểm nổi bật trong bản phát hành ${tagVersion} (App Build ${pubspecBuild} / ESP32 v${espVersion} Build ${espBuild})
 
-### 📱 Ứng dụng Di động (Mobile App v${pubspecVersion}+${pubspecBuild}):
-- 💎 **Nâng cấp giao diện Zen Liquid Glass Đột Phá**:
-  - Tích hợp widget hiệu ứng kính mờ động đa tầng (\`ZenLiquidGlass\`), bóng đổ chiều sâu sang trọng, viền phát quang ánh kim trên toàn bộ Dashboard, Thẻ thiết bị, Tab phòng và Ngữ cảnh.
-  - Tối ưu hóa hiệu năng render, khử hoàn toàn hiện tượng drop frame khi cuộn danh sách thiết bị.
-- 🎨 **Hoàn thiện hệ thống Theme Sáng / Tối Cao Cấp**:
-  - Tinh chỉnh dải màu tương phản cao trên cả Light Mode và Dark Mode (\`AppTheme\`), tối ưu hóa hiển thị thẻ điều khiển, thanh trượt đa tầng và hiệu ứng sóng động (\`WaveBackground\`).
-- 📳 **Tương tác rung phản hồi xúc giác Haptic Polish**:
-  - Bổ sung rung xúc giác tinh tế (\`HapticHelper\`) trên từng cử chỉ gạt công tắc, bấm nút, trượt độ sáng và chuyển đổi tab, mang lại trải nghiệm điều khiển chân thực và cao cấp.
-- 🌐 **Nâng cấp toàn diện Đa ngôn ngữ (L10n & Localization)**:
-  - Cập nhật và chuẩn hóa 100% từ khóa song ngữ Anh - Việt cho tất cả màn hình cài đặt, thông tin tài khoản, xác thực mật khẩu quản trị và quản lý thành viên.
-
-### ⚡ Firmware ESP32 (v${espVersion} Build ${espBuild}):
-- 💡 **Hệ thống đèn LED đa trạng thái phần cứng chuyên nghiệp (GPIO 2)**:
-  - Cỗ máy trạng thái non-blocking: AP Mode (nháy đúp), Wi-Fi Connecting (nháy nhanh), Wi-Fi Connected (nháy vừa), Online hoàn toàn (sáng liên tục), Offline BLE (nháy chậm) và Action Blip 65ms phản hồi tức thì.
-- 🔐 **Bảo mật và truyền thông BLE/LAN tối ưu**:
-  - Duy trì kênh dự phòng BLE ngầm với khả năng đàm phán MTU 512 byte, Reactive ACK hai chiều và đồng bộ RTC tự động.
+### 🛡️ Bản Vá Bảo Mật Toàn Diện (Cloudflare Security Audit - 9/9 Đã Khắc Phục):
+- 🔒 **Đóng kín Cloud Firestore & Hồ sơ người dùng**:
+  - Chặn triệt để lỗ hổng đọc công khai hồ sơ (\`ZH-02\`); chỉ cho phép tài khoản đã xác thực và là chính chủ hoặc thành viên gia đình được chia sẻ hợp lệ.
+  - Khóa chặt tấn công IDOR trên \`delete_requests\` và \`unlink_requests\` (\`ZH-03\`), bảo vệ chéo đa tầng giữa Firestore Rules và Server Listener.
+- ⚡ **Bảo Mật Tối Đa Firmware ESP32 v${espVersion} (Build ${espBuild})**:
+  - Loại bỏ hoàn toàn cơ chế tự cấp quyền qua subnet IP LAN (\`ZH-04\`). Bắt buộc xác thực HMAC-SHA256 hoặc mật khẩu quản trị.
+  - Bắt buộc kiểm tra chữ ký điện tử ECDSA P-256 (\`ZH-05\`) trước khi nạp phân vùng OTA mới, chặn hoàn toàn firmware lạ/giả mạo.
+  - Tăng cường entropy khóa mã hóa Flash LittleFS AES-256 CTR (\`ZH-08\`) kết hợp MAC phần cứng cùng mật khẩu quản trị.
+  - Đóng toàn bộ các cửa ngõ bypass tiềm ẩn trên các lệnh cấu hình mạng LAN và MQTT System Reset / Config.
+- 🌐 **Backend Server & Bảo Vệ Mạng**:
+  - Chống giả mạo liên kết Hub qua HTTP GET (\`ZH-06\`), áp dụng so sánh thời gian không đổi (\`safeCompare\`).
+  - Chặn đứng nguy cơ SSRF & DNS Rebinding (\`ZH-09\`) trên API kiểm tra máy chủ dự phòng.
+  - Loại bỏ thông tin xác thực MQTT hardcode khỏi ứng dụng di động (\`ZH-07\`) và bảo vệ nghiêm ngặt các tệp private key (\`ZH-01\`).
 
 ---
 *Phát hành chính thức bởi ZenHome Automation Release Engine*`;
@@ -359,19 +356,19 @@ async function main() {
     console.log(`   ✅ Đã tạo mới Release thành công (ID: ${release.id})`);
   }
 
-  // 6. Dọn dẹp asset cũ trùng tên nếu có
-  if (release.assets && release.assets.length > 0) {
-    const metaPath = path.join(ROOT_DIR, 'release_metadata.json');
-    fs.writeFileSync(metaPath, JSON.stringify({
-      version: pubspecVersion,
-      build: pubspecBuild,
-      tag: tagVersion,
-      sha256: espSha,
-      sig: espSig,
-      fileSizeBytes: fs.existsSync(espBin) ? fs.statSync(espBin).size : 0,
-      updatedAt: new Date().toISOString()
-    }, null, 2), 'utf8');
+  // 6. Ghi release_metadata.json & dọn dẹp asset cũ trùng tên nếu có
+  const metaPath = path.join(ROOT_DIR, 'release_metadata.json');
+  fs.writeFileSync(metaPath, JSON.stringify({
+    version: pubspecVersion,
+    build: pubspecBuild,
+    tag: tagVersion,
+    sha256: espSha,
+    sig: espSig,
+    fileSizeBytes: fs.existsSync(espBin) ? fs.statSync(espBin).size : 0,
+    updatedAt: new Date().toISOString()
+  }, null, 2), 'utf8');
 
+  if (release.assets && release.assets.length > 0) {
     for (const asset of release.assets) {
       const isTarget = (!onlyApk && asset.name === 'firmware.bin') || 
                        (!onlyEsp && asset.name === 'ZenHome_Release.apk') ||
@@ -391,7 +388,6 @@ async function main() {
     await uploadReleaseAsset(release.upload_url, token, espBin, 'firmware.bin');
     console.log(`   🎉 Đã đẩy thành công firmware.bin lên GitHub Releases!`);
   }
-  const metaPath = path.join(ROOT_DIR, 'release_metadata.json');
   if (fs.existsSync(metaPath)) {
     await uploadReleaseAsset(release.upload_url, token, metaPath, 'release_metadata.json');
     console.log(`   🎉 Đã đẩy thành công release_metadata.json lên GitHub Releases!`);

@@ -419,8 +419,6 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                             onTap: () {
                               setState(() {
                                 _mqttServerController.text = 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
-                                _mqttUserController.text = 'DTC_ZenHome';
-                                _mqttPassController.text = 'DTC_ZenHome2103';
                               });
                             },
                           ),

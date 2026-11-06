@@ -657,11 +657,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       bool authorized = false;
       if (otaDoc.containsKey("admin_pass")) {
         String sentPass = otaDoc["admin_pass"].as<String>();
-        if (admin_pass.length() == 0 || sentPass == admin_pass) {
+        if (admin_pass.length() > 0 && constantTimeCompare(sentPass, admin_pass)) {
           authorized = true;
         }
       }
-      if (otaDoc.containsKey("server_authorized") && otaDoc["server_authorized"].as<bool>() == true) {
+      String sigHex = otaDoc.containsKey("sig") ? otaDoc["sig"].as<String>() : "";
+      if (sigHex.length() >= 64) {
         authorized = true;
       }
 
@@ -676,7 +677,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
       String fwUrl = otaDoc["url"].as<String>();
       String expectedSha = otaDoc.containsKey("sha256") ? otaDoc["sha256"].as<String>() : "";
-      String sigHex = otaDoc.containsKey("sig") ? otaDoc["sig"].as<String>() : "";
       performServerOtaUpdate(fwUrl, expectedSha, sigHex);
     } else {
       Serial.println("[OTA] ❌ Gói tin OTA thiếu trường URL hoặc JSON không hợp lệ!");
@@ -692,14 +692,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     DeserializationError err = deserializeJson(resetDoc, message);
     if (!err && resetDoc.is<JsonObject>()) {
       String sentPass = resetDoc.containsKey("admin_pass") ? resetDoc["admin_pass"].as<String>() : "";
-      if (admin_pass.length() == 0 || sentPass == admin_pass) {
+      if (admin_pass.length() > 0 && constantTimeCompare(sentPass, admin_pass)) {
         authorized = true;
       } else {
         Serial.println("\n[!] ⛔ TỪ CHỐI FACTORY RESET: Sai mật khẩu quản trị (admin_pass)!");
       }
-    } else if (admin_pass.length() == 0 && (message == "1" || message == "force_reset" || message == "reset")) {
-      authorized = true;
-      Serial.println("\n[!] 🔐 Nhận lệnh Reset hợp lệ (chế độ chưa đặt mật khẩu quản trị)!");
     } else {
       Serial.println("\n[!] ⛔ TỪ CHỐI FACTORY RESET: Bắt buộc gửi payload JSON kèm mật khẩu admin_pass hợp lệ!");
     }
@@ -736,14 +733,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       if (!deserializeJson(doc, buf.get())) {
         DynamicJsonDocument newConfigDoc(1536);
         if (!deserializeJson(newConfigDoc, message)) {
-          if (newConfigDoc.is<JsonArray>()) {
-            doc["devices"] = newConfigDoc.as<JsonArray>();
-          } else if (newConfigDoc.is<JsonObject>()) {
-            String currentAdminPass = doc.containsKey("admin_pass") ? doc["admin_pass"].as<String>() : "admin";
+          if (newConfigDoc.is<JsonObject>()) {
+            String currentAdminPass = doc.containsKey("admin_pass") ? doc["admin_pass"].as<String>() : (admin_pass.length() > 0 ? admin_pass : "admin");
             String sentAdminPass = newConfigDoc.containsKey("admin_pass") ? newConfigDoc["admin_pass"].as<String>() : "";
 
-            if (currentAdminPass.length() > 0 && sentAdminPass != currentAdminPass) {
-              Serial.println("\n[!] BẢO MẬT: Sai mật khẩu quản trị! Từ chối ghi đè cấu hình ESP32.");
+            if (!constantTimeCompare(sentAdminPass, currentAdminPass)) {
+              Serial.println("\n[!] BẢO MẬT: Sai hoặc thiếu mật khẩu quản trị! Từ chối ghi đè cấu hình ESP32.");
               return;
             }
 
@@ -774,6 +769,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             if (newConfigDoc.containsKey("devices") && newConfigDoc["devices"].is<JsonArray>()) {
               doc["devices"] = newConfigDoc["devices"].as<JsonArray>();
             }
+          } else {
+            Serial.println("\n[!] BẢO MẬT: Bắt buộc gửi payload JSON Object kèm mật khẩu admin_pass để cập nhật cấu hình!");
+            return;
           }
           
           File outFile = LittleFS.open("/config.json", "w");
@@ -1046,17 +1044,23 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, c
     return;
   }
 
-  // 🔐 BẢO MẬT NÂNG CAO (SECURE OTA): Xác thực chữ ký số phi đối xứng ECDSA P-256
-  if (signatureHex.length() >= 64) {
-    if (!verifyFirmwareEcdsaSignature(calculatedShaBytes, signatureHex)) {
-      Serial.println("[SERVER-OTA] ⛔ BẢO MẬT TỐI CAO: Chữ ký số nhà phát triển KHÔNG HỢP LỆ! Nghi vấn firmware giả mạo.");
-      Update.abort();
-      publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Chữ ký số phát hành không hợp lệ! Từ chối nạp firmware lạ.\"}");
-      isOtaInProgress = false;
-      return;
-    }
-    Serial.println("[SERVER-OTA] 🔐 XÁC THỰC THÀNH CÔNG: Chữ ký số nhà phát triển ECDSA P-256 hợp lệ 100%!");
+  // 🔐 BẢO MẬT NÂNG CAO (SECURE OTA): Bắt buộc xác thực chữ ký số phi đối xứng ECDSA P-256 (Khắc phục ZH-05)
+  if (signatureHex.length() < 64) {
+    Serial.println("[SERVER-OTA] ⛔ BẢO MẬT TỐI CAO: Thiếu chữ ký số phát hành firmware! Bắt buộc phải có chữ ký số ECDSA P-256 từ nhà phát hành.");
+    Update.abort();
+    publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Thiếu chữ ký số ECDSA nhà phát hành! Từ chối nạp firmware không có chữ ký.\"}");
+    isOtaInProgress = false;
+    return;
   }
+
+  if (!verifyFirmwareEcdsaSignature(calculatedShaBytes, signatureHex)) {
+    Serial.println("[SERVER-OTA] ⛔ BẢO MẬT TỐI CAO: Chữ ký số nhà phát triển KHÔNG HỢP LỆ! Nghi vấn firmware giả mạo.");
+    Update.abort();
+    publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Chữ ký số phát hành không hợp lệ! Từ chối nạp firmware lạ.\"}");
+    isOtaInProgress = false;
+    return;
+  }
+  Serial.println("[SERVER-OTA] 🔐 XÁC THỰC THÀNH CÔNG: Chữ ký số nhà phát triển ECDSA P-256 hợp lệ 100%!");
 
   if (written == (size_t)contentLength) {
     Serial.println("[SERVER-OTA] 📥 Đã nhận đủ 100% Firmware và xác thực tính toàn vẹn hợp lệ! Đang hoán đổi phân vùng boot...");

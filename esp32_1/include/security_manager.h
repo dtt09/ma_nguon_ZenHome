@@ -37,6 +37,7 @@ uint8_t hexNibble(char c);
 void bytesToHex(const uint8_t* in, size_t len, char* out);
 
 // Cryptographic Functions
+bool constantTimeCompare(const String& a, const String& b);
 String dhModPow(const String& baseHex, const String& expHex, const String& modHex);
 String computeSha256Hex(const String& inputHex);
 String computeSha256OfText(const String& text);

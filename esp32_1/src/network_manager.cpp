@@ -446,29 +446,21 @@ void setupStationWebServer() {
 
     String devId = doc["id"].as<String>();
     String cmd = doc["cmd"].as<String>();
-    String user = doc.containsKey("user") ? doc["user"].as<String>() : (request->hasHeader("X-ZenHome-User") ? request->getHeader("X-ZenHome-User")->value() : "owner");
+    String user = doc.containsKey("user") ? doc["user"].as<String>() : (request->hasHeader("X-ZenHome-User") ? request->getHeader("X-ZenHome-User")->value() : "");
 
-    // Xác thực ủy quyền an toàn nhưng không gây nghẽn:
+    // Xác thực ủy quyền an toàn (Khắc phục ZH-04):
     // Chấp nhận nếu:
-    // 1. Gửi đúng adminPass của Hub
-    // 2. Hoặc gửi từ client trong cùng mạng LAN nội bộ
-    // 3. Hoặc có chữ ký hợp lệ
+    // 1. Gửi đúng adminPass của Hub (constant-time compare)
+    // 2. Hoặc có chữ ký số HMAC-SHA256 hợp lệ với Master Key
     bool isAuthorized = false;
     bool isAdminAuthorized = false;
 
     if (doc.containsKey("adminPass")) {
       String sentPass = doc["adminPass"].as<String>();
-      if (admin_pass.length() == 0 || sentPass == admin_pass) {
+      if (admin_pass.length() > 0 && constantTimeCompare(sentPass, admin_pass)) {
         isAdminAuthorized = true;
         isAuthorized = true;
       }
-    }
-
-    IPAddress remoteIp = request->client()->remoteIP();
-    IPAddress localIp = WiFi.localIP();
-    if (remoteIp[0] == localIp[0] && remoteIp[1] == localIp[1] && remoteIp[2] == localIp[2]) {
-      // Thiết bị cùng dải mạng Wi-Fi gia đình (đã qua lớp bảo vệ WPA2 của Router)
-      isAuthorized = true;
     }
 
     String sig = request->hasHeader("X-ZenHome-Signature") ? request->getHeader("X-ZenHome-Signature")->value() : (doc.containsKey("sig") ? doc["sig"].as<String>() : "");
@@ -487,7 +479,7 @@ void setupStationWebServer() {
       return;
     }
 
-    bool isOwnerUser = user.equalsIgnoreCase("owner") || (cachedOwner.length() > 0 && user.equalsIgnoreCase(cachedOwner));
+    bool isOwnerUser = isAdminAuthorized || (user.length() > 0 && (user.equalsIgnoreCase("owner") || (cachedOwner.length() > 0 && user.equalsIgnoreCase(cachedOwner))));
     if (!isOwnerUser && user.length() > 0 && !isUserAuthorizedForDevice(user, devId)) {
       request->send(403, "application/json", "{\"status\":\"error\",\"code\":\"FORBIDDEN\",\"message\":\"Không có quyền điều khiển thiết bị này!\"}");
       return;
@@ -530,33 +522,39 @@ void setupStationWebServer() {
 
     String payload((char*)data, len);
 
-    if (currentLocalSecretKey.length() > 0) {
-      if (!request->hasHeader("X-ZenHome-Signature") || !request->hasHeader("X-ZenHome-Timestamp") || !request->hasHeader("X-ZenHome-Nonce")) {
-        request->send(401, "application/json", "{\"status\":\"error\",\"message\":\"Thiếu chữ ký bảo mật Local!\"}");
-        return;
-      }
-      String sig = request->getHeader("X-ZenHome-Signature")->value();
-      String ts = request->getHeader("X-ZenHome-Timestamp")->value();
-      String nonce = request->getHeader("X-ZenHome-Nonce")->value();
+    if (currentLocalSecretKey.length() == 0 && admin_pass.length() > 0) {
+      String mac = WiFi.macAddress();
+      mac.replace(":", "");
+      mac.toUpperCase();
+      currentLocalSecretKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
+      saveLocalSecretKey(currentLocalSecretKey);
+    }
 
-      if (isTimestampExpired(ts) || isNonceReplayedOrInvalid(nonce)) {
-        request->send(401, "application/json", "{\"status\":\"error\",\"message\":\"Gói tin quá hạn hoặc replay attack!\"}");
-        return;
-      }
+    if (!request->hasHeader("X-ZenHome-Signature") || !request->hasHeader("X-ZenHome-Timestamp") || !request->hasHeader("X-ZenHome-Nonce")) {
+      request->send(401, "application/json", "{\"status\":\"error\",\"message\":\"Thiếu chữ ký bảo mật Local!\"}");
+      return;
+    }
+    String sig = request->getHeader("X-ZenHome-Signature")->value();
+    String ts = request->getHeader("X-ZenHome-Timestamp")->value();
+    String nonce = request->getHeader("X-ZenHome-Nonce")->value();
 
-      String signPayload = "members:" + ts + ":" + nonce;
-      bool sigValid = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
-      if (!sigValid && admin_pass.length() > 0) {
-        String mac = WiFi.macAddress();
-        mac.replace(":", "");
-        mac.toUpperCase();
-        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
-        sigValid = verifyHmacSha256(masterKey, signPayload, sig);
-      }
-      if (!sigValid) {
-        request->send(401, "application/json", "{\"status\":\"error\",\"message\":\"Chữ ký bảo mật không hợp lệ!\"}");
-        return;
-      }
+    if (isTimestampExpired(ts) || isNonceReplayedOrInvalid(nonce)) {
+      request->send(401, "application/json", "{\"status\":\"error\",\"message\":\"Gói tin quá hạn hoặc replay attack!\"}");
+      return;
+    }
+
+    String signPayload = "members:" + ts + ":" + nonce;
+    bool sigValid = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
+    if (!sigValid && admin_pass.length() > 0) {
+      String mac = WiFi.macAddress();
+      mac.replace(":", "");
+      mac.toUpperCase();
+      String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
+      sigValid = verifyHmacSha256(masterKey, signPayload, sig);
+    }
+    if (!sigValid) {
+      request->send(401, "application/json", "{\"status\":\"error\",\"message\":\"Chữ ký bảo mật không hợp lệ!\"}");
+      return;
     }
 
     saveMembersToFlash(payload);
@@ -644,11 +642,27 @@ void setupStationWebServer() {
 
     String newSsid = doc["wifi_ssid"].as<String>();
     String newPass = doc.containsKey("wifi_pass") ? doc["wifi_pass"].as<String>() : "";
-    String user = doc.containsKey("user") ? doc["user"].as<String>() : "owner";
+    String user = doc.containsKey("user") ? doc["user"].as<String>() : "";
 
-    if (currentLocalSecretKey.length() > 0) {
+    bool authOk = false;
+    if (doc.containsKey("admin_pass")) {
+      String sentAdmin = doc["admin_pass"].as<String>();
+      if (admin_pass.length() > 0 && constantTimeCompare(sentAdmin, admin_pass)) {
+        authOk = true;
+      }
+    }
+
+    if (!authOk && currentLocalSecretKey.length() == 0 && admin_pass.length() > 0) {
+      String mac = WiFi.macAddress();
+      mac.replace(":", "");
+      mac.toUpperCase();
+      currentLocalSecretKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
+      saveLocalSecretKey(currentLocalSecretKey);
+    }
+
+    if (!authOk) {
       if (!request->hasHeader("X-ZenHome-Signature") || !request->hasHeader("X-ZenHome-Timestamp") || !request->hasHeader("X-ZenHome-Nonce")) {
-        request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_NO_SIG\",\"message\":\"Thiếu chữ ký bảo mật Local!\"}");
+        request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_NO_SIG\",\"message\":\"Thiếu chữ ký bảo mật Local hoặc mật khẩu admin!\"}");
         return;
       }
 
@@ -662,7 +676,9 @@ void setupStationWebServer() {
       }
 
       String signPayload = "reconfig:" + newSsid + ":" + ts + ":" + nonce;
-      bool authOk = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
+      if (currentLocalSecretKey.length() > 0) {
+        authOk = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
+      }
 
       if (!authOk && admin_pass.length() > 0) {
         String mac = WiFi.macAddress();
@@ -678,7 +694,7 @@ void setupStationWebServer() {
       }
     }
 
-    if (!isUserAuthorizedForDevice(user, "*")) {
+    if (user.length() > 0 && !isUserAuthorizedForDevice(user, "*")) {
       request->send(403, "application/json", "{\"status\":\"error\",\"code\":\"FORBIDDEN\",\"message\":\"Người dùng không có quyền quản trị để đổi Wi-Fi!\"}");
       return;
     }
@@ -735,10 +751,11 @@ void setupStationWebServer() {
   });
 
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
-    bool shouldRestart = !Update.hasError();
-    AsyncWebServerResponse *response = request->beginResponse(200, "application/json", 
+    bool shouldRestart = !Update.hasError() && Update.isFinished();
+    int resCode = shouldRestart ? 200 : 401;
+    AsyncWebServerResponse *response = request->beginResponse(resCode, "application/json", 
       shouldRestart ? "{\"status\":\"ok\",\"message\":\"Nâng cấp OTA thành công! ESP32 đang khởi động lại...\"}" 
-                    : "{\"status\":\"error\",\"message\":\"Nâng cấp OTA thất bại!\"}");
+                    : "{\"status\":\"error\",\"message\":\"Nâng cấp OTA thất bại hoặc chưa được ủy quyền!\"}");
     response->addHeader("Connection", "close");
     request->send(response);
     if (shouldRestart) {
@@ -746,17 +763,25 @@ void setupStationWebServer() {
       shouldReboot = true;
     }
   }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+    static bool isAuthorizedUpload = false;
     if (!index) {
+      isAuthorizedUpload = false;
       String adminReq = request->hasParam("adminPass", true) ? request->getParam("adminPass", true)->value() : "";
-      if (admin_pass.length() == 0 || adminReq != admin_pass) {
+      if (admin_pass.length() == 0 || !constantTimeCompare(adminReq, admin_pass)) {
         Serial.println("[WEB-OTA] ⛔ Từ chối nâng cấp firmware: Sai hoặc chưa cấu hình mật khẩu quản trị!");
+        Update.abort();
         return;
       }
+      isAuthorizedUpload = true;
 
       Serial.printf("[WEB-OTA] 🚀 Bắt đầu tiếp nhận file Firmware: %s\n", filename.c_str());
       if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
         Update.printError(Serial);
       }
+    }
+
+    if (!isAuthorizedUpload) {
+      return;
     }
 
     if (!Update.hasError()) {
@@ -771,6 +796,7 @@ void setupStationWebServer() {
       } else {
         Update.printError(Serial);
       }
+      isAuthorizedUpload = false;
     }
   });
 
@@ -787,7 +813,7 @@ void setupStationWebServer() {
     }
 
     String sentAdmin = doc.containsKey("adminPass") ? doc["adminPass"].as<String>() : (doc.containsKey("admin_pass") ? doc["admin_pass"].as<String>() : "");
-    if (admin_pass.length() == 0 || sentAdmin != admin_pass) {
+    if (admin_pass.length() == 0 || !constantTimeCompare(sentAdmin, admin_pass)) {
       request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_ADMIN\",\"message\":\"Sai hoặc chưa cấu hình mật khẩu quản trị!\"}");
       return;
     }
@@ -844,33 +870,39 @@ void setupStationWebServer() {
     }
     String payload((char*)data, len);
 
-    if (currentLocalSecretKey.length() > 0) {
-      if (!request->hasHeader("X-ZenHome-Signature") || !request->hasHeader("X-ZenHome-Timestamp") || !request->hasHeader("X-ZenHome-Nonce")) {
-        request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_NO_SIG\",\"message\":\"Thiếu chữ ký bảo mật Local!\"}");
-        return;
-      }
-      String sig = request->getHeader("X-ZenHome-Signature")->value();
-      String ts = request->getHeader("X-ZenHome-Timestamp")->value();
-      String nonce = request->getHeader("X-ZenHome-Nonce")->value();
+    if (currentLocalSecretKey.length() == 0 && admin_pass.length() > 0) {
+      String mac = WiFi.macAddress();
+      mac.replace(":", "");
+      mac.toUpperCase();
+      currentLocalSecretKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
+      saveLocalSecretKey(currentLocalSecretKey);
+    }
 
-      if (isTimestampExpired(ts) || isNonceReplayedOrInvalid(nonce)) {
-        request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"EXPIRED_OR_REPLAY\",\"message\":\"Gói tin quá hạn hoặc Replay attack!\"}");
-        return;
-      }
+    if (!request->hasHeader("X-ZenHome-Signature") || !request->hasHeader("X-ZenHome-Timestamp") || !request->hasHeader("X-ZenHome-Nonce")) {
+      request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_NO_SIG\",\"message\":\"Thiếu chữ ký bảo mật Local!\"}");
+      return;
+    }
+    String sig = request->getHeader("X-ZenHome-Signature")->value();
+    String ts = request->getHeader("X-ZenHome-Timestamp")->value();
+    String nonce = request->getHeader("X-ZenHome-Nonce")->value();
 
-      String signPayload = "rules:" + ts + ":" + nonce;
-      bool sigValid = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
-      if (!sigValid && admin_pass.length() > 0) {
-        String mac = WiFi.macAddress();
-        mac.replace(":", "");
-        mac.toUpperCase();
-        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
-        sigValid = verifyHmacSha256(masterKey, signPayload, sig);
-      }
-      if (!sigValid) {
-        request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_BAD_SIG\",\"message\":\"Chữ ký bảo mật không hợp lệ!\"}");
-        return;
-      }
+    if (isTimestampExpired(ts) || isNonceReplayedOrInvalid(nonce)) {
+      request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"EXPIRED_OR_REPLAY\",\"message\":\"Gói tin quá hạn hoặc Replay attack!\"}");
+      return;
+    }
+
+    String signPayload = "rules:" + ts + ":" + nonce;
+    bool sigValid = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
+    if (!sigValid && admin_pass.length() > 0) {
+      String mac = WiFi.macAddress();
+      mac.replace(":", "");
+      mac.toUpperCase();
+      String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
+      sigValid = verifyHmacSha256(masterKey, signPayload, sig);
+    }
+    if (!sigValid) {
+      request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED_BAD_SIG\",\"message\":\"Chữ ký bảo mật không hợp lệ!\"}");
+      return;
     }
 
     DynamicJsonDocument doc(2048);

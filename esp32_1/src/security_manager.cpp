@@ -133,6 +133,15 @@ String computeHmacSha256(const String& keyHex, const String& message) {
   return String(outHex);
 }
 
+bool constantTimeCompare(const String& a, const String& b) {
+  if (a.length() != b.length()) return false;
+  unsigned char result = 0;
+  for (size_t i = 0; i < a.length(); i++) {
+    result |= (a[i] ^ b[i]);
+  }
+  return result == 0;
+}
+
 bool verifyHmacSha256(const String& keyHex, const String& message, const String& sig) {
   if (sig.length() < 32 || keyHex.length() < 32) {
     return false;
@@ -174,9 +183,15 @@ bool verifyFirmwareEcdsaSignature(const uint8_t* sha256Bytes, const String& sigH
 void getHardwareStorageKey(uint8_t outKey[32]) {
   uint8_t macBytes[6];
   WiFi.macAddress(macBytes);
-  char seed[96];
-  snprintf(seed, sizeof(seed), "ZenHome_Storage_Vault_Salt_2026_%02X%02X%02X%02X%02X%02X",
-           macBytes[0], macBytes[1], macBytes[2], macBytes[3], macBytes[4], macBytes[5]);
+  char seed[128];
+  // Khắc phục ZH-08: Tăng cường entropy bằng cách kết hợp MAC phần cứng cùng admin_pass
+  if (admin_pass.length() > 0) {
+    snprintf(seed, sizeof(seed), "ZenHome_Storage_Vault_Salt_2026_%02X%02X%02X%02X%02X%02X_%s",
+             macBytes[0], macBytes[1], macBytes[2], macBytes[3], macBytes[4], macBytes[5], admin_pass.c_str());
+  } else {
+    snprintf(seed, sizeof(seed), "ZenHome_Storage_Vault_Salt_2026_%02X%02X%02X%02X%02X%02X",
+             macBytes[0], macBytes[1], macBytes[2], macBytes[3], macBytes[4], macBytes[5]);
+  }
   const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
   mbedtls_md(md_info, (const unsigned char*)seed, strlen(seed), outKey);
 }
@@ -309,7 +324,24 @@ String decryptStorageString(const String& envelope) {
   char keyHexBuf[65];
   bytesToHex(key, 32, keyHexBuf);
   String keyHex(keyHexBuf);
-  return decryptEnvelopeWithKeyHex(envelope, keyHex);
+  String res = decryptEnvelopeWithKeyHex(envelope, keyHex);
+  if (res.length() > 0) return res;
+
+  // Fallback sang legacy key (trước khi có admin_pass salt) nếu cần
+  if (admin_pass.length() > 0) {
+    uint8_t macBytes[6];
+    WiFi.macAddress(macBytes);
+    char legacySeed[96];
+    snprintf(legacySeed, sizeof(legacySeed), "ZenHome_Storage_Vault_Salt_2026_%02X%02X%02X%02X%02X%02X",
+             macBytes[0], macBytes[1], macBytes[2], macBytes[3], macBytes[4], macBytes[5]);
+    uint8_t legacyKey[32];
+    const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    mbedtls_md(md_info, (const unsigned char*)legacySeed, strlen(legacySeed), legacyKey);
+    char legacyKeyHexBuf[65];
+    bytesToHex(legacyKey, 32, legacyKeyHexBuf);
+    return decryptEnvelopeWithKeyHex(envelope, String(legacyKeyHexBuf));
+  }
+  return "";
 }
 
 void saveLocalSecretKey(const String& key) {
