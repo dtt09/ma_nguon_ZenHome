@@ -70,10 +70,9 @@ void setup() {
     loadLocalRulesFromFlash();
 
     initMqttClient();
-    connectToWiFi();
-
     setupPhysicalSwitches();
     setupBLE();
+    connectToWiFi();
   } else if (configOk && isSetupPending) {
     isConfigured = false;
     isProvisioned = false;

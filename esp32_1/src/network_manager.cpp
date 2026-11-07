@@ -111,7 +111,6 @@ void connectToWiFi() {
   Serial.println("Đang kết nối WiFi: " + wifi_ssid);
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
-  WiFi.setSleep(false); // Vô hiệu hóa Modem Sleep: Giữ ổn định kết nối RF, chống jitter và triệt tiêu xung dòng wakeup gây sụt áp Brownout
   WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
   
   int retries = 0;
