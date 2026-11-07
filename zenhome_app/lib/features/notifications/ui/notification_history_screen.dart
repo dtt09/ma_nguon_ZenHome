@@ -192,76 +192,37 @@ class _NotificationHistoryScreenState
         children: [
           const SizedBox(height: 12),
 
-          // Thanh Lọc Danh Mục Kính Lỏng (Liquid Glass Category Menu)
-          SizedBox(
+          // Thanh Lọc Danh Mục Kính Lỏng Đồng Bộ Menu Chính (Zen Glass Scrollable Filter Bar 2.0)
+          ZenGlassScrollableFilterBar<String>(
             height: 44,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _categories.length,
-              itemBuilder: (context, index) {
-                final cat = _categories[index];
-                final isSelected = _selectedCategory == cat;
-                final Color pillColor = cat == 'all'
-                    ? zen.primary
-                    : _getColorForCategory(context, cat);
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            borderRadius: 16,
+            items: _categories.map((cat) {
+              final Color pillColor = cat == 'all'
+                  ? zen.primary
+                  : _getColorForCategory(context, cat);
+              final int count = cat == 'all'
+                  ? notifications.length
+                  : notifications
+                      .where((n) => (n['category'] ?? 'other') == cat)
+                      .length;
 
-                return ZenGlassPill(
-                  isSelected: isSelected,
-                  glowColor: pillColor,
-                  blurSigma: 14,
-                  customGradient: isSelected && cat == 'all'
-                      ? zen.brandHero
-                      : (isSelected
-                          ? LinearGradient(
-                              colors: [
-                                pillColor.withOpacity(0.92),
-                                Color.lerp(pillColor, Colors.white, 0.16)!,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            )
-                          : null),
-                  borderRadius: 16,
-                  margin: const EdgeInsets.only(right: 9),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() {
-                      _selectedCategory = cat;
-                    });
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (cat != 'all') ...[
-                        Icon(
-                          _getIconForCategory(cat),
-                          size: 14.5,
-                          color: isSelected ? Colors.white : pillColor,
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      Text(
-                        _getCategoryName(cat),
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight:
-                              isSelected ? FontWeight.w800 : FontWeight.w600,
-                          color: isSelected
-                              ? Colors.white
-                              : (isDark
-                                  ? AppColors.darkText
-                                  : AppColors.lightText),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+              return ZenGlassFilterItem<String>(
+                value: cat,
+                label: _getCategoryName(cat),
+                icon: cat == 'all'
+                    ? Icons.all_inclusive_rounded
+                    : _getIconForCategory(cat),
+                color: pillColor,
+                badgeCount: count > 0 ? count : null,
+              );
+            }).toList(),
+            selectedValue: _selectedCategory,
+            onSelected: (cat) {
+              setState(() {
+                _selectedCategory = cat;
+              });
+            },
           ),
           const SizedBox(height: 12),
 
@@ -353,13 +314,14 @@ class _NotificationHistoryScreenState
                           notif['homeId'].toString().isNotEmpty &&
                           notif['homeId'] != activeConfig.userId;
 
-                      return ZenGlassCard(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        borderRadius: 22,
-                        blurSigma: 14,
-                        isActive: !isRead,
-                        glowColor: catColor,
-                        padding: const EdgeInsets.all(15),
+                      return RepaintBoundary(
+                        child: ZenGlassCard(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          borderRadius: 22,
+                          blurSigma: 0, // Tối ưu hóa GPU: 0 blur cục bộ đạt 120 FPS mượt mà khi cuộn danh sách
+                          isActive: !isRead,
+                          glowColor: catColor,
+                          padding: const EdgeInsets.all(15),
                         onTap: notif['category'] == 'update'
                             ? () {
                                 AppUpdateService.checkAndPromptUpdate(
@@ -526,8 +488,9 @@ class _NotificationHistoryScreenState
                               milliseconds: (index.clamp(0, 10)) * 28,
                             ),
                             duration: 240.ms,
-                          );
-                    },
+                          ),
+                    );
+                  },
                   ),
           ),
         ],

@@ -1026,144 +1026,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           // 1. Frosted Glass Segmented Control (Email vs Số điện thoại)
                           if (widget.phoneNumber == null &&
                               FirebaseAuth.instance.currentUser == null)
-                            Container(
+                            ZenGlassSegmentedBar<int>(
+                              height: 44,
+                              borderRadius: 20,
                               margin: const EdgeInsets.only(bottom: 22),
-                              padding: const EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                color: Colors.white
-                                    .withOpacity(isDark ? 0.06 : 0.62),
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: isDark
-                                      ? Colors.white.withOpacity(0.12)
-                                      : const Color(0xFFCBD5E1)
-                                          .withOpacity(0.75),
+                              padding: const EdgeInsets.all(4),
+                              blurSigma: 16,
+                              selectedValue: _selectedTab,
+                              onValueChanged: (val) {
+                                setState(() => _selectedTab = val);
+                              },
+                              items: [
+                                ZenGlassSegmentedItem<int>(
+                                  value: 0,
+                                  label: context.tr('email'),
+                                  icon: Icons.email_outlined,
+                                  activeGlowColor: zen.primaryAccent,
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: () {
-                                        HapticFeedback.lightImpact();
-                                        setState(() => _selectedTab = 0);
-                                      },
-                                      child: AnimatedContainer(
-                                        duration:
-                                            const Duration(milliseconds: 240),
-                                        curve: Curves.easeOutCubic,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          gradient: _selectedTab == 0
-                                              ? zen.brandHero
-                                              : null,
-                                          borderRadius:
-                                              BorderRadius.circular(14),
-                                          boxShadow: _selectedTab == 0
-                                              ? [
-                                                  BoxShadow(
-                                                    color: zen.primary
-                                                        .withOpacity(0.32),
-                                                    blurRadius: 12,
-                                                    offset: const Offset(0, 3),
-                                                  ),
-                                                ]
-                                              : const [],
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.email_outlined,
-                                              size: 17,
-                                              color: _selectedTab == 0
-                                                  ? Colors.white
-                                                  : mutedColor,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              context.tr('email'),
-                                              style: TextStyle(
-                                                fontSize: 13.5,
-                                                fontWeight: FontWeight.w700,
-                                                color: _selectedTab == 0
-                                                    ? Colors.white
-                                                    : textColor,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: () {
-                                        HapticFeedback.lightImpact();
-                                        setState(() => _selectedTab = 1);
-                                      },
-                                      child: AnimatedContainer(
-                                        duration:
-                                            const Duration(milliseconds: 240),
-                                        curve: Curves.easeOutCubic,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          gradient: _selectedTab == 1
-                                              ? zen.brandHero
-                                              : null,
-                                          borderRadius:
-                                              BorderRadius.circular(14),
-                                          boxShadow: _selectedTab == 1
-                                              ? [
-                                                  BoxShadow(
-                                                    color: zen.primary
-                                                        .withOpacity(0.32),
-                                                    blurRadius: 12,
-                                                    offset: const Offset(0, 3),
-                                                  ),
-                                                ]
-                                              : const [],
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.phone_android_rounded,
-                                              size: 17,
-                                              color: _selectedTab == 1
-                                                  ? Colors.white
-                                                  : mutedColor,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Flexible(
-                                              child: Text(
-                                                context.tr('phone_label'),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  fontSize: 13.5,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: _selectedTab == 1
-                                                      ? Colors.white
-                                                      : textColor,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ZenGlassSegmentedItem<int>(
+                                  value: 1,
+                                  label: context.tr('phone_label'),
+                                  icon: Icons.phone_android_rounded,
+                                  activeGlowColor: zen.primaryAccent,
+                                ),
+                              ],
                             ),
 
                           // 2. PHÂN HỆ: Nhập Số điện thoại để gửi OTP (khi chưa xác thực)

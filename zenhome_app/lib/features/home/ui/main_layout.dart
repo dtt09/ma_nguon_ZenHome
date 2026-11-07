@@ -161,125 +161,137 @@ class _MainLayoutState extends ConsumerState<MainLayout>
                 ),
           bottomNavigationBar: isDisabled
               ? null
-              : SafeArea(
-                  bottom: false,
-                  child: ZenGlassContainer(
-                    borderRadius: 36,
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 16,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 6,
-                    ),
-                    glowColor: isDark ? zen.primaryLight : zen.primary,
-                    blurSigma: 28,
-                    child: GestureDetector(
-                      onHorizontalDragStart: (_) {
-                        setState(() {
-                          _isDragging = true;
-                        });
-                      },
-                      onHorizontalDragUpdate: (details) {
-                        setState(() {
-                          final double width =
-                              MediaQuery.of(context).size.width - 36;
-                          final double fraction =
-                              details.localPosition.dx / width;
-                          _dragAlignment = ((fraction * 2) - 1.0).clamp(
-                            -1.0,
-                            1.0,
-                          );
-                        });
-                      },
-                      onHorizontalDragEnd: (_) {
-                        int targetIdx;
-                        if (_dragAlignment < -0.33) {
-                          targetIdx = 0;
-                        } else if (_dragAlignment > 0.33) {
-                          targetIdx = 2;
-                        } else {
-                          targetIdx = 1;
-                        }
-                        setState(() {
-                          _isDragging = false;
-                          _currentIndex = targetIdx;
-                        });
-                        if (_pageController.hasClients) {
-                          _pageController.animateToPage(
-                            targetIdx,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOutCubic,
-                          );
-                        }
-                      },
-                      child: Stack(
-                        children: [
-                          // Giọt Kính Lỏng Trượt Theo Chủ Đề (Liquid Droplet Pill)
-                          Positioned.fill(
-                            child: AnimatedAlign(
-                              duration: Duration(
-                                milliseconds: _isDragging ? 50 : 360,
-                              ),
-                              curve: _isDragging
-                                  ? Curves.linear
-                                  : Curves.easeOutBack,
-                              alignment: _isDragging
-                                  ? Alignment(_dragAlignment, 0)
-                                  : (_currentIndex == 0
-                                      ? Alignment.centerLeft
-                                      : _currentIndex == 1
-                                          ? Alignment.center
-                                          : Alignment.centerRight),
-                              child: FractionallySizedBox(
-                                widthFactor: 0.3333,
-                                child: Container(
-                                  margin: const EdgeInsets.symmetric(
-                                    vertical: 2.5,
-                                    horizontal: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: isDark
-                                          ? [
-                                              zen.primaryLight
-                                                  .withOpacity(0.28),
-                                              zen.primaryAccent
-                                                  .withOpacity(0.12),
-                                            ]
-                                          : [
-                                              zen.primary.withOpacity(0.16),
-                                              zen.primaryLight
-                                                  .withOpacity(0.08),
-                                            ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(30),
-                                    border: Border.all(
-                                      color: (isDark
-                                              ? zen.primaryAccent
-                                              : zen.primary)
-                                          .withOpacity(isDark ? 0.48 : 0.35),
-                                      width: 1.25,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: (isDark
-                                                ? zen.primaryLight
-                                                : zen.primary)
-                                            .withOpacity(isDark ? 0.30 : 0.18),
-                                        blurRadius: 16,
-                                        offset: const Offset(0, 3),
+              : RepaintBoundary(
+                  child: SafeArea(
+                    bottom: false,
+                    child: ZenGlassContainer(
+                      borderRadius: 36,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 16,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 6,
+                      ),
+                      glowColor: isDark ? zen.primaryLight : zen.primary,
+                      blurSigma: 28,
+                      child: GestureDetector(
+                        onHorizontalDragStart: (_) {
+                          setState(() {
+                            _isDragging = true;
+                          });
+                        },
+                        onHorizontalDragUpdate: (details) {
+                          setState(() {
+                            final double width =
+                                MediaQuery.of(context).size.width - 36;
+                            final double fraction =
+                                details.localPosition.dx / width;
+                            _dragAlignment = ((fraction * 2) - 1.0).clamp(
+                              -1.0,
+                              1.0,
+                            );
+                          });
+                        },
+                        onHorizontalDragEnd: (_) {
+                          int targetIdx;
+                          if (_dragAlignment < -0.33) {
+                            targetIdx = 0;
+                          } else if (_dragAlignment > 0.33) {
+                            targetIdx = 2;
+                          } else {
+                            targetIdx = 1;
+                          }
+                          setState(() {
+                            _isDragging = false;
+                            _currentIndex = targetIdx;
+                          });
+                          if (_pageController.hasClients) {
+                            _pageController.animateToPage(
+                              targetIdx,
+                              duration: const Duration(milliseconds: 320),
+                              curve: Curves.easeOutCubic,
+                            );
+                          }
+                        },
+                        child: Stack(
+                          children: [
+                            // Giọt Kính Lỏng Trượt Thời Gian Thực Đồng Bộ PageView (Real-time Fluid Droplet Pill)
+                            Positioned.fill(
+                              child: AnimatedBuilder(
+                                animation: _pageController,
+                                builder: (context, _) {
+                                  double alignX = -1.0;
+                                  if (_isDragging) {
+                                    alignX = _dragAlignment;
+                                  } else if (_pageController.hasClients &&
+                                      _pageController.position.haveDimensions) {
+                                    final double page = _pageController.page ??
+                                        _currentIndex.toDouble();
+                                    alignX = (page - 1.0).clamp(-1.0, 1.0);
+                                  } else {
+                                    alignX = _currentIndex == 0
+                                        ? -1.0
+                                        : (_currentIndex == 1 ? 0.0 : 1.0);
+                                  }
+
+                                  return Align(
+                                    alignment: Alignment(alignX, 0),
+                                    child: FractionallySizedBox(
+                                      widthFactor: 0.3333,
+                                      child: Container(
+                                        margin: const EdgeInsets.symmetric(
+                                          vertical: 2.5,
+                                          horizontal: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: isDark
+                                                ? [
+                                                    zen.primaryLight
+                                                        .withOpacity(0.28),
+                                                    zen.primaryAccent
+                                                        .withOpacity(0.12),
+                                                  ]
+                                                : [
+                                                    zen.primary
+                                                        .withOpacity(0.16),
+                                                    zen.primaryLight
+                                                        .withOpacity(0.08),
+                                                  ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(30),
+                                          border: Border.all(
+                                            color: (isDark
+                                                    ? zen.primaryAccent
+                                                    : zen.primary)
+                                                .withOpacity(
+                                                    isDark ? 0.48 : 0.35),
+                                            width: 1.25,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: (isDark
+                                                      ? zen.primaryLight
+                                                      : zen.primary)
+                                                  .withOpacity(
+                                                      isDark ? 0.30 : 0.18),
+                                              blurRadius: 16,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ],
-                                  ),
-                                ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
-                          ),
-                          Row(
+                            Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Expanded(
@@ -313,6 +325,7 @@ class _MainLayoutState extends ConsumerState<MainLayout>
                     ),
                   ),
                 ),
+              ),
         ),
 
         if (isHardDisconnected)

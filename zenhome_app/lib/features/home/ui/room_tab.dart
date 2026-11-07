@@ -169,48 +169,52 @@ class RoomTabWidget extends StatelessWidget {
     final LinearGradient roomGradient = _getRoomGradient(context, roomCode);
     final Color roomColor = _getRoomGlow(context, roomCode);
 
-    return BouncingButton(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      scaleFactor: 0.93,
-      child: ZenGlassPill(
-        isSelected: isSelected,
-        glowColor: roomColor,
-        blurSigma: 14,
-        customGradient: isSelected ? roomGradient : null,
-        borderRadius: 22,
-        margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedScale(
-              scale: isSelected ? 1.15 : 1.0,
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutBack,
-              child: Icon(
-                roomIcon,
-                size: 17,
-                color: isSelected
-                    ? Colors.white
-                    : (isDark ? roomColor.withOpacity(0.92) : roomColor),
+    return RepaintBoundary(
+      child: BouncingButton(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        scaleFactor: 0.94,
+        child: ZenGlassPill(
+          isSelected: isSelected,
+          glowColor: roomColor,
+          blurSigma: 0, // Tối ưu GPU 120 FPS: 0 blur cục bộ, giữ nguyên viền quang học 3D và gradient
+          customGradient: isSelected ? roomGradient : null,
+          borderRadius: 22,
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedScale(
+                scale: isSelected ? 1.15 : 1.0,
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutBack,
+                child: Icon(
+                  roomIcon,
+                  size: 17,
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? roomColor.withOpacity(0.92) : roomColor),
+                ),
               ),
-            ),
-            const SizedBox(width: 7),
-            Text(
-              context.tr(roomCode),
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : (isDark ? AppColors.darkText : AppColors.lightText),
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                fontSize: 13.5,
-                letterSpacing: 0.2,
+              const SizedBox(width: 7),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? AppColors.darkText : AppColors.lightText),
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  fontSize: 13,
+                  letterSpacing: 0.2,
+                ),
+                child: Text(context.tr(roomCode)),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

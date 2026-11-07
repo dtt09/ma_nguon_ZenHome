@@ -500,10 +500,10 @@ class SettingsScreen extends ConsumerWidget {
                                 ],
                                 child: Stack(
                                   children: [
-                                    // Glowing Active Droplet Pill
+                                    // Glowing Active Droplet Pill Đồng Bộ Menu Chính
                                     AnimatedAlign(
-                                      duration: const Duration(milliseconds: 300),
-                                      curve: Curves.easeOutCubic,
+                                      duration: const Duration(milliseconds: 340),
+                                      curve: Curves.easeOutBack,
                                       alignment: currentThemeMode == ThemeMode.light
                                           ? Alignment.centerLeft
                                           : (currentThemeMode == ThemeMode.system
@@ -512,18 +512,18 @@ class SettingsScreen extends ConsumerWidget {
                                       child: FractionallySizedBox(
                                         widthFactor: 1 / 3,
                                         child: Container(
-                                          margin: const EdgeInsets.all(3.5),
+                                          margin: const EdgeInsets.all(3.0),
                                           decoration: BoxDecoration(
-                                            gradient: zen.brandHero,
+                                            gradient: zen.navPillGradient,
                                             borderRadius: BorderRadius.circular(18),
                                             border: Border.all(
-                                              color: Colors.white.withOpacity(0.36),
-                                              width: 0.9,
+                                              color: Colors.white.withOpacity(isDark ? 0.45 : 0.65),
+                                              width: 1.1,
                                             ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: zen.primary.withOpacity(0.45),
-                                                blurRadius: 10,
+                                                color: zen.primary.withOpacity(isDark ? 0.42 : 0.25),
+                                                blurRadius: 12,
                                                 offset: const Offset(0, 2),
                                               ),
                                             ],
@@ -547,12 +547,17 @@ class SettingsScreen extends ConsumerWidget {
                                               );
                                             },
                                             child: Center(
-                                              child: Icon(
-                                                Icons.light_mode_rounded,
-                                                size: 18,
-                                                color: currentThemeMode == ThemeMode.light
-                                                    ? Colors.white
-                                                    : (isDark ? Colors.white60 : Colors.black54),
+                                              child: AnimatedScale(
+                                                scale: currentThemeMode == ThemeMode.light ? 1.15 : 0.92,
+                                                duration: const Duration(milliseconds: 240),
+                                                curve: Curves.easeOutBack,
+                                                child: Icon(
+                                                  Icons.light_mode_rounded,
+                                                  size: 18,
+                                                  color: currentThemeMode == ThemeMode.light
+                                                      ? Colors.white
+                                                      : (isDark ? Colors.white60 : Colors.black54),
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -570,12 +575,17 @@ class SettingsScreen extends ConsumerWidget {
                                               );
                                             },
                                             child: Center(
-                                              child: Icon(
-                                                Icons.brightness_auto_rounded,
-                                                size: 18,
-                                                color: currentThemeMode == ThemeMode.system
-                                                    ? Colors.white
-                                                    : (isDark ? Colors.white60 : Colors.black54),
+                                              child: AnimatedScale(
+                                                scale: currentThemeMode == ThemeMode.system ? 1.15 : 0.92,
+                                                duration: const Duration(milliseconds: 240),
+                                                curve: Curves.easeOutBack,
+                                                child: Icon(
+                                                  Icons.brightness_auto_rounded,
+                                                  size: 18,
+                                                  color: currentThemeMode == ThemeMode.system
+                                                      ? Colors.white
+                                                      : (isDark ? Colors.white60 : Colors.black54),
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -593,12 +603,17 @@ class SettingsScreen extends ConsumerWidget {
                                               );
                                             },
                                             child: Center(
-                                              child: Icon(
-                                                Icons.dark_mode_rounded,
-                                                size: 18,
-                                                color: currentThemeMode == ThemeMode.dark
-                                                    ? Colors.white
-                                                    : (isDark ? Colors.white60 : Colors.black54),
+                                              child: AnimatedScale(
+                                                scale: currentThemeMode == ThemeMode.dark ? 1.15 : 0.92,
+                                                duration: const Duration(milliseconds: 240),
+                                                curve: Curves.easeOutBack,
+                                                child: Icon(
+                                                  Icons.dark_mode_rounded,
+                                                  size: 18,
+                                                  color: currentThemeMode == ThemeMode.dark
+                                                      ? Colors.white
+                                                      : (isDark ? Colors.white60 : Colors.black54),
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -641,26 +656,26 @@ class SettingsScreen extends ConsumerWidget {
                                 ],
                                 child: Stack(
                                   children: [
-                                    // Glowing Active Droplet Pill
+                                    // Glowing Active Droplet Pill Đồng Bộ Menu Chính
                                     AnimatedAlign(
-                                      duration: const Duration(milliseconds: 300),
-                                      curve: Curves.easeOutCubic,
+                                      duration: const Duration(milliseconds: 340),
+                                      curve: Curves.easeOutBack,
                                       alignment: !isEng ? Alignment.centerLeft : Alignment.centerRight,
                                       child: FractionallySizedBox(
                                         widthFactor: 0.5,
                                         child: Container(
-                                          margin: const EdgeInsets.all(3.5),
+                                          margin: const EdgeInsets.all(3.0),
                                           decoration: BoxDecoration(
-                                            gradient: zen.brandHero,
+                                            gradient: zen.navPillGradient,
                                             borderRadius: BorderRadius.circular(18),
                                             border: Border.all(
-                                              color: Colors.white.withOpacity(0.36),
-                                              width: 0.9,
+                                              color: Colors.white.withOpacity(isDark ? 0.45 : 0.65),
+                                              width: 1.1,
                                             ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: zen.primary.withOpacity(0.45),
-                                                blurRadius: 10,
+                                                color: zen.primary.withOpacity(isDark ? 0.42 : 0.25),
+                                                blurRadius: 12,
                                                 offset: const Offset(0, 2),
                                               ),
                                             ],
@@ -680,22 +695,27 @@ class SettingsScreen extends ConsumerWidget {
                                               await ref.read(localeNotifierProvider.notifier).setLocale('vi');
                                             },
                                             child: Center(
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  const Text('🇻🇳', style: TextStyle(fontSize: 13)),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    'VN',
-                                                    style: TextStyle(
-                                                      fontSize: 12.5,
-                                                      fontWeight: !isEng ? FontWeight.w800 : FontWeight.w600,
-                                                      color: !isEng
-                                                          ? Colors.white
-                                                          : (isDark ? Colors.white60 : Colors.black54),
+                                              child: AnimatedScale(
+                                                scale: !isEng ? 1.08 : 0.94,
+                                                duration: const Duration(milliseconds: 240),
+                                                curve: Curves.easeOutBack,
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Text('🇻🇳', style: TextStyle(fontSize: 13)),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      'VN',
+                                                      style: TextStyle(
+                                                        fontSize: 12.5,
+                                                        fontWeight: !isEng ? FontWeight.w800 : FontWeight.w600,
+                                                        color: !isEng
+                                                            ? Colors.white
+                                                            : (isDark ? Colors.white60 : Colors.black54),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -709,22 +729,27 @@ class SettingsScreen extends ConsumerWidget {
                                               await ref.read(localeNotifierProvider.notifier).setLocale('en');
                                             },
                                             child: Center(
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  const Text('🇬🇧', style: TextStyle(fontSize: 13)),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    'EN',
-                                                    style: TextStyle(
-                                                      fontSize: 12.5,
-                                                      fontWeight: isEng ? FontWeight.w800 : FontWeight.w600,
-                                                      color: isEng
-                                                          ? Colors.white
-                                                          : (isDark ? Colors.white60 : Colors.black54),
+                                              child: AnimatedScale(
+                                                scale: isEng ? 1.08 : 0.94,
+                                                duration: const Duration(milliseconds: 240),
+                                                curve: Curves.easeOutBack,
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Text('🇬🇧', style: TextStyle(fontSize: 13)),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      'EN',
+                                                      style: TextStyle(
+                                                        fontSize: 12.5,
+                                                        fontWeight: isEng ? FontWeight.w800 : FontWeight.w600,
+                                                        color: isEng
+                                                            ? Colors.white
+                                                            : (isDark ? Colors.white60 : Colors.black54),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                           ),

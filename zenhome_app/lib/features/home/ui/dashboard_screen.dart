@@ -965,22 +965,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
               
               const SizedBox(height: 25),
               
-              SizedBox(
-                height: 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: roomTabs.asMap().entries.map((entry) {
-                    return RoomTabWidget(
-                      roomCode: entry.value,
-                      isSelected: _selectedRoomCode == entry.value,
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        setState(() => _selectedRoomCode = entry.value);
-                      },
-                    ).animate(delay: (entry.key * 50).ms)
-                        .fade(duration: 300.ms)
-                        .slideX(begin: 0.2, end: 0, duration: 300.ms, curve: Curves.easeOutQuart);
-                  }).toList(),
+              // Thanh Menu Phân Loại Phòng Kính Lỏng (Liquid Glass Room Capsule Dock)
+              RepaintBoundary(
+                child: SizedBox(
+                  height: 44,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    children: roomTabs.map((roomCode) {
+                      return RoomTabWidget(
+                        key: ValueKey('room_$roomCode'),
+                        roomCode: roomCode,
+                        isSelected: _selectedRoomCode == roomCode,
+                        onTap: () {
+                          setState(() => _selectedRoomCode = roomCode);
+                        },
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -1053,24 +1055,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                     ).animate().fade(duration: 300.ms).scale(begin: const Offset(0.95, 0.95), curve: Curves.easeOutBack);
                   }
 
-                  return AnimatedOpacity(
-                    opacity: isConnected ? 1.0 : 0.5,
-                    duration: const Duration(milliseconds: 300),
-                    child: GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 0.86,
-                      children: activeDevices.asMap().entries.map((entry) {
-                        final delayMs = (entry.key * 25).clamp(0, 150);
-                        return entry.value
-                            .animate(
-                              key: ValueKey('anim_${_selectedRoomCode}_${entry.key}'),
-                              delay: Duration(milliseconds: delayMs),
-                            )
-                            .fade(duration: 280.ms, curve: Curves.easeOutQuart)
-                            .slideY(begin: 0.08, end: 0, duration: 280.ms, curve: Curves.easeOutQuart)
-                            .scale(begin: const Offset(0.96, 0.96), end: const Offset(1.0, 1.0), duration: 280.ms, curve: Curves.easeOutQuart);
-                      }).toList(),
+                  return RepaintBoundary(
+                    child: AnimatedOpacity(
+                      opacity: isConnected ? 1.0 : 0.5,
+                      duration: const Duration(milliseconds: 300),
+                      child: GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
+                        childAspectRatio: 0.86,
+                        children: activeDevices.asMap().entries.map((entry) {
+                          final delayMs = (entry.key * 25).clamp(0, 150);
+                          return entry.value
+                              .animate(
+                                key: ValueKey('anim_${_selectedRoomCode}_${entry.key}'),
+                                delay: Duration(milliseconds: delayMs),
+                              )
+                              .fade(duration: 280.ms, curve: Curves.easeOutQuart)
+                              .slideY(begin: 0.08, end: 0, duration: 280.ms, curve: Curves.easeOutQuart)
+                              .scale(begin: const Offset(0.96, 0.96), end: const Offset(1.0, 1.0), duration: 280.ms, curve: Curves.easeOutQuart);
+                        }).toList(),
+                      ),
                     ),
                   );
                 }

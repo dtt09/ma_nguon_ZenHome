@@ -207,178 +207,59 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                         ),
                       ).animate().fade(duration: 350.ms).slideY(begin: -0.1),
 
-                      // Segmented Switcher Bar (Zen Glass Container + Glowing Active Pill with Specular Border)
-                      ZenGlassContainer(
+                      // Segmented Switcher Bar Đồng Bộ Menu Chính (Zen Glass Segmented Bar 2.0)
+                      ZenGlassSegmentedBar<int>(
+                        height: 44,
+                        borderRadius: 30,
                         margin: const EdgeInsets.only(bottom: 22),
                         padding: const EdgeInsets.all(4),
-                        borderRadius: 30,
                         blurSigma: 22,
-                        glowColor: zen.primary,
-                        child: SizedBox(
-                          height: 44,
-                          child: Stack(
-                            children: [
-                              // Sliding Indicator Pill
-                              Positioned.fill(
-                                child: AnimatedAlign(
-                                  duration: const Duration(milliseconds: 360),
-                                  curve: Curves.easeOutBack,
-                                  alignment: _selectedTabIndex == 0
-                                      ? Alignment.centerLeft
-                                      : Alignment.centerRight,
-                                  child: FractionallySizedBox(
-                                    widthFactor: 0.5,
-                                    heightFactor: 1.0,
-                                    child: ZenLiquidGlass(
-                                      blurSigma: 0,
-                                      borderRadius: 25,
-                                      glowColor: zen.primaryAccent,
-                                      rimWidth: 1.35,
-                                      surfaceColor: zen.primary,
-                                      customGradient: zen.navPillGradient,
-                                      customShadows: [
-                                        BoxShadow(
-                                          color: zen.primary.withOpacity(isDark ? 0.44 : 0.28),
-                                          blurRadius: 14,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                      child: const SizedBox.expand(),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Tab Items
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(25),
-                                      onTap: () {
-                                        HapticFeedback.selectionClick();
-                                        setState(() => _selectedTabIndex = 0);
-                                      },
-                                      child: Center(
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            AnimatedScale(
-                                              scale: _selectedTabIndex == 0 ? 1.1 : 0.95,
-                                              duration: const Duration(milliseconds: 200),
-                                              child: Icon(
-                                                Icons.auto_awesome_rounded,
-                                                size: 18,
-                                                color: _selectedTabIndex == 0
-                                                    ? Colors.white
-                                                    : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Flexible(
-                                              child: AnimatedDefaultTextStyle(
-                                                duration: const Duration(milliseconds: 200),
-                                                style: TextStyle(
-                                                  fontWeight: _selectedTabIndex == 0 ? FontWeight.w800 : FontWeight.w600,
-                                                  fontSize: 14,
-                                                  color: _selectedTabIndex == 0
-                                                      ? Colors.white
-                                                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                                                  shadows: _selectedTabIndex == 0
-                                                      ? [
-                                                          Shadow(
-                                                            color: Colors.black.withOpacity(0.28),
-                                                            blurRadius: 4,
-                                                            offset: const Offset(0, 1),
-                                                          )
-                                                        ]
-                                                      : null,
-                                                ),
-                                                child: Text(
-                                                  context.tr('tab_scenes'),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(25),
-                                      onTap: () {
-                                        HapticFeedback.selectionClick();
-                                        setState(() => _selectedTabIndex = 1);
-                                      },
-                                      child: Center(
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            AnimatedScale(
-                                              scale: _selectedTabIndex == 1 ? 1.1 : 0.95,
-                                              duration: const Duration(milliseconds: 200),
-                                              child: Icon(
-                                                Icons.alarm_on_rounded,
-                                                size: 18,
-                                                color: _selectedTabIndex == 1
-                                                    ? Colors.white
-                                                    : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Flexible(
-                                              child: AnimatedDefaultTextStyle(
-                                                duration: const Duration(milliseconds: 200),
-                                                style: TextStyle(
-                                                  fontWeight: _selectedTabIndex == 1 ? FontWeight.w800 : FontWeight.w600,
-                                                  fontSize: 14,
-                                                  color: _selectedTabIndex == 1
-                                                      ? Colors.white
-                                                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                                                  shadows: _selectedTabIndex == 1
-                                                      ? [
-                                                          Shadow(
-                                                            color: Colors.black.withOpacity(0.28),
-                                                            blurRadius: 4,
-                                                            offset: const Offset(0, 1),
-                                                          )
-                                                        ]
-                                                      : null,
-                                                ),
-                                                child: Text(
-                                                  context.tr('tab_automation'),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                        selectedValue: _selectedTabIndex,
+                        onValueChanged: (val) {
+                          setState(() => _selectedTabIndex = val);
+                        },
+                        items: [
+                          ZenGlassSegmentedItem<int>(
+                            value: 0,
+                            label: context.tr('tab_scenes'),
+                            icon: Icons.auto_awesome_rounded,
+                            activeGlowColor: zen.primaryAccent,
                           ),
-                        ),
+                          ZenGlassSegmentedItem<int>(
+                            value: 1,
+                            label: context.tr('tab_automation'),
+                            icon: Icons.alarm_on_rounded,
+                            activeGlowColor: zen.primaryAccent,
+                          ),
+                        ],
                       ),
 
                       // Tab 0: Ngữ cảnh
                       if (_selectedTabIndex == 0) ...[
-                        const SceneSection().animate().fade(duration: 300.ms).slideY(begin: 0.05),
+                        RepaintBoundary(
+                          child: const SceneSection()
+                              .animate()
+                              .fade(duration: 300.ms)
+                              .slideY(begin: 0.05),
+                        ),
                       ],
 
                       // Tab 1: Tự động hóa (Hẹn giờ & Lịch trình)
                       if (_selectedTabIndex == 1) ...[
-                        Column(
-                          children: [
-                            const TimerSection().animate().fade(duration: 300.ms).slideY(begin: 0.05),
-                            const SizedBox(height: 24),
-                            const ScheduleSection().animate(delay: 100.ms).fade(duration: 300.ms).slideY(begin: 0.05),
-                          ],
+                        RepaintBoundary(
+                          child: Column(
+                            children: [
+                              const TimerSection()
+                                  .animate()
+                                  .fade(duration: 300.ms)
+                                  .slideY(begin: 0.05),
+                              const SizedBox(height: 24),
+                              const ScheduleSection()
+                                  .animate(delay: 100.ms)
+                                  .fade(duration: 300.ms)
+                                  .slideY(begin: 0.05),
+                            ],
+                          ),
                         ),
                       ],
 

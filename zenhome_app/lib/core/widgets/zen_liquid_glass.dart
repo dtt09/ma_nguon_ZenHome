@@ -206,6 +206,10 @@ class _ZenAuroraMeshPainter extends CustomPainter {
   final Color accent;
   final double intensity;
 
+  // Tối ưu hóa GPU: Tái sử dụng đối tượng Paint để tránh cấp phát bộ nhớ liên tục trong vòng lặp vẽ
+  static final Paint _reusableBasePaint = Paint();
+  static final Paint _reusableOrbPaint = Paint();
+
   const _ZenAuroraMeshPainter({
     required this.progress,
     required this.isDark,
@@ -220,23 +224,22 @@ class _ZenAuroraMeshPainter extends CustomPainter {
 
     // 1. Nền cơ sở chuẩn Sáng / Tối
     final bgRect = Offset.zero & size;
-    final basePaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: isDark
-            ? [
-                const Color(0xFF060913),
-                const Color(0xFF0A1020),
-                const Color(0xFF070B16),
-              ]
-            : [
-                const Color(0xFFF4F7FB),
-                const Color(0xFFEEF4FA),
-                const Color(0xFFF8FAFC),
-              ],
-      ).createShader(bgRect);
-    canvas.drawRect(bgRect, basePaint);
+    _reusableBasePaint.shader = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: isDark
+          ? const [
+              Color(0xFF060913),
+              Color(0xFF0A1020),
+              Color(0xFF070B16),
+            ]
+          : const [
+              Color(0xFFF4F7FB),
+              Color(0xFFEEF4FA),
+              Color(0xFFF8FAFC),
+            ],
+    ).createShader(bgRect);
+    canvas.drawRect(bgRect, _reusableBasePaint);
 
     final double shortest = size.shortestSide;
     final double phase = progress * math.pi;
@@ -294,16 +297,15 @@ class _ZenAuroraMeshPainter extends CustomPainter {
   }) {
     if (radius <= 0 || opacity <= 0) return;
     final rect = Rect.fromCircle(center: center, radius: radius);
-    final paint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          color.withOpacity(opacity.clamp(0.0, 1.0)),
-          color.withOpacity((opacity * 0.38).clamp(0.0, 1.0)),
-          color.withOpacity(0.0),
-        ],
-        stops: const [0.0, 0.48, 1.0],
-      ).createShader(rect);
-    canvas.drawCircle(center, radius, paint);
+    _reusableOrbPaint.shader = RadialGradient(
+      colors: [
+        color.withOpacity(opacity.clamp(0.0, 1.0)),
+        color.withOpacity((opacity * 0.38).clamp(0.0, 1.0)),
+        color.withOpacity(0.0),
+      ],
+      stops: const [0.0, 0.48, 1.0],
+    ).createShader(rect);
+    canvas.drawCircle(center, radius, _reusableOrbPaint);
   }
 
   @override
@@ -706,6 +708,384 @@ class ZenGlassContainer extends StatelessWidget {
       customShadows: shadows,
       child: child,
     );
+  }
+}
+
+/// ============================================================================
+/// HỆ THỐNG THANH MENU & PHÂN ĐOẠN ĐỒNG BỘ (UNIFIED ZEN GLASS MENUS)
+/// ============================================================================
+
+/// Mục cho Thanh Menu Phân Đoạn Kính Lỏng (Zen Glass Segmented Item)
+class ZenGlassSegmentedItem<T> {
+  final T value;
+  final String label;
+  final IconData? icon;
+  final Widget? customWidget;
+  final Color? activeGlowColor;
+
+  const ZenGlassSegmentedItem({
+    required this.value,
+    required this.label,
+    this.icon,
+    this.customWidget,
+    this.activeGlowColor,
+  });
+}
+
+/// 4b. Thanh Menu Phân Đoạn Kính Lỏng Cao Cấp (Zen Glass Segmented Bar 2.0)
+/// Đồng bộ 100% thuộc tính thị giác và động lực học lò xo của Thanh Menu Chính (Main Bottom Navigation Dock).
+/// Sử dụng quy tắc "Single-Pass BackdropFilter": Vỏ ngoài làm mờ 1 lần duy nhất, các phần tử con
+/// và giọt kính lỏng trượt bên trong đặt blurSigma: 0 để đạt chuẩn mượt mà 60-120 FPS!
+class ZenGlassSegmentedBar<T> extends StatelessWidget {
+  final List<ZenGlassSegmentedItem<T>> items;
+  final T selectedValue;
+  final ValueChanged<T> onValueChanged;
+  final double height;
+  final double borderRadius;
+  final EdgeInsetsGeometry margin;
+  final EdgeInsetsGeometry padding;
+  final double blurSigma;
+  final Color? glowColor;
+  final Gradient? activeGradient;
+
+  const ZenGlassSegmentedBar({
+    super.key,
+    required this.items,
+    required this.selectedValue,
+    required this.onValueChanged,
+    this.height = 46.0,
+    this.borderRadius = 28.0,
+    this.margin = const EdgeInsets.symmetric(horizontal: 0.0, vertical: 6.0),
+    this.padding = const EdgeInsets.all(4.0),
+    this.blurSigma = 18.0,
+    this.glowColor,
+    this.activeGradient,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+
+    final selectedIndex = items.indexWhere((it) => it.value == selectedValue);
+    final activeItem = selectedIndex != -1 ? items[selectedIndex] : null;
+    final Color effectiveGlow = activeItem?.activeGlowColor ??
+        glowColor ??
+        (isDark ? zen.primaryAccent : zen.primary);
+
+    return RepaintBoundary(
+      child: ZenGlassContainer(
+        borderRadius: borderRadius,
+        margin: margin,
+        padding: padding,
+        blurSigma: blurSigma,
+        glowColor: effectiveGlow,
+        child: SizedBox(
+          height: height,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final double totalWidth = constraints.maxWidth;
+              final int count = items.length;
+              if (count == 0) return const SizedBox.shrink();
+
+              final double itemWidth = totalWidth / count;
+              final double pillLeft =
+                  selectedIndex >= 0 ? selectedIndex * itemWidth : 0.0;
+
+              return Stack(
+                children: [
+                  // Giọt Kính Lỏng Trượt Lò Xo (Spring Liquid Droplet Pill)
+                  if (selectedIndex >= 0)
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 340),
+                      curve: Curves.easeOutBack,
+                      left: pillLeft,
+                      top: 0,
+                      bottom: 0,
+                      width: itemWidth,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 2.5,
+                          vertical: 2.0,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: activeGradient ?? zen.navPillGradient,
+                          borderRadius: BorderRadius.circular(
+                            math.max(12.0, borderRadius - 6.0),
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(isDark ? 0.42 : 0.65),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: effectiveGlow.withOpacity(isDark ? 0.38 : 0.22),
+                              blurRadius: 14,
+                              spreadRadius: 0,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Các Mục Lựa Chọn (Interactive Tab Items)
+                  Row(
+                    children: items.map((item) {
+                      final bool isSelected = item.value == selectedValue;
+                      const Color activeTextColor = Colors.white;
+                      final Color inactiveTextColor = isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted;
+
+                      return Expanded(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(
+                              math.max(12.0, borderRadius - 6.0),
+                            ),
+                            splashColor: effectiveGlow.withOpacity(0.15),
+                            highlightColor: Colors.transparent,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              if (item.value != selectedValue) {
+                                onValueChanged(item.value);
+                              }
+                            },
+                            child: Center(
+                              child: item.customWidget ??
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (item.icon != null) ...[
+                                        AnimatedScale(
+                                          scale: isSelected ? 1.12 : 0.95,
+                                          duration:
+                                              const Duration(milliseconds: 240),
+                                          curve: Curves.easeOutBack,
+                                          child: Icon(
+                                            item.icon,
+                                            size: 17.5,
+                                            color: isSelected
+                                                ? activeTextColor
+                                                : inactiveTextColor,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                      ],
+                                      AnimatedDefaultTextStyle(
+                                        duration:
+                                            const Duration(milliseconds: 220),
+                                        curve: Curves.easeOutCubic,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w800
+                                              : FontWeight.w600,
+                                          color: isSelected
+                                              ? activeTextColor
+                                              : inactiveTextColor,
+                                          letterSpacing: 0.2,
+                                        ),
+                                        child: Text(
+                                          item.label,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Mục cho Thanh Lọc Danh Mục Kính Lỏng (Zen Glass Filter Item)
+class ZenGlassFilterItem<T> {
+  final T value;
+  final String label;
+  final IconData? icon;
+  final Color? color;
+  final int? badgeCount;
+
+  const ZenGlassFilterItem({
+    required this.value,
+    required this.label,
+    this.icon,
+    this.color,
+    this.badgeCount,
+  });
+}
+
+/// 4c. Thanh Lọc Phân Loại Kính Lỏng Cuộn Ngang (Zen Glass Scrollable Filter Bar 2.0)
+/// Dành cho Thanh Phân Loại Thông Báo, Dải Tab Phòng, Danh Mục Tiện Ích.
+/// Thiết kế rãnh kính lỏng cao cấp với hiệu ứng giọt sáng chỉ báo, viền vát 3D và tối ưu 0 blur cục bộ đạt 120 FPS.
+class ZenGlassScrollableFilterBar<T> extends StatelessWidget {
+  final List<ZenGlassFilterItem<T>> items;
+  final T selectedValue;
+  final ValueChanged<T> onSelected;
+  final double height;
+  final EdgeInsetsGeometry padding;
+  final double borderRadius;
+  final double blurSigma;
+  final bool showOuterContainer;
+
+  const ZenGlassScrollableFilterBar({
+    super.key,
+    required this.items,
+    required this.selectedValue,
+    required this.onSelected,
+    this.height = 46.0,
+    this.padding = const EdgeInsets.symmetric(horizontal: 16.0),
+    this.borderRadius = 22.0,
+    this.blurSigma = 18.0,
+    this.showOuterContainer = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+
+    Widget listView = SizedBox(
+      height: height,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: padding,
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index];
+          final bool isSelected = item.value == selectedValue;
+          final Color itemColor =
+              item.color ?? (isDark ? zen.primaryAccent : zen.primary);
+
+          final LinearGradient? activeGradient = item.color != null
+              ? LinearGradient(
+                  colors: [
+                    item.color!.withOpacity(0.95),
+                    Color.lerp(item.color!, Colors.white, 0.20)!,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : zen.navPillGradient;
+
+          return RepaintBoundary(
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: index == items.length - 1 ? 0 : 8.0,
+              ),
+              child: ZenGlassPill(
+                isSelected: isSelected,
+                glowColor: itemColor,
+                blurSigma: 0, // Tối ưu GPU: 0 blur trên từng chip để đạt 120 FPS khi cuộn!
+                customGradient: isSelected ? activeGradient : null,
+                borderRadius: borderRadius,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 8,
+                ),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  if (item.value != selectedValue) {
+                    onSelected(item.value);
+                  }
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (item.icon != null) ...[
+                      AnimatedScale(
+                        scale: isSelected ? 1.15 : 1.0,
+                        duration: const Duration(milliseconds: 240),
+                        curve: Curves.easeOutBack,
+                        child: Icon(
+                          item.icon,
+                          size: 16,
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark
+                                  ? itemColor.withOpacity(0.95)
+                                  : itemColor),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight:
+                            isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark
+                                ? AppColors.darkText
+                                : AppColors.lightText),
+                        letterSpacing: 0.15,
+                      ),
+                      child: Text(item.label),
+                    ),
+                    if (item.badgeCount != null && item.badgeCount! > 0) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.white.withOpacity(0.28)
+                              : itemColor.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${item.badgeCount}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected ? Colors.white : itemColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    if (showOuterContainer) {
+      return RepaintBoundary(
+        child: ZenGlassContainer(
+          borderRadius: borderRadius + 6,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          blurSigma: blurSigma,
+          child: listView,
+        ),
+      );
+    }
+
+    return RepaintBoundary(child: listView);
   }
 }
 
