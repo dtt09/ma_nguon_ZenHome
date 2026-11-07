@@ -1,16 +1,16 @@
 {
-  "version": "1.8.18",
-  "buildNumber": 206,
+  "version": "1.8.19",
+  "buildNumber": 207,
   "minVersion": "1.8.0",
   "minBuildNumber": 180,
-  "titleVi": "Bản Cập Nhật ZenHome v1.8.18 (Toàn Diện Bản Vá Bảo Mật & Hardened Architecture)",
-  "titleEn": "ZenHome Update v1.8.18 (Hardened Security Architecture & Full Patches)",
-  "releaseNotesVi": "• Khắc phục triệt để 9/9 lỗ hổng bảo mật kiểm toán Cloudflare Security Audit\n• Đóng kín Firestore Rules, chặn đọc công khai và khóa chặt IDOR xóa tài khoản / giải phóng định danh\n• Firmware ESP32 v2.6.0 (Build 204): Bắt buộc chữ ký số ECDSA P-256 khi nạp OTA, loại bỏ bypass IP subnet LAN, nâng cấp mã hóa AES-256 CTR\n• Server Backend: Chống SSRF & DNS Rebinding trên proxy-ping, ngăn chặn auto-bind Hub trái phép\n• Ứng dụng di động: Loại bỏ toàn bộ tài khoản MQTT hardcode dự phòng",
-  "releaseNotesEn": "• Fully remediated 9/9 vulnerabilities from Cloudflare Security Audit\n• Hardened Firestore Rules, blocked public profile reads, and prevented IDOR attacks\n• ESP32 Firmware v2.6.0 (Build 204): Enforced mandatory ECDSA P-256 OTA signature verification, removed LAN subnet bypass, upgraded AES-256 CTR storage encryption\n• Server Backend: Hardened SSRF & DNS Rebinding defenses and secured Hub binding endpoints\n• Mobile App: Removed all hardcoded MQTT fallback credentials",
+  "titleVi": "Bản Cập Nhật ZenHome v1.8.19 (Lột Xác Toàn Diện Zen Liquid Glass 2.0)",
+  "titleEn": "ZenHome Update v1.8.19 (Full Zen Liquid Glass 2.0 Metamorphosis)",
+  "releaseNotesVi": "• Lột xác toàn diện hiệu ứng Zen Liquid Glass 2.0 trên toàn bộ 51 tệp giao diện (Màn hình chính, Tiện ích, Cài đặt, Thông báo, Quản lý đa nhà, Xác thực, Admin)\n• Nền cực quang khúc xạ đa sắc ZenAmbientMeshBackground chuyển động nhịp nhàng\n• Viền vát quang học 3D _ZenSpecularRimPainter góc 135° kết hợp vệt sáng phản xạ đỉnh kính Top Prismatic Sheen\n• Hệ thống menu nổi kính 3D ZenGlassPopupMenuButton, showZenGlassBottomSheet và showZenGlassDialog\n• Tối ưu hóa GPU 60-120 FPS chống lặp đè BackdropFilter\n• Kế thừa trọn vẹn bản vá bảo mật hardened Cloudflare Audit (9/9) & Firmware ESP32 v2.6.0 (Build 204)",
+  "releaseNotesEn": "• Complete Zen Liquid Glass 2.0 UI overhaul across all 51 interface files (Home, Utilities, Settings, Notifications, Multi-home, Auth, Admin)\n• Multi-hue refractive aurora canvas (ZenAmbientMeshBackground)\n• 3D directional beveled specular rim (_ZenSpecularRimPainter) with top prismatic sheen\n• Refractive 3D glass popup menu (ZenGlassPopupMenuButton), bottom sheets and dialogs\n• 60-120 FPS GPU optimization eliminating redundant BackdropFilter layers\n• Full retention of Cloudflare Security Audit hardening (9/9) & ESP32 Firmware v2.6.0 (Build 204)",
   "downloadUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "directApkUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "isForceUpdate": false,
-  "fileSizeBytes": 72969575,
-  "sha256": "B135065A0DE63F134A1E586A5C1C077E0D31458EEFDCE0C8545E0527C0407B59",
-  "publishedAt": "2026-11-06T19:09:47.239Z"
+  "fileSizeBytes": 72210783,
+  "sha256": "B1F845CD120E03909338EA037198BC43B0938CE1A3881167F13F52377ADDAFEF",
+  "publishedAt": "2026-11-07T03:59:45.636Z"
 }
