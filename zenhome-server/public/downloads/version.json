@@ -1,16 +1,16 @@
 {
-  "version": "1.8.19",
-  "buildNumber": 207,
+  "version": "1.8.20",
+  "buildNumber": 208,
   "minVersion": "1.8.0",
   "minBuildNumber": 180,
-  "titleVi": "Bản Cập Nhật ZenHome v1.8.19 (Lột Xác Toàn Diện Zen Liquid Glass 2.0)",
-  "titleEn": "ZenHome Update v1.8.19 (Full Zen Liquid Glass 2.0 Metamorphosis)",
-  "releaseNotesVi": "• Lột xác toàn diện hiệu ứng Zen Liquid Glass 2.0 trên toàn bộ 51 tệp giao diện (Màn hình chính, Tiện ích, Cài đặt, Thông báo, Quản lý đa nhà, Xác thực, Admin)\n• Nền cực quang khúc xạ đa sắc ZenAmbientMeshBackground chuyển động nhịp nhàng\n• Viền vát quang học 3D _ZenSpecularRimPainter góc 135° kết hợp vệt sáng phản xạ đỉnh kính Top Prismatic Sheen\n• Hệ thống menu nổi kính 3D ZenGlassPopupMenuButton, showZenGlassBottomSheet và showZenGlassDialog\n• Tối ưu hóa GPU 60-120 FPS chống lặp đè BackdropFilter\n• Kế thừa trọn vẹn bản vá bảo mật hardened Cloudflare Audit (9/9) & Firmware ESP32 v2.6.0 (Build 204)",
-  "releaseNotesEn": "• Complete Zen Liquid Glass 2.0 UI overhaul across all 51 interface files (Home, Utilities, Settings, Notifications, Multi-home, Auth, Admin)\n• Multi-hue refractive aurora canvas (ZenAmbientMeshBackground)\n• 3D directional beveled specular rim (_ZenSpecularRimPainter) with top prismatic sheen\n• Refractive 3D glass popup menu (ZenGlassPopupMenuButton), bottom sheets and dialogs\n• 60-120 FPS GPU optimization eliminating redundant BackdropFilter layers\n• Full retention of Cloudflare Security Audit hardening (9/9) & ESP32 Firmware v2.6.0 (Build 204)",
+  "titleVi": "Bản Cập Nhật ZenHome v1.8.20 (Anti-Collision Semantic Palette & Performance Overhaul)",
+  "titleEn": "ZenHome Update v1.8.20 (Anti-Collision Semantic Palette & Performance Overhaul)",
+  "releaseNotesVi": "• Đột phá hệ thống màu chủ đạo toàn diện & Bảng màu chống xung đột (Anti-Collision Dynamic Semantic Palette): tách biệt tuyệt đối các màu cảnh báo cố định khỏi 6 bộ Preset Zen Luxury\n• Tự động dịch chuyển bước sóng màu: Ruby Coral chuyển Danger sang #FF3D00, Champagne Gold chuyển Warning sang #FF5722, Emerald Zen chuyển Success sang #00E676, Midnight Sapphire chuyển Info sang #00E5FF\n• Tối ưu hóa 120 FPS chuyển tab, menu phân loại và thanh trượt kính lỏng\n• Khắc phục triệt để lỗi nút Thêm thiết bị tràn màn hình trong Khu vực kỹ thuật (DeviceMappingScreen)\n• Kế thừa trọn vẹn Liquid Glass 2.0 & Firmware ESP32 v2.6.0 (Build 204)",
+  "releaseNotesEn": "• Complete Brand Propagation & Anti-Collision Dynamic Semantic Palette across all 6 Zen Luxury Presets\n• Chromatic anti-collision shifts: Ruby Coral danger -> #FF3D00, Champagne Gold warning -> #FF5722, Emerald Zen success -> #00E676, Midnight Sapphire info -> #00E5FF\n• 120 FPS high refresh-rate optimizations for tab transitions, categorizers, and liquid sliders\n• Resolved Scaffold FAB constraint expansion for Add Device button in DeviceMappingScreen\n• Full retention of Zen Liquid Glass 2.0 & ESP32 Firmware v2.6.0 (Build 204)",
   "downloadUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "directApkUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "isForceUpdate": false,
-  "fileSizeBytes": 72210783,
-  "sha256": "B1F845CD120E03909338EA037198BC43B0938CE1A3881167F13F52377ADDAFEF",
-  "publishedAt": "2026-11-07T03:59:45.636Z"
+  "fileSizeBytes": 72227351,
+  "sha256": "7BB0BD81FD230E4B1FFA12048374B3640F404798B978B45108354796B59522FB",
+  "publishedAt": "2026-11-07T14:24:10.024Z"
 }
