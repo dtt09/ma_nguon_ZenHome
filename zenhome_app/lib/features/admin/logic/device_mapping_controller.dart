@@ -107,9 +107,16 @@ class DeviceMappingController extends StateNotifier<bool> {
 
       // 3. Đồng bộ xuống ESP32 qua MQTT để ESP32 cập nhật lại cấu hình Relay
       try {
-        final devicesJson = jsonEncode(devices.map((e) => e.toJson()).toList());
+        final devicesList = devices.map((e) => e.toJson()).toList();
+        final configPayload = jsonEncode({
+          'admin_pass': activeConfig.adminPass,
+          'devices': devicesList,
+        });
         final configTopic = '${activeConfig.mqttPrefix}/system/config';
-        _ref.read(mqttRepositoryProvider).publishCmd(configTopic, devicesJson);
+        _ref.read(mqttRepositoryProvider).publishCmd(configTopic, configPayload);
+
+        // Đồng thời gửi cả payload dạng mảng thuần để tương thích mọi phiên bản Firmware
+        _ref.read(mqttRepositoryProvider).publishCmd(configTopic, jsonEncode(devicesList));
 
         final restartTopic = '${activeConfig.mqttPrefix}/system/restart';
         _ref.read(mqttRepositoryProvider).publishCmd(restartTopic, '1');

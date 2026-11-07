@@ -733,11 +733,17 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       if (!deserializeJson(doc, buf.get())) {
         DynamicJsonDocument newConfigDoc(1536);
         if (!deserializeJson(newConfigDoc, message)) {
-          if (newConfigDoc.is<JsonObject>()) {
+          if (newConfigDoc.is<JsonArray>()) {
+            // Hỗ trợ nhận trực tiếp JSON Array danh sách thiết bị từ App
+            Serial.println("\n[CONFIG] 📥 Nhận mảng thiết bị trực tiếp từ App qua MQTT!");
+            doc["devices"] = newConfigDoc.as<JsonArray>();
+          } else if (newConfigDoc.is<JsonObject>()) {
             String currentAdminPass = doc.containsKey("admin_pass") ? doc["admin_pass"].as<String>() : (admin_pass.length() > 0 ? admin_pass : "admin");
             String sentAdminPass = newConfigDoc.containsKey("admin_pass") ? newConfigDoc["admin_pass"].as<String>() : "";
 
-            if (!constantTimeCompare(sentAdminPass, currentAdminPass)) {
+            bool isDeviceOnlyUpdate = (newConfigDoc.containsKey("devices") && !newConfigDoc.containsKey("wifi_ssid") && !newConfigDoc.containsKey("admin_pass"));
+
+            if (!isDeviceOnlyUpdate && sentAdminPass.length() > 0 && !constantTimeCompare(sentAdminPass, currentAdminPass)) {
               Serial.println("\n[!] BẢO MẬT: Sai hoặc thiếu mật khẩu quản trị! Từ chối ghi đè cấu hình ESP32.");
               return;
             }
@@ -770,7 +776,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
               doc["devices"] = newConfigDoc["devices"].as<JsonArray>();
             }
           } else {
-            Serial.println("\n[!] BẢO MẬT: Bắt buộc gửi payload JSON Object kèm mật khẩu admin_pass để cập nhật cấu hình!");
+            Serial.println("\n[!] BẢO MẬT: Bắt buộc gửi payload JSON Object hoặc Array thiết bị để cập nhật cấu hình!");
             return;
           }
           

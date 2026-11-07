@@ -38,6 +38,7 @@ struct LocalRule {
 // Global variables declarations
 extern Adafruit_PCF8574 pcf;
 extern bool pcfFound;
+extern uint8_t activePcfAddress;
 extern DHT dht;
 
 // LED Indication State Machine

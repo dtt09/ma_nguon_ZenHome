@@ -46,16 +46,22 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
     'custom',
   ];
   final List<int> _suggestedPins = [
+    // Mạch mở rộng I2C PCF8574 (Chân P0 -> P7)
+    0,
+    1,
     2,
+    3,
     4,
+    5,
+    6,
+    7,
+    // Chân GPIO trực tiếp trên ESP32 (Đã loại trừ 21, 22 bảo vệ I2C)
     12,
     13,
     14,
     15,
     18,
     19,
-    21,
-    22,
     23,
     25,
     26,
@@ -478,7 +484,7 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                                 });
                               },
                               child: Text(
-                                'GPIO $p',
+                                p <= 7 ? 'P$p (I2C)' : 'GPIO $p',
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   fontFamily: 'monospace',
@@ -1320,7 +1326,9 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 8, vertical: 3),
                                       child: Text(
-                                        'GPIO ${dev.pin}',
+                                        dev.pin <= 7
+                                            ? 'P${dev.pin} (I2C)'
+                                            : 'GPIO ${dev.pin}',
                                         style: TextStyle(
                                           fontSize: 10.5,
                                           color: accentColor,

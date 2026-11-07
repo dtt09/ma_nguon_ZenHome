@@ -6,6 +6,7 @@
 
 Adafruit_PCF8574 pcf;
 bool pcfFound = false;
+uint8_t activePcfAddress = 0;
 DHT dht(DHTPIN, DHTTYPE);
 
 float cachedTemperature = NAN;
@@ -137,6 +138,44 @@ void unlockI2C() {
   }
 }
 
+static uint8_t scanAndDetectI2CDevice() {
+  pinMode(21, INPUT_PULLUP);
+  pinMode(22, INPUT_PULLUP);
+  delay(10);
+  int sdaLevel = digitalRead(21);
+  int sclLevel = digitalRead(22);
+  Serial.printf("\n[I2C-DIAG] 🔍 Kiểm tra vật lý: SDA (GPIO 21) = %s | SCL (GPIO 22) = %s\n",
+                sdaLevel ? "HIGH (OK - Có nguồn/trở kéo)" : "LOW (LỖI - Kẹt Mass/Đứt nguồn)",
+                sclLevel ? "HIGH (OK - Có nguồn/trở kéo)" : "LOW (LỖI - Kẹt Mass/Đứt nguồn)");
+
+  Wire.begin(21, 22, 100000);
+  Wire.setTimeOut(50);
+
+  Serial.println("[I2C-SCAN] 📡 Đang quét toàn bộ 127 địa chỉ I2C (0x01 -> 0x7F)...");
+  uint8_t detectedAddr = 0;
+  int foundCount = 0;
+
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    uint8_t error = Wire.endTransmission();
+    if (error == 0) {
+      Serial.printf("[I2C-SCAN] 🎯 TÌM THẤY THIẾT BỊ I2C TẠI ĐỊA CHỈ: 0x%02X (%d)\n", addr, addr);
+      foundCount++;
+      // Ưu tiên dải PCF8574 (0x20..0x27) hoặc PCF8574A (0x38..0x3F)
+      if ((addr >= 0x20 && addr <= 0x27) || (addr >= 0x38 && addr <= 0x3F)) {
+        detectedAddr = addr;
+      } else if (detectedAddr == 0) {
+        detectedAddr = addr; // Gán tạm nếu không có chip chuẩn
+      }
+    }
+  }
+
+  if (foundCount == 0) {
+    Serial.println("[I2C-SCAN] ❌ Không phát hiện bất kỳ thiết bị I2C nào phản hồi!");
+  }
+  return detectedAddr;
+}
+
 void initHardware() {
   initHardwareMutex();
   pinMode(RESET_BTN_PIN, INPUT_PULLUP);
@@ -146,20 +185,18 @@ void initHardware() {
   dht.begin();
 
   if (lockI2C(pdMS_TO_TICKS(1000))) {
-    Wire.begin();
-    Wire.setTimeOut(50); // Timeout 50ms chống treo bus I2C khi lỏng cáp hoặc nhiễu xung
-    if (pcf.begin(0x20, &Wire)) {
+    uint8_t pcfAddr = scanAndDetectI2CDevice();
+    if (pcfAddr != 0 && pcf.begin(pcfAddr, &Wire)) {
       pcfFound = true;
-      Serial.println("OK: Tìm thấy PCF8574 tại 0x20");
-    } else if (pcf.begin(0x27, &Wire)) {
-      pcfFound = true;
-      Serial.println("OK: Tìm thấy PCF8574 tại 0x27");
-    } else if (pcf.begin(0x38, &Wire)) {
-      pcfFound = true;
-      Serial.println("OK: Tìm thấy PCF8574A tại 0x38");
+      activePcfAddress = pcfAddr;
+      Serial.printf("[HARDWARE] ✅ Khởi tạo thành công PCF8574 tại địa chỉ 0x%02X!\n", pcfAddr);
+      for (int i = 0; i < 8; i++) {
+        pcf.pinMode(i, OUTPUT);
+        pcf.digitalWrite(i, HIGH); // Mặc định tắt (Active-Low)
+      }
     } else {
       pcfFound = false;
-      Serial.println("CẢNH BÁO: Không tìm thấy mô-đun PCF8574 ở bất kỳ địa chỉ nào!");
+      Serial.println("[HARDWARE] ⚠️ Không tìm thấy hoặc không khởi tạo được PCF8574!");
     }
     unlockI2C();
   }
@@ -168,19 +205,21 @@ void initHardware() {
 static void recoverI2CBusInternal() {
   Serial.println("[HARDWARE] 🔄 Tiến hành khôi phục I2C Bus Recovery (9 xung SCL clock)...");
   Wire.end();
-  pinMode(SDA, INPUT_PULLUP);
-  pinMode(SCL, OUTPUT);
+  pinMode(21, INPUT_PULLUP);
+  pinMode(22, OUTPUT);
   for (int i = 0; i < 9; i++) {
-    digitalWrite(SCL, HIGH);
-    delayMicroseconds(5);
-    digitalWrite(SCL, LOW);
-    delayMicroseconds(5);
+    digitalWrite(22, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(22, LOW);
+    delayMicroseconds(10);
   }
-  Wire.begin();
-  Wire.setTimeOut(50);
-  if (pcf.begin(0x20, &Wire) || pcf.begin(0x27, &Wire) || pcf.begin(0x38, &Wire)) {
+  digitalWrite(22, HIGH);
+
+  uint8_t pcfAddr = scanAndDetectI2CDevice();
+  if (pcfAddr != 0 && pcf.begin(pcfAddr, &Wire)) {
     pcfFound = true;
-    Serial.println("[HARDWARE] ✅ Phục hồi bus I2C và tái kết nối PCF8574 thành công!");
+    activePcfAddress = pcfAddr;
+    Serial.printf("[HARDWARE] ✅ Phục hồi bus I2C và tái kết nối PCF8574 tại 0x%02X thành công!\n", pcfAddr);
     for (int i = 0; i < relayCount; i++) {
       if (myRelays[i].pin <= 7) {
         pcf.pinMode(myRelays[i].pin, OUTPUT);
@@ -222,6 +261,11 @@ void safeSetRelayPin(int pin, int level) {
       pcf.digitalWrite(pin, level);
     }
     unlockI2C();
+  } else if (pin >= 8 && pin <= 33 && !(pin >= 6 && pin <= 11)) {
+    // Hỗ trợ điều khiển trực tiếp GPIO trên ESP32 nếu pin > 7 (ví dụ GPIO 12, 13, 14, 15, 16, 17, 18, 19, 23, 25, 26, 27, 32, 33)
+    pinMode(pin, OUTPUT);
+    digitalWrite(pin, level);
+    Serial.printf("[HARDWARE] ⚡ Điều khiển trực tiếp chân GPIO %d -> %s\n", pin, level == LOW ? "BẬT (LOW)" : "TẮT (HIGH)");
   }
 }
 

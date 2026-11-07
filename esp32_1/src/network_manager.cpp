@@ -205,9 +205,111 @@ void setupStationWebServer() {
     request->send(200, "application/json", json);
   });
 
+  // Endpoint: Quét chẩn đoán xe buýt I2C thời gian thực qua mạng LAN
+  server.on("/api/i2c-scan", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!lockI2C(pdMS_TO_TICKS(1500))) {
+      request->send(503, "application/json", "{\"status\":\"error\",\"message\":\"I2C bus busy\"}");
+      return;
+    }
+    pinMode(21, INPUT_PULLUP);
+    pinMode(22, INPUT_PULLUP);
+    delay(5);
+    int sda = digitalRead(21);
+    int scl = digitalRead(22);
+
+    Wire.begin(21, 22, 100000);
+    Wire.setTimeOut(50);
+
+    DynamicJsonDocument doc(1024);
+    doc["status"] = "ok";
+    doc["sdaPin"] = 21;
+    doc["sclPin"] = 22;
+    doc["sdaLevel"] = sda ? "HIGH" : "LOW";
+    doc["sclLevel"] = scl ? "HIGH" : "LOW";
+    doc["busHealthy"] = (sda == 1 && scl == 1);
+
+    JsonArray devs = doc.createNestedArray("devicesFound");
+    int count = 0;
+    for (uint8_t addr = 1; addr < 127; addr++) {
+      Wire.beginTransmission(addr);
+      if (Wire.endTransmission() == 0) {
+        char hex[8];
+        snprintf(hex, sizeof(hex), "0x%02X", addr);
+        devs.add(hex);
+        count++;
+      }
+    }
+    doc["count"] = count;
+    doc["pcfFound"] = pcfFound;
+    if (pcfFound && activePcfAddress != 0) {
+      char hex[8];
+      snprintf(hex, sizeof(hex), "0x%02X", activePcfAddress);
+      doc["activePcfAddress"] = hex;
+    } else {
+      doc["activePcfAddress"] = "none";
+    }
+
+    unlockI2C();
+    String resp;
+    serializeJson(doc, resp);
+    request->send(200, "application/json", resp);
+  });
+
+  // Endpoint 1.6: Kích test trực tiếp chân Relay (PCF8574 P0-P7 hoặc GPIO) qua LAN
+  server.on("/api/relay-direct", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!request->hasParam("pin")) {
+      request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Thieu tham so pin (0-7 cho PCF8574 P0-P7)\"}");
+      return;
+    }
+    int pin = request->getParam("pin")->value().toInt();
+    int level = request->hasParam("level") ? request->getParam("level")->value().toInt() : 0; // Mac dinh 0 = BAT (Active-Low)
+    safeSetRelayPin(pin, level);
+    request->send(200, "application/json", "{\"status\":\"ok\",\"pin\":" + String(pin) + ",\"level\":" + String(level) + ",\"action\":\"" + (level == 0 ? "BAT (LOW)" : "TAT (HIGH)") + "\"}");
+  });
+
+  // Endpoint 1.7: Cập nhật danh sách thiết bị và chân Pin trực tiếp qua LAN (áp dụng tức thì)
+  server.on("/api/config/devices", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+    String payload((char*)data, len);
+    DynamicJsonDocument newDoc(2048);
+    DeserializationError err = deserializeJson(newDoc, payload);
+    if (err) {
+      request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"JSON khong hop le\"}");
+      return;
+    }
+
+    File file = LittleFS.open("/config.json", "r");
+    if (!file) {
+      request->send(500, "application/json", "{\"status\":\"error\",\"message\":\"Khong mo duoc /config.json\"}");
+      return;
+    }
+    DynamicJsonDocument doc(2048);
+    deserializeJson(doc, file);
+    file.close();
+
+    if (newDoc.is<JsonArray>()) {
+      doc["devices"] = newDoc.as<JsonArray>();
+    } else if (newDoc.is<JsonObject>() && newDoc.containsKey("devices")) {
+      doc["devices"] = newDoc["devices"].as<JsonArray>();
+    } else {
+      request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Thieu danh sach devices\"}");
+      return;
+    }
+
+    File outFile = LittleFS.open("/config.json", "w");
+    if (outFile) {
+      serializeJson(doc, outFile);
+      outFile.close();
+      loadConfig(); // Nạp lại ngay vào RAM myRelays và khởi tạo lại pin PCF8574
+      Serial.println("[CONFIG] ✅ Đã cập nhật danh sách thiết bị và chân pin mới vào Flash và RAM!");
+      request->send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Da cap nhat devices thanh cong!\"}");
+    } else {
+      request->send(500, "application/json", "{\"status\":\"error\",\"message\":\"Loi ghi /config.json\"}");
+    }
+  });
+
   // Endpoint 2: Lấy toàn diện trạng thái thiết bị & cảm biến mạng LAN
   server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-    StaticJsonDocument<768> doc;
+    StaticJsonDocument<1024> doc;
     doc["status"] = "ok";
     doc["service"] = "zenhome_hub";
     doc["unlinked"] = false;
@@ -242,6 +344,7 @@ void setupStationWebServer() {
       }
       JsonObject devObj = devsArr.createNestedObject();
       devObj["id"] = myRelays[i].id;
+      devObj["pin"] = myRelays[i].pin;
       devObj["state"] = myRelays[i].state;
     }
 
