@@ -238,28 +238,28 @@ async function main() {
     tagVersion = await ask('Phiên bản tag Release phát hành', `v${pubspecVersion}`);
   }
 
-  const releaseTitle = `ZenHome ${tagVersion} - Lột Xác Toàn Diện Zen Liquid Glass 2.0 & Hardened Architecture`;
+  const releaseTitle = `ZenHome ${tagVersion} - Bảng Màu Chống Xung Đột (Anti-Collision) & Tối Ưu Hóa Toàn Diện`;
   const releaseNotes = `## 🌟 Điểm nổi bật trong bản phát hành ${tagVersion} (App Build ${pubspecBuild} / ESP32 v${espVersion} Build ${espBuild})
 
-### 🔮 Lột Xác Toàn Diện Zen Liquid Glass 2.0 ("Optical Liquid Glassmorphism"):
-- 🌌 **Nền Cực Quang Khúc Xạ (\`ZenAmbientMeshBackground\`)**:
-  - Cung cấp trường ánh sáng 3 quầng sáng radial chuyển động nhịp nhàng, tạo độ khúc xạ chiều sâu quang học chân thực cho lớp kính ở cả chế độ Sáng (Light) & Tối (Dark).
-- 💎 **Viền Vát Quang Học 3D (\`_ZenSpecularRimPainter\`) & Vệt Sáng Đỉnh Kính (\`Top Prismatic Sheen\`)**:
-  - Loại bỏ viền phẳng 2D 1px, thay bằng viền vát chuyển sắc góc chéo 135° (sáng đỉnh trên-trái -> trong suốt thân giữa -> tụ sáng caustic đáy dưới-phải) kết hợp vệt phản xạ đỉnh kính 1.2px.
-- 🎨 **Đồng Bộ Hoàn Toàn 6 Bộ Chủ Đề Zen Luxury**:
-  - Tự động đổi màu kính, quầng sáng và bóng đổ quang học theo thời gian thực (*Emerald Luxury, Sapphire Ocean, Royal Amethyst, Amber Gold, Rose Quartz, Cyber Neon*).
-- 📋 **Lột Xác 100% Thành Phần Giao Diện Trên 51 Tệp Mã Nguồn**:
-  - **Màn hình chính & Quản lý nhà**: Header kính lỏng 2 tầng, ô công tắc pha lê, bảng điều khiển kết nối 3 kênh (LAN/BLE/Cloud), thẻ Live Preview đổi thuộc tính nhà và menu nổi kính 3D (\`ZenGlassPopupMenuButton\`).
-  - **Phân hệ Tiện ích**: Dải tab phân đoạn chuyển động lò xo, bảng hẹn giờ đếm ngược bánh xe kép \`CupertinoPicker\` bọc kính, danh sách lịch trình định kỳ.
-  - **Phân hệ Cài đặt & Hệ thống**: Thẻ Profile Hero phát quang, bộ chuyển theme/ngôn ngữ rãnh trượt kính mờ, hộp thoại nạp OTA ESP32 và báo lỗi hệ thống.
-  - **Phân hệ Tài khoản, Xác thực & Onboarding**: Biểu mẫu kính lỏng khúc xạ sóng \`WaveBackground\`, ô nhập OTP 6 số phát sáng và trình thuật sĩ ghép nối Wi-Fi ESP32.
-- 🚀 **Tối Ưu Hóa GPU 60–120 FPS**:
-  - Áp dụng triệt để ma trận \`blurSigma: 0\` cho các phần tử con lồng trong bề mặt đã mờ, triệt tiêu hoàn toàn hiện tượng nghẽn lặp \`BackdropFilter\` (*saveLayer overload*).
+### 🎨 Hệ Thống Chủ Đề Toàn Diện & Bảng Màu Chống Xung Đột (Anti-Collision Dynamic Semantic Palette):
+- 🛡️ **Triệt Tiêu Hoàn Toàn Trùng Màu Cảnh Báo (Chromatic Anti-Collision)**:
+  - Tự động dịch chuyển bước sóng quang học của các token ngữ nghĩa (\`danger\`, \`warning\`, \`success\`, \`info\`) tương ứng với từng Preset để không bao giờ bị chìm vào màu chủ đề:
+    - **Ruby Coral**: Nguy hiểm chuyển sang *Safety Hazard Flame Red (\`#FF3D00\`)* và Cảnh báo chuyển sang *Cyber Gold (\`#FFAB00\`)* — loại bỏ hoàn toàn việc nút Xóa/Rời nhà trông giống nút hành động chính!
+    - **Champagne Gold**: Cảnh báo chuyển sang *Electric Persimmon Sunset Orange (\`#FF5722\`)* — tách biệt rõ rệt khỏi sắc vàng Imperial Gold.
+    - **Emerald Zen**: Thành công chuyển sang *Vivid Matrix Lime (\`#00E676\`)* — không bị lẫn vào tone Deep Teal.
+    - **Midnight Sapphire**: Thông tin chuyển sang *Glacier Cyan (\`#00E5FF\`)* — nổi bật trên nền Sapphire Blue.
+- 🌐 **Lan Tỏa Màu Chủ Đạo Động (Dynamic Brand Propagation)**:
+  - Đồng bộ 100% màu thương hiệu trên toàn bộ màn hình, thanh điều hướng đáy, tab danh mục thông báo, thanh trượt \`LuxurySlider\`, hộp thoại, xác thực SMS OTP, quản lý thành viên và thiết lập Wi-Fi.
 
-### 🛡️ Kế Thừa Toàn Bộ Bản Vá Bảo Mật Hardened Architecture:
-- 🔒 Đóng kín Firestore Rules, chặn đọc công khai và khóa chặt IDOR xóa tài khoản / giải phóng định danh.
-- ⚡ Firmware ESP32 v${espVersion} (Build ${espBuild}): Bắt buộc chữ ký số ECDSA P-256 khi OTA, loại bỏ bypass IP subnet LAN, nâng cấp mã hóa AES-256 CTR.
-- 🌐 Server Backend & Web: Chống SSRF & DNS Rebinding trên proxy-ping, ngăn chặn auto-bind Hub trái phép.
+### ⚡ Tối Ưu Hóa Trải Nghiệm & Sửa Lỗi Giao Diện:
+- 🚀 **Tối Ưu Hóa 120 FPS**:
+  - Tăng tốc mượt mà hiệu ứng chuyển tab, menu phân loại và bộ lọc danh mục kính mờ.
+- 🔧 **Khắc Phục Lỗi Khu Vực Kỹ Thuật (\`DeviceMappingScreen\`)**:
+  - Chuẩn hóa \`ZenGlassButton\` tự co giãn (shrink-wrap) trong ràng buộc lỏng của Scaffold FAB, sửa lỗi nút "Thêm thiết bị" phình to chiếm trọn màn hình.
+
+### 🔮 Kế Thừa Trọn Vẹn Zen Liquid Glass 2.0 & Hardened Security:
+- 🌌 Nền cực quang khúc xạ đa sắc \`ZenAmbientMeshBackground\` & viền vát quang học 3D \`_ZenSpecularRimPainter\`.
+- 🔒 Bảo mật vững chắc: Firestore Rules đóng kín, chữ ký số ECDSA P-256 cho OTA Firmware ESP32 v${espVersion} (Build ${espBuild}).
 
 ---
 *Phát hành chính thức bởi ZenHome Automation Release Engine*`;
