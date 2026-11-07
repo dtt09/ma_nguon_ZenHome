@@ -2,24 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zenhome_app/core/models/smart_config.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/home_helper.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 
-/// BottomSheet tùy chỉnh Thuộc tính, Biểu tượng, Màu sắc và Bộ quy tắc ngôi nhà
+/// BottomSheet tùy chỉnh Thuộc tính, Biểu tượng, Màu sắc và Bộ quy tắc ngôi nhà (Liquid Glass 2.0)
 void showEditHomePropertiesBottomSheet(
   BuildContext context,
   WidgetRef ref,
   SmartConfig home,
 ) {
-  showModalBottomSheet(
+  final primaryThemeColor = HomeHelper.getThemeColor(
+    home.homeColor.isNotEmpty ? home.homeColor : '#0F766E',
+  );
+  showZenGlassBottomSheet(
     context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    elevation: 0,
-    barrierColor: Colors.black.withOpacity(0.6),
+    maxHeightFactor: 0.90,
+    padBottomForKeyboard: true,
+    accentColor: primaryThemeColor,
     builder: (sheetCtx) => _EditHomePropertiesContent(home: home),
   );
 }
@@ -120,81 +124,54 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
     final homeIconData = HomeHelper.getIconData(_selectedIcon);
     final homeTypeLabel = HomeHelper.getHomeTypeLabel(_selectedType, context);
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.90,
-      ),
-      padding: EdgeInsets.only(
-        top: 14,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF101625) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.35),
-            blurRadius: 30,
-            offset: const Offset(0, -10),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle
-          Center(
-            child: Container(
-              width: 44,
-              height: 5,
-              decoration: BoxDecoration(
-                color: (isDark ? Colors.white : Colors.black).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
           // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: primaryThemeColor.withOpacity(0.14),
-                      borderRadius: BorderRadius.circular(12),
+              Expanded(
+                child: Row(
+                  children: [
+                    ZenLiquidGlass(
+                      blurSigma: 0,
+                      borderRadius: 12,
+                      padding: const EdgeInsets.all(8),
+                      glowColor: primaryThemeColor,
+                      surfaceColor: primaryThemeColor.withOpacity(0.16),
+                      child: Icon(Icons.palette_rounded, color: primaryThemeColor, size: 20),
                     ),
-                    child: Icon(Icons.palette_rounded, color: primaryThemeColor, size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    context.tr('home_customization_title') ?? 'Thuộc tính & Bộ quy tắc',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        context.tr('home_customization_title') ?? 'Thuộc tính & Bộ quy tắc',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                icon: const Icon(Icons.close_rounded, size: 22),
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                onPressed: () => Navigator.pop(context),
+              const SizedBox(width: 8),
+              ZenGlassIconButton(
+                icon: Icons.close_rounded,
+                size: 34,
+                iconSize: 18,
+                borderRadius: 11,
+                blurSigma: 0,
+                onTap: () => Navigator.pop(context),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // Content scrollable
           Flexible(
@@ -203,24 +180,13 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- LIVE PREVIEW CARD ---
-                  Container(
+                  // --- LIVE PREVIEW CARD (LIQUID GLASS 2.0) ---
+                  ZenGlassCard(
+                    blurSigma: 0,
+                    borderRadius: 22,
+                    isActive: true,
+                    glowColor: primaryThemeColor,
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          primaryThemeColor.withOpacity(0.18),
-                          primaryThemeColor.withOpacity(0.05),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color: primaryThemeColor.withOpacity(0.35),
-                        width: 1.5,
-                      ),
-                    ),
                     child: Row(
                       children: [
                         Container(
@@ -230,8 +196,8 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                             borderRadius: BorderRadius.circular(18),
                             boxShadow: [
                               BoxShadow(
-                                color: primaryThemeColor.withOpacity(0.4),
-                                blurRadius: 12,
+                                color: primaryThemeColor.withOpacity(0.42),
+                                blurRadius: 14,
                                 offset: const Offset(0, 4),
                               ),
                             ],
@@ -255,15 +221,15 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               Row(
                                 children: [
-                                  Container(
+                                  ZenGlassPill(
+                                    blurSigma: 0,
+                                    borderRadius: 8,
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: primaryThemeColor.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                                    isSelected: true,
+                                    glowColor: primaryThemeColor,
                                     child: Text(
                                       homeTypeLabel,
                                       style: TextStyle(
@@ -274,11 +240,15 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    '${_activeRules.length} quy tắc đang bật',
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  Flexible(
+                                    child: Text(
+                                      '${_activeRules.length} quy tắc đang bật',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
@@ -298,13 +268,12 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                     controller: _nameController,
                     onChanged: (val) => setState(() {}),
                     style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                    decoration: InputDecoration(
+                    decoration: zenGlassInputDecoration(
+                      context,
                       hintText: context.tr('hint_home_name') ?? 'Ví dụ: Căn hộ Times City, Biệt thự...',
-                      hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                      filled: true,
-                      fillColor: isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFF1F5F9),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      prefixIcon: Icons.home_rounded,
+                      accentColor: primaryThemeColor,
+                      borderRadius: 16,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -320,45 +289,38 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                       final typeLabel = context.tr(type['labelKey']) ?? type['defaultLabel'];
                       final typeIcon = type['icon'] as IconData;
 
-                      return BouncingButton(
+                      return ZenGlassPill(
+                        blurSigma: 0,
+                        borderRadius: 14,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        isSelected: isSelected,
+                        glowColor: primaryThemeColor,
                         onTap: () {
                           HapticFeedback.selectionClick();
                           setState(() => _selectedType = type['id']);
                         },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? primaryThemeColor.withOpacity(0.18)
-                                : (isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9)),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              typeIcon,
+                              size: 16,
                               color: isSelected
                                   ? primaryThemeColor
-                                  : (isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE2E8F0)),
-                              width: isSelected ? 1.5 : 1,
+                                  : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
                             ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                typeIcon,
-                                size: 16,
-                                color: isSelected ? primaryThemeColor : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+                            const SizedBox(width: 6),
+                            Text(
+                              typeLabel,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                color: isSelected
+                                    ? primaryThemeColor
+                                    : (isDark ? Colors.white : const Color(0xFF334155)),
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                typeLabel,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  color: isSelected ? primaryThemeColor : (isDark ? Colors.white : const Color(0xFF334155)),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       );
                     }).toList(),
@@ -385,31 +347,25 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                             HapticFeedback.selectionClick();
                             setState(() => _selectedIcon = item['id']);
                           },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
+                          child: ZenLiquidGlass(
                             width: 54,
                             height: 54,
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? primaryThemeColor
-                                  : (isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9)),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected
-                                    ? primaryThemeColor
-                                    : (isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE2E8F0)),
-                                width: 2,
-                              ),
-                              boxShadow: isSelected
-                                  ? [
-                                      BoxShadow(
-                                        color: primaryThemeColor.withOpacity(0.4),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ]
-                                  : null,
-                            ),
+                            borderRadius: 27,
+                            blurSigma: 0,
+                            alignment: Alignment.center,
+                            glowColor: isSelected ? primaryThemeColor : null,
+                            surfaceColor: isSelected
+                                ? primaryThemeColor
+                                : (isDark ? Colors.white.withOpacity(0.06) : Colors.white.withOpacity(0.72)),
+                            customShadows: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: primaryThemeColor.withOpacity(0.40),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ]
+                                : const [],
                             child: Icon(
                               icon,
                               size: 24,
@@ -453,13 +409,13 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                               color: color,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: isSelected ? Colors.white : Colors.transparent,
-                                width: 2.5,
+                                color: isSelected ? Colors.white : Colors.white.withOpacity(0.22),
+                                width: isSelected ? 2.6 : 1.2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: color.withOpacity(isSelected ? 0.5 : 0.2),
-                                  blurRadius: isSelected ? 8 : 4,
+                                  color: color.withOpacity(isSelected ? 0.52 : 0.20),
+                                  blurRadius: isSelected ? 10 : 4,
                                   offset: const Offset(0, 2),
                                 ),
                               ],
@@ -479,12 +435,12 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildSectionTitle(context.tr('home_rules_title') ?? 'Bộ quy tắc đặc thù:', isDark),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                        decoration: BoxDecoration(
-                          color: primaryThemeColor.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                      ZenGlassPill(
+                        blurSigma: 0,
+                        borderRadius: 10,
+                        padding: const EdgeInsets.symmetric(horizontal: 8.5, vertical: 3),
+                        isSelected: true,
+                        glowColor: primaryThemeColor,
                         child: Text(
                           '${_activeRules.length}/${HomeHelper.ruleDefinitions.length} kích hoạt',
                           style: TextStyle(
@@ -506,7 +462,7 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                   ),
                   const SizedBox(height: 12),
 
-                  // Danh sách các quy tắc
+                  // Danh sách các quy tắc dạng Kính Lỏng
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -519,32 +475,24 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                       final title = context.tr(rule.titleKey) ?? rule.defaultTitle;
                       final desc = context.tr(rule.descKey) ?? rule.defaultDesc;
 
-                      return Container(
+                      return ZenGlassCard(
+                        blurSigma: 0,
+                        borderRadius: 18,
+                        isActive: isEnabled,
+                        glowColor: primaryThemeColor,
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isEnabled
-                              ? primaryThemeColor.withOpacity(isDark ? 0.16 : 0.06)
-                              : (isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFC)),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: isEnabled
-                                ? primaryThemeColor.withOpacity(0.35)
-                                : (isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFE2E8F0)),
-                            width: 1,
-                          ),
-                        ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
+                            ZenLiquidGlass(
+                              blurSigma: 0,
+                              borderRadius: 12,
                               padding: const EdgeInsets.all(8),
                               margin: const EdgeInsets.only(top: 2),
-                              decoration: BoxDecoration(
-                                color: isEnabled
-                                    ? primaryThemeColor.withOpacity(0.2)
-                                    : (isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFE2E8F0)),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                              glowColor: isEnabled ? primaryThemeColor : null,
+                              surfaceColor: isEnabled
+                                  ? primaryThemeColor.withOpacity(0.20)
+                                  : (isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.75)),
                               child: Icon(
                                 rule.icon,
                                 size: 18,
@@ -572,18 +520,18 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                                       ),
                                       if (isRecommended) ...[
                                         const SizedBox(width: 6),
-                                        Container(
+                                        ZenGlassPill(
+                                          blurSigma: 0,
+                                          borderRadius: 6,
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.amber.withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(6),
-                                          ),
+                                          isSelected: true,
+                                          glowColor: AppColors.amberGlow,
                                           child: Text(
                                             'Khuyên dùng',
                                             style: TextStyle(
                                               fontSize: 9.5,
                                               fontWeight: FontWeight.bold,
-                                              color: Colors.amber.shade800,
+                                              color: isDark ? AppColors.amberGlow : Colors.amber.shade800,
                                             ),
                                           ),
                                         ),
@@ -622,56 +570,23 @@ class _EditHomePropertiesContentState extends ConsumerState<_EditHomePropertiesC
                       );
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
           ),
 
           // Bottom Action Button
-          Container(
+          Padding(
             padding: const EdgeInsets.only(top: 12),
-            width: double.infinity,
-            child: BouncingButton(
-              onTap: _isSaving ? null : _handleSave,
-              child: Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [primaryThemeColor, primaryThemeColor.withOpacity(0.85)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primaryThemeColor.withOpacity(0.35),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
-                        )
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              context.tr('btn_save_changes') ?? 'Lưu thay đổi',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
+            child: SizedBox(
+              width: double.infinity,
+              child: ZenGlassButton(
+                isLoading: _isSaving,
+                accentColor: primaryThemeColor,
+                icon: Icons.check_circle_rounded,
+                label: context.tr('btn_save_changes') ?? 'Lưu thay đổi',
+                onPressed: _handleSave,
               ),
             ),
           ),

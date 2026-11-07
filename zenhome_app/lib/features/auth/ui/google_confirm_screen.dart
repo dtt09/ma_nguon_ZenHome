@@ -1,101 +1,237 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/animations/dual_layer_screen_wrapper.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 class GoogleConfirmScreen extends ConsumerWidget {
   final String email;
 
   const GoogleConfirmScreen({super.key, required this.email});
 
-  Widget _buildContent(BuildContext context, bool isTopLayer, ScrollController controller) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color color = isTopLayer ? Colors.white : (isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E));
+  Widget _buildMainContent(
+    BuildContext context, {
+    required bool isOverWave,
+    required ScrollController controller,
+  }) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+    final Color primaryColor = isDark ? zen.primaryAccent : zen.primary;
+    final Color textColor = isDark ? AppColors.darkText : AppColors.lightText;
+
+    // Split-wave header colors
+    final Color headerLogoColor = isOverWave ? Colors.white : primaryColor;
+    final Color headerTitleColor =
+        isOverWave ? Colors.white : (isDark ? AppColors.darkText : AppColors.lightText);
+    final Color headerSubtitleColor = isOverWave
+        ? Colors.white.withOpacity(0.86)
+        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
 
     return SafeArea(
       bottom: false,
       child: Column(
         children: [
-          const SizedBox(height: 40),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+              child: ZenGlassIconButton(
+                icon: Icons.arrow_back_ios_new_rounded,
+                size: 40,
+                iconSize: 18,
+                borderRadius: 14,
+                blurSigma: isOverWave ? 0 : 14,
+                iconColor: isDark ? Colors.white : AppColors.lightText,
+                onTap: () => Navigator.pop(context, false),
+              ),
+            ),
+          ),
+
+          // --- Split-Wave Brand Header ---
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset('public/zenhome_logo_transparent.png', width: 75, height: 75, fit: BoxFit.contain, color: color),
+              Container(
+                width: 74,
+                height: 74,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  color: isOverWave
+                      ? Colors.white.withOpacity(0.18)
+                      : primaryColor.withOpacity(0.12),
+                  border: Border.all(
+                    color: isOverWave
+                        ? Colors.white.withOpacity(0.35)
+                        : primaryColor.withOpacity(0.28),
+                    width: 1.2,
+                  ),
+                ),
+                child: Image.asset(
+                  'public/zenhome_logo_transparent.png',
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.contain,
+                  color: headerLogoColor,
+                ),
+              ),
               const SizedBox(height: 10),
-              Text('ZenHome', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: color)),
-              const SizedBox(height: 5),
               Text(
-                context.tr('account_not_registered') ?? 'Tài khoản chưa đăng ký', 
-                style: TextStyle(color: color.withOpacity(0.8), fontStyle: FontStyle.italic)
+                'ZenHome',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                  color: headerTitleColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                context.tr('account_not_registered'),
+                style: TextStyle(
+                  color: headerSubtitleColor,
+                  fontStyle: FontStyle.italic,
+                  fontSize: 14,
+                ),
               ),
             ],
           ),
-          
+
+          const SizedBox(height: 18),
+
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
                   controller: controller,
-                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(24, 6, 24, 28),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isTopLayer ? Colors.white.withOpacity(0.1) : color.withOpacity(0.1),
-                          ),
-                          child: Icon(
-                            Icons.g_mobiledata,
-                            size: 80,
-                            color: color,
-                          ),
+                    constraints: BoxConstraints(
+                      minHeight:
+                          (constraints.maxHeight - 34).clamp(0.0, double.infinity),
+                    ),
+                    child: Center(
+                      child: ZenLiquidGlass(
+                        borderRadius: 28,
+                        blurSigma: isOverWave ? 0 : 20,
+                        rimWidth: 1.3,
+                        glowColor: zen.primary,
+                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                        customShadows: isOverWave ? const [] : null,
+                        customGradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: isDark
+                              ? [
+                                  const Color(0xFF0F172A).withOpacity(0.70),
+                                  const Color(0xFF0A1120).withOpacity(0.54),
+                                ]
+                              : [
+                                  Colors.white.withOpacity(0.84),
+                                  Colors.white.withOpacity(0.70),
+                                ],
                         ),
-                        const SizedBox(height: 30),
-                        Text(
-                          context.l10n.ask_register_google(email),
-                          style: TextStyle(fontSize: 16, color: color, height: 1.5),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 40),
-                        
-                        SizedBox(
-                          width: double.infinity,
-                          height: 55,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isTopLayer ? Colors.white : const Color(0xFF0F766E),
-                              foregroundColor: isTopLayer ? const Color(0xFF0F766E) : Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ZenLiquidGlass(
+                              width: 76,
+                              height: 76,
+                              borderRadius: 24,
+                              blurSigma: 0,
+                              alignment: Alignment.center,
+                              surfaceColor: Colors.white.withOpacity(
+                                isDark ? 0.09 : 0.88,
+                              ),
+                              customShadows: const [],
+                              child: Image.asset(
+                                'public/google_logo.png',
+                                width: 36,
+                                height: 36,
+                              ),
                             ),
-                            onPressed: () {
-                              Navigator.pop(context, true); // User agrees to register
-                            },
-                            child: Text(context.tr('btn_yes') ?? 'Đồng ý', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 55,
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: color.withOpacity(0.5)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                              foregroundColor: color,
+                            const SizedBox(height: 16),
+
+                            ZenGlassPill(
+                              blurSigma: 0,
+                              isSelected: true,
+                              glowColor: primaryColor,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 7,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.alternate_email_rounded,
+                                    size: 15,
+                                    color: primaryColor,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      email,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            onPressed: () {
-                              Navigator.pop(context, false); // User cancels
-                            },
-                            child: Text(context.tr('btn_cancel') ?? 'Hủy', style: const TextStyle(fontSize: 18)),
-                          ),
+                            const SizedBox(height: 18),
+
+                            Text(
+                              context.l10n.ask_register_google(email),
+                              style: TextStyle(
+                                fontSize: 15.5,
+                                color: textColor,
+                                height: 1.55,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 28),
+
+                            SizedBox(
+                              width: double.infinity,
+                              height: 54,
+                              child: ZenGlassButton(
+                                label: context.tr('btn_yes'),
+                                icon: Icons.person_add_alt_1_rounded,
+                                borderRadius: 16,
+                                onPressed: () {
+                                  HapticFeedback.lightImpact();
+                                  Navigator.pop(context, true);
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ZenGlassButton(
+                                label: context.tr('btn_cancel'),
+                                isPrimary: false,
+                                borderRadius: 16,
+                                onPressed: () {
+                                  HapticFeedback.selectionClick();
+                                  Navigator.pop(context, false);
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 20),
-                      ],
+                      ),
                     ),
                   ),
                 );
@@ -109,16 +245,15 @@ class GoogleConfirmScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
+    return ZenGlassScaffold(
       body: DualLayerScreenWrapper(
         waveHeightPercent: 0.40,
-        builder: _buildContent,
+        builder: (context, isTopLayer, controller) => _buildMainContent(
+          context,
+          isOverWave: isTopLayer,
+          controller: controller,
+        ),
       ),
     );
   }
 }
-
-

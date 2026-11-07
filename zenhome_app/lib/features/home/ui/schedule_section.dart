@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
@@ -15,6 +14,7 @@ import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/premium_dialog.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 class ScheduleSection extends ConsumerStatefulWidget {
   const ScheduleSection({super.key});
@@ -91,69 +91,92 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
     });
   }
 
-  Widget _buildSelector({required String title, required String valueText, required VoidCallback onTap, IconData icon = Icons.devices_rounded}) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
+  Widget _buildSelector({
+    required String title,
+    required String valueText,
+    required VoidCallback onTap,
+    IconData icon = Icons.devices_rounded,
+  }) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+
+    return ZenLiquidGlass(
+      blurSigma: 0,
+      borderRadius: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      glowColor: zen.primary,
+      surfaceColor: isDark
+          ? Colors.white.withOpacity(0.06)
+          : Colors.white.withOpacity(0.68),
+      customShadows: const [],
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0x1AFFFFFF) : const Color(0x0A000000),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: isDark ? const Color(0x2238BDF8) : const Color(0x1F0D9488), width: 1.2),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primaryLight.withOpacity(0.2), AppColors.cyanGlow.withOpacity(0.1)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: isDark ? AppColors.primaryLight : AppColors.primary, size: 20),
+      child: Row(
+        children: [
+          ZenLiquidGlass(
+            blurSigma: 0,
+            borderRadius: 12,
+            padding: const EdgeInsets.all(9),
+            glowColor: zen.primary,
+            surfaceColor: zen.primary.withOpacity(isDark ? 0.20 : 0.12),
+            customShadows: const [],
+            child: Icon(
+              icon,
+              color: isDark ? zen.primaryAccent : zen.primary,
+              size: 20,
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-                  const SizedBox(height: 3),
-                  Text(
-                    valueText, 
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkText : AppColors.lightText), 
-                    maxLines: 1, 
-                    overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  valueText,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            Icon(Icons.keyboard_arrow_right_rounded, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-          ],
-        ),
+          ),
+          Icon(
+            Icons.keyboard_arrow_right_rounded,
+            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildPresetPill({required String label, required bool isDark, required VoidCallback onTap}) {
-    return GestureDetector(
+  Widget _buildPresetPill({
+    required String label,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return ZenGlassPill(
+      blurSigma: 0,
+      borderRadius: 12,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: (isDark ? Colors.white : Colors.black).withOpacity(0.08)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-          ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
         ),
       ),
     );
@@ -348,627 +371,361 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
       return '$h giờ $m phút';
     }
 
-    showModalBottomSheet(
+    showZenGlassBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext context) {
+      maxHeightFactor: 0.90,
+      accentColor: context.zenColors.primary,
+      builder: (BuildContext ctx) {
         return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
-            bool isDark = Theme.of(context).brightness == Brightness.dark;
+          builder: (BuildContext ctx, StateSetter setModalState) {
+            final bool isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final zen = ctx.zenColors;
             final durationStr = calculateDuration(timeOn, timeOff);
 
-            return Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.90,
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 6,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom +
+                    MediaQuery.of(ctx).padding.bottom +
+                    22,
               ),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF101626) : Colors.white,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(32),
-                  topRight: Radius.circular(32),
-                ),
-                border: Border.all(
-                  color: isDark ? const Color(0x3338BDF8) : const Color(0x1F0D9488),
-                  width: 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
-                    blurRadius: 30,
-                    offset: const Offset(0, -10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      ZenLiquidGlass(
+                        blurSigma: 0,
+                        width: 46,
+                        height: 46,
+                        borderRadius: 15,
+                        alignment: Alignment.center,
+                        customGradient: zen.brandHero,
+                        glowColor: zen.primary,
+                        rimWidth: 1.3,
+                        customShadows: [
+                          BoxShadow(
+                            color: zen.primary.withOpacity(isDark ? 0.36 : 0.22),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                        child: const Icon(
+                          Icons.schedule_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isEdit
+                                  ? context.tr('schedule_edit')
+                                  : context.tr('schedule_add'),
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3,
+                                color: isDark ? AppColors.darkText : AppColors.lightText,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              context.tr('schedule_auto_desc'),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.lightTextMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ZenGlassIconButton(
+                        icon: Icons.close_rounded,
+                        size: 38,
+                        iconSize: 19,
+                        blurSigma: 0,
+                        onTap: () => Navigator.pop(ctx),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(32),
-                  topRight: Radius.circular(32),
-                ),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: 20,
-                      right: 20,
-                      top: 14,
-                      bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-                    ),
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Center(
-                            child: Container(
-                              width: 44,
-                              height: 5,
-                              decoration: BoxDecoration(
-                                color: (isDark ? Colors.white : Colors.black).withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 18),
+                  const SizedBox(height: 20),
 
-                          Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF06B6D4), Color(0xFF0D9488)],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF06B6D4).withOpacity(0.35),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
+                  _buildSelector(
+                    title: context.tr('select_device'),
+                    valueText: newDevices.isEmpty
+                        ? context.tr('select_device')
+                        : newDevices
+                            .map((t) => getDeviceNameHelper(context, t, activeConfig))
+                            .join(', '),
+                    icon: Icons.devices_rounded,
+                    onTap: () {
+                      showCustomMultiSelectBottomSheetPicker(
+                        context: ctx,
+                        title: context.tr('select_device'),
+                        currentValues: newDevices,
+                        items: dynamicDeviceTopicsList
+                            .map((topic) => PickerItem(
+                                topic, getDeviceNameHelper(context, topic, activeConfig)))
+                            .toList(),
+                        onSelected: (val) => setModalState(() => newDevices = val),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 20,
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                          glowColor: AppColors.amberGlow,
+                          rimWidth: 1.35,
+                          surfaceColor: AppColors.amberGlow.withOpacity(isDark ? 0.14 : 0.12),
+                          customGradient: LinearGradient(
+                            colors: isDark
+                                ? [
+                                    AppColors.amberGlow.withOpacity(0.22),
+                                    AppColors.amberDeep.withOpacity(0.08),
+                                  ]
+                                : [
+                                    const Color(0xFFFFFBEB).withOpacity(0.88),
+                                    const Color(0xFFFEF3C7).withOpacity(0.76),
                                   ],
-                                ),
-                                child: const Icon(Icons.schedule_rounded, color: Colors.white, size: 24),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      isEdit ? context.tr('schedule_edit') : context.tr('schedule_add'),
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark ? AppColors.darkText : AppColors.lightText,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      context.tr('schedule_auto_desc'),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.close_rounded, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          const SizedBox(height: 20),
-
-                          _buildSelector(
-                            title: context.tr('select_device'),
-                            valueText: newDevices.isEmpty 
-                              ? context.tr('select_device') 
-                              : newDevices.map((t) => getDeviceNameHelper(context, t, activeConfig)).join(', '),
-                            icon: Icons.devices_rounded,
-                            onTap: () {
-                              showCustomMultiSelectBottomSheetPicker(
-                                context: context,
-                                title: context.tr('select_device'),
-                                currentValues: newDevices,
-                                items: dynamicDeviceTopicsList.map((topic) => PickerItem(topic, getDeviceNameHelper(context, topic, activeConfig))).toList(),
-                                onSelected: (val) => setModalState(() => newDevices = val),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 18),
-
-                          Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () async {
-                                    HapticFeedback.lightImpact();
-                                    final picked = await showTimePicker(
-                                      context: context,
-                                      initialTime: timeOn,
-                                    );
-                                    if (picked != null) setModalState(() => timeOn = picked);
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: isDark 
-                                          ? [const Color(0x30F59E0B), const Color(0x15D97706)] 
-                                          : [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: const Color(0xFFF59E0B).withOpacity(isDark ? 0.45 : 0.6),
-                                        width: 1.5,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFFF59E0B).withOpacity(isDark ? 0.15 : 0.08),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(5),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFF59E0B).withOpacity(0.2),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(Icons.wb_sunny_rounded, color: Color(0xFFD97706), size: 14),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              context.tr('schedule_turn_on'),
-                                              style: TextStyle(
-                                                color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309),
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12,
-                                                letterSpacing: 0.8,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Text(
-                                          timeOn.format(context),
-                                          style: TextStyle(
-                                            fontSize: 26,
-                                            fontWeight: FontWeight.w800,
-                                            color: isDark ? Colors.white : const Color(0xFF78350F),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          context.tr('schedule_tap_to_change'),
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isDark ? Colors.white54 : Colors.brown.shade400,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () async {
-                                    HapticFeedback.lightImpact();
-                                    final picked = await showTimePicker(
-                                      context: context,
-                                      initialTime: timeOff,
-                                    );
-                                    if (picked != null) setModalState(() => timeOff = picked);
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: isDark 
-                                          ? [const Color(0x306366F1), const Color(0x154338CA)] 
-                                          : [const Color(0xFFEEF2FF), const Color(0xFFE0E7FF)],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: const Color(0xFF6366F1).withOpacity(isDark ? 0.45 : 0.6),
-                                        width: 1.5,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF6366F1).withOpacity(isDark ? 0.15 : 0.08),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(5),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF6366F1).withOpacity(0.2),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(Icons.nightlight_round, color: Color(0xFF4F46E5), size: 14),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              context.tr('schedule_turn_off'),
-                                              style: TextStyle(
-                                                color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF3730A3),
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12,
-                                                letterSpacing: 0.8,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Text(
-                                          timeOff.format(context),
-                                          style: TextStyle(
-                                            fontSize: 26,
-                                            fontWeight: FontWeight.w800,
-                                            color: isDark ? Colors.white : const Color(0xFF1E1B4B),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          context.tr('schedule_tap_to_change'),
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isDark ? Colors.white54 : Colors.indigo.shade400,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
-                          Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                              decoration: BoxDecoration(
-                                color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.timelapse_rounded, size: 14, color: AppColors.cyanGlow),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    '${context.tr('schedule_activity_duration')}: $durationStr',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? AppColors.darkText : AppColors.lightText,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          customShadows: [
+                            BoxShadow(
+                              color: AppColors.amberGlow.withOpacity(isDark ? 0.16 : 0.08),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
-                          ),
-                          const SizedBox(height: 18),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          ],
+                          onTap: () async {
+                            HapticFeedback.lightImpact();
+                            final picked = await showTimePicker(
+                              context: ctx,
+                              initialTime: timeOn,
+                            );
+                            if (picked != null) setModalState(() => timeOn = picked);
+                          },
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(
-                                context.tr('schedule_repeat'),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: isDark ? AppColors.darkText : AppColors.lightText,
-                                ),
-                              ),
                               Row(
-                                children: [
-                                  _buildPresetPill(
-                                    label: context.tr('schedule_preset_all'),
-                                    isDark: isDark,
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setModalState(() {
-                                        for (int i = 0; i < 7; i++) selectedDays[i] = true;
-                                      });
-                                    },
-                                  ),
-                                  const SizedBox(width: 6),
-                                  _buildPresetPill(
-                                    label: context.tr('schedule_preset_weekdays'),
-                                    isDark: isDark,
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setModalState(() {
-                                        for (int i = 0; i < 5; i++) selectedDays[i] = true;
-                                        selectedDays[5] = false;
-                                        selectedDays[6] = false;
-                                      });
-                                    },
-                                  ),
-                                  const SizedBox(width: 6),
-                                  _buildPresetPill(
-                                    label: context.tr('schedule_preset_weekends'),
-                                    isDark: isDark,
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setModalState(() {
-                                        for (int i = 0; i < 5; i++) selectedDays[i] = false;
-                                        selectedDays[5] = true;
-                                        selectedDays[6] = true;
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: List.generate(7, (index) {
-                              final isSelected = selectedDays[index];
-                              return GestureDetector(
-                                onTap: () {
-                                  HapticFeedback.selectionClick();
-                                  setModalState(() => selectedDays[index] = !selectedDays[index]);
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  curve: Curves.easeInOut,
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    gradient: isSelected
-                                      ? const LinearGradient(
-                                          colors: [Color(0xFF0D9488), Color(0xFF10B981)],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        )
-                                      : null,
-                                    color: isSelected
-                                      ? null
-                                      : (isDark ? const Color(0x1AFFFFFF) : const Color(0x0A000000)),
-                                    borderRadius: BorderRadius.circular(13),
-                                    border: Border.all(
-                                      color: isSelected
-                                        ? const Color(0xFF34D399)
-                                        : (isDark ? Colors.white12 : Colors.black12),
-                                      width: isSelected ? 1.5 : 1.0,
-                                    ),
-                                    boxShadow: isSelected
-                                      ? [
-                                          BoxShadow(
-                                            color: const Color(0xFF10B981).withOpacity(0.35),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ]
-                                      : null,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      dayLabels[index],
-                                      style: TextStyle(
-                                        color: isSelected
-                                          ? Colors.white
-                                          : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-                          ),
-                          const SizedBox(height: 18),
-
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0x12FFFFFF) : const Color(0x06000000),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.people_alt_rounded, color: Colors.blue, size: 18),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        context.tr('share_with_all'),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                          color: isDark ? AppColors.darkText : AppColors.lightText,
-                                        ),
-                                      ),
-                                      Text(
-                                        context.tr('schedule_shared_hint'),
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Switch(
-                                  value: _shareWithAll,
-                                  onChanged: (val) => setModalState(() => _shareWithAll = val),
-                                  activeColor: const Color(0xFF10B981),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          BouncingButton(
-                            onTap: () {
-                              if (newDevices.isEmpty) {
-                                Navigator.pop(context);
-                                showAlertDialogHelper(context, context.tr('error'), context.tr('err_select_device'), isError: true);
-                                return;
-                              }
-                              if (!selectedDays.contains(true)) {
-                                Navigator.pop(context);
-                                showAlertDialogHelper(context, context.tr('error'), context.tr('err_select_day'), isError: true);
-                                return;
-                              }
-                              if (_checkConflict(newDevices, timeOn, timeOff, selectedDays, isEdit ? editSchedule['id'] : null)) {
-                                Navigator.pop(context);
-                                showAlertDialogHelper(context, context.tr('error'), context.tr('err_conflict'), isError: true);
-                                return;
-                              }
-
-                              final mqttState = ref.read(mqttConnectionStateProvider);
-                              final isOnline = ref.read(espOnlineStateProvider);
-                              if (mqttState != 2 || !isOnline) {
-                                Navigator.pop(context);
-                                showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
-                                return;
-                              }
-
-                              HapticFeedback.mediumImpact();
-
-                              String hOn = timeOn.hour.toString().padLeft(2, '0');
-                              String mOn = timeOn.minute.toString().padLeft(2, '0'); 
-                              String hOff = timeOff.hour.toString().padLeft(2, '0');
-                              String mOff = timeOff.minute.toString().padLeft(2, '0'); 
-                              String daysBinary = selectedDays.map((d) => d ? '1' : '0').join('');
-                              String newId = isEdit ? editSchedule['id'] : DateTime.now().millisecondsSinceEpoch.toString();
-
-                              for (String dev in newDevices) {
-                                ref.read(mqttRepositoryProvider).publishCmd('$dev/schedule', '$newId|$hOn:$mOn|$hOff:$mOff|$daysBinary|1');
-                              }
-
-                              final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
-                              final currentName = FirebaseAuth.instance.currentUser?.displayName ?? 
-                                                  FirebaseAuth.instance.currentUser?.email ?? 'Thành viên';
-                              final authorUid = isEdit ? (editSchedule['authorUid'] ?? currentUid) : currentUid;
-                              final authorName = isEdit ? (editSchedule['authorName'] ?? currentName) : currentName;
-
-                              Map<String, dynamic> newSchedule = {
-                                'id': newId, 
-                                'topics': newDevices, 
-                                'timeOn': '$hOn:$mOn', 
-                                'timeOff': '$hOff:$mOff', 
-                                'days': List.from(selectedDays), 
-                                'isActive': true, 
-                                'isShared': _shareWithAll,
-                                'authorUid': authorUid,
-                                'authorName': authorName,
-                              };
-
-                              setState(() {
-                                if (isEdit) {
-                                  int idx = _savedSchedules.indexWhere((e) => e['id'] == editSchedule['id']);
-                                  if (idx != -1) _savedSchedules[idx] = newSchedule;
-                                } else {
-                                  _savedSchedules.add(newSchedule);
-                                }
-                              });
-
-                              final activeConfig = ref.read(homeConfigProvider).activeConfig;
-                              String targetId = activeConfig.userId;
-                              if (_shareWithAll && targetId.isNotEmpty && targetId != 'guest') {
-                                FirebaseFirestore.instance.collection('users').doc(targetId).collection('schedules').doc(newId).set(newSchedule);
-
-                                if (activeConfig.role != 'owner' && FirebaseAuth.instance.currentUser != null) {
-                                  String name = FirebaseAuth.instance.currentUser!.displayName ?? FirebaseAuth.instance.currentUser!.email ?? context.tr('a_member') ?? 'Một thành viên';
-                                  FirebaseFirestore.instance.collection('users').doc(targetId).collection('alerts').add({
-                                    'type': 'automation_edit',
-                                    'author': name,
-                                    'actionName': isEdit ? (context.tr('act_edit_schedule') ?? 'vừa sửa một lịch trình') : (context.tr('act_add_schedule') ?? 'vừa thêm một lịch trình mới'),
-                                    'timestamp': FieldValue.serverTimestamp(),
-                                  });
-                                }
-                              } else {
-                                _saveSchedulesToDisk();
-                              }
-                              Navigator.pop(context);
-                              showAlertDialogHelper(context, context.tr('msg_saved_title'), context.tr('msg_schedule_saved'));
-                            },
-                            child: Container(
-                              width: double.infinity,
-                              height: 54,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF0D9488), Color(0xFF059669)],
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                ),
-                                borderRadius: BorderRadius.circular(18),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF0D9488).withOpacity(0.4),
-                                    blurRadius: 14,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    context.tr('schedule_save'),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.5,
+                                  Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.amberGlow.withOpacity(0.22),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.wb_sunny_rounded,
+                                      color: isDark
+                                          ? AppColors.amberGlow
+                                          : AppColors.amberDeep,
+                                      size: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      context.tr('schedule_turn_on'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? const Color(0xFFFBBF24)
+                                            : const Color(0xFFB45309),
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                        letterSpacing: 0.6,
+                                      ),
                                     ),
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 10),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  timeOn.format(ctx),
+                                  style: TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w800,
+                                    fontFeatures: const [FontFeature.tabularFigures()],
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF78350F),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                context.tr('schedule_tap_to_change'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : const Color(0xFF92400E),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      Expanded(
+                        child: ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 20,
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                          glowColor: const Color(0xFF6366F1),
+                          rimWidth: 1.35,
+                          surfaceColor:
+                              const Color(0xFF6366F1).withOpacity(isDark ? 0.14 : 0.12),
+                          customGradient: LinearGradient(
+                            colors: isDark
+                                ? [
+                                    const Color(0xFF6366F1).withOpacity(0.22),
+                                    const Color(0xFF4338CA).withOpacity(0.08),
+                                  ]
+                                : [
+                                    const Color(0xFFEEF2FF).withOpacity(0.88),
+                                    const Color(0xFFE0E7FF).withOpacity(0.76),
+                                  ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          customShadows: [
+                            BoxShadow(
+                              color:
+                                  const Color(0xFF6366F1).withOpacity(isDark ? 0.16 : 0.08),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          onTap: () async {
+                            HapticFeedback.lightImpact();
+                            final picked = await showTimePicker(
+                              context: ctx,
+                              initialTime: timeOff,
+                            );
+                            if (picked != null) setModalState(() => timeOff = picked);
+                          },
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF6366F1).withOpacity(0.22),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.nightlight_round,
+                                      color: isDark
+                                          ? const Color(0xFFA5B4FC)
+                                          : const Color(0xFF4F46E5),
+                                      size: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      context.tr('schedule_turn_off'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? const Color(0xFFA5B4FC)
+                                            : const Color(0xFF3730A3),
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                        letterSpacing: 0.6,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  timeOff.format(ctx),
+                                  style: TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w800,
+                                    fontFeatures: const [FontFeature.tabularFigures()],
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF1E1B4B),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                context.tr('schedule_tap_to_change'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : const Color(0xFF4338CA),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  Center(
+                    child: ZenGlassPill(
+                      blurSigma: 0,
+                      borderRadius: 20,
+                      isSelected: true,
+                      glowColor: zen.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.timelapse_rounded,
+                            size: 15,
+                            color: isDark ? zen.primaryAccent : zen.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              '${context.tr('schedule_activity_duration')}: $durationStr',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? AppColors.darkText : AppColors.lightText,
                               ),
                             ),
                           ),
@@ -976,7 +733,347 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 18),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          context.tr('schedule_repeat'),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: isDark ? AppColors.darkText : AppColors.lightText,
+                          ),
+                        ),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _buildPresetPill(
+                              label: context.tr('schedule_preset_all'),
+                              isDark: isDark,
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setModalState(() {
+                                  for (int i = 0; i < 7; i++) {
+                                    selectedDays[i] = true;
+                                  }
+                                });
+                              },
+                            ),
+                            _buildPresetPill(
+                              label: context.tr('schedule_preset_weekdays'),
+                              isDark: isDark,
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setModalState(() {
+                                  for (int i = 0; i < 5; i++) {
+                                    selectedDays[i] = true;
+                                  }
+                                  selectedDays[5] = false;
+                                  selectedDays[6] = false;
+                                });
+                              },
+                            ),
+                            _buildPresetPill(
+                              label: context.tr('schedule_preset_weekends'),
+                              isDark: isDark,
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setModalState(() {
+                                  for (int i = 0; i < 5; i++) {
+                                    selectedDays[i] = false;
+                                  }
+                                  selectedDays[5] = true;
+                                  selectedDays[6] = true;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: List.generate(7, (index) {
+                      final isSelected = selectedDays[index];
+                      return Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(right: index < 6 ? 6 : 0),
+                          child: ZenLiquidGlass(
+                            blurSigma: 0,
+                            height: 44,
+                            borderRadius: 13,
+                            alignment: Alignment.center,
+                            glowColor: isSelected ? zen.primary : null,
+                            rimWidth: isSelected ? 1.4 : 1.0,
+                            customGradient: isSelected ? zen.navPillGradient : null,
+                            surfaceColor: isSelected
+                                ? null
+                                : (isDark
+                                    ? Colors.white.withOpacity(0.06)
+                                    : Colors.white.withOpacity(0.66)),
+                            customShadows: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: zen.primary.withOpacity(isDark ? 0.35 : 0.22),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ]
+                                : const [],
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setModalState(
+                                  () => selectedDays[index] = !selectedDays[index]);
+                            },
+                            child: Text(
+                              dayLabels[index],
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 18),
+
+                  ZenLiquidGlass(
+                    blurSigma: 0,
+                    borderRadius: 18,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    glowColor: _shareWithAll ? zen.primary : null,
+                    surfaceColor: isDark
+                        ? Colors.white.withOpacity(0.06)
+                        : Colors.white.withOpacity(0.68),
+                    customShadows: const [],
+                    child: Row(
+                      children: [
+                        ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 11,
+                          padding: const EdgeInsets.all(8.5),
+                          glowColor: zen.primary,
+                          surfaceColor: zen.primary.withOpacity(isDark ? 0.20 : 0.12),
+                          customShadows: const [],
+                          child: Icon(
+                            Icons.people_alt_rounded,
+                            color: isDark ? zen.primaryAccent : zen.primary,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                context.tr('share_with_all'),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13.5,
+                                  color: isDark ? AppColors.darkText : AppColors.lightText,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                context.tr('schedule_shared_hint'),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : AppColors.lightTextMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: _shareWithAll,
+                          onChanged: (val) => setModalState(() => _shareWithAll = val),
+                          activeColor: isDark ? zen.primaryAccent : zen.primary,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ZenGlassButton(
+                      label: context.tr('schedule_save'),
+                      icon: Icons.check_circle_outline_rounded,
+                      isPrimary: true,
+                      borderRadius: 18,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                      onPressed: () {
+                        if (newDevices.isEmpty) {
+                          Navigator.pop(ctx);
+                          if (!mounted) return;
+                          showAlertDialogHelper(
+                            context,
+                            context.tr('error'),
+                            context.tr('err_select_device'),
+                            isError: true,
+                          );
+                          return;
+                        }
+                        if (!selectedDays.contains(true)) {
+                          Navigator.pop(ctx);
+                          if (!mounted) return;
+                          showAlertDialogHelper(
+                            context,
+                            context.tr('error'),
+                            context.tr('err_select_day'),
+                            isError: true,
+                          );
+                          return;
+                        }
+                        if (_checkConflict(
+                          newDevices,
+                          timeOn,
+                          timeOff,
+                          selectedDays,
+                          isEdit ? editSchedule['id'] : null,
+                        )) {
+                          Navigator.pop(ctx);
+                          if (!mounted) return;
+                          showAlertDialogHelper(
+                            context,
+                            context.tr('error'),
+                            context.tr('err_conflict'),
+                            isError: true,
+                          );
+                          return;
+                        }
+
+                        final mqttState = ref.read(mqttConnectionStateProvider);
+                        final isOnline = ref.read(espOnlineStateProvider);
+                        if (mqttState != 2 || !isOnline) {
+                          Navigator.pop(ctx);
+                          if (!mounted) return;
+                          showFloatingToast(
+                            context,
+                            context.tr('error'),
+                            context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...',
+                            isError: true,
+                          );
+                          return;
+                        }
+
+                        HapticFeedback.mediumImpact();
+
+                        String hOn = timeOn.hour.toString().padLeft(2, '0');
+                        String mOn = timeOn.minute.toString().padLeft(2, '0');
+                        String hOff = timeOff.hour.toString().padLeft(2, '0');
+                        String mOff = timeOff.minute.toString().padLeft(2, '0');
+                        String daysBinary = selectedDays.map((d) => d ? '1' : '0').join('');
+                        String newId = isEdit
+                            ? editSchedule['id']
+                            : DateTime.now().millisecondsSinceEpoch.toString();
+
+                        for (String dev in newDevices) {
+                          ref.read(mqttRepositoryProvider).publishCmd(
+                              '$dev/schedule', '$newId|$hOn:$mOn|$hOff:$mOff|$daysBinary|1');
+                        }
+
+                        final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+                        final currentName =
+                            FirebaseAuth.instance.currentUser?.displayName ??
+                                FirebaseAuth.instance.currentUser?.email ??
+                                'Thành viên';
+                        final authorUid =
+                            isEdit ? (editSchedule['authorUid'] ?? currentUid) : currentUid;
+                        final authorName = isEdit
+                            ? (editSchedule['authorName'] ?? currentName)
+                            : currentName;
+
+                        Map<String, dynamic> newSchedule = {
+                          'id': newId,
+                          'topics': newDevices,
+                          'timeOn': '$hOn:$mOn',
+                          'timeOff': '$hOff:$mOff',
+                          'days': List.from(selectedDays),
+                          'isActive': true,
+                          'isShared': _shareWithAll,
+                          'authorUid': authorUid,
+                          'authorName': authorName,
+                        };
+
+                        setState(() {
+                          if (isEdit) {
+                            int idx = _savedSchedules
+                                .indexWhere((e) => e['id'] == editSchedule['id']);
+                            if (idx != -1) _savedSchedules[idx] = newSchedule;
+                          } else {
+                            _savedSchedules.add(newSchedule);
+                          }
+                        });
+
+                        final activeConfig = ref.read(homeConfigProvider).activeConfig;
+                        String targetId = activeConfig.userId;
+                        if (_shareWithAll &&
+                            targetId.isNotEmpty &&
+                            targetId != 'guest') {
+                          FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(targetId)
+                              .collection('schedules')
+                              .doc(newId)
+                              .set(newSchedule);
+
+                          if (activeConfig.role != 'owner' &&
+                              FirebaseAuth.instance.currentUser != null) {
+                            String name =
+                                FirebaseAuth.instance.currentUser!.displayName ??
+                                    FirebaseAuth.instance.currentUser!.email ??
+                                    context.tr('a_member') ??
+                                    'Một thành viên';
+                            FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(targetId)
+                                .collection('alerts')
+                                .add({
+                              'type': 'automation_edit',
+                              'author': name,
+                              'actionName': isEdit
+                                  ? (context.tr('act_edit_schedule') ??
+                                      'vừa sửa một lịch trình')
+                                  : (context.tr('act_add_schedule') ??
+                                      'vừa thêm một lịch trình mới'),
+                              'timestamp': FieldValue.serverTimestamp(),
+                            });
+                          }
+                        } else {
+                          _saveSchedulesToDisk();
+                        }
+                        Navigator.pop(ctx);
+                        if (!mounted) return;
+                        showAlertDialogHelper(
+                          context,
+                          context.tr('msg_saved_title'),
+                          context.tr('msg_schedule_saved'),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             );
           },
@@ -987,83 +1084,142 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
 
   void _showViewOnlyScheduleBottomSheet(Map<String, dynamic> schedule) {
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
-    List<String> sTopics = List<String>.from(schedule['topics'] ?? (schedule['topic'] != null ? [schedule['topic']] : []));
-    String deviceNames = sTopics.map((t) => getDeviceNameHelper(context, t, activeConfig)).join(', ');
-    
-    showModalBottomSheet(
-      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
-      builder: (BuildContext context) {
-        bool isDark = Theme.of(context).brightness == Brightness.dark;
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF101626) : Colors.white,
-            borderRadius: const BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
-            border: Border.all(color: isDark ? const Color(0x3338BDF8) : const Color(0x1F0D9488), width: 1.2),
+    List<String> sTopics = List<String>.from(
+        schedule['topics'] ?? (schedule['topic'] != null ? [schedule['topic']] : []));
+    String deviceNames =
+        sTopics.map((t) => getDeviceNameHelper(context, t, activeConfig)).join(', ');
+
+    showZenGlassBottomSheet(
+      context: context,
+      accentColor: context.zenColors.primary,
+      builder: (BuildContext ctx) {
+        final bool isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final zen = ctx.zenColors;
+
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            22,
+            6,
+            22,
+            MediaQuery.of(ctx).padding.bottom + 24,
           ),
-          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(child: Container(width: 44, height: 5, decoration: BoxDecoration(color: (isDark ? Colors.white : Colors.black).withOpacity(0.2), borderRadius: BorderRadius.circular(10)))),
-              const SizedBox(height: 20),
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [Colors.blue.withOpacity(0.2), Colors.cyan.withOpacity(0.1)]),
-                      borderRadius: BorderRadius.circular(12),
+                  ZenLiquidGlass(
+                    blurSigma: 0,
+                    width: 42,
+                    height: 42,
+                    borderRadius: 13,
+                    alignment: Alignment.center,
+                    glowColor: zen.primary,
+                    surfaceColor: zen.primary.withOpacity(isDark ? 0.20 : 0.12),
+                    customShadows: const [],
+                    child: Icon(
+                      Icons.remove_red_eye_rounded,
+                      color: isDark ? zen.primaryAccent : zen.primary,
+                      size: 21,
                     ),
-                    child: const Icon(Icons.remove_red_eye_rounded, color: Colors.blue, size: 22),
                   ),
                   const SizedBox(width: 12),
-                  Text(context.tr('schedule_view_only'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  Expanded(
+                    child: Text(
+                      context.tr('schedule_view_only'),
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: isDark ? AppColors.darkText : AppColors.lightText,
+                      ),
+                    ),
+                  ),
+                  ZenGlassIconButton(
+                    icon: Icons.close_rounded,
+                    size: 36,
+                    iconSize: 18,
+                    blurSigma: 0,
+                    onTap: () => Navigator.pop(ctx),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
-              _buildDetailRow(Icons.devices_rounded, context.tr('device_label'), deviceNames, isDark),
-              const SizedBox(height: 12),
-              _buildDetailRow(Icons.wb_sunny_rounded, context.tr('time_on_label'), schedule['timeOn'] ?? '', isDark),
-              const SizedBox(height: 12),
-              _buildDetailRow(Icons.nightlight_round, context.tr('time_off_label'), schedule['timeOff'] ?? '', isDark),
-              if (schedule['authorName'] != null && schedule['authorName'].toString().isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _buildDetailRow(Icons.person_rounded, context.tr('schedule_author'), schedule['authorName'], isDark),
-              ],
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.amber.withOpacity(0.3)),
+              _buildDetailRow(
+                Icons.devices_rounded,
+                context.tr('device_label'),
+                deviceNames,
+                isDark,
+                accentColor: isDark ? zen.primaryAccent : zen.primary,
+              ),
+              const SizedBox(height: 10),
+              _buildDetailRow(
+                Icons.wb_sunny_rounded,
+                context.tr('time_on_label'),
+                schedule['timeOn'] ?? '',
+                isDark,
+                accentColor: isDark ? AppColors.amberGlow : AppColors.amberDeep,
+              ),
+              const SizedBox(height: 10),
+              _buildDetailRow(
+                Icons.nightlight_round,
+                context.tr('time_off_label'),
+                schedule['timeOff'] ?? '',
+                isDark,
+                accentColor: const Color(0xFF6366F1),
+              ),
+              if (schedule['authorName'] != null &&
+                  schedule['authorName'].toString().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildDetailRow(
+                  Icons.person_rounded,
+                  context.tr('schedule_author'),
+                  schedule['authorName'],
+                  isDark,
+                  accentColor: isDark ? zen.primaryAccent : zen.primary,
                 ),
+              ],
+              const SizedBox(height: 18),
+              ZenLiquidGlass(
+                blurSigma: 0,
+                borderRadius: 14,
+                padding: const EdgeInsets.all(12),
+                glowColor: AppColors.amberGlow,
+                surfaceColor: AppColors.amberGlow.withOpacity(isDark ? 0.14 : 0.10),
+                customShadows: const [],
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline_rounded, color: Colors.amber, size: 18),
+                    Icon(
+                      Icons.info_outline_rounded,
+                      color: isDark ? AppColors.amberGlow : AppColors.amberDeep,
+                      size: 18,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         context.tr('err_no_permission_schedule'),
-                        style: const TextStyle(fontSize: 12, color: Colors.amber),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.amberGlow : const Color(0xFF92400E),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               SizedBox(
-                width: double.infinity, height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark ? const Color(0x22FFFFFF) : Colors.grey.shade200,
-                    foregroundColor: isDark ? Colors.white : Colors.black87,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(context.tr('btn_close'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                width: double.infinity,
+                child: ZenGlassButton(
+                  label: context.tr('btn_close'),
+                  icon: Icons.close_rounded,
+                  isPrimary: false,
+                  borderRadius: 16,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  onPressed: () => Navigator.pop(ctx),
                 ),
               ),
             ],
@@ -1073,20 +1229,55 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String title, String value, bool isDark) {
-    return Container(
+  Widget _buildDetailRow(
+    IconData icon,
+    String title,
+    String value,
+    bool isDark, {
+    Color? accentColor,
+  }) {
+    final Color iconTint = accentColor ?? AppColors.cyanGlow;
+    return ZenLiquidGlass(
+      blurSigma: 0,
+      borderRadius: 15,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0x12FFFFFF) : const Color(0x06000000),
-        borderRadius: BorderRadius.circular(14),
-      ),
+      surfaceColor: isDark
+          ? Colors.white.withOpacity(0.06)
+          : Colors.white.withOpacity(0.68),
+      customShadows: const [],
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppColors.cyanGlow),
+          Container(
+            padding: const EdgeInsets.all(6.5),
+            decoration: BoxDecoration(
+              color: iconTint.withOpacity(isDark ? 0.18 : 0.12),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, size: 16, color: iconTint),
+          ),
           const SizedBox(width: 12),
-          Text(title, style: TextStyle(fontSize: 13, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)),
-          const Spacer(),
-          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkText : AppColors.lightText)),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: isDark ? AppColors.darkText : AppColors.lightText,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1149,7 +1340,8 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
       }
     });
 
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
     final dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
     return Column(
@@ -1159,55 +1351,75 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppColors.cyanGlow.withOpacity(0.2), AppColors.primaryLight.withOpacity(0.1)],
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ZenLiquidGlass(
+                    blurSigma: 0,
+                    borderRadius: 11,
+                    padding: const EdgeInsets.all(7.5),
+                    glowColor: zen.primary,
+                    surfaceColor: zen.primary.withOpacity(isDark ? 0.18 : 0.12),
+                    customShadows: const [],
+                    child: Icon(
+                      Icons.alarm_on_rounded,
+                      color: isDark ? zen.primaryAccent : zen.primary,
+                      size: 18,
                     ),
-                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.alarm_on_rounded, color: AppColors.cyanGlow, size: 18),
-                ),
-                const SizedBox(width: 10),
-                Text(context.tr('schedule_title'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
-                if (_savedSchedules.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                  const SizedBox(width: 10),
+                  Flexible(
                     child: Text(
-                      '${_savedSchedules.length}',
+                      context.tr('schedule_title'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: isDark ? AppColors.darkText : AppColors.lightText,
                       ),
                     ),
                   ),
-                ],
-              ],
-            ),
-            BouncingButton(
-              onTap: () => _showScheduleBottomSheet(),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  gradient: AppColors.navPillGradient,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryLight.withOpacity(0.35),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                  if (_savedSchedules.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    ZenGlassPill(
+                      blurSigma: 0,
+                      borderRadius: 10,
+                      padding: const EdgeInsets.symmetric(horizontal: 8.5, vertical: 2.5),
+                      isSelected: true,
+                      glowColor: zen.primary,
+                      child: Text(
+                        '${_savedSchedules.length}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? zen.primaryAccent : zen.primary,
+                        ),
+                      ),
                     ),
                   ],
-                ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            BouncingButton(
+              onTap: () => _showScheduleBottomSheet(),
+              child: ZenLiquidGlass(
+                blurSigma: 0,
+                borderRadius: 20,
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6.5),
+                customGradient: zen.navPillGradient,
+                glowColor: zen.primary,
+                rimWidth: 1.25,
+                customShadows: [
+                  BoxShadow(
+                    color: zen.primary.withOpacity(isDark ? 0.35 : 0.22),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1215,7 +1427,11 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                     const SizedBox(width: 4),
                     Text(
                       context.tr('btn_add') ?? 'Add',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -1226,21 +1442,40 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
         const SizedBox(height: 14),
 
         if (_savedSchedules.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : AppColors.lightCard,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-              ),
-            ),
+          ZenGlassCard(
+            isActive: false,
+            glowColor: zen.primary,
+            blurSigma: 12,
+            borderRadius: 22,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
             child: Center(
               child: Column(
                 children: [
-                  Icon(Icons.calendar_today_outlined, size: 36, color: (isDark ? Colors.white : Colors.black).withOpacity(0.25)),
-                  const SizedBox(height: 10),
-                  Text(context.tr('schedule_empty'), style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                  ZenLiquidGlass(
+                    blurSigma: 0,
+                    width: 56,
+                    height: 56,
+                    borderRadius: 18,
+                    alignment: Alignment.center,
+                    glowColor: zen.primary,
+                    surfaceColor: zen.primary.withOpacity(isDark ? 0.14 : 0.09),
+                    customShadows: const [],
+                    child: Icon(
+                      Icons.calendar_today_rounded,
+                      size: 26,
+                      color: (isDark ? zen.primaryAccent : zen.primary).withOpacity(0.75),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    context.tr('schedule_empty'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1253,48 +1488,45 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
             itemBuilder: (context, index) {
               final schedule = _savedSchedules[index];
               final bool isActive = schedule['isActive'] ?? false;
-              final List<String> topics = List<String>.from(schedule['topics'] ?? (schedule['topic'] != null ? [schedule['topic']] : []));
-              final String deviceNames = topics.map((t) => getDeviceNameHelper(context, t, ref.watch(homeConfigProvider).activeConfig)).join(', ');
+              final List<String> topics = List<String>.from(schedule['topics'] ??
+                  (schedule['topic'] != null ? [schedule['topic']] : []));
+              final String deviceNames = topics
+                  .map((t) =>
+                      getDeviceNameHelper(context, t, ref.watch(homeConfigProvider).activeConfig))
+                  .join(', ');
+              final bool isShared = schedule['isShared'] == true;
 
-              return Container(
+              return ZenGlassCard(
+                isActive: isActive,
+                glowColor: zen.primary,
+                blurSigma: 12,
+                borderRadius: 22,
                 margin: const EdgeInsets.only(bottom: 14),
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: isActive
-                        ? (isDark ? AppColors.primaryLight.withOpacity(0.3) : AppColors.primary.withOpacity(0.2))
-                        : (isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isActive
-                          ? (isDark ? AppColors.primaryLight.withOpacity(0.1) : AppColors.primary.withOpacity(0.04))
-                          : Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Top row: Icon, device names, shared chip, and switch
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(9),
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? (isDark ? AppColors.primaryLight.withOpacity(0.2) : AppColors.primary.withOpacity(0.1))
-                                : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04)),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
+                        ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 14,
+                          padding: const EdgeInsets.all(9.5),
+                          glowColor: isActive ? zen.primary : null,
+                          surfaceColor: isActive
+                              ? zen.primary.withOpacity(isDark ? 0.22 : 0.14)
+                              : (isDark
+                                  ? Colors.white.withOpacity(0.06)
+                                  : Colors.black.withOpacity(0.04)),
+                          customShadows: const [],
                           child: Icon(
                             Icons.alarm_rounded,
-                            color: isActive ? (isDark ? AppColors.primaryLight : AppColors.primary) : Colors.grey,
+                            color: isActive
+                                ? (isDark ? zen.primaryAccent : zen.primary)
+                                : (isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.lightTextMuted),
                             size: 22,
                           ),
                         ),
@@ -1306,35 +1538,51 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                               Text(
                                 deviceNames,
                                 style: TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w800,
                                   fontSize: 15,
                                   color: isDark ? AppColors.darkText : AppColors.lightText,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 3),
-                              if (schedule['isShared'] == true)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                                  ),
+                              const SizedBox(height: 4),
+                              if (isShared)
+                                ZenGlassPill(
+                                  blurSigma: 0,
+                                  borderRadius: 8,
+                                  isSelected: true,
+                                  glowColor: AppColors.cyanGlow,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 2.5),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.people_outline_rounded, size: 10, color: Colors.blue),
-                                      const SizedBox(width: 3),
+                                      Icon(
+                                        Icons.people_outline_rounded,
+                                        size: 11,
+                                        color: isDark
+                                            ? AppColors.cyanGlow
+                                            : const Color(0xFF0284C7),
+                                      ),
+                                      const SizedBox(width: 4),
                                       Flexible(
                                         child: Text(
-                                          schedule['authorUid'] == FirebaseAuth.instance.currentUser?.uid
+                                          schedule['authorUid'] ==
+                                                  FirebaseAuth.instance.currentUser?.uid
                                               ? '${context.tr('shared')} (${Localizations.localeOf(context).languageCode == 'en' ? 'You' : 'Bạn tạo'})'
-                                              : ((schedule['authorName'] != null && schedule['authorName'].toString().isNotEmpty)
+                                              : ((schedule['authorName'] != null &&
+                                                      schedule['authorName']
+                                                          .toString()
+                                                          .isNotEmpty)
                                                   ? '${context.tr('shared')} (${schedule['authorName']})'
                                                   : context.tr('shared')),
-                                          style: const TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold),
+                                          style: TextStyle(
+                                            color: isDark
+                                                ? AppColors.cyanGlow
+                                                : const Color(0xFF0284C7),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                          ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -1343,13 +1591,21 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                                   ),
                                 )
                               else
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
+                                ZenGlassPill(
+                                  blurSigma: 0,
+                                  borderRadius: 8,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 2.5),
+                                  child: Text(
+                                    context.tr('private'),
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? AppColors.darkTextMuted
+                                          : AppColors.lightTextMuted,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
-                                  child: Text(context.tr('private'), style: const TextStyle(color: Colors.grey, fontSize: 10)),
                                 ),
                             ],
                           ),
@@ -1358,133 +1614,267 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                           scale: 0.85,
                           child: Switch(
                             value: isActive,
-                            activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
-                            onChanged: !_canManageSchedule(schedule) ? null : (val) {
-                              final mqttState = ref.read(mqttConnectionStateProvider);
-                              final isOnline = ref.read(espOnlineStateProvider);
-                              if (mqttState != 2 || !isOnline) {
-                                showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
-                                return;
-                              }
-                              
-                              setState(() => schedule['isActive'] = val);
-                              String daysBinary = List<bool>.from(schedule['days']).map((d) => d ? '1' : '0').join('');
-                              String activeFlag = val ? '1' : '0';
-                              String payload = '${schedule['id']}|${schedule['timeOn']}|${schedule['timeOff']}|$daysBinary|$activeFlag';
-                              List<String> sTopics = List<String>.from(schedule['topics'] ?? (schedule['topic'] != null ? [schedule['topic']] : []));
-                              for (String dev in sTopics) {
-                                ref.read(mqttRepositoryProvider).publishCmd('$dev/schedule', payload);
-                              }
-                              
-                              final activeConfig = ref.read(homeConfigProvider).activeConfig;
-                              String targetId = activeConfig.userId;
-                              if (schedule['isShared'] == true && targetId.isNotEmpty && targetId != 'guest') {
-                                FirebaseFirestore.instance.collection('users').doc(targetId).collection('schedules').doc(schedule['id']).update({'isActive': val});
-                              } else {
-                                _saveSchedulesToDisk();
-                              }
-                            },
+                            activeColor: isDark ? zen.primaryAccent : zen.primary,
+                            onChanged: !_canManageSchedule(schedule)
+                                ? null
+                                : (val) {
+                                    final mqttState =
+                                        ref.read(mqttConnectionStateProvider);
+                                    final isOnline = ref.read(espOnlineStateProvider);
+                                    if (mqttState != 2 || !isOnline) {
+                                      showFloatingToast(
+                                        context,
+                                        context.tr('error'),
+                                        context.tr('toast_mqtt_wait') ??
+                                            'Đang kết nối máy chủ...',
+                                        isError: true,
+                                      );
+                                      return;
+                                    }
+
+                                    setState(() => schedule['isActive'] = val);
+                                    String daysBinary = List<bool>.from(schedule['days'])
+                                        .map((d) => d ? '1' : '0')
+                                        .join('');
+                                    String activeFlag = val ? '1' : '0';
+                                    String payload =
+                                        '${schedule['id']}|${schedule['timeOn']}|${schedule['timeOff']}|$daysBinary|$activeFlag';
+                                    List<String> sTopics = List<String>.from(
+                                        schedule['topics'] ??
+                                            (schedule['topic'] != null
+                                                ? [schedule['topic']]
+                                                : []));
+                                    for (String dev in sTopics) {
+                                      ref
+                                          .read(mqttRepositoryProvider)
+                                          .publishCmd('$dev/schedule', payload);
+                                    }
+
+                                    final activeConfig =
+                                        ref.read(homeConfigProvider).activeConfig;
+                                    String targetId = activeConfig.userId;
+                                    if (schedule['isShared'] == true &&
+                                        targetId.isNotEmpty &&
+                                        targetId != 'guest') {
+                                      FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(targetId)
+                                          .collection('schedules')
+                                          .doc(schedule['id'])
+                                          .update({'isActive': val});
+                                    } else {
+                                      _saveSchedulesToDisk();
+                                    }
+                                  },
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 14),
 
-                    // Time on & off chips
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0x10FFFFFF) : const Color(0x06000000),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.wb_sunny_rounded, size: 14, color: AppColors.amberGlow),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${context.tr('status_on')}: ${schedule['timeOn']}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.darkText : AppColors.lightText,
+                    // Glowing active time display
+                    ZenLiquidGlass(
+                      blurSigma: 0,
+                      borderRadius: 14,
+                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9.5),
+                      glowColor: isActive ? zen.primary : null,
+                      rimWidth: isActive ? 1.25 : 1.0,
+                      surfaceColor: isActive
+                          ? zen.primary.withOpacity(isDark ? 0.14 : 0.08)
+                          : (isDark
+                              ? Colors.white.withOpacity(0.05)
+                              : Colors.white.withOpacity(0.55)),
+                      customShadows: isActive
+                          ? [
+                              BoxShadow(
+                                color: zen.primary.withOpacity(isDark ? 0.22 : 0.10),
+                                blurRadius: 12,
+                                offset: const Offset(0, 3),
+                              ),
+                            ]
+                          : const [],
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.wb_sunny_rounded,
+                              size: 15,
+                              color: isDark ? AppColors.amberGlow : AppColors.amberDeep,
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Icon(Icons.arrow_forward_rounded, size: 12, color: isDark ? Colors.white38 : Colors.black38),
-                          const SizedBox(width: 10),
-                          Icon(Icons.nightlight_round, size: 14, color: AppColors.primaryLight),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${context.tr('status_off')}: ${schedule['timeOff']}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.darkText : AppColors.lightText,
+                            const SizedBox(width: 6),
+                            Text(
+                              '${context.tr('status_on')}: ',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.lightTextMuted,
+                              ),
                             ),
-                          ),
-                        ],
+                            Text(
+                              '${schedule['timeOn']}',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                fontFeatures: const [FontFeature.tabularFigures()],
+                                color: isActive
+                                    ? (isDark ? Colors.white : AppColors.lightText)
+                                    : (isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted),
+                                shadows: isActive && isDark
+                                    ? [
+                                        Shadow(
+                                          color: AppColors.amberGlow.withOpacity(0.55),
+                                          blurRadius: 8,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              child: Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 13,
+                                color: isActive
+                                    ? (isDark ? zen.primaryAccent : zen.primary)
+                                    : (isDark ? Colors.white38 : Colors.black38),
+                              ),
+                            ),
+                            Icon(
+                              Icons.nightlight_round,
+                              size: 15,
+                              color: isActive
+                                  ? (isDark ? zen.primaryAccent : zen.primary)
+                                  : const Color(0xFF6366F1),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${context.tr('status_off')}: ',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.lightTextMuted,
+                              ),
+                            ),
+                            Text(
+                              '${schedule['timeOff']}',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                fontFeatures: const [FontFeature.tabularFigures()],
+                                color: isActive
+                                    ? (isDark ? Colors.white : AppColors.lightText)
+                                    : (isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted),
+                                shadows: isActive && isDark
+                                    ? [
+                                        Shadow(
+                                          color: zen.primaryAccent.withOpacity(0.55),
+                                          blurRadius: 8,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
 
-                    // 7-day row & actions
+                    // 7-day glass pills & actions
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: List.generate(7, (dayIndex) {
-                            bool isActiveDay = schedule['days'][dayIndex];
-                            return Container(
-                              margin: const EdgeInsets.only(right: 5),
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: isActiveDay
-                                    ? (isDark ? AppColors.primaryLight.withOpacity(0.2) : AppColors.primary.withOpacity(0.12))
-                                    : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03)),
-                                borderRadius: BorderRadius.circular(7),
-                                border: Border.all(
-                                  color: isActiveDay
-                                      ? (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.4)
-                                      : Colors.transparent,
-                                ),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: List.generate(7, (dayIndex) {
+                                  final bool isActiveDay = schedule['days'][dayIndex];
+                                  return ZenGlassPill(
+                                    blurSigma: 0,
+                                    borderRadius: 8,
+                                    margin: EdgeInsets.only(right: dayIndex < 6 ? 5 : 0),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 7, vertical: 3.5),
+                                    isSelected: isActiveDay && isActive,
+                                    glowColor: zen.primary,
+                                    color: isActiveDay ? zen.primary : null,
+                                    child: Text(
+                                      dayLabels[dayIndex],
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight:
+                                            isActiveDay ? FontWeight.w800 : FontWeight.w600,
+                                        color: isActiveDay
+                                            ? (isActive
+                                                ? (isDark ? zen.primaryAccent : zen.primary)
+                                                : (isDark
+                                                    ? AppColors.darkText
+                                                    : AppColors.lightText))
+                                            : (isDark
+                                                ? AppColors.darkTextMuted.withOpacity(0.65)
+                                                : AppColors.lightTextMuted
+                                                    .withOpacity(0.75)),
+                                      ),
+                                    ),
+                                  );
+                                }),
                               ),
-                              child: Text(
-                                dayLabels[dayIndex],
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: isActiveDay ? FontWeight.bold : FontWeight.normal,
-                                  color: isActiveDay
-                                      ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                                ),
-                              ),
-                            );
-                          }),
+                            ),
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (!_canManageSchedule(schedule)) ...[
-                              IconButton(
-                                constraints: const BoxConstraints(),
-                                padding: const EdgeInsets.all(6),
-                                icon: const Icon(Icons.remove_red_eye_rounded, color: Colors.blue, size: 18),
-                                onPressed: () => _showViewOnlyScheduleBottomSheet(schedule),
+                              ZenGlassIconButton(
+                                icon: Icons.remove_red_eye_rounded,
+                                size: 32,
+                                iconSize: 16,
+                                borderRadius: 10,
+                                blurSigma: 0,
+                                iconColor: isDark ? zen.primaryAccent : zen.primary,
+                                glowColor: zen.primary,
+                                onTap: () => _showViewOnlyScheduleBottomSheet(schedule),
                               ),
                             ] else ...[
-                              IconButton(
-                                constraints: const BoxConstraints(),
-                                padding: const EdgeInsets.all(6),
-                                icon: const Icon(Icons.edit_rounded, color: Colors.blue, size: 18),
-                                onPressed: () => _showScheduleBottomSheet(editSchedule: schedule),
+                              ZenGlassIconButton(
+                                icon: Icons.edit_rounded,
+                                size: 32,
+                                iconSize: 16,
+                                borderRadius: 10,
+                                blurSigma: 0,
+                                iconColor: isDark ? zen.primaryAccent : zen.primary,
+                                glowColor: zen.primary,
+                                onTap: () =>
+                                    _showScheduleBottomSheet(editSchedule: schedule),
                               ),
-                              const SizedBox(width: 4),
-                              IconButton(
-                                constraints: const BoxConstraints(),
-                                padding: const EdgeInsets.all(6),
-                                icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18),
-                                onPressed: () => _deleteSchedule(schedule['id']),
+                              const SizedBox(width: 6),
+                              ZenGlassIconButton(
+                                icon: Icons.delete_outline_rounded,
+                                size: 32,
+                                iconSize: 16,
+                                borderRadius: 10,
+                                blurSigma: 0,
+                                iconColor: AppColors.roseGlow,
+                                glowColor: AppColors.roseGlow,
+                                onTap: () => _deleteSchedule(schedule['id']),
                               ),
                             ],
                           ],

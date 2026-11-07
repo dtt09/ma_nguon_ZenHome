@@ -10,7 +10,7 @@ import 'package:zenhome_app/core/services/session_manager.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
-import 'package:zenhome_app/core/widgets/bouncing_button.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/features/auth/ui/change_password_screen.dart';
 import 'package:zenhome_app/features/auth/ui/logged_devices_screen.dart';
@@ -118,6 +118,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     }
 
+    final zen = context.zenColors;
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -128,14 +129,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return Theme(
           data: isDark
               ? ThemeData.dark().copyWith(
-                  colorScheme: const ColorScheme.dark(
-                    primary: Color(0xFF14B8A6),
-                    surface: Color(0xFF1E293B),
+                  colorScheme: ColorScheme.dark(
+                    primary: zen.primaryAccent,
+                    surface: const Color(0xFF0F172A),
                   ),
                 )
               : ThemeData.light().copyWith(
-                  colorScheme: const ColorScheme.light(
-                    primary: Color(0xFF0F766E),
+                  colorScheme: ColorScheme.light(
+                    primary: zen.primary,
                   ),
                 ),
           child: child!,
@@ -155,61 +156,88 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   void _updateAvatar() {
     String newUrl = '';
-    showDialog(
+    showZenGlassDialog<void>(
       context: context,
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return AlertDialog(
-          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            context.tr('update_avatar'),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: TextField(
-            onChanged: (val) => newUrl = val.trim(),
-            decoration: InputDecoration(
-              hintText: context.tr('enter_image_url'),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              prefixIcon: const Icon(Icons.link),
+        final zen = ctx.zenColors;
+        final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: zen.brandHero,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.photo_camera_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    context.tr('update_avatar'),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                context.tr('btn_cancel'),
-                style: const TextStyle(color: Colors.grey),
+            const SizedBox(height: 18),
+            TextField(
+              onChanged: (val) => newUrl = val.trim(),
+              style: TextStyle(color: textColor),
+              decoration: zenGlassInputDecoration(
+                ctx,
+                hintText: context.tr('enter_image_url'),
+                prefixIcon: Icons.link_rounded,
               ),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                if (newUrl.isNotEmpty) {
-                  final result = await ref.read(profileControllerProvider.notifier).updateAvatar(newUrl);
-                  if (!mounted) return;
-                  if (result.success) {
-                    showFloatingToast(
-                      context,
-                      context.tr('toast_success'),
-                      context.tr('msg_avatar_updated'),
-                    );
-                  } else {
-                    showFloatingToast(
-                      context,
-                      context.tr('error'),
-                      result.errorMessage ?? context.tr('error'),
-                      isError: true,
-                    );
-                  }
-                }
-              },
-              child: Text(context.tr('btn_save_image')),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_cancel'),
+                    isPrimary: false,
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_save_image'),
+                    icon: Icons.check_rounded,
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      if (newUrl.isNotEmpty) {
+                        final result = await ref.read(profileControllerProvider.notifier).updateAvatar(newUrl);
+                        if (!mounted) return;
+                        if (result.success) {
+                          showFloatingToast(
+                            context,
+                            context.tr('toast_success'),
+                            context.tr('msg_avatar_updated'),
+                          );
+                        } else {
+                          showFloatingToast(
+                            context,
+                            context.tr('error'),
+                            result.errorMessage ?? context.tr('error'),
+                            isError: true,
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -237,6 +265,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     if (profileState.isGoogleLinked) {
       if (!profileState.isPhoneLinked) {
+        if (!mounted) return;
         showFloatingToast(
           context,
           context.tr('error'),
@@ -248,6 +277,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       bool hasPassword = user.providerData.any((p) => p.providerId == 'password');
       if (!hasPassword) {
+        if (!mounted) return;
         showFloatingToast(
           context,
           context.tr('error'),
@@ -257,18 +287,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         return;
       }
 
+      if (!mounted) return;
       bool? confirm = await _showConfirmDialog(
         context.tr('confirm_unlink_google'),
         context.tr('confirm_unlink_google_desc'),
       );
       if (confirm != true) return;
 
+      if (!mounted) return;
       bool isReauthed = await ReauthHelper.reauthWithGoogleExplicit(
         context,
         reason: context.tr('confirm_unlink_google'),
       );
       if (!isReauthed) return;
 
+      if (!mounted) return;
       LoadingOverlay.show(context);
       final result = await ref.read(profileControllerProvider.notifier).unlinkGoogle();
       LoadingOverlay.hide();
@@ -284,6 +317,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         showFloatingToast(context, context.tr('error'), result.errorMessage ?? context.tr('error'), isError: true);
       }
     } else {
+      if (!mounted) return;
       LoadingOverlay.show(context);
       try {
         final String? clientId = dotenv.env['GOOGLE_CLIENT_ID'];
@@ -373,12 +407,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
       if (confirm != true) return;
 
+      if (!mounted) return;
       bool isReauthed = await ReauthHelper.reauthenticate(
         context,
         reason: context.tr('confirm_unlink_phone'),
       );
       if (!isReauthed) return;
 
+      if (!mounted) return;
       LoadingOverlay.show(context);
       final result = await ref.read(profileControllerProvider.notifier).unlinkPhone();
       LoadingOverlay.hide();
@@ -402,71 +438,80 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<bool> _onWillPop() async {
     if (!_hasChanges) return true;
 
-    final result = await showDialog<String>(
+    final result = await showZenGlassDialog<String>(
       context: context,
+      accentColor: AppColors.amberGlow,
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return AlertDialog(
-          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
+        final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+        final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.amberGlow.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.amberGlow.withOpacity(0.32)),
+                  ),
+                  child: const Icon(Icons.warning_amber_rounded, color: AppColors.amberGlow, size: 24),
                 ),
-                child: const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  context.tr('confirm_exit') ?? 'Thay đổi chưa lưu',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    context.tr('confirm_exit'),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          content: Text(
-            context.tr('msg_unsaved_changes') ?? 'Bạn đang có thông tin thay đổi chưa được lưu lại. Bạn có chắc chắn muốn thoát không?',
-            style: TextStyle(
-              fontSize: 14,
-              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-              height: 1.4,
+              ],
             ),
-          ),
-          actionsPadding: const EdgeInsets.only(left: 16, right: 16, bottom: 16, top: 8),
-          actionsOverflowButtonSpacing: 8,
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, 'cancel'),
-              child: Text(
-                context.tr('btn_stay'),
-                style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+            const SizedBox(height: 14),
+            Text(
+              context.tr('msg_unsaved_changes'),
+              style: TextStyle(
+                fontSize: 14,
+                color: mutedColor,
+                height: 1.45,
               ),
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, 'discard'),
-              child: Text(
-                context.tr('btn_leave'),
-                style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
-              ),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_stay'),
+                    isPrimary: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                    onPressed: () => Navigator.pop(ctx, 'cancel'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_leave'),
+                    isPrimary: false,
+                    isDanger: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                    onPressed: () => Navigator.pop(ctx, 'discard'),
+                  ),
+                ),
+              ],
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () => Navigator.pop(ctx, 'save'),
-              child: Text(
-                context.tr('btn_save') ?? 'Lưu & Thoát',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ZenGlassButton(
+                label: context.tr('btn_save'),
+                icon: Icons.check_rounded,
+                onPressed: () => Navigator.pop(ctx, 'save'),
               ),
             ),
           ],
@@ -484,72 +529,67 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<bool?> _showConfirmDialog(String title, String content) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    return showDialog<bool>(
+    return showZenGlassDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Column(
+      accentColor: AppColors.roseGlow,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.redAccent.withOpacity(0.12),
+                color: AppColors.roseGlow.withOpacity(0.14),
                 shape: BoxShape.circle,
+                border: Border.all(color: AppColors.roseGlow.withOpacity(0.32)),
               ),
-              child: const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 40),
+              child: const Icon(Icons.warning_amber_rounded, color: AppColors.roseGlow, size: 36),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.redAccent),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: AppColors.roseGlow,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              content,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: mutedColor,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_cancel'),
+                    isPrimary: false,
+                    onPressed: () => Navigator.pop(ctx, false),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_confirm'),
+                    isDanger: true,
+                    onPressed: () => Navigator.pop(ctx, true),
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-        content: Text(
-          content,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14,
-            height: 1.5,
-            color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-          ),
-        ),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.grey.withOpacity(0.3)),
-                    ),
-                  ),
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: Text(context.tr('btn_cancel') ?? 'Hủy', style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    backgroundColor: Colors.redAccent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: Text(context.tr('btn_confirm') ?? 'Xác nhận', style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -562,8 +602,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) {
         showFloatingToast(
           context,
-          context.tr('error') ?? 'Lỗi',
-          context.tr('err_trusted_device_only_delete') ?? 'Bạn chỉ có thể xoá tài khoản trên Thiết bị tin cậy',
+          context.tr('error'),
+          context.tr('err_trusted_device_only_delete'),
           isError: true,
         );
       }
@@ -580,8 +620,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         if (mounted) {
           showFloatingToast(
             context,
-            context.tr('error') ?? 'Lỗi',
-            context.tr('err_hub_offline_delete') ?? 'Hub trung tâm đang ngoại tuyến. Vui lòng bật nguồn Hub để có thể dọn dẹp bộ nhớ thiết bị trước khi xóa tài khoản.',
+            context.tr('error'),
+            context.tr('err_hub_offline_delete'),
             isError: true,
           );
         }
@@ -592,7 +632,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!mounted) return;
     bool isPasswordVerified = await ReauthHelper.verifyPasswordOnly(
       context,
-      reason: context.tr('reason_delete_account') ?? 'tiếp tục quá trình xóa tài khoản',
+      reason: context.tr('reason_delete_account'),
     );
     if (!isPasswordVerified) return;
 
@@ -601,33 +641,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!isNativeVerified) return;
 
     if (!mounted) return;
-    bool? confirm1 = await showDialog<bool>(
+    bool? confirm1 = await showZenGlassDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
+      accentColor: AppColors.amberGlow,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.warning, color: Colors.orange),
-            const SizedBox(width: 10),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.amberGlow.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.amberGlow.withOpacity(0.32)),
+                  ),
+                  child: const Icon(Icons.warning_amber_rounded, color: AppColors.amberGlow, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    context.tr('menu_delete_account'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: AppColors.amberGlow,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
             Text(
-              context.tr('menu_delete_account') ?? 'Xóa tài khoản',
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+              context.tr('msg_confirm_delete_account'),
+              style: TextStyle(fontSize: 14, height: 1.45, color: mutedColor),
+            ),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_cancel'),
+                    isPrimary: false,
+                    onPressed: () => Navigator.pop(ctx, false),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_yes'),
+                    accentColor: AppColors.amberGlow,
+                    onPressed: () => Navigator.pop(ctx, true),
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-        content: Text(context.tr('msg_confirm_delete_account') ?? 'Bạn có chắc chắn muốn xóa tài khoản?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.tr('btn_cancel') ?? 'Hủy', style: const TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(context.tr('btn_yes') ?? 'Đồng ý'),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     if (confirm1 != true) return;
@@ -641,75 +716,124 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final TextEditingController usernameConfirmController = TextEditingController();
 
     if (!mounted) return;
-    bool? confirm2 = await showDialog<bool>(
+    bool? confirm2 = await showZenGlassDialog<bool>(
       context: context,
+      accentColor: AppColors.roseGlow,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+            final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
             bool isMatched = usernameConfirmController.text.trim() == currentUsername;
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Row(
+
+            return SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.warning, color: Colors.red),
-                  const SizedBox(width: 10),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.roseGlow.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.roseGlow.withOpacity(0.35)),
+                        ),
+                        child: const Icon(Icons.gpp_bad_rounded, color: AppColors.roseGlow, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          context.tr('final_warning'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: AppColors.roseGlow,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
                   Text(
-                    context.tr('final_warning') ?? 'Cảnh báo cuối cùng',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                    context.tr('delete_account_warning'),
+                    style: TextStyle(fontSize: 13.5, height: 1.45, color: mutedColor),
+                  ),
+                  const SizedBox(height: 12),
+                  ZenLiquidGlass(
+                    blurSigma: 0,
+                    borderRadius: 14,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    glowColor: AppColors.roseGlow,
+                    child: Center(
+                      child: Text(
+                        currentUsername,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          fontFamily: 'monospace',
+                          color: textColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: usernameConfirmController,
+                    onChanged: (_) => setDialogState(() {}),
+                    style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                    decoration: zenGlassInputDecoration(
+                      context,
+                      hintText: '${context.tr('enter')} $currentUsername',
+                      prefixIcon: Icons.verified_user_outlined,
+                      accentColor: AppColors.roseGlow,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ZenGlassButton(
+                          label: context.tr('btn_cancel'),
+                          isPrimary: false,
+                          onPressed: () => Navigator.pop(ctx, false),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ZenGlassButton(
+                          label: context.tr('btn_still_delete'),
+                          isDanger: true,
+                          icon: Icons.delete_forever_rounded,
+                          onPressed: isMatched ? () => Navigator.pop(ctx, true) : null,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(context.tr('delete_account_warning') ?? 'Hành động này KHÔNG THỂ hoàn tác. Nhập Username của bạn để xác nhận:'),
-                    const SizedBox(height: 12),
-                    Text(currentUsername!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: usernameConfirmController,
-                      onChanged: (val) => setDialogState(() {}),
-                      decoration: InputDecoration(
-                        hintText: '${context.tr('enter') ?? 'Nhập'} $currentUsername',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: Text(context.tr('btn_cancel') ?? 'Hủy'),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isMatched ? Colors.red : Colors.grey,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: isMatched ? () => Navigator.pop(ctx, true) : null,
-                  child: Text(context.tr('btn_still_delete') ?? 'Vẫn xóa', style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
             );
           },
         );
       },
     );
 
+    usernameConfirmController.dispose();
+
     if (confirm2 != true) return;
 
     if (!mounted) return;
     LoadingOverlay.show(context);
-    final result = await ref.read(profileControllerProvider.notifier).executeAccountDeletion(currentUsername!);
+    final result = await ref.read(profileControllerProvider.notifier).executeAccountDeletion(currentUsername);
     if (!mounted) return;
 
     if (result.success) {
       await LoadingOverlay.hideSuccess();
     } else {
       LoadingOverlay.hide();
-      showFloatingToast(context, context.tr('error') ?? 'Lỗi', result.errorMessage ?? (context.tr('error') ?? 'Lỗi'), isError: true);
+      showFloatingToast(context, context.tr('error'), result.errorMessage ?? context.tr('error'), isError: true);
     }
   }
 
@@ -719,45 +843,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required IconData titleIcon,
     required List<Widget> children,
     required bool isDark,
+    Color? accentColor,
+    bool isDanger = false,
   }) {
-    return Container(
+    final zen = context.zenColors;
+    final effectiveAccent = isDanger
+        ? AppColors.roseGlow
+        : (accentColor ?? (isDark ? zen.primaryAccent : zen.primary));
+
+    return ZenGlassCard(
       margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF131B2E) : Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      blurSigma: 16,
+      glowColor: isDanger ? AppColors.roseGlow : null,
+      isActive: isDanger,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F766E).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  color: effectiveAccent.withOpacity(isDark ? 0.18 : 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: effectiveAccent.withOpacity(0.28)),
                 ),
-                child: Icon(titleIcon, color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E), size: 18),
+                child: Icon(titleIcon, color: effectiveAccent, size: 18),
               ),
-              const SizedBox(width: 10),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDanger
+                        ? AppColors.roseGlow
+                        : (isDark ? AppColors.darkText : AppColors.lightText),
+                  ),
                 ),
               ),
             ],
@@ -777,14 +901,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     Widget? trailing,
     VoidCallback? onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+    final zen = context.zenColors;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: ZenLiquidGlass(
+        blurSigma: 0,
+        borderRadius: 16,
+        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+        surfaceColor: isDark
+            ? Colors.white.withOpacity(0.05)
+            : Colors.white.withOpacity(0.58),
+        onTap: onTap,
         child: Row(
           children: [
-            Icon(icon, size: 20, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: zen.primary.withOpacity(isDark ? 0.18 : 0.10),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: isDark ? zen.primaryAccent : zen.primary,
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -795,22 +939,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 11.5,
+                      color: mutedColor,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    value.isNotEmpty ? value : (context.tr('not_set') ?? 'Chưa thiết lập'),
+                    value.isNotEmpty ? value : context.tr('not_set'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: value.isNotEmpty
-                          ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                          : Colors.grey.shade400,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: value.isNotEmpty ? textColor : mutedColor.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -826,11 +968,74 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Widget _buildGlassMenuRow({
+    required IconData icon,
+    required String title,
+    required bool isDark,
+    required VoidCallback onTap,
+    bool isDanger = false,
+  }) {
+    final zen = context.zenColors;
+    final accent = isDanger
+        ? AppColors.roseGlow
+        : (isDark ? zen.primaryAccent : zen.primary);
+    final textColor = isDanger
+        ? AppColors.roseGlow
+        : (isDark ? AppColors.darkText : AppColors.lightText);
+
+    return ZenLiquidGlass(
+      blurSigma: 0,
+      borderRadius: 16,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      surfaceColor: isDanger
+          ? AppColors.roseGlow.withOpacity(isDark ? 0.10 : 0.06)
+          : (isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.58)),
+      glowColor: isDanger ? AppColors.roseGlow : null,
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: accent.withOpacity(isDark ? 0.18 : 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: accent, size: 19),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14.5,
+                color: textColor,
+              ),
+            ),
+          ),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: isDanger
+                ? AppColors.roseGlow
+                : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
     final profileState = ref.watch(profileControllerProvider);
+
+    final roleColor = activeConfig.role == 'owner'
+        ? AppColors.purpleGlow
+        : AppColors.emeraldGlow;
 
     return PopScope(
       canPop: !_hasChanges,
@@ -841,462 +1046,480 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Navigator.of(context).pop();
         }
       },
-      child: Scaffold(
-        backgroundColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF6F8FB),
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-            onPressed: () async {
-              final shouldLeave = await _onWillPop();
-              if (shouldLeave && mounted) {
-                Navigator.of(context).pop();
-              }
-            },
-          ),
-          title: Text(
-            context.tr('profile_title') ?? 'Hồ sơ của tôi',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
+      child: ZenGlassScaffold(
+        appBar: ZenGlassAppBar(
           centerTitle: true,
-          iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
-        actions: [
-          if (_hasChanges)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: TextButton.icon(
+          titleText: context.tr('profile_title'),
+          onBack: () async {
+            final shouldLeave = await _onWillPop();
+            if (shouldLeave && mounted) {
+              Navigator.of(context).pop();
+            }
+          },
+          actions: [
+            if (_hasChanges)
+              ZenGlassButton(
+                label: context.tr('btn_save'),
+                icon: Icons.check_rounded,
+                isLoading: profileState.isLoading,
+                borderRadius: 12,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                accentColor: AppColors.emeraldGlow,
                 onPressed: profileState.isLoading ? null : _saveProfileChanges,
-                icon: const Icon(Icons.check, size: 18),
-                label: Text(context.tr('btn_save') ?? 'Lưu'),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF10B981),
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
-                ),
               ),
-            ),
-        ],
-      ),
-      body: RefreshIndicator(
-        color: const Color(0xFF0F766E),
-        onRefresh: () async {
-          await user?.reload();
-          await ref.read(profileControllerProvider.notifier).fetchUserData();
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-          children: [
-            const SizedBox(height: 10),
-            // Header: Avatar with Edit Button, Name & Badges
-            Center(
-              child: Column(
-                children: [
-                  Stack(
-                    children: [
-                      Container(
-                        width: 105,
-                        height: 105,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0F766E), Color(0xFF4A65C8)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: isDark ? const Color(0xFF1E293B) : Colors.white, width: 4),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0F766E).withOpacity(0.3),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                          image: (user?.photoURL != null && user!.photoURL!.isNotEmpty)
-                              ? DecorationImage(
-                                  image: NetworkImage(user!.photoURL!),
-                                  fit: BoxFit.cover,
-                                  onError: (e, s) => debugPrint('[Avatar] Lỗi nạp avatar: $e'),
-                                )
-                              : null,
-                        ),
-                        child: (user?.photoURL == null || user!.photoURL!.isEmpty)
-                            ? Center(
-                                child: Text(
-                                  (user?.displayName ?? 'U').isNotEmpty
-                                      ? (user!.displayName ?? 'U').substring(0, 1).toUpperCase()
-                                      : 'U',
-                                  style: const TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: Colors.white),
-                                ),
-                              )
-                            : null,
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: _updateAvatar,
-                          child: Container(
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0F766E),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 6,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 15),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        user?.displayName?.isNotEmpty == true ? user!.displayName! : 'ZenHome User',
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (profileState.username.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F766E).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF0F766E).withOpacity(0.25)),
-                          ),
-                          child: Text(
-                            '@${profileState.username}',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F766E)),
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: (activeConfig.role == 'owner' ? const Color(0xFF8B5CF6) : const Color(0xFF10B981)).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: (activeConfig.role == 'owner' ? const Color(0xFF8B5CF6) : const Color(0xFF10B981)).withOpacity(0.3),
-                          ),
-                        ),
-                        child: Text(
-                          activeConfig.role == 'owner' ? (context.tr('owner_role') ?? 'Chủ nhà') : (context.tr('member_role') ?? 'Thành viên'),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: activeConfig.role == 'owner' ? const Color(0xFF8B5CF6) : const Color(0xFF10B981),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 22),
-
-            // Card 1: Thông tin cá nhân & Liên kết
-            _buildSectionCard(
-              context: context,
-              title: context.tr('menu_account_info') ?? 'Thông tin cá nhân & Liên kết',
-              titleIcon: Icons.badge_outlined,
-              isDark: isDark,
-              children: [
-                // Họ và tên
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  child: TextField(
-                    controller: _nameController,
-                    onChanged: (_) => _checkForChanges(),
-                    decoration: InputDecoration(
-                      labelText: context.tr('full_name') ?? 'Họ và tên',
-                      prefixIcon: const Icon(Icons.person_outline, size: 20),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Ngày sinh
-                InkWell(
-                  onTap: _selectBirthday,
-                  borderRadius: BorderRadius.circular(14),
-                  child: IgnorePointer(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      child: TextField(
-                        controller: _birthdayController,
-                        decoration: InputDecoration(
-                          labelText: context.tr('birthday') ?? 'Ngày sinh',
-                          hintText: 'DD/MM/YYYY',
-                          prefixIcon: const Icon(Icons.cake_outlined, size: 20),
-                          suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const Divider(height: 24),
-
-                // Tiêu đề & Nút bật/tắt che thông tin liên lạc nhạy cảm (Data Masking)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        context.tr('sec_linked_info') ?? 'Thông tin liên kết bảo mật',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          _maskSensitiveDetails ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                          size: 19,
-                          color: const Color(0xFF0D9488),
-                        ),
-                        tooltip: _maskSensitiveDetails ? (context.tr('show_sensitive_info') ?? 'Hiện thông tin nhạy cảm') : (context.tr('hide_sensitive_info') ?? 'Che thông tin nhạy cảm'),
-                        onPressed: () => setState(() => _maskSensitiveDetails = !_maskSensitiveDetails),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Email (Google)
-                _buildInfoRow(
-                  label: 'Email (Google)',
-                  value: profileState.email.isNotEmpty
-                      ? (_maskSensitiveDetails ? MaskingHelper.maskEmail(profileState.email) : profileState.email)
-                      : (context.tr('unlinked') ?? 'Chưa liên kết'),
-                  icon: Icons.alternate_email_rounded,
-                  isDark: isDark,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: (profileState.isGoogleLinked ? Colors.green : Colors.grey).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          profileState.isGoogleLinked ? (context.tr('linked') ?? 'Đã liên kết') : (context.tr('unlinked') ?? 'Chưa có'),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: profileState.isGoogleLinked ? Colors.green : Colors.grey,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          backgroundColor: profileState.isGoogleLinked ? Colors.redAccent.withOpacity(0.12) : const Color(0xFF0F766E).withOpacity(0.12),
-                          foregroundColor: profileState.isGoogleLinked ? Colors.redAccent : const Color(0xFF0F766E),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: _handleGoogleLinkToggle,
-                        child: Text(
-                          profileState.isGoogleLinked ? (context.tr('unlink') ?? 'Hủy') : (context.tr('link') ?? 'Liên kết'),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Số điện thoại
-                _buildInfoRow(
-                  label: context.tr('phone_number') ?? 'Số điện thoại',
-                  value: profileState.phone.isNotEmpty
-                      ? (_maskSensitiveDetails ? MaskingHelper.maskPhone(profileState.phone) : profileState.phone)
-                      : (context.tr('unlinked') ?? 'Chưa có'),
-                  icon: Icons.phone_android_outlined,
-                  isDark: isDark,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: (profileState.isPhoneLinked ? Colors.green : Colors.grey).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          profileState.isPhoneLinked ? (context.tr('linked') ?? 'Đã liên kết') : (context.tr('unlinked') ?? 'Chưa có'),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: profileState.isPhoneLinked ? Colors.green : Colors.grey,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      if (profileState.isPhoneLinked) ...[
-                        IconButton(
-                          tooltip: context.tr('tooltip_change_phone'),
-                          constraints: const BoxConstraints(),
-                          padding: const EdgeInsets.all(6),
-                          icon: const Icon(Icons.edit_outlined, size: 18),
-                          onPressed: () async {
-                            await Navigator.push(context, MaterialPageRoute(builder: (_) => const UpdateEmailPhoneScreen(isPhone: true)));
-                            await user?.reload();
-                            await ref.read(profileControllerProvider.notifier).fetchUserData();
-                          },
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          backgroundColor: profileState.isPhoneLinked ? Colors.redAccent.withOpacity(0.12) : const Color(0xFF0F766E).withOpacity(0.12),
-                          foregroundColor: profileState.isPhoneLinked ? Colors.redAccent : const Color(0xFF0F766E),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: _handlePhoneLinkToggle,
-                        child: Text(
-                          profileState.isPhoneLinked ? (context.tr('unlink') ?? 'Hủy') : (context.tr('link') ?? 'Liên kết'),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                if (_hasChanges) ...[
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F766E),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: profileState.isLoading ? null : _saveProfileChanges,
-                      child: profileState.isLoading
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text(context.tr('btn_save') ?? 'Lưu thay đổi', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-
-            // Card 2: Bảo mật & Thiết bị
-            _buildSectionCard(
-              context: context,
-              title: context.tr('security_and_devices') ?? 'Bảo mật & Thiết bị',
-              titleIcon: Icons.security_outlined,
-              isDark: isDark,
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    padding: const EdgeInsets.all(9),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F766E).withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.lock_reset_rounded, color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E), size: 20),
-                  ),
-                  title: Text(context.tr('menu_change_password') ?? 'Đổi mật khẩu', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                  onTap: () async {
-                    bool isTrusted = await SessionManager.isCurrentDeviceTrusted();
-                    if (!isTrusted) {
-                      if (mounted) {
-                        showFloatingToast(
-                          context,
-                          context.tr('error') ?? 'Lỗi',
-                          context.tr('err_trusted_device_only_delete') ?? 'Chỉ thiết bị tin cậy mới có thể thực hiện thao tác này',
-                          isError: true,
-                        );
-                      }
-                      return;
-                    }
-                    if (mounted) {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ChangePasswordScreen()));
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    padding: const EdgeInsets.all(9),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F766E).withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.devices_rounded, color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E), size: 20),
-                  ),
-                  title: Text(context.tr('menu_logged_devices') ?? 'Quản lý thiết bị đăng nhập', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoggedDevicesScreen())),
-                ),
-              ],
-            ),
-
-            // Card 3: Vùng nguy hiểm (Xóa tài khoản)
-            _buildSectionCard(
-              context: context,
-              title: context.tr('danger_zone') ?? 'Vùng nguy hiểm',
-              titleIcon: Icons.warning_amber_rounded,
-              isDark: isDark,
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    padding: const EdgeInsets.all(9),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 20),
-                  ),
-                  title: Text(
-                    context.tr('menu_delete_account') ?? 'Xóa tài khoản vĩnh viễn',
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.redAccent),
-                  ),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.redAccent),
-                  onTap: _deleteAccount,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 40),
           ],
         ),
-      ),
-    ),
-  ),
-);
-}
-}
+        body: RefreshIndicator(
+          color: zen.primary,
+          onRefresh: () async {
+            await user?.reload();
+            await ref.read(profileControllerProvider.notifier).fetchUserData();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
 
+                // Avatar Hero Glass Card
+                ZenGlassCard(
+                  margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+                  blurSigma: 16,
+                  isActive: true,
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Stack(
+                          children: [
+                            Container(
+                              width: 106,
+                              height: 106,
+                              decoration: BoxDecoration(
+                                gradient: zen.brandHero,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(isDark ? 0.28 : 0.9),
+                                  width: 3.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: zen.primary.withOpacity(isDark ? 0.38 : 0.24),
+                                    blurRadius: 22,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                                image: (user?.photoURL != null && user!.photoURL!.isNotEmpty)
+                                    ? DecorationImage(
+                                        image: NetworkImage(user!.photoURL!),
+                                        fit: BoxFit.cover,
+                                        onError: (e, s) => debugPrint('[Avatar] Lỗi nạp avatar: $e'),
+                                      )
+                                    : null,
+                              ),
+                              child: (user?.photoURL == null || user!.photoURL!.isEmpty)
+                                  ? Center(
+                                      child: Text(
+                                        (user?.displayName ?? 'U').isNotEmpty
+                                            ? (user!.displayName ?? 'U').substring(0, 1).toUpperCase()
+                                            : 'U',
+                                        style: const TextStyle(
+                                          fontSize: 42,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: _updateAvatar,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    gradient: zen.brandHero,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                      width: 2.2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: zen.primary.withOpacity(0.35),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 15),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          user?.displayName?.isNotEmpty == true ? user!.displayName! : 'ZenHome User',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
+                            color: textColor,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            if (profileState.username.isNotEmpty)
+                              ZenGlassPill(
+                                blurSigma: 0,
+                                isSelected: true,
+                                glowColor: zen.primary,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                                child: Text(
+                                  '@${profileState.username}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? zen.primaryAccent : zen.primary,
+                                  ),
+                                ),
+                              ),
+                            ZenGlassPill(
+                              blurSigma: 0,
+                              isSelected: true,
+                              glowColor: roleColor,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    activeConfig.role == 'owner'
+                                        ? Icons.workspace_premium_rounded
+                                        : Icons.verified_user_rounded,
+                                    size: 13,
+                                    color: roleColor,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    activeConfig.role == 'owner'
+                                        ? context.tr('owner_role')
+                                        : context.tr('member_role'),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: roleColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                // Card 1: Thông tin cá nhân & Liên kết
+                _buildSectionCard(
+                  context: context,
+                  title: context.tr('menu_account_info'),
+                  titleIcon: Icons.badge_outlined,
+                  isDark: isDark,
+                  children: [
+                    // Họ và tên
+                    TextField(
+                      controller: _nameController,
+                      onChanged: (_) => _checkForChanges(),
+                      style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                      decoration: zenGlassInputDecoration(
+                        context,
+                        labelText: context.tr('full_name'),
+                        prefixIcon: Icons.person_outline_rounded,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Ngày sinh
+                    InkWell(
+                      onTap: _selectBirthday,
+                      borderRadius: BorderRadius.circular(16),
+                      child: IgnorePointer(
+                        child: TextField(
+                          controller: _birthdayController,
+                          style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                          decoration: zenGlassInputDecoration(
+                            context,
+                            labelText: context.tr('birthday'),
+                            hintText: 'DD/MM/YYYY',
+                            prefixIcon: Icons.cake_outlined,
+                            suffixIcon: Icon(
+                              Icons.calendar_today_outlined,
+                              size: 18,
+                              color: mutedColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Divider(
+                        height: 1,
+                        color: isDark
+                            ? Colors.white.withOpacity(0.10)
+                            : const Color(0xFFCBD5E1).withOpacity(0.6),
+                      ),
+                    ),
+
+                    // Tiêu đề & Nút bật/tắt che thông tin liên lạc nhạy cảm (Data Masking)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              context.tr('sec_linked_info'),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: mutedColor,
+                              ),
+                            ),
+                          ),
+                          ZenGlassIconButton(
+                            blurSigma: 0,
+                            size: 34,
+                            iconSize: 17,
+                            borderRadius: 11,
+                            icon: _maskSensitiveDetails
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            iconColor: isDark ? zen.primaryAccent : zen.primary,
+                            tooltip: _maskSensitiveDetails
+                                ? context.tr('show_sensitive_info')
+                                : context.tr('hide_sensitive_info'),
+                            onTap: () => setState(() => _maskSensitiveDetails = !_maskSensitiveDetails),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Email (Google)
+                    _buildInfoRow(
+                      label: 'Email (Google)',
+                      value: profileState.email.isNotEmpty
+                          ? (_maskSensitiveDetails
+                              ? MaskingHelper.maskEmail(profileState.email)
+                              : profileState.email)
+                          : context.tr('unlinked'),
+                      icon: Icons.alternate_email_rounded,
+                      isDark: isDark,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ZenGlassPill(
+                            blurSigma: 0,
+                            isSelected: profileState.isGoogleLinked,
+                            glowColor: profileState.isGoogleLinked ? AppColors.emeraldGlow : Colors.grey,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Text(
+                              profileState.isGoogleLinked ? context.tr('linked') : context.tr('unlinked'),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: profileState.isGoogleLinked ? AppColors.emeraldGlow : mutedColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          ZenGlassPill(
+                            blurSigma: 0,
+                            isSelected: true,
+                            glowColor: profileState.isGoogleLinked ? AppColors.roseGlow : zen.primary,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            onTap: _handleGoogleLinkToggle,
+                            child: Text(
+                              profileState.isGoogleLinked ? context.tr('unlink') : context.tr('link'),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11.5,
+                                color: profileState.isGoogleLinked
+                                    ? AppColors.roseGlow
+                                    : (isDark ? zen.primaryAccent : zen.primary),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Số điện thoại
+                    _buildInfoRow(
+                      label: context.tr('phone_number'),
+                      value: profileState.phone.isNotEmpty
+                          ? (_maskSensitiveDetails
+                              ? MaskingHelper.maskPhone(profileState.phone)
+                              : profileState.phone)
+                          : context.tr('unlinked'),
+                      icon: Icons.phone_android_outlined,
+                      isDark: isDark,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ZenGlassPill(
+                            blurSigma: 0,
+                            isSelected: profileState.isPhoneLinked,
+                            glowColor: profileState.isPhoneLinked ? AppColors.emeraldGlow : Colors.grey,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Text(
+                              profileState.isPhoneLinked ? context.tr('linked') : context.tr('unlinked'),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: profileState.isPhoneLinked ? AppColors.emeraldGlow : mutedColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          if (profileState.isPhoneLinked) ...[
+                            ZenGlassIconButton(
+                              blurSigma: 0,
+                              size: 30,
+                              iconSize: 15,
+                              borderRadius: 9,
+                              icon: Icons.edit_outlined,
+                              tooltip: context.tr('tooltip_change_phone'),
+                              onTap: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const UpdateEmailPhoneScreen(isPhone: true),
+                                  ),
+                                );
+                                await user?.reload();
+                                await ref.read(profileControllerProvider.notifier).fetchUserData();
+                              },
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          ZenGlassPill(
+                            blurSigma: 0,
+                            isSelected: true,
+                            glowColor: profileState.isPhoneLinked ? AppColors.roseGlow : zen.primary,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            onTap: _handlePhoneLinkToggle,
+                            child: Text(
+                              profileState.isPhoneLinked ? context.tr('unlink') : context.tr('link'),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11.5,
+                                color: profileState.isPhoneLinked
+                                    ? AppColors.roseGlow
+                                    : (isDark ? zen.primaryAccent : zen.primary),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    if (_hasChanges) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ZenGlassButton(
+                          label: context.tr('btn_save'),
+                          icon: Icons.check_circle_outline_rounded,
+                          isLoading: profileState.isLoading,
+                          onPressed: profileState.isLoading ? null : _saveProfileChanges,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+
+                // Card 2: Bảo mật & Thiết bị
+                _buildSectionCard(
+                  context: context,
+                  title: context.tr('security_and_devices'),
+                  titleIcon: Icons.security_outlined,
+                  isDark: isDark,
+                  children: [
+                    _buildGlassMenuRow(
+                      icon: Icons.lock_reset_rounded,
+                      title: context.tr('menu_change_password'),
+                      isDark: isDark,
+                      onTap: () async {
+                        bool isTrusted = await SessionManager.isCurrentDeviceTrusted();
+                        if (!isTrusted) {
+                          if (mounted) {
+                            showFloatingToast(
+                              context,
+                              context.tr('error'),
+                              context.tr('err_trusted_device_only_delete'),
+                              isError: true,
+                            );
+                          }
+                          return;
+                        }
+                        if (mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    _buildGlassMenuRow(
+                      icon: Icons.devices_rounded,
+                      title: context.tr('menu_logged_devices'),
+                      isDark: isDark,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoggedDevicesScreen()),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Card 3: Vùng nguy hiểm (Xóa tài khoản)
+                _buildSectionCard(
+                  context: context,
+                  title: context.tr('danger_zone'),
+                  titleIcon: Icons.warning_amber_rounded,
+                  isDark: isDark,
+                  isDanger: true,
+                  children: [
+                    _buildGlassMenuRow(
+                      icon: Icons.delete_forever_rounded,
+                      title: context.tr('menu_delete_account'),
+                      isDark: isDark,
+                      isDanger: true,
+                      onTap: _deleteAccount,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

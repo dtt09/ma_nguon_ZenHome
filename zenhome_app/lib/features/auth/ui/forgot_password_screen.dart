@@ -1,33 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/widgets/animations/dual_layer_screen_wrapper.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/features/auth/ui/otp_verification_screen.dart';
 import 'package:zenhome_app/features/auth/ui/reset_password_screen.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
-  
+
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final FocusNode _phoneFocus = FocusNode();
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _phoneFocus.addListener(() { if (mounted) setState(() {}); });
+    _phoneFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -40,35 +46,53 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   void _handleSendOtp() async {
     final String input = _phoneController.text.trim();
     if (input.isEmpty) {
-      showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_empty_phone_forgot') ?? 'Vui lòng nhập Email, SĐT hoặc Tên đăng nhập', isError: true);
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('err_empty_phone_forgot'),
+        isError: true,
+      );
       return;
     }
-    
+
     LoadingOverlay.show(context);
     try {
       // 1. KIỂM TRA TỒN TẠI TÀI KHOẢN TOÀN DIỆN
       Map<String, dynamic>? userData;
       String? username;
-      
+
       String normalizedInput = input;
       if (!input.contains('@')) {
-        if (input.startsWith('0')) normalizedInput = '+84${input.substring(1)}';
-        else if (RegExp(r'^\d+$').hasMatch(input)) normalizedInput = '+$input';
+        if (input.startsWith('0')) {
+          normalizedInput = '+84${input.substring(1)}';
+        } else if (RegExp(r'^\d+$').hasMatch(input)) {
+          normalizedInput = '+$input';
+        }
       }
 
       // Thử tìm theo Username
-      var doc = await FirebaseFirestore.instance.collection('users').doc(input).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(input)
+          .get();
       if (doc.exists) {
         userData = doc.data();
         username = doc.id;
       } else {
         // Thử tìm theo SĐT qua bảng tra cứu phone_lookup trước
         try {
-          var phoneDoc = await FirebaseFirestore.instance.collection('phone_lookup').doc(normalizedInput).get();
+          final phoneDoc = await FirebaseFirestore.instance
+              .collection('phone_lookup')
+              .doc(normalizedInput)
+              .get();
           if (phoneDoc.exists) {
-            String targetUsername = phoneDoc.data()?['username'] ?? '';
+            final String targetUsername =
+                phoneDoc.data()?['username'] ?? '';
             if (targetUsername.isNotEmpty) {
-              var userDoc = await FirebaseFirestore.instance.collection('users').doc(targetUsername).get();
+              final userDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(targetUsername)
+                  .get();
               if (userDoc.exists) {
                 userData = userDoc.data();
                 username = userDoc.id;
@@ -80,7 +104,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         if (userData == null) {
           // Thử tìm theo SĐT qua query users (dự phòng)
           try {
-            var phoneQuery = await FirebaseFirestore.instance.collection('users').where('phoneNumber', isEqualTo: normalizedInput).get();
+            final phoneQuery = await FirebaseFirestore.instance
+                .collection('users')
+                .where('phoneNumber', isEqualTo: normalizedInput)
+                .get();
             if (phoneQuery.docs.isNotEmpty) {
               userData = phoneQuery.docs.first.data();
               username = phoneQuery.docs.first.id;
@@ -92,7 +119,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           if (input.toLowerCase().endsWith('@gmail.com')) {
             // Thử tìm theo Email Google
             try {
-              var emailQuery = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: input).get();
+              final emailQuery = await FirebaseFirestore.instance
+                  .collection('users')
+                  .where('email', isEqualTo: input)
+                  .get();
               if (emailQuery.docs.isNotEmpty) {
                 userData = emailQuery.docs.first.data();
                 username = emailQuery.docs.first.id;
@@ -104,219 +134,441 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
       if (userData == null) {
         LoadingOverlay.hide();
-        showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_user_not_found') ?? 'Không tìm thấy tài khoản nào khớp với thông tin này!', isError: true);
+        if (!mounted) return;
+        showFloatingToast(
+          context,
+          context.tr('error'),
+          context.tr('err_user_not_found'),
+          isError: true,
+        );
         return;
       }
 
       LoadingOverlay.hide();
-      
-      // Hiển thị Dialog xác nhận
+
+      // Hiển thị Dialog xác nhận bằng Zen Liquid Glass 2.0
       if (!mounted) return;
       _showAccountFoundDialog(userData, username!);
-      
     } catch (e) {
       LoadingOverlay.hide();
-      showFloatingToast(context, context.tr('error') ?? 'Lỗi', '${context.tr('err_generic') ?? "Đã xảy ra lỗi"}: $e', isError: true);
+      if (mounted) {
+        showFloatingToast(
+          context,
+          context.tr('error'),
+          '${context.tr('err_generic')}: $e',
+          isError: true,
+        );
+      }
     }
   }
 
   void _showAccountFoundDialog(Map<String, dynamic> data, String username) {
-      String? phone = (data.containsKey('phoneNumber') && data['phoneNumber'].toString().isNotEmpty) ? data['phoneNumber'] : null;
-      String? email = (data.containsKey('email') && data['email'].toString().isNotEmpty) ? data['email'] : null;
-      if (email != null && (!email.toLowerCase().endsWith('@gmail.com') || email.endsWith('@zenhome.local'))) {
-        email = null;
-      }
-      String displayName = data['displayName'] ?? username;
-      bool isDark = Theme.of(context).brightness == Brightness.dark;
-      
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  shape: BoxShape.circle,
+    final String? phone = (data.containsKey('phoneNumber') &&
+            data['phoneNumber'].toString().isNotEmpty)
+        ? data['phoneNumber'].toString()
+        : null;
+    String? email =
+        (data.containsKey('email') && data['email'].toString().isNotEmpty)
+            ? data['email'].toString()
+            : null;
+    if (email != null &&
+        (!email.toLowerCase().endsWith('@gmail.com') ||
+            email.endsWith('@zenhome.local'))) {
+      email = null;
+    }
+    final String displayName = data['displayName']?.toString() ?? username;
+
+    showZenGlassDialog(
+      context: context,
+      accentColor: AppColors.emeraldGlow,
+      builder: (ctx) {
+        final bool isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final Color textColor =
+            isDark ? AppColors.darkText : AppColors.lightText;
+        final Color mutedColor =
+            isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
+        final String maskedPhone = phone != null && phone.length > 6
+            ? phone.replaceRange(3, phone.length - 3, '***')
+            : (phone ?? '');
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.emeraldGlow.withOpacity(isDark ? 0.18 : 0.12),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.emeraldGlow.withOpacity(0.35),
                 ),
-                child: const Icon(Icons.check_circle_outline, color: Colors.green, size: 45),
               ),
-              const SizedBox(height: 15),
-              Text(context.tr('account_found') ?? 'Đã tìm thấy tài khoản', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.green)),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Xin chào, $displayName', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: isDark ? Colors.white : Colors.black87)),
-              const SizedBox(height: 10),
-              Text(context.tr('choose_reset_method') ?? 'Vui lòng chọn phương thức khôi phục mật khẩu:', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
-              const SizedBox(height: 25),
-              
-              if (phone != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.blue.withOpacity(0.1) : Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                      child: const Icon(Icons.sms, color: Colors.white, size: 24),
-                    ),
-                    title: Text(context.tr('send_sms') ?? 'Gửi mã OTP qua SMS', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-                    subtitle: Text('Tới: ${phone.replaceRange(3, phone.length - 3, '***')}', style: TextStyle(color: isDark ? Colors.blue.shade200 : Colors.blue.shade700)),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _sendOtpToPhone(phone);
-                    },
-                  ),
-                ),
-              
-              if (email != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.red.withOpacity(0.1) : Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                      child: const Icon(Icons.g_mobiledata, color: Colors.white, size: 30),
-                    ),
-                    title: Text(context.tr('verify_via_google') ?? 'Xác thực bằng Google', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-                    subtitle: Text('Qua: ${_maskEmail(email!)}', style: TextStyle(color: isDark ? Colors.red.shade200 : Colors.red.shade700)),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _sendResetEmail(email!);
-                    },
-                  ),
-                ),
-                
-              if (phone == null && email == null)
-                Text(context.tr('err_no_recovery_method') ?? 'Tài khoản của bạn chưa có thông tin nào để khôi phục!', style: const TextStyle(color: Colors.red)),
-            ],
-          ),
-          actionsAlignment: MainAxisAlignment.center,
-          actionsPadding: const EdgeInsets.only(bottom: 20),
-          actions: [
-            TextButton(
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.withOpacity(0.3))),
+              child: const Icon(
+                Icons.verified_user_rounded,
+                color: AppColors.emeraldGlow,
+                size: 38,
               ),
-              onPressed: () => Navigator.pop(ctx), 
-              child: Text(context.tr('cancel') ?? 'Hủy', style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 16))
+            ),
+            const SizedBox(height: 14),
+            Text(
+              ctx.tr('account_found'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 20,
+                color: AppColors.emeraldGlow,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Xin chào, $displayName',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16.5,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              ctx.tr('choose_reset_method'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13.5,
+                height: 1.4,
+                color: mutedColor,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            if (phone != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ZenGlassCard(
+                  blurSigma: 0,
+                  borderRadius: 18,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  isActive: true,
+                  glowColor: AppColors.cyanGlow,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(ctx);
+                    _sendOtpToPhone(phone);
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.cyanGlow.withOpacity(
+                            isDark ? 0.22 : 0.14,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.sms_rounded,
+                          color: AppColors.cyanGlow,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              ctx.tr('send_sms'),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14.5,
+                                color: textColor,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Tới: $maskedPhone',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: mutedColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: mutedColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            if (email != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ZenGlassCard(
+                  blurSigma: 0,
+                  borderRadius: 18,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  isActive: true,
+                  glowColor: AppColors.roseGlow,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    final String targetEmail = email!;
+                    Navigator.pop(ctx);
+                    _sendResetEmail(targetEmail);
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(
+                            isDark ? 0.10 : 0.85,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Image.asset(
+                          'public/google_logo.png',
+                          width: 22,
+                          height: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              ctx.tr('verify_via_google'),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14.5,
+                                color: textColor,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Qua: ${_maskEmail(email)}',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: mutedColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: mutedColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            if (phone == null && email == null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  ctx.tr('err_no_recovery_method'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.roseGlow,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
+              child: ZenGlassButton(
+                label: ctx.tr('cancel'),
+                isPrimary: false,
+                onPressed: () => Navigator.pop(ctx),
+              ),
             ),
           ],
-        ),
-      );
+        );
+      },
+    );
   }
-  
+
   String _maskEmail(String email) {
-    int atIndex = email.indexOf('@');
-    if (atIndex <= 2) return '${email.substring(0, 1)}***@${email.substring(atIndex + 1)}';
+    final int atIndex = email.indexOf('@');
+    if (atIndex <= 2) {
+      return '${email.substring(0, 1)}***@${email.substring(atIndex + 1)}';
+    }
     return '${email.substring(0, 2)}***${email.substring(atIndex - 1)}';
   }
-  
+
   void _sendResetEmail(String email) async {
-      LoadingOverlay.show(context);
+    LoadingOverlay.show(context);
+    try {
+      final String? clientId = dotenv.env['GOOGLE_CLIENT_ID'];
+      final GoogleSignIn googleSignIn = GoogleSignIn(serverClientId: clientId);
+      await googleSignIn.signOut(); // Force account selector
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        LoadingOverlay.hide();
+        return;
+      }
+
+      if (googleUser.email != email) {
+        await googleSignIn.signOut();
+        LoadingOverlay.hide();
+        if (mounted) {
+          showFloatingToast(
+            context,
+            context.tr('error'),
+            context.tr('err_reauth_select_google').replaceAll('{email}', email),
+            isError: true,
+          );
+        }
+        return;
+      }
+
+      // Xác thực thành công, lấy thông tin credential
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
       try {
-        final String? clientId = dotenv.env['GOOGLE_CLIENT_ID'];
-        final GoogleSignIn googleSignIn = GoogleSignIn(serverClientId: clientId);
-        await googleSignIn.signOut(); // Force account selector
-        
-        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-        if (googleUser == null) {
-          LoadingOverlay.hide();
-          return;
-        }
-        
-        if (googleUser.email != email) {
-          await googleSignIn.signOut();
-          LoadingOverlay.hide();
-          if (mounted) showFloatingToast(context, context.tr('error'), context.tr('err_reauth_select_google').replaceAll('{email}', email), isError: true);
-          return;
-        }
-        
-        // Xác thực thành công, lấy thông tin credential
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final AuthCredential credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-        
-        try {
-          final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
-          final uid = userCred.user!.uid;
-          LoadingOverlay.hide();
-          if (mounted) {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ResetPasswordScreen(phoneNumber: email, uid: uid)));
-          }
-        } catch (e) {
-          LoadingOverlay.hide();
-          if (mounted) showFloatingToast(context, context.tr('error'), e.toString(), isError: true);
+        final userCred =
+            await FirebaseAuth.instance.signInWithCredential(credential);
+        final uid = userCred.user!.uid;
+        LoadingOverlay.hide();
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ResetPasswordScreen(phoneNumber: email, uid: uid),
+            ),
+          );
         }
       } catch (e) {
         LoadingOverlay.hide();
-        if (mounted) showFloatingToast(context, context.tr('error'), context.tr('err_google_auth_failed').replaceAll('{err}', e.toString()), isError: true);
+        if (mounted) {
+          showFloatingToast(
+            context,
+            context.tr('error'),
+            e.toString(),
+            isError: true,
+          );
+        }
       }
+    } catch (e) {
+      LoadingOverlay.hide();
+      if (mounted) {
+        showFloatingToast(
+          context,
+          context.tr('error'),
+          context
+              .tr('err_google_auth_failed')
+              .replaceAll('{err}', e.toString()),
+          isError: true,
+        );
+      }
+    }
   }
 
   void _sendOtpToPhone(String phoneNumber) async {
-      LoadingOverlay.show(context);
-      try {
-          await FirebaseAuth.instance.verifyPhoneNumber(
-            phoneNumber: phoneNumber,
-            verificationCompleted: (PhoneAuthCredential credential) async {
-               try {
-                 final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
-                 final uid = userCred.user!.uid;
-                 LoadingOverlay.hide();
-                 if (mounted) {
-                   Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ResetPasswordScreen(phoneNumber: phoneNumber, uid: uid)));
-                 }
-               } catch (e) {
-                 LoadingOverlay.hide();
-               }
-            },
-            verificationFailed: (FirebaseAuthException e) {
-              LoadingOverlay.hide();
-              showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.message ?? 'Lỗi gửi OTP', isError: true);
-            },
-            codeSent: (String verificationId, int? resendToken) {
-               LoadingOverlay.hide();
-               if (mounted) {
-                   Navigator.push(context, MaterialPageRoute(builder: (context) => OtpVerificationScreen(
-                       verificationId: verificationId, 
-                       phoneNumber: phoneNumber,
-                       isForgotPassword: true,
-                   )));
-               }
-            },
-            codeAutoRetrievalTimeout: (String verificationId) {},
-          );
-      } catch (e) {
+    LoadingOverlay.show(context);
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          try {
+            final userCred =
+                await FirebaseAuth.instance.signInWithCredential(credential);
+            final uid = userCred.user!.uid;
+            LoadingOverlay.hide();
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ResetPasswordScreen(phoneNumber: phoneNumber, uid: uid),
+                ),
+              );
+            }
+          } catch (e) {
+            LoadingOverlay.hide();
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
           LoadingOverlay.hide();
-          showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.toString(), isError: true);
+          if (mounted) {
+            showFloatingToast(
+              context,
+              context.tr('error'),
+              e.message ?? 'Lỗi gửi OTP',
+              isError: true,
+            );
+          }
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          LoadingOverlay.hide();
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => OtpVerificationScreen(
+                  verificationId: verificationId,
+                  phoneNumber: phoneNumber,
+                  isForgotPassword: true,
+                ),
+              ),
+            );
+          }
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {},
+      );
+    } catch (e) {
+      LoadingOverlay.hide();
+      if (mounted) {
+        showFloatingToast(
+          context,
+          context.tr('error'),
+          e.toString(),
+          isError: true,
+        );
       }
+    }
   }
 
-  Widget _buildContent(BuildContext context, bool isTopLayer, ScrollController controller) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color color = isTopLayer ? Colors.white : (isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E));
-    
+  Widget _buildMainContent(
+    BuildContext context, {
+    required bool isOverWave,
+    required ScrollController controller,
+  }) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+    final Color primaryColor = isDark ? zen.primaryAccent : zen.primary;
+    final Color textColor = isDark ? AppColors.darkText : AppColors.lightText;
+
+    // Header colors switch cleanly along the wave curve
+    final Color headerAccent = isOverWave ? Colors.white : primaryColor;
+    final Color headerTitleColor =
+        isOverWave ? Colors.white : (isDark ? AppColors.darkText : AppColors.lightText);
+    final Color headerDescColor = isOverWave
+        ? Colors.white.withOpacity(0.86)
+        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
+
     return SafeArea(
       bottom: false,
       child: Column(
@@ -324,65 +576,131 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           Align(
             alignment: Alignment.centerLeft,
             child: Padding(
-              padding: const EdgeInsets.all(15.0),
-              child: IconButton(
-                icon: Icon(Icons.arrow_back_ios, color: color),
-                onPressed: () => Navigator.pop(context),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+              child: ZenGlassIconButton(
+                icon: Icons.arrow_back_ios_new_rounded,
+                size: 40,
+                iconSize: 18,
+                borderRadius: 14,
+                blurSigma: isOverWave ? 0 : 14,
+                iconColor: isDark ? Colors.white : AppColors.lightText,
+                onTap: () => Navigator.pop(context),
               ),
             ),
           ),
-          
+
           Expanded(
             child: Center(
               child: SingleChildScrollView(
                 controller: controller,
-                padding: const EdgeInsets.symmetric(horizontal: 30),
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(24, 10, 24, 32),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.lock_reset_rounded, size: 70, color: color),
-                    const SizedBox(height: 20),
-                    Text(context.tr('forgot_password') ?? 'Quên mật khẩu?', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color)),
-                    const SizedBox(height: 10),
-                    Text(context.tr('forgot_password_desc'), textAlign: TextAlign.center, style: TextStyle(color: color.withOpacity(0.8), fontStyle: FontStyle.italic, height: 1.5)),
-                    
-                    const SizedBox(height: 40),
-                    
-                    Builder(
-                      builder: (context) {
-                        Widget field = TextField(
-                          controller: _phoneController,
-                          focusNode: isTopLayer ? null : _phoneFocus,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: isTopLayer ? Colors.white.withOpacity(0.1) : (isDark ? const Color(0xFF121827) : Colors.white),
-                            labelText: context.tr('phone_or_email'),
-                            labelStyle: TextStyle(color: isTopLayer ? Colors.white70 : null),
-                            prefixIcon: Icon(Icons.phone, color: color),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: (isTopLayer && _phoneFocus.hasFocus) ? color : color.withOpacity(0.3))),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: color)),
-                          ),
-                          style: TextStyle(color: isTopLayer ? Colors.white : (isDark ? Colors.white : Colors.black)),
-                        );
-                        if (isTopLayer) {
-                        }
-                        return field;
-                      }
-                    ),
-                    
-                    const SizedBox(height: 30),
-                    SizedBox(
-                      width: double.infinity, height: 55,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isTopLayer ? Colors.white : const Color(0xFF0F766E),
-                          foregroundColor: isTopLayer ? const Color(0xFF0F766E) : Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    // --- Split-Wave Header Hero ---
+                    Container(
+                      width: 84,
+                      height: 84,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isOverWave
+                            ? Colors.white.withOpacity(0.16)
+                            : primaryColor.withOpacity(0.12),
+                        border: Border.all(
+                          color: isOverWave
+                              ? Colors.white.withOpacity(0.35)
+                              : primaryColor.withOpacity(0.28),
+                          width: 1.3,
                         ),
-                        onPressed: _isLoading ? null : _handleSendOtp,
-                        child: Text(context.tr('send_reset_link'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                      child: Icon(
+                        Icons.lock_reset_rounded,
+                        size: 44,
+                        color: headerAccent,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      context.tr('forgot_password'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 27,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: headerTitleColor,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        context.tr('forgot_password_desc'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: headerDescColor,
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // --- True Refractive Liquid Glass 2.0 Form Card ---
+                    ZenLiquidGlass(
+                      borderRadius: 28,
+                      blurSigma: isOverWave ? 0 : 20,
+                      rimWidth: 1.3,
+                      glowColor: zen.primary,
+                      padding: const EdgeInsets.all(24),
+                      customShadows: isOverWave ? const [] : null,
+                      customGradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: isDark
+                            ? [
+                                const Color(0xFF0F172A).withOpacity(0.70),
+                                const Color(0xFF0A1120).withOpacity(0.54),
+                              ]
+                            : [
+                                Colors.white.withOpacity(0.84),
+                                Colors.white.withOpacity(0.70),
+                              ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextField(
+                            controller: _phoneController,
+                            focusNode: isOverWave ? null : _phoneFocus,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: zenGlassInputDecoration(
+                              context,
+                              labelText: context.tr('phone_or_email'),
+                              prefixIcon: Icons.person_search_rounded,
+                              borderRadius: 16,
+                              accentColor: primaryColor,
+                            ),
+                            style: TextStyle(
+                              color: textColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ZenGlassButton(
+                              label: context.tr('send_reset_link'),
+                              icon: Icons.arrow_forward_rounded,
+                              isLoading: _isLoading,
+                              borderRadius: 16,
+                              onPressed: _isLoading ? null : _handleSendOtp,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -397,14 +715,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
+    return ZenGlassScaffold(
       body: DualLayerScreenWrapper(
         waveHeightPercent: 0.40,
-        builder: _buildContent,
+        builder: (context, isTopLayer, controller) => _buildMainContent(
+          context,
+          isOverWave: isTopLayer,
+          controller: controller,
+        ),
       ),
     );
   }
 }
-

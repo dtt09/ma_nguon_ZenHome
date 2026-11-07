@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 class LogoLoadingIndicator extends StatelessWidget {
   final Color color;
@@ -14,15 +16,22 @@ class LogoLoadingIndicator extends StatelessWidget {
       width: size,
       height: size,
       color: color,
-    ).animate(onPlay: (controller) => controller.repeat())
-     .shimmer(duration: 1500.ms, color: Colors.white54, angle: 1)
-     .shimmer(duration: 1500.ms, color: Colors.black12, angle: 1, delay: 750.ms);
+    )
+        .animate(onPlay: (controller) => controller.repeat())
+        .shimmer(duration: 1500.ms, color: Colors.white54, angle: 1)
+        .shimmer(
+          duration: 1500.ms,
+          color: Colors.black12,
+          angle: 1,
+          delay: 750.ms,
+        );
   }
 }
 
 class LoadingOverlay {
   static OverlayEntry? _overlayEntry;
-  static final ValueNotifier<String> _statusNotifier = ValueNotifier('loading'); // 'loading', 'success', 'error'
+  static final ValueNotifier<String> _statusNotifier =
+      ValueNotifier('loading'); // 'loading', 'success', 'error'
 
   static void show(BuildContext context) {
     if (_overlayEntry != null) return;
@@ -30,51 +39,75 @@ class LoadingOverlay {
 
     final overlayState = Overlay.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E);
+    final zen = context.zenColors;
+    final baseColor = isDark ? zen.primaryAccent : zen.primary;
 
     _overlayEntry = OverlayEntry(
-      builder: (context) {
+      builder: (ctx) {
         return Stack(
           children: [
             BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
-              child: Container(color: Colors.black.withOpacity(0.3)),
+              filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
+              child: Container(color: Colors.black.withOpacity(0.36)),
             ),
             Center(
-              child: ValueListenableBuilder<String>(
-                valueListenable: _statusNotifier,
-                builder: (context, status, child) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 30,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF121827) : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (status == 'loading')
-                          LogoLoadingIndicator(color: color)
-                        else if (status == 'success')
-                          const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 60)
-                            .animate().scale(duration: 400.ms, curve: Curves.easeOutBack)
-                        else if (status == 'error')
-                          const Icon(Icons.error_outline_rounded, color: Colors.red, size: 60)
-                            .animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
-                      ],
-                    ),
-                  ).animate(key: ValueKey(status)).slideY(begin: 0.1, end: 0, duration: 200.ms, curve: Curves.easeOutQuad).scale(duration: 200.ms);
-                },
+              child: Material(
+                color: Colors.transparent,
+                child: ValueListenableBuilder<String>(
+                  valueListenable: _statusNotifier,
+                  builder: (context, status, child) {
+                    final Color statusGlow = status == 'success'
+                        ? AppColors.emeraldGlow
+                        : (status == 'error' ? AppColors.roseGlow : baseColor);
+
+                    return ZenLiquidGlass(
+                      borderRadius: 28,
+                      blurSigma: 24,
+                      glowColor: statusGlow,
+                      rimWidth: 1.35,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 38,
+                        vertical: 30,
+                      ),
+                      surfaceColor: isDark
+                          ? const Color(0xFF0C1426).withOpacity(0.74)
+                          : Colors.white.withOpacity(0.82),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (status == 'loading')
+                            LogoLoadingIndicator(color: baseColor)
+                          else if (status == 'success')
+                            const Icon(
+                              Icons.check_circle_outline_rounded,
+                              color: AppColors.emeraldGlow,
+                              size: 60,
+                            ).animate().scale(
+                                  duration: 400.ms,
+                                  curve: Curves.easeOutBack,
+                                )
+                          else if (status == 'error')
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: AppColors.roseGlow,
+                              size: 60,
+                            ).animate().scale(
+                                  duration: 400.ms,
+                                  curve: Curves.easeOutBack,
+                                ),
+                        ],
+                      ),
+                    )
+                        .animate(key: ValueKey(status))
+                        .slideY(
+                          begin: 0.08,
+                          end: 0,
+                          duration: 200.ms,
+                          curve: Curves.easeOutQuad,
+                        )
+                        .scale(duration: 200.ms);
+                  },
+                ),
               ),
             ),
           ],
@@ -108,5 +141,3 @@ class LoadingOverlay {
     }
   }
 }
-
-

@@ -8,11 +8,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:zenhome_app/core/models/smart_config.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 import 'package:zenhome_app/core/services/app_update_service.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/masking_helper.dart';
 import 'package:zenhome_app/core/utils/reauth_helper.dart';
 import 'package:zenhome_app/core/widgets/admin_password_dialog.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/core/widgets/zenhome_luxury_dialog.dart';
 
 /// Hộp thoại thực thi Nâng cấp Firmware ESP32 qua OTA với quy trình xác thực đa lớp (Multi-layer Authenticated OTA)
@@ -211,80 +213,117 @@ class EspOtaDialog {
     }
 
     if (isAlreadyLatest) {
-      final shouldForceReinstall = await showDialog<bool>(
+      final Color glassDivider = isDark
+          ? Colors.white.withOpacity(0.08)
+          : const Color(0xFFCBD5E1).withOpacity(0.5);
+
+      final shouldForceReinstall = await showZenGlassDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          backgroundColor: isDark ? const Color(0xFF131B2E) : Colors.white,
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(14),
+        accentColor: AppColors.emeraldGlow,
+        maxWidth: 420,
+        builder: (ctx) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.emeraldGlow.withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.emeraldGlow.withOpacity(0.28),
+                        blurRadius: 12,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.check_circle_rounded, color: AppColors.emeraldGlow, size: 24),
                 ),
-                child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 24),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text('Hub ESP32 Đã Cập Nhật', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Thiết bị Hub ESP32 của bạn hiện đang chạy phiên bản Firmware mới nhất. Toàn bộ hệ thống đang hoạt động tối ưu!',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-                  height: 1.4,
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Hub ESP32 Đã Cập Nhật',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: -0.2),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-                ),
-                child: Column(
-                  children: [
-                    _buildMetaRow('Phiên bản Hub', 'v$currentVersion${currentBuild != null && currentBuild > 0 ? " (Build $currentBuild)" : ""}', Icons.memory_rounded, Colors.green),
-                    const Divider(height: 14),
-                    _buildMetaRow('Bản mới nhất máy chủ', 'v$version (Build $targetBuild)', Icons.cloud_done_rounded, const Color(0xFF0284C7)),
-                    const Divider(height: 14),
-                    _buildMetaRow('Trạng thái', 'Đang hoạt động tối ưu', Icons.verified_rounded, Colors.teal),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Bạn chỉ cần nạp lại nếu muốn xóa bộ nhớ phân vùng Flash sạch sẽ hoặc khôi phục firmware.',
-                style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontStyle: FontStyle.italic),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true), // Force re-flash
-              child: Text(
-                'Nạp lại (Re-flash)',
-                style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontSize: 13),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Thiết bị Hub ESP32 của bạn hiện đang chạy phiên bản Firmware mới nhất. Toàn bộ hệ thống đang hoạt động tối ưu!',
+              style: TextStyle(
+                fontSize: 13.5,
+                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                height: 1.45,
               ),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0284C7),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            const SizedBox(height: 16),
+            ZenLiquidGlass(
+              blurSigma: 0,
+              borderRadius: 16,
+              padding: const EdgeInsets.all(14),
+              surfaceColor: isDark
+                  ? Colors.white.withOpacity(0.05)
+                  : Colors.white.withOpacity(0.62),
+              child: Column(
+                children: [
+                  _buildMetaRow(
+                    'Phiên bản Hub',
+                    'v$currentVersion${currentBuild != null && currentBuild > 0 ? " (Build $currentBuild)" : ""}',
+                    Icons.memory_rounded,
+                    AppColors.emeraldGlow,
+                  ),
+                  Divider(height: 14, color: glassDivider),
+                  _buildMetaRow(
+                    'Bản mới nhất máy chủ',
+                    'v$version (Build $targetBuild)',
+                    Icons.cloud_done_rounded,
+                    AppColors.cyanGlow,
+                  ),
+                  Divider(height: 14, color: glassDivider),
+                  _buildMetaRow(
+                    'Trạng thái',
+                    'Đang hoạt động tối ưu',
+                    Icons.verified_rounded,
+                    context.zenColors.primary,
+                  ),
+                ],
               ),
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Đã hiểu', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Bạn chỉ cần nạp lại nếu muốn xóa bộ nhớ phân vùng Flash sạch sẽ hoặc khôi phục firmware.',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: ZenGlassButton(
+                    label: 'Nạp lại (Re-flash)',
+                    icon: Icons.refresh_rounded,
+                    isPrimary: false,
+                    onPressed: () => Navigator.pop(ctx, true),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ZenGlassButton(
+                    label: 'Đã hiểu',
+                    icon: Icons.check_rounded,
+                    isPrimary: true,
+                    accentColor: AppColors.cyanDeep,
+                    onPressed: () => Navigator.pop(ctx, false),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -296,109 +335,134 @@ class EspOtaDialog {
     }
 
     // -------------------------------------------------------------
-    // BƯỚC 6: HIỂN THỊ HỘP THOẠI XÁC NHẬN NÂNG CẤP
+    // BƯỚC 6: HIỂN THỊ HỘP THOẠI XÁC NHẬN NÂNG CẤP (LIQUID GLASS 2.0)
     // -------------------------------------------------------------
     final fileSizeBytes = firmwareInfo['fileSizeBytes'] is int ? firmwareInfo['fileSizeBytes'] as int : 0;
     final fileSizeMb = (fileSizeBytes / (1024 * 1024)).toStringAsFixed(2);
     final sha256 = firmwareInfo['sha256']?.toString() ?? '';
     final signature = firmwareInfo['sig']?.toString() ?? '';
+    final Color glassDivider = isDark
+        ? Colors.white.withOpacity(0.08)
+        : const Color(0xFFCBD5E1).withOpacity(0.5);
 
-    final confirm = await showDialog<bool>(
+    final confirm = await showZenGlassDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        backgroundColor: isDark ? const Color(0xFF131B2E) : Colors.white,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0284C7).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(Icons.system_update_alt_rounded, color: Color(0xFF0284C7), size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                context.tr('hub_ota_title'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Đã tìm thấy phiên bản Firmware mới sẵn sàng nạp cho Hub ESP32.',
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                children: [
-                  _buildMetaRow('Phiên bản mới', 'v$version', Icons.tag_rounded, const Color(0xFF0284C7)),
-                  const Divider(height: 14),
-                  _buildMetaRow('Dung lượng', '$fileSizeMb MB ($fileSizeBytes bytes)', Icons.folder_zip_outlined, Colors.purple),
-                  const Divider(height: 14),
-                  _buildMetaRow('Xác thực bảo mật', 'Ký số điện tử ECDSA (Chính chủ)', Icons.verified_user_rounded, Colors.green),
-                  const Divider(height: 14),
-                  _buildMetaRow('Mục tiêu', MaskingHelper.maskMac(activeConfig.macAddress), Icons.memory_rounded, Colors.teal),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.amber.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 22),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      'Lưu ý: Quá trình nạp kéo dài khoảng 30 - 60 giây. Tuyệt đối không ngắt nguồn điện hoặc tắt Wi-Fi.',
-                      style: TextStyle(fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w500),
+      accentColor: AppColors.cyanGlow,
+      maxWidth: 420,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: AppColors.fanOn,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.cyanGlow.withOpacity(0.32),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: const Icon(Icons.system_update_alt_rounded, color: Colors.white, size: 23),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.tr('btn_cancel'), style: const TextStyle(color: Colors.grey)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  context.tr('hub_ota_title'),
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: -0.2),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0284C7),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 2,
+          const SizedBox(height: 16),
+          Text(
+            'Đã tìm thấy phiên bản Firmware mới sẵn sàng nạp cho Hub ESP32.',
+            style: TextStyle(
+              fontSize: 13.5,
+              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+              height: 1.4,
             ),
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.bolt_rounded, size: 18),
-            label: Text(context.tr('btn_start_upgrade'), style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(height: 16),
+          ZenLiquidGlass(
+            blurSigma: 0,
+            borderRadius: 16,
+            padding: const EdgeInsets.all(14),
+            surfaceColor: isDark
+                ? Colors.white.withOpacity(0.05)
+                : Colors.white.withOpacity(0.62),
+            child: Column(
+              children: [
+                _buildMetaRow('Phiên bản mới', 'v$version', Icons.tag_rounded, AppColors.cyanGlow),
+                Divider(height: 14, color: glassDivider),
+                _buildMetaRow(
+                  'Dung lượng',
+                  '$fileSizeMb MB ($fileSizeBytes bytes)',
+                  Icons.folder_zip_outlined,
+                  AppColors.purpleGlow,
+                ),
+                Divider(height: 14, color: glassDivider),
+                _buildMetaRow(
+                  'Xác thực bảo mật',
+                  'Ký số điện tử ECDSA (Chính chủ)',
+                  Icons.verified_user_rounded,
+                  AppColors.emeraldGlow,
+                ),
+                Divider(height: 14, color: glassDivider),
+                _buildMetaRow(
+                  'Mục tiêu',
+                  MaskingHelper.maskMac(activeConfig.macAddress),
+                  Icons.memory_rounded,
+                  context.zenColors.primary,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          ZenLiquidGlass(
+            blurSigma: 0,
+            borderRadius: 14,
+            padding: const EdgeInsets.all(12),
+            surfaceColor: AppColors.amberGlow.withOpacity(isDark ? 0.14 : 0.10),
+            glowColor: AppColors.amberGlow,
+            child: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: AppColors.amberGlow, size: 22),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Lưu ý: Quá trình nạp kéo dài khoảng 30 - 60 giây. Tuyệt đối không ngắt nguồn điện hoặc tắt Wi-Fi.',
+                    style: TextStyle(fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              ZenGlassButton(
+                label: context.tr('btn_cancel'),
+                isPrimary: false,
+                onPressed: () => Navigator.pop(ctx, false),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ZenGlassButton(
+                  label: context.tr('btn_start_upgrade'),
+                  icon: Icons.bolt_rounded,
+                  isPrimary: true,
+                  accentColor: AppColors.cyanDeep,
+                  onPressed: () => Navigator.pop(ctx, true),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -413,18 +477,47 @@ class EspOtaDialog {
         ? firmwareInfo['directUrl'].toString()
         : '$serverBaseUrl/public/firmware/esp32/firmware.bin';
 
-    await showDialog(
+    await showGeneralDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => _EspOtaProgressDialog(
-        activeConfig: activeConfig,
-        serverBaseUrl: serverBaseUrl!,
-        version: version,
-        expectedSha256: sha256,
-        signature: signature,
-        directUrl: directFwUrl,
-        isDark: isDark,
-      ),
+      barrierLabel: 'ESP32 OTA Progress',
+      barrierColor: Colors.black.withOpacity(0.60),
+      transitionDuration: const Duration(milliseconds: 240),
+      pageBuilder: (ctx, anim1, anim2) {
+        return SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Material(
+                color: Colors.transparent,
+                child: _EspOtaProgressDialog(
+                  activeConfig: activeConfig,
+                  serverBaseUrl: serverBaseUrl!,
+                  version: version,
+                  expectedSha256: sha256,
+                  signature: signature,
+                  directUrl: directFwUrl,
+                  isDark: isDark,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (ctx, anim, secondaryAnim, child) {
+        final curved = CurvedAnimation(
+          parent: anim,
+          curve: Curves.easeOutBack,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.90, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
     );
   }
 
@@ -451,11 +544,14 @@ class EspOtaDialog {
         Icon(icon, size: 16, color: color),
         const SizedBox(width: 8),
         Text(label, style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
-        const Spacer(),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
-          overflow: TextOverflow.ellipsis,
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
@@ -682,128 +778,335 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      backgroundColor: widget.isDark ? const Color(0xFF131B2E) : Colors.white,
-      title: Row(
-        children: [
-          Icon(
-            _isFinished
-                ? (_isSuccess ? Icons.check_circle_rounded : Icons.error_rounded)
-                : Icons.system_update_alt_rounded,
-            color: _isFinished
-                ? (_isSuccess ? const Color(0xFF10B981) : Colors.redAccent)
-                : const Color(0xFF0284C7),
-            size: 26,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              _isFinished
-                  ? (_isSuccess ? 'Nâng Cấp Thành Công!' : 'Nâng Cấp Thất Bại')
-                  : 'Đang Nạp Firmware OTA',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-          ),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 10),
-          if (!_isFinished) ...[
-            SizedBox(
-              height: 120,
-              width: 120,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CircularProgressIndicator(
-                    value: _progress > 0 ? _progress / 100 : null,
-                    strokeWidth: 8,
-                    backgroundColor: widget.isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0284C7)),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color accentColor = _isFinished
+        ? (_isSuccess ? AppColors.emeraldGlow : AppColors.roseGlow)
+        : AppColors.cyanGlow;
+
+    return PopScope(
+      canPop: _isFinished,
+      child: ZenGlassDialogSurface(
+        accentColor: accentColor,
+        maxWidth: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                ZenLiquidGlass(
+                  blurSigma: 0,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
+                  glowColor: accentColor,
+                  surfaceColor: accentColor.withOpacity(isDark ? 0.18 : 0.12),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    _isFinished
+                        ? (_isSuccess
+                            ? Icons.check_circle_rounded
+                            : Icons.error_rounded)
+                        : Icons.system_update_alt_rounded,
+                    color: accentColor,
+                    size: 24,
                   ),
-                  Center(
-                    child: Text(
-                      '$_progress%',
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isFinished
+                            ? (_isSuccess
+                                ? 'Nâng Cấp Thành Công!'
+                                : 'Nâng Cấp Thất Bại')
+                            : 'Đang Nạp Firmware OTA',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17.5,
+                          letterSpacing: -0.2,
+                          color: isDark ? AppColors.darkText : AppColors.lightText,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'ESP32 Hub • v${widget.version}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? AppColors.darkTextMuted
+                              : AppColors.lightTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ZenGlassPill(
+                  blurSigma: 0,
+                  isSelected: true,
+                  glowColor: accentColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  child: Text(
+                    _isFinished
+                        ? (_isSuccess ? 'HOÀN TẤT' : 'LỖI')
+                        : 'FLASHING',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: accentColor,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
             const SizedBox(height: 22),
-            Text(
-              _statusMessage,
-              style: TextStyle(
-                fontSize: 13.5,
-                color: widget.isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ] else if (_isSuccess) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
-              ),
-              child: Column(
-                children: [
-                  const Icon(Icons.done_all_rounded, color: Color(0xFF10B981), size: 48),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Đã nạp 100% Firmware và bảo vệ toàn vẹn thành công!',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    textAlign: TextAlign.center,
+            if (!_isFinished) ...[
+              Center(
+                child: SizedBox(
+                  height: 124,
+                  width: 124,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              AppColors.cyanGlow.withOpacity(isDark ? 0.22 : 0.14),
+                              AppColors.cyanGlow.withOpacity(0.0),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: CircularProgressIndicator(
+                          value: _progress > 0 ? _progress / 100 : null,
+                          strokeWidth: 8.5,
+                          strokeCap: StrokeCap.round,
+                          backgroundColor: isDark
+                              ? Colors.white.withOpacity(0.09)
+                              : Colors.black.withOpacity(0.07),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.cyanGlow,
+                          ),
+                        ),
+                      ),
+                      Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '$_progress%',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: isDark
+                                    ? AppColors.darkText
+                                    : AppColors.lightText,
+                              ),
+                            ),
+                            Text(
+                              'OTA FLASH',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.8,
+                                color: AppColors.cyanGlow,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Hub ESP32 đang tự động hoán đổi phân vùng boot và khởi động lại. Quá trình mất khoảng 5 - 10 giây.',
-                    style: TextStyle(fontSize: 12.5, color: Colors.grey.shade500),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                ),
               ),
-            ),
-          ] else ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.redAccent.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+              const SizedBox(height: 20),
+              // Thanh tiến trình Kính Lỏng Phát Quang
+              ZenLiquidGlass(
+                blurSigma: 0,
+                height: 14,
+                borderRadius: 10,
+                padding: const EdgeInsets.all(2),
+                surfaceColor: isDark
+                    ? Colors.white.withOpacity(0.07)
+                    : Colors.black.withOpacity(0.06),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double fraction = (_progress.clamp(0, 100)) / 100.0;
+                    final double barWidth = constraints.maxWidth *
+                        (fraction > 0 ? fraction : 0.08);
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        width: barWidth,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.fanOn,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.cyanGlow.withOpacity(0.55),
+                              blurRadius: 10,
+                              spreadRadius: 0.5,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-              child: Column(
-                children: [
-                  const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 48),
-                  const SizedBox(height: 12),
-                  Text(
-                    _errorMessage ?? 'Đã xảy ra lỗi không xác định.',
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: Colors.redAccent),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+              const SizedBox(height: 16),
+              Text(
+                _statusMessage,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
+              const SizedBox(height: 12),
+              ZenLiquidGlass(
+                blurSigma: 0,
+                borderRadius: 12,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                surfaceColor: AppColors.amberGlow.withOpacity(isDark ? 0.12 : 0.09),
+                glowColor: AppColors.amberGlow,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.bolt_rounded,
+                      size: 16,
+                      color: AppColors.amberGlow,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Giữ nguồn điện & Wi-Fi ổn định trong suốt quá trình nạp',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? AppColors.amberGlow
+                              : AppColors.amberDeep,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (_isSuccess) ...[
+              ZenLiquidGlass(
+                blurSigma: 0,
+                borderRadius: 18,
+                padding: const EdgeInsets.all(18),
+                glowColor: AppColors.emeraldGlow,
+                surfaceColor:
+                    AppColors.emeraldGlow.withOpacity(isDark ? 0.13 : 0.09),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.emeraldGlow.withOpacity(0.18),
+                      ),
+                      child: const Icon(
+                        Icons.done_all_rounded,
+                        color: AppColors.emeraldGlow,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Đã nạp 100% Firmware và bảo vệ toàn vẹn thành công!',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14.5,
+                        color: isDark ? AppColors.darkText : AppColors.lightText,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Hub ESP32 đang tự động hoán đổi phân vùng boot và khởi động lại. Quá trình mất khoảng 5 - 10 giây.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.4,
+                        color: isDark
+                            ? AppColors.darkTextMuted
+                            : AppColors.lightTextMuted,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              ZenLiquidGlass(
+                blurSigma: 0,
+                borderRadius: 18,
+                padding: const EdgeInsets.all(18),
+                glowColor: AppColors.roseGlow,
+                surfaceColor:
+                    AppColors.roseGlow.withOpacity(isDark ? 0.13 : 0.09),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.roseGlow.withOpacity(0.18),
+                      ),
+                      child: const Icon(
+                        Icons.cancel_rounded,
+                        color: AppColors.roseGlow,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _errorMessage ?? 'Đã xảy ra lỗi không xác định.',
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.roseGlow,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (_isFinished) ...[
+              const SizedBox(height: 18),
+              ZenGlassButton(
+                label: context.tr('btn_close'),
+                icon: _isSuccess ? Icons.check_rounded : Icons.close_rounded,
+                isPrimary: true,
+                isDanger: !_isSuccess,
+                accentColor: _isSuccess ? AppColors.emeraldGlow : null,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-      actions: [
-        if (_isFinished)
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _isSuccess ? const Color(0xFF10B981) : Colors.grey.shade700,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.tr('btn_close'), style: const TextStyle(fontWeight: FontWeight.bold)),
-          ),
-      ],
     );
   }
 }

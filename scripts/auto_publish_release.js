@@ -238,22 +238,28 @@ async function main() {
     tagVersion = await ask('Phiên bản tag Release phát hành', `v${pubspecVersion}`);
   }
 
-  const releaseTitle = `ZenHome ${tagVersion} - Toàn Diện Bản Vá Bảo Mật & Hardened Architecture`;
+  const releaseTitle = `ZenHome ${tagVersion} - Lột Xác Toàn Diện Zen Liquid Glass 2.0 & Hardened Architecture`;
   const releaseNotes = `## 🌟 Điểm nổi bật trong bản phát hành ${tagVersion} (App Build ${pubspecBuild} / ESP32 v${espVersion} Build ${espBuild})
 
-### 🛡️ Bản Vá Bảo Mật Toàn Diện (Cloudflare Security Audit - 9/9 Đã Khắc Phục):
-- 🔒 **Đóng kín Cloud Firestore & Hồ sơ người dùng**:
-  - Chặn triệt để lỗ hổng đọc công khai hồ sơ (\`ZH-02\`); chỉ cho phép tài khoản đã xác thực và là chính chủ hoặc thành viên gia đình được chia sẻ hợp lệ.
-  - Khóa chặt tấn công IDOR trên \`delete_requests\` và \`unlink_requests\` (\`ZH-03\`), bảo vệ chéo đa tầng giữa Firestore Rules và Server Listener.
-- ⚡ **Bảo Mật Tối Đa Firmware ESP32 v${espVersion} (Build ${espBuild})**:
-  - Loại bỏ hoàn toàn cơ chế tự cấp quyền qua subnet IP LAN (\`ZH-04\`). Bắt buộc xác thực HMAC-SHA256 hoặc mật khẩu quản trị.
-  - Bắt buộc kiểm tra chữ ký điện tử ECDSA P-256 (\`ZH-05\`) trước khi nạp phân vùng OTA mới, chặn hoàn toàn firmware lạ/giả mạo.
-  - Tăng cường entropy khóa mã hóa Flash LittleFS AES-256 CTR (\`ZH-08\`) kết hợp MAC phần cứng cùng mật khẩu quản trị.
-  - Đóng toàn bộ các cửa ngõ bypass tiềm ẩn trên các lệnh cấu hình mạng LAN và MQTT System Reset / Config.
-- 🌐 **Backend Server & Bảo Vệ Mạng**:
-  - Chống giả mạo liên kết Hub qua HTTP GET (\`ZH-06\`), áp dụng so sánh thời gian không đổi (\`safeCompare\`).
-  - Chặn đứng nguy cơ SSRF & DNS Rebinding (\`ZH-09\`) trên API kiểm tra máy chủ dự phòng.
-  - Loại bỏ thông tin xác thực MQTT hardcode khỏi ứng dụng di động (\`ZH-07\`) và bảo vệ nghiêm ngặt các tệp private key (\`ZH-01\`).
+### 🔮 Lột Xác Toàn Diện Zen Liquid Glass 2.0 ("Optical Liquid Glassmorphism"):
+- 🌌 **Nền Cực Quang Khúc Xạ (\`ZenAmbientMeshBackground\`)**:
+  - Cung cấp trường ánh sáng 3 quầng sáng radial chuyển động nhịp nhàng, tạo độ khúc xạ chiều sâu quang học chân thực cho lớp kính ở cả chế độ Sáng (Light) & Tối (Dark).
+- 💎 **Viền Vát Quang Học 3D (\`_ZenSpecularRimPainter\`) & Vệt Sáng Đỉnh Kính (\`Top Prismatic Sheen\`)**:
+  - Loại bỏ viền phẳng 2D 1px, thay bằng viền vát chuyển sắc góc chéo 135° (sáng đỉnh trên-trái -> trong suốt thân giữa -> tụ sáng caustic đáy dưới-phải) kết hợp vệt phản xạ đỉnh kính 1.2px.
+- 🎨 **Đồng Bộ Hoàn Toàn 6 Bộ Chủ Đề Zen Luxury**:
+  - Tự động đổi màu kính, quầng sáng và bóng đổ quang học theo thời gian thực (*Emerald Luxury, Sapphire Ocean, Royal Amethyst, Amber Gold, Rose Quartz, Cyber Neon*).
+- 📋 **Lột Xác 100% Thành Phần Giao Diện Trên 51 Tệp Mã Nguồn**:
+  - **Màn hình chính & Quản lý nhà**: Header kính lỏng 2 tầng, ô công tắc pha lê, bảng điều khiển kết nối 3 kênh (LAN/BLE/Cloud), thẻ Live Preview đổi thuộc tính nhà và menu nổi kính 3D (\`ZenGlassPopupMenuButton\`).
+  - **Phân hệ Tiện ích**: Dải tab phân đoạn chuyển động lò xo, bảng hẹn giờ đếm ngược bánh xe kép \`CupertinoPicker\` bọc kính, danh sách lịch trình định kỳ.
+  - **Phân hệ Cài đặt & Hệ thống**: Thẻ Profile Hero phát quang, bộ chuyển theme/ngôn ngữ rãnh trượt kính mờ, hộp thoại nạp OTA ESP32 và báo lỗi hệ thống.
+  - **Phân hệ Tài khoản, Xác thực & Onboarding**: Biểu mẫu kính lỏng khúc xạ sóng \`WaveBackground\`, ô nhập OTP 6 số phát sáng và trình thuật sĩ ghép nối Wi-Fi ESP32.
+- 🚀 **Tối Ưu Hóa GPU 60–120 FPS**:
+  - Áp dụng triệt để ma trận \`blurSigma: 0\` cho các phần tử con lồng trong bề mặt đã mờ, triệt tiêu hoàn toàn hiện tượng nghẽn lặp \`BackdropFilter\` (*saveLayer overload*).
+
+### 🛡️ Kế Thừa Toàn Bộ Bản Vá Bảo Mật Hardened Architecture:
+- 🔒 Đóng kín Firestore Rules, chặn đọc công khai và khóa chặt IDOR xóa tài khoản / giải phóng định danh.
+- ⚡ Firmware ESP32 v${espVersion} (Build ${espBuild}): Bắt buộc chữ ký số ECDSA P-256 khi OTA, loại bỏ bypass IP subnet LAN, nâng cấp mã hóa AES-256 CTR.
+- 🌐 Server Backend & Web: Chống SSRF & DNS Rebinding trên proxy-ping, ngăn chặn auto-bind Hub trái phép.
 
 ---
 *Phát hành chính thức bởi ZenHome Automation Release Engine*`;

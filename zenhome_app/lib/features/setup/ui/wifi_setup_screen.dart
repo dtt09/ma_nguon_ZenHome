@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:wifi_scan/wifi_scan.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/features/setup/logic/wifi_provisioning_service.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/features/admin/ui/device_mapping_screen.dart';
@@ -30,7 +32,8 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
   final TextEditingController _ssidController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
   final TextEditingController _adminPassController = TextEditingController();
-  final TextEditingController _confirmAdminPassController = TextEditingController();
+  final TextEditingController _confirmAdminPassController =
+      TextEditingController();
 
   final TextEditingController _mqttServerController = TextEditingController();
   final TextEditingController _mqttUserController = TextEditingController();
@@ -74,23 +77,31 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     // Đảm bảo đồng bộ với ngôi nhà mục tiêu được truyền vào nếu có
     if (widget.targetHome != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(homeConfigProvider).switchActiveHome(widget.targetHome!.userId);
+        ref
+            .read(homeConfigProvider)
+            .switchActiveHome(widget.targetHome!.userId);
       });
     }
-    final activeConfig = widget.targetHome ?? ref.read(homeConfigProvider).activeConfig;
-    final defaultServer = dotenv.env['DEFAULT_MQTT_SERVER'] ?? 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
+    final activeConfig =
+        widget.targetHome ?? ref.read(homeConfigProvider).activeConfig;
+    final defaultServer = dotenv.env['DEFAULT_MQTT_SERVER'] ??
+        'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
     final defaultUser = dotenv.env['DEFAULT_MQTT_USER'] ?? 'DTC_ZenHome';
     final defaultPass = dotenv.env['DEFAULT_MQTT_PASS'] ?? 'DTC_ZenHome2103';
 
-    _mqttServerController.text = (activeConfig.mqttServer.isNotEmpty && activeConfig.mqttServer != 'broker.emqx.io')
+    _mqttServerController.text = (activeConfig.mqttServer.isNotEmpty &&
+            activeConfig.mqttServer != 'broker.emqx.io')
         ? activeConfig.mqttServer
         : defaultServer;
-    _mqttUserController.text = (activeConfig.mqttUser != null && activeConfig.mqttUser!.isNotEmpty && !activeConfig.mqttUser!.startsWith('user_'))
+    _mqttUserController.text = (activeConfig.mqttUser != null &&
+            activeConfig.mqttUser!.isNotEmpty &&
+            !activeConfig.mqttUser!.startsWith('user_'))
         ? activeConfig.mqttUser!
         : defaultUser;
-    _mqttPassController.text = (activeConfig.mqttPass != null && activeConfig.mqttPass!.isNotEmpty)
-        ? activeConfig.mqttPass!
-        : defaultPass;
+    _mqttPassController.text =
+        (activeConfig.mqttPass != null && activeConfig.mqttPass!.isNotEmpty)
+            ? activeConfig.mqttPass!
+            : defaultPass;
 
     _startWifiMonitoring();
   }
@@ -121,7 +132,8 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
         });
 
         // Nếu điện thoại đang kết nối vào mạng ESP32, tự động bắt tay thử
-        if (ssid != null && (ssid.startsWith('ZenHome_Setup_') || ssid.startsWith('ESP32_'))) {
+        if (ssid != null &&
+            (ssid.startsWith('ZenHome_Setup_') || ssid.startsWith('ESP32_'))) {
           _autoPingEsp(ssid);
         }
       }
@@ -153,7 +165,8 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
       if (activeConfig.macAddress.isNotEmpty) {
         activeConfig.macAddress = '';
         ref.read(homeConfigProvider).saveConfigToStorage(activeConfig);
-        debugPrint("[SETUP-DISPOSE] 🛑 Đã dọn dẹp và reset MAC về rỗng do người dùng thoát trước khi hoàn tất.");
+        debugPrint(
+            "[SETUP-DISPOSE] 🛑 Đã dọn dẹp và reset MAC về rỗng do người dùng thoát trước khi hoàn tất.");
       }
     }
     _wifiMonitorTimer?.cancel();
@@ -191,7 +204,8 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
         return;
       }
 
-      final results = await WifiProvisioningService.scanNearbyWifi(espOnly: true);
+      final results =
+          await WifiProvisioningService.scanNearbyWifi(espOnly: true);
       if (mounted) {
         setState(() {
           _scannedEspDevices = results;
@@ -208,55 +222,88 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
           showFloatingToast(
             context,
             context.tr('toast_success'),
-            context.tr('wifi_detected_esp_title').replaceAll('{count}', results.length.toString()),
+            context
+                .tr('wifi_detected_esp_title')
+                .replaceAll('{count}', results.length.toString()),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isScanningEsp = false);
-        showFloatingToast(context, context.tr('error'), e.toString(), isError: true);
+        showFloatingToast(context, context.tr('error'), e.toString(),
+            isError: true);
       }
     }
   }
 
   void _showGpsDisabledDialog() {
-    showDialog(
+    showZenGlassDialog<void>(
       context: context,
+      accentColor: AppColors.amberGlow,
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: isDark ? const Color(0xFF131B2E) : Colors.white,
-          title: Row(
-            children: [
-              const Icon(Icons.location_off_rounded, color: Colors.amber, size: 26),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(context.tr('wifi_btn_turn_on_gps'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-          content: Text(
-            context.tr('wifi_gps_disabled_warning'),
-            style: TextStyle(fontSize: 14, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('btn_cancel')),
+        final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+        final mutedColor =
+            isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.amberGlow.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(14),
+                    border:
+                        Border.all(color: AppColors.amberGlow.withOpacity(0.3)),
+                  ),
+                  child: const Icon(Icons.location_off_rounded,
+                      color: AppColors.amberGlow, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    context.tr('wifi_btn_turn_on_gps'),
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                WifiProvisioningService.openSystemWifiSettings();
-              },
-              child: Text(context.tr('wifi_open_settings_shortcut')),
+            const SizedBox(height: 14),
+            Text(
+              context.tr('wifi_gps_disabled_warning'),
+              style: TextStyle(fontSize: 14, height: 1.45, color: mutedColor),
+            ),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_cancel'),
+                    isPrimary: false,
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('wifi_open_settings_shortcut'),
+                    accentColor:
+                        _detectedEspMac != null ? AppColors.emeraldGlow : null,
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      WifiProvisioningService.openSystemWifiSettings();
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -265,42 +312,72 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
   }
 
   void _showWifiDisabledDialog() {
-    showDialog(
+    showZenGlassDialog<void>(
       context: context,
+      accentColor: AppColors.roseGlow,
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: isDark ? const Color(0xFF131B2E) : Colors.white,
-          title: Row(
-            children: [
-              const Icon(Icons.wifi_off_rounded, color: Colors.redAccent, size: 26),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(context.tr('wifi_btn_turn_on_wifi'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-          content: Text(
-            context.tr('wifi_adapter_disabled_warning'),
-            style: TextStyle(fontSize: 14, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('btn_cancel')),
+        final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+        final mutedColor =
+            isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.roseGlow.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(14),
+                    border:
+                        Border.all(color: AppColors.roseGlow.withOpacity(0.3)),
+                  ),
+                  child: const Icon(Icons.wifi_off_rounded,
+                      color: AppColors.roseGlow, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    context.tr('wifi_btn_turn_on_wifi'),
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                WifiProvisioningService.enableWifi();
-              },
-              child: Text(context.tr('wifi_btn_turn_on_wifi')),
+            const SizedBox(height: 14),
+            Text(
+              context.tr('wifi_adapter_disabled_warning'),
+              style: TextStyle(fontSize: 14, height: 1.45, color: mutedColor),
+            ),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_cancel'),
+                    isPrimary: false,
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('wifi_btn_turn_on_wifi'),
+                    accentColor:
+                        _detectedEspMac != null ? AppColors.emeraldGlow : null,
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      WifiProvisioningService.enableWifi();
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -312,125 +389,129 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     final passCtrl = TextEditingController(text: '12345678');
     bool obscure = true;
 
-    showModalBottomSheet(
+    showZenGlassBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      showHandle: true,
+      padBottomForKeyboard: false,
       builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-                child: SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF131B2E) : Colors.white,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                      border: Border.all(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                          child: Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final zen = ctx.zenColors;
+            final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+            final mutedColor =
+                isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                22,
+                8,
+                22,
+                MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(11),
+                        decoration: BoxDecoration(
+                          gradient: zen.brandHero,
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        const SizedBox(height: 18),
-                        Row(
+                        child: const Icon(Icons.wifi_tethering_rounded,
+                            color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0F766E).withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(14),
+                            Text(
+                              context
+                                  .tr('wifi_connect_esp_title')
+                                  .replaceAll('{ssid}', ap.ssid),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                                color: textColor,
                               ),
-                              child: const Icon(Icons.wifi_tethering_rounded, color: Color(0xFF0F766E), size: 26),
                             ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    context.tr('wifi_connect_esp_title').replaceAll('{ssid}', ap.ssid),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                            const SizedBox(height: 4),
+                            Text(
+                              context
+                                  .tr('wifi_signal_quality')
+                                  .replaceAll('{rssi}', ap.level.toString())
+                                  .replaceAll(
+                                    '{quality}',
+                                    WifiProvisioningService.getSignalQuality(
+                                        ap.level),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    context.tr('wifi_signal_quality')
-                                        .replaceAll('{rssi}', ap.level.toString())
-                                        .replaceAll('{quality}', WifiProvisioningService.getSignalQuality(ap.level)),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: mutedColor,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          context.tr('wifi_connect_esp_subtitle'),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: passCtrl,
-                          obscureText: obscure,
-                          decoration: InputDecoration(
-                            labelText: context.tr('wifi_esp_pass_label'),
-                            hintText: context.tr('wifi_esp_pass_hint'),
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () => setModalState(() => obscure = !obscure),
-                            ),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                          ),
-                        ),
-                        const SizedBox(height: 22),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                            onPressed: () {
-                              Navigator.pop(ctx);
-                              _showConnectingProgressModal(ap, passCtrl.text.trim());
-                            },
-                            child: Text(
-                              context.tr('wifi_btn_connect_now'),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    context.tr('wifi_connect_esp_subtitle'),
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: mutedColor,
+                      height: 1.45,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: passCtrl,
+                    obscureText: obscure,
+                    style: TextStyle(
+                        color: textColor, fontWeight: FontWeight.w600),
+                    decoration: zenGlassInputDecoration(
+                      ctx,
+                      labelText: context.tr('wifi_esp_pass_label'),
+                      hintText: context.tr('wifi_esp_pass_hint'),
+                      prefixIcon: Icons.lock_outline_rounded,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscure
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: mutedColor,
+                        ),
+                        onPressed: () =>
+                            setModalState(() => obscure = !obscure),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ZenGlassButton(
+                      label: context.tr('wifi_btn_connect_now'),
+                      icon: Icons.bolt_rounded,
+                      accentColor: _detectedEspMac != null
+                          ? AppColors.emeraldGlow
+                          : null,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 15),
+                      onPressed: () {
+                        final pwd = passCtrl.text.trim();
+                        Navigator.pop(ctx);
+                        _showConnectingProgressModal(ap, pwd);
+                      },
+                    ),
+                  ),
+                ],
               ),
             );
           },
@@ -450,307 +531,340 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
       _connectingSsid = ap.ssid;
     });
 
-    showModalBottomSheet(
+    showZenGlassDialog<void>(
       context: context,
-      isDismissible: false,
-      enableDrag: false,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      barrierDismissible: false,
+      maxWidth: 420,
       builder: (modalCtx) {
-        return StatefulBuilder(
-          builder: (ctx, setModalState) {
-            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return PopScope(
+          canPop: false,
+          child: StatefulBuilder(
+            builder: (ctx, setModalState) {
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+              final zen = ctx.zenColors;
+              final textColor =
+                  isDark ? AppColors.darkText : AppColors.lightText;
+              final mutedColor =
+                  isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
-            if (!isTriggered) {
-              isTriggered = true;
-              WifiProvisioningService.connectToEspWithProgress(
-                ssid: ap.ssid,
-                bssid: ap.bssid,
-                password: password,
-                onProgress: (newStep, {attempt, maxAttempts, mac, error}) {
-                  if (!mounted) return;
-                  setModalState(() {
-                    step = newStep;
-                    if (attempt != null) currentAttempt = attempt;
-                    if (mac != null) capturedMac = mac;
-                  });
+              if (!isTriggered) {
+                isTriggered = true;
+                WifiProvisioningService.connectToEspWithProgress(
+                  ssid: ap.ssid,
+                  bssid: ap.bssid,
+                  password: password,
+                  onProgress: (newStep, {attempt, maxAttempts, mac, error}) {
+                    if (!mounted) return;
+                    setModalState(() {
+                      step = newStep;
+                      if (attempt != null) currentAttempt = attempt;
+                      if (mac != null) capturedMac = mac;
+                    });
 
-                  if (newStep == EspConnectStep.success) {
-                    setState(() {
-                      _detectedEspMac = mac ?? ap.ssid.replaceFirst('ZenHome_Setup_', 'ESP_');
-                      _isConnectingInApp = false;
-                      _connectingSsid = null;
-                      _currentConnectedSsid = ap.ssid;
-                    });
-                    Future.delayed(const Duration(milliseconds: 1400), () {
-                      if (Navigator.canPop(modalCtx)) {
-                        Navigator.pop(modalCtx);
-                      }
-                      if (mounted) {
-                        ref.read(wifiSetupWizardProvider.notifier).setStep(1);
-                        setState(() => _currentStep = 1);
-                      }
-                    });
-                  } else if (newStep == EspConnectStep.failed) {
-                    setState(() {
-                      _isConnectingInApp = false;
-                      _connectingSsid = null;
-                    });
-                  }
-                },
-              );
-            }
+                    if (newStep == EspConnectStep.success) {
+                      setState(() {
+                        _detectedEspMac = mac ??
+                            ap.ssid.replaceFirst('ZenHome_Setup_', 'ESP_');
+                        _isConnectingInApp = false;
+                        _connectingSsid = null;
+                        _currentConnectedSsid = ap.ssid;
+                      });
+                      Future.delayed(const Duration(milliseconds: 1400), () {
+                        if (modalCtx.mounted && Navigator.canPop(modalCtx)) {
+                          Navigator.pop(modalCtx);
+                        }
+                        if (mounted) {
+                          ref.read(wifiSetupWizardProvider.notifier).setStep(1);
+                          setState(() => _currentStep = 1);
+                        }
+                      });
+                    } else if (newStep == EspConnectStep.failed) {
+                      setState(() {
+                        _isConnectingInApp = false;
+                        _connectingSsid = null;
+                      });
+                    }
+                  },
+                );
+              }
 
-            return SafeArea(
-              child: SingleChildScrollView(
+              return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF131B2E) : Colors.white,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.tr('wifi_progress_modal_title'),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    context.tr('wifi_progress_modal_title'),
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${ap.ssid} • ${WifiProvisioningService.getSignalQuality(ap.level)} (${ap.level} dBm)',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // STEP 1: Yêu cầu kết nối Wi-Fi
-                  _buildProgressItem(
-                    isDark: isDark,
-                    title: context.tr('wifi_progress_step1_req').replaceAll('{ssid}', ap.ssid),
-                    isActive: step == EspConnectStep.requestingWifi,
-                    isCompleted: step == EspConnectStep.routingInterface || step == EspConnectStep.handshaking || step == EspConnectStep.success,
-                    isFailed: step == EspConnectStep.failed && currentAttempt == 1,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // STEP 2: Định tuyến cổng Wi-Fi
-                  _buildProgressItem(
-                    isDark: isDark,
-                    title: context.tr('wifi_progress_step2_route'),
-                    isActive: step == EspConnectStep.routingInterface,
-                    isCompleted: step == EspConnectStep.handshaking || step == EspConnectStep.success,
-                    isFailed: false,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // STEP 3: Bắt tay với ESP32 (192.168.4.1)
-                  _buildProgressItem(
-                    isDark: isDark,
-                    title: context.tr('wifi_progress_step3_handshake').replaceAll('{retry}', currentAttempt.toString()),
-                    isActive: step == EspConnectStep.handshaking,
-                    isCompleted: step == EspConnectStep.success,
-                    isFailed: step == EspConnectStep.failed,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Trạng thái hoàn thành hoặc thất bại
-                  if (step == EspConnectStep.success) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${ap.ssid} • ${WifiProvisioningService.getSignalQuality(ap.level)} (${ap.level} dBm)',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: mutedColor,
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 28),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // STEP 1: Yêu cầu kết nối Wi-Fi
+                    _buildProgressItem(
+                      ctx: ctx,
+                      isDark: isDark,
+                      title: context
+                          .tr('wifi_progress_step1_req')
+                          .replaceAll('{ssid}', ap.ssid),
+                      isActive: step == EspConnectStep.requestingWifi,
+                      isCompleted: step == EspConnectStep.routingInterface ||
+                          step == EspConnectStep.handshaking ||
+                          step == EspConnectStep.success,
+                      isFailed: step == EspConnectStep.failed &&
+                          currentAttempt == 1,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // STEP 2: Định tuyến cổng Wi-Fi
+                    _buildProgressItem(
+                      ctx: ctx,
+                      isDark: isDark,
+                      title: context.tr('wifi_progress_step2_route'),
+                      isActive: step == EspConnectStep.routingInterface,
+                      isCompleted: step == EspConnectStep.handshaking ||
+                          step == EspConnectStep.success,
+                      isFailed: false,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // STEP 3: Bắt tay với ESP32 (192.168.4.1)
+                    _buildProgressItem(
+                      ctx: ctx,
+                      isDark: isDark,
+                      title: context
+                          .tr('wifi_progress_step3_handshake')
+                          .replaceAll('{retry}', currentAttempt.toString()),
+                      isActive: step == EspConnectStep.handshaking,
+                      isCompleted: step == EspConnectStep.success,
+                      isFailed: step == EspConnectStep.failed,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Trạng thái hoàn thành hoặc thất bại
+                    if (step == EspConnectStep.success) ...[
+                      ZenLiquidGlass(
+                        blurSigma: 0,
+                        borderRadius: 16,
+                        padding: const EdgeInsets.all(14),
+                        surfaceColor: AppColors.emeraldGlow
+                            .withOpacity(isDark ? 0.14 : 0.10),
+                        glowColor: AppColors.emeraldGlow,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded,
+                                color: AppColors.emeraldGlow, size: 28),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    context.tr('wifi_progress_step4_success'),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.emeraldGlow,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    context
+                                        .tr('wifi_progress_step4_desc')
+                                        .replaceAll('{mac}', capturedMac ?? ''),
+                                    style: TextStyle(
+                                        fontSize: 12, color: mutedColor),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else if (step == EspConnectStep.failed) ...[
+                      ZenLiquidGlass(
+                        blurSigma: 0,
+                        borderRadius: 16,
+                        padding: const EdgeInsets.all(14),
+                        surfaceColor:
+                            AppColors.roseGlow.withOpacity(isDark ? 0.14 : 0.08),
+                        glowColor: AppColors.roseGlow,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
-                                Text(
-                                  context.tr('wifi_progress_step4_success'),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF10B981), fontSize: 14),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  context.tr('wifi_progress_step4_desc').replaceAll('{mac}', capturedMac ?? ''),
-                                  style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                                const Icon(Icons.cancel_rounded,
+                                    color: AppColors.roseGlow, size: 24),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    context.tr('wifi_progress_step4_failed'),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.roseGlow,
+                                      fontSize: 14,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ] else if (step == EspConnectStep.failed) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.red.withOpacity(0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 26),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  context.tr('wifi_progress_step4_failed'),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent, fontSize: 14),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            context.tr('wifi_progress_failed_reason'),
-                            style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            const SizedBox(height: 8),
+                            Text(
+                              context.tr('wifi_progress_failed_reason'),
+                              style:
+                                  TextStyle(fontSize: 12, color: mutedColor),
                             ),
-                            onPressed: () {
-                              Navigator.pop(modalCtx);
-                              WifiProvisioningService.openSystemWifiSettings();
-                            },
-                            child: Text(context.tr('wifi_open_settings_shortcut'), style: const TextStyle(fontSize: 13)),
-                          ),
+                          ],
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                            onPressed: () {
-                              setModalState(() {
-                                step = EspConnectStep.requestingWifi;
-                                currentAttempt = 1;
-                                capturedMac = null;
-                                isTriggered = false;
-                              });
-                            },
-                            child: Text(context.tr('wifi_btn_retry_connect'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(modalCtx),
-                        child: Text(context.tr('btn_cancel'), style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
                       ),
-                    ),
-                  ] else ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F766E).withOpacity(0.06),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
+                      const SizedBox(height: 16),
+                      Row(
                         children: [
-                          const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F766E))),
-                          const SizedBox(width: 12),
                           Expanded(
-                            child: Text(
-                              'Đang giữ kết nối... Nếu điện thoại hỏi "Mạng không có Internet, tiếp tục?", vui lòng chọn Có.',
-                              style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                            child: ZenGlassButton(
+                              label: context.tr('wifi_open_settings_shortcut'),
+                              isPrimary: false,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 13),
+                              onPressed: () {
+                                Navigator.pop(modalCtx);
+                                WifiProvisioningService
+                                    .openSystemWifiSettings();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ZenGlassButton(
+                              label: context.tr('wifi_btn_retry_connect'),
+                              accentColor: _detectedEspMac != null
+                                  ? AppColors.emeraldGlow
+                                  : null,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 13),
+                              onPressed: () {
+                                setModalState(() {
+                                  step = EspConnectStep.requestingWifi;
+                                  currentAttempt = 1;
+                                  capturedMac = null;
+                                  isTriggered = false;
+                                });
+                              },
                             ),
                           ),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(modalCtx),
+                          child: Text(
+                            context.tr('btn_cancel'),
+                            style: TextStyle(
+                              color: mutedColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      ZenLiquidGlass(
+                        blurSigma: 0,
+                        borderRadius: 14,
+                        padding: const EdgeInsets.all(12),
+                        surfaceColor:
+                            zen.primary.withOpacity(isDark ? 0.10 : 0.06),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: isDark ? zen.primaryAccent : zen.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Đang giữ kết nối... Nếu điện thoại hỏi "Mạng không có Internet, tiếp tục?", vui lòng chọn Có.',
+                                style:
+                                    TextStyle(fontSize: 12, color: mutedColor),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
-        );
-          },
         );
       },
     );
   }
 
   Widget _buildProgressItem({
+    required BuildContext ctx,
     required bool isDark,
     required String title,
     required bool isActive,
     required bool isCompleted,
     required bool isFailed,
   }) {
+    final zen = ctx.zenColors;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final activePrimary = isDark ? zen.primaryAccent : zen.primary;
+
     Color iconColor;
     Widget iconWidget;
 
     if (isCompleted) {
-      iconColor = const Color(0xFF10B981);
-      iconWidget = const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20);
+      iconColor = AppColors.emeraldGlow;
+      iconWidget = const Icon(Icons.check_circle_rounded,
+          color: AppColors.emeraldGlow, size: 20);
     } else if (isFailed) {
-      iconColor = Colors.redAccent;
-      iconWidget = const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 20);
+      iconColor = AppColors.roseGlow;
+      iconWidget = const Icon(Icons.cancel_rounded,
+          color: AppColors.roseGlow, size: 20);
     } else if (isActive) {
-      iconColor = const Color(0xFF0F766E);
-      iconWidget = const SizedBox(
+      iconColor = activePrimary;
+      iconWidget = SizedBox(
         width: 16,
         height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F766E)),
+        child: CircularProgressIndicator(strokeWidth: 2, color: activePrimary),
       );
     } else {
-      iconColor = isDark ? Colors.grey.shade600 : Colors.grey.shade400;
-      iconWidget = Icon(Icons.radio_button_unchecked_rounded, color: iconColor, size: 20);
+      iconColor = mutedColor;
+      iconWidget =
+          Icon(Icons.radio_button_unchecked_rounded, color: iconColor, size: 20);
     }
 
     return Row(
       children: [
         Container(
-          width: 28,
-          height: 28,
+          width: 30,
+          height: 30,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.12),
+            color: iconColor.withOpacity(0.14),
             shape: BoxShape.circle,
           ),
           child: iconWidget,
@@ -761,12 +875,11 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
             title,
             style: TextStyle(
               fontSize: 13,
-              fontWeight: isActive || isCompleted ? FontWeight.bold : FontWeight.normal,
+              fontWeight:
+                  isActive || isCompleted ? FontWeight.bold : FontWeight.w500,
               color: isActive
-                  ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                  : (isCompleted
-                      ? const Color(0xFF10B981)
-                      : (isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
+                  ? textColor
+                  : (isCompleted ? AppColors.emeraldGlow : mutedColor),
             ),
           ),
         ),
@@ -778,95 +891,154 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     setState(() => _isScanningHomeWifi = true);
 
     try {
-      final uniqueList = await ref.read(wifiSetupWizardProvider.notifier).scanNearbyHomeWifi();
+      final uniqueList = await ref
+          .read(wifiSetupWizardProvider.notifier)
+          .scanNearbyHomeWifi();
       if (!mounted) return;
       setState(() => _isScanningHomeWifi = false);
 
       if (uniqueList.isEmpty) {
-        showFloatingToast(context, context.tr('info'), context.tr('wifi_no_esp_found'));
+        showFloatingToast(
+            context, context.tr('info'), context.tr('wifi_no_esp_found'));
         return;
       }
 
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (ctx) {
-            final isDark = Theme.of(ctx).brightness == Brightness.dark;
-            return Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(ctx).size.height * 0.65,
-              ),
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF131B2E) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
+      showZenGlassBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        maxHeightFactor: 0.68,
+        showHandle: true,
+        builder: (ctx) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          final zen = ctx.zenColors;
+          final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+          final mutedColor =
+              isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(9),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
+                        gradient: zen.brandHero,
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                      child: const Icon(Icons.wifi_rounded,
+                          color: Colors.white, size: 20),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Icon(Icons.wifi_rounded, color: Color(0xFF0F766E)),
-                      const SizedBox(width: 10),
-                      Text(
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
                         context.tr('wifi_select_home_wifi_title'),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          color: textColor,
+                        ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Expanded(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: uniqueList.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
-                      itemBuilder: (context, i) {
-                        final ap = uniqueList[i];
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          leading: Icon(
-                            ap.level >= -65 ? Icons.wifi : Icons.wifi_2_bar_rounded,
-                            color: ap.level >= -65 ? const Color(0xFF10B981) : Colors.amber,
-                          ),
-                          title: Text(ap.ssid, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          subtitle: Text(
-                            context.tr('wifi_signal_quality')
-                                .replaceAll('{rssi}', ap.level.toString())
-                                .replaceAll('{quality}', WifiProvisioningService.getSignalQuality(ap.level)),
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                          onTap: () {
-                            _ssidController.text = ap.ssid;
-                            Navigator.pop(ctx);
-                          },
-                        );
-                      },
                     ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: uniqueList.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (context, i) {
+                      final ap = uniqueList[i];
+                      final bool isStrong = ap.level >= -65;
+                      return ZenLiquidGlass(
+                        blurSigma: 0,
+                        borderRadius: 16,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        surfaceColor: isDark
+                            ? Colors.white.withOpacity(0.05)
+                            : Colors.white.withOpacity(0.60),
+                        onTap: () {
+                          _ssidController.text = ap.ssid;
+                          Navigator.pop(ctx);
+                        },
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: (isStrong
+                                        ? AppColors.emeraldGlow
+                                        : AppColors.amberGlow)
+                                    .withOpacity(0.14),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                isStrong
+                                    ? Icons.wifi_rounded
+                                    : Icons.wifi_2_bar_rounded,
+                                color: isStrong
+                                    ? AppColors.emeraldGlow
+                                    : AppColors.amberGlow,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    ap.ssid,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    context
+                                        .tr('wifi_signal_quality')
+                                        .replaceAll(
+                                            '{rssi}', ap.level.toString())
+                                        .replaceAll(
+                                          '{quality}',
+                                          WifiProvisioningService
+                                              .getSignalQuality(ap.level),
+                                        ),
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: mutedColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right_rounded,
+                                size: 18, color: mutedColor),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                ],
-              ),
-            );
-          },
-        );
+                ),
+              ],
+            ),
+          );
+        },
+      );
     } catch (e) {
       if (mounted) {
         setState(() => _isScanningHomeWifi = false);
-        showFloatingToast(context, context.tr('error'), e.toString(), isError: true);
+        showFloatingToast(context, context.tr('error'), e.toString(),
+            isError: true);
       }
     }
   }
@@ -901,7 +1073,8 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isCheckingEsp = false);
-        showFloatingToast(context, context.tr('error'), e.toString(), isError: true);
+        showFloatingToast(context, context.tr('error'), e.toString(),
+            isError: true);
       }
     }
   }
@@ -947,143 +1120,165 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
   }
 
   void _showEspNotConnectedDialog() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showDialog(
+    showZenGlassDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        backgroundColor: isDark ? const Color(0xFF131B2E) : Colors.white,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.wifi_off_rounded, color: Colors.amber, size: 24),
-            ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                'Chưa kết nối với Hub ESP32',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
+      accentColor: AppColors.amberGlow,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+        final mutedColor =
+            isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
+        return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.amberGlow.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(14),
+                    border:
+                        Border.all(color: AppColors.amberGlow.withOpacity(0.3)),
+                  ),
+                  child: const Icon(Icons.wifi_off_rounded,
+                      color: AppColors.amberGlow, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Chưa kết nối với Hub ESP32',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
             Text(
               'Để cấu hình mạng Wi-Fi và liên kết tài khoản, điện thoại bắt buộc phải kết nối với sóng Wi-Fi phát ra từ Hub ESP32 trước.',
               style: TextStyle(
                 fontSize: 13.5,
                 height: 1.45,
-                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                color: mutedColor,
               ),
             ),
             const SizedBox(height: 14),
-            Container(
+            ZenLiquidGlass(
+              blurSigma: 0,
+              borderRadius: 14,
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-              ),
+              surfaceColor: isDark
+                  ? Colors.white.withOpacity(0.05)
+                  : Colors.white.withOpacity(0.60),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(context.tr('setup_steps_title'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text(
+                    context.tr('setup_steps_title'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: textColor,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Text(context.tr('setup_step_1'), style: const TextStyle(fontSize: 12.5)),
+                  Text(context.tr('setup_step_1'),
+                      style: TextStyle(fontSize: 12.5, color: mutedColor)),
                   const SizedBox(height: 4),
-                  Text(context.tr('setup_step_2'), style: const TextStyle(fontSize: 12.5)),
+                  Text(context.tr('setup_step_2'),
+                      style: TextStyle(fontSize: 12.5, color: mutedColor)),
                   const SizedBox(height: 4),
-                  Text(context.tr('setup_step_3'), style: const TextStyle(fontSize: 12.5)),
+                  Text(context.tr('setup_step_3'),
+                      style: TextStyle(fontSize: 12.5, color: mutedColor)),
                 ],
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('btn_understood'), style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
-          ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_understood'),
+                    isPrimary: false,
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_retry_connection'),
+                    icon: Icons.refresh_rounded,
+                    accentColor:
+                        _detectedEspMac != null ? AppColors.emeraldGlow : null,
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _checkEspConnection();
+                    },
+                  ),
+                ),
+              ],
             ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _checkEspConnection();
-            },
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: Text(context.tr('btn_retry_connection'), style: const TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildCurrentWifiBanner(bool isDark) {
+    final zen = context.zenColors;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
     final ssid = _currentConnectedSsid;
     final isEsp = ssid != null &&
         (ssid.startsWith('ZenHome_Setup_') ||
             ssid.startsWith('ESP32_') ||
             ssid.toLowerCase().contains('setup'));
 
-    Color bgColor;
-    Color borderColor;
     Color iconColor;
     IconData iconData;
     String title;
     String subtitle;
 
     if (isEsp) {
-      bgColor = const Color(0xFF10B981).withOpacity(0.12);
-      borderColor = const Color(0xFF10B981).withOpacity(0.4);
-      iconColor = const Color(0xFF10B981);
+      iconColor = AppColors.emeraldGlow;
       iconData = Icons.wifi_tethering_rounded;
       title = context.tr('wifi_current_esp_connected');
       subtitle = ssid;
     } else if (ssid != null && ssid.isNotEmpty) {
-      bgColor = const Color(0xFF0F766E).withOpacity(0.08);
-      borderColor = const Color(0xFF0F766E).withOpacity(0.25);
-      iconColor = const Color(0xFF0F766E);
+      iconColor = isDark ? zen.primaryAccent : zen.primary;
       iconData = Icons.wifi_rounded;
       title = context.tr('wifi_current_status_title');
-      subtitle = context.tr('wifi_current_connected_to').replaceAll('{ssid}', ssid);
+      subtitle =
+          context.tr('wifi_current_connected_to').replaceAll('{ssid}', ssid);
     } else {
-      bgColor = Colors.amber.withOpacity(0.08);
-      borderColor = Colors.amber.withOpacity(0.3);
-      iconColor = Colors.amber;
+      iconColor = AppColors.amberGlow;
       iconData = Icons.wifi_off_rounded;
       title = context.tr('wifi_current_status_title');
       subtitle = context.tr('wifi_current_disconnected');
     }
 
-    return Container(
-      width: double.infinity,
+    return ZenGlassCard(
+      blurSigma: 14,
+      isActive: isEsp,
+      glowColor: iconColor,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: borderColor, width: 1.2),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.15),
+                  color: iconColor.withOpacity(0.16),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(iconData, color: iconColor, size: 22),
@@ -1098,9 +1293,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: isEsp
-                            ? const Color(0xFF10B981)
-                            : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                        color: isEsp ? AppColors.emeraldGlow : textColor,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1109,17 +1302,20 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: isEsp ? FontWeight.bold : FontWeight.w600,
-                        color: isDark ? Colors.grey.shade300 : const Color(0xFF334155),
+                        color: mutedColor,
                       ),
                     ),
                   ],
                 ),
               ),
               if (_isCheckingCurrentWifi)
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F766E)),
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: iconColor,
+                  ),
                 ),
             ],
           ),
@@ -1129,27 +1325,20 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
               context.tr('wifi_current_esp_desc'),
               style: TextStyle(
                 fontSize: 12,
-                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                color: mutedColor,
               ),
             ),
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              height: 40,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+              child: ZenGlassButton(
+                label: context.tr('wifi_handshake_now_btn'),
+                icon: Icons.bolt_rounded,
+                isLoading: _isCheckingEsp,
+                accentColor: AppColors.emeraldGlow,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                 onPressed: _isCheckingEsp ? null : _checkEspConnection,
-                icon: _isCheckingEsp
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.bolt_rounded, size: 18),
-                label: Text(
-                  context.tr('wifi_handshake_now_btn'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
               ),
             ),
           ],
@@ -1160,15 +1349,21 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
 
   void _validateAndStartPairing() {
     if (_ssidController.text.trim().isEmpty) {
-      showFloatingToast(context, context.tr('error'), context.tr('err_wifi_empty'), isError: true);
+      showFloatingToast(
+          context, context.tr('error'), context.tr('err_wifi_empty'),
+          isError: true);
       return;
     }
     if (_adminPassController.text.isEmpty) {
-      showFloatingToast(context, context.tr('error'), context.tr('err_empty_admin_pass'), isError: true);
+      showFloatingToast(
+          context, context.tr('error'), context.tr('err_empty_admin_pass'),
+          isError: true);
       return;
     }
     if (_adminPassController.text != _confirmAdminPassController.text) {
-      showFloatingToast(context, context.tr('error'), context.tr('err_pass_mismatch'), isError: true);
+      showFloatingToast(
+          context, context.tr('error'), context.tr('err_pass_mismatch'),
+          isError: true);
       return;
     }
 
@@ -1184,23 +1379,25 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
   }
 
   Future<void> _executePairingWorkflow() async {
-    final activeConfig = widget.targetHome ?? ref.read(homeConfigProvider).activeConfig;
-    final defaultServer = dotenv.env['DEFAULT_MQTT_SERVER'] ?? 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
+    final activeConfig =
+        widget.targetHome ?? ref.read(homeConfigProvider).activeConfig;
+    final defaultServer = dotenv.env['DEFAULT_MQTT_SERVER'] ??
+        'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
     final defaultUser = dotenv.env['DEFAULT_MQTT_USER'] ?? 'DTC_ZenHome';
     final defaultPass = dotenv.env['DEFAULT_MQTT_PASS'] ?? 'DTC_ZenHome2103';
 
     await ref.read(wifiSetupWizardProvider.notifier).executePairingWorkflow(
-      wifiSsid: _ssidController.text.trim(),
-      wifiPass: _passController.text.trim(),
-      adminPass: _adminPassController.text,
-      mqttServer: _mqttServerController.text.trim(),
-      mqttUser: _mqttUserController.text.trim(),
-      mqttPass: _mqttPassController.text.trim(),
-      defaultServer: defaultServer,
-      defaultUser: defaultUser,
-      defaultPass: defaultPass,
-      targetHomeId: activeConfig.userId,
-    );
+          wifiSsid: _ssidController.text.trim(),
+          wifiPass: _passController.text.trim(),
+          adminPass: _adminPassController.text,
+          mqttServer: _mqttServerController.text.trim(),
+          mqttUser: _mqttUserController.text.trim(),
+          mqttPass: _mqttPassController.text.trim(),
+          defaultServer: defaultServer,
+          defaultUser: defaultUser,
+          defaultPass: defaultPass,
+          targetHomeId: activeConfig.userId,
+        );
 
     final pState = ref.read(wifiSetupWizardProvider);
     if (!mounted) return;
@@ -1217,29 +1414,24 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
   }
 
   Widget _buildStepperHeader(bool isDark) {
+    final zen = context.zenColors;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
     final steps = [
       {'title': context.tr('wifi_step_prep'), 'icon': Icons.power_rounded},
       {'title': context.tr('wifi_step_config'), 'icon': Icons.wifi_rounded},
       {'title': context.tr('wifi_step_pair'), 'icon': Icons.sync_rounded},
-      {'title': context.tr('wifi_step_done'), 'icon': Icons.check_circle_rounded},
+      {
+        'title': context.tr('wifi_step_done'),
+        'icon': Icons.check_circle_rounded
+      },
     ];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF131B2E) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return ZenGlassCard(
+      blurSigma: 16,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       child: Row(
         children: List.generate(steps.length * 2 - 1, (index) {
           if (index.isOdd) {
@@ -1247,8 +1439,16 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
             final isPassed = _currentStep > stepBefore;
             return Expanded(
               child: Container(
-                height: 3,
-                color: isPassed ? const Color(0xFF10B981) : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                height: 2.5,
+                margin: const EdgeInsets.only(bottom: 18),
+                decoration: BoxDecoration(
+                  color: isPassed
+                      ? AppColors.emeraldGlow
+                      : (isDark
+                          ? Colors.white.withOpacity(0.14)
+                          : const Color(0xFFCBD5E1)),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             );
           }
@@ -1257,61 +1457,41 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
           final isCurrent = _currentStep == stepIndex;
           final isCompleted = _currentStep > stepIndex;
 
-          Color badgeColor;
-          Color textColor;
-          if (isCompleted) {
-            badgeColor = const Color(0xFF10B981);
-            textColor = Colors.white;
-          } else if (isCurrent) {
-            badgeColor = const Color(0xFF0F766E);
-            textColor = Colors.white;
-          } else {
-            badgeColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
-            textColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-          }
+          final Color activeGlow =
+              isCompleted ? AppColors.emeraldGlow : zen.primary;
 
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  shape: BoxShape.circle,
-                  boxShadow: isCurrent
-                      ? [
-                          BoxShadow(
-                            color: const Color(0xFF0F766E).withOpacity(0.4),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : [],
-                ),
-                child: Center(
-                  child: isCompleted
-                      ? const Icon(Icons.check, size: 20, color: Colors.white)
-                      : Text(
-                          '${stepIndex + 1}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
+              ZenGlassPill(
+                blurSigma: 0,
+                borderRadius: 18,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                isSelected: isCurrent || isCompleted,
+                glowColor: activeGlow,
+                customGradient: isCurrent ? zen.brandHero : null,
+                child: isCompleted
+                    ? const Icon(Icons.check_rounded,
+                        size: 17, color: AppColors.emeraldGlow)
+                    : Text(
+                        '${stepIndex + 1}',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                          color: isCurrent ? Colors.white : mutedColor,
                         ),
-                ),
+                      ),
               ),
               const SizedBox(height: 6),
               Text(
                 steps[stepIndex]['title'] as String,
                 style: TextStyle(
                   fontSize: 11,
-                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
+                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
                   color: isCurrent
-                      ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                      : (isDark ? Colors.grey.shade500 : Colors.grey.shade600),
+                      ? textColor
+                      : (isCompleted ? AppColors.emeraldGlow : mutedColor),
                 ),
               ),
             ],
@@ -1323,38 +1503,49 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
 
   // --- STEP 0: Chuẩn bị thiết bị & Dò quét sóng ESP32 ---
   Widget _buildStep0Prepare(bool isDark) {
+    final zen = context.zenColors;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final accentColor = isDark ? zen.primaryAccent : zen.primary;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 1. Hướng dẫn ban đầu
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F766E).withOpacity(0.08),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF0F766E).withOpacity(0.2)),
-          ),
+        ZenGlassCard(
+          blurSigma: 14,
+          isActive: true,
+          padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              const Icon(Icons.tips_and_updates_outlined, color: Color(0xFF0F766E), size: 28),
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  gradient: zen.brandHero,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.tips_and_updates_outlined,
+                    color: Colors.white, size: 22),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
                   context.tr('wifi_prep_desc'),
                   style: TextStyle(
-                    fontSize: 14,
-                    height: 1.4,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    fontWeight: FontWeight.w500,
+                    fontSize: 13.5,
+                    height: 1.45,
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
         _buildCurrentWifiBanner(isDark),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
 
         _buildGuideCard(
           stepNumber: '1',
@@ -1372,68 +1563,80 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
           icon: Icons.lightbulb_outline_rounded,
           isDark: isDark,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
 
         // 2. KHU VỰC DÒ QUÉT SÓNG ESP32 VÀ KẾT NỐI TRỰC TIẾP TRONG ỨNG DỤNG
-        Container(
-          width: double.infinity,
+        ZenGlassCard(
+          blurSigma: 16,
+          isActive: _detectedEspMac != null,
+          glowColor:
+              _detectedEspMac != null ? AppColors.emeraldGlow : zen.primary,
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF131B2E) : Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: _detectedEspMac != null
-                  ? const Color(0xFF10B981).withOpacity(0.6)
-                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-              width: _detectedEspMac != null ? 1.5 : 1.0,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F766E).withOpacity(0.12),
-                          shape: BoxShape.circle,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: (_detectedEspMac != null
+                                    ? AppColors.emeraldGlow
+                                    : accentColor)
+                                .withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _detectedEspMac != null
+                                ? Icons.check_circle_rounded
+                                : Icons.wifi_find_rounded,
+                            color: _detectedEspMac != null
+                                ? AppColors.emeraldGlow
+                                : accentColor,
+                            size: 22,
+                          ),
                         ),
-                        child: Icon(
-                          _detectedEspMac != null ? Icons.check_circle_rounded : Icons.wifi_find_rounded,
-                          color: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-                          size: 22,
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Text(
+                            _detectedEspMac != null
+                                ? context.tr('wifi_found_esp')
+                                : context.tr('wifi_scan_esp_btn'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                              color: textColor,
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _detectedEspMac != null ? context.tr('wifi_found_esp') : context.tr('wifi_scan_esp_btn'),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  if (_detectedEspMac != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                  if (_detectedEspMac != null) ...[
+                    const SizedBox(width: 8),
+                    ZenGlassPill(
+                      blurSigma: 0,
+                      isSelected: true,
+                      glowColor: AppColors.emeraldGlow,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       child: Text(
                         _detectedEspMac!,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.emeraldGlow,
+                        ),
                       ),
                     ),
+                  ],
                 ],
               ),
               const SizedBox(height: 16),
@@ -1441,21 +1644,17 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
               // Nút bấm kích hoạt dò quét sóng ESP32
               SizedBox(
                 width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: (_isScanningEsp || _isConnectingInApp) ? null : _scanForEspDevices,
-                  icon: _isScanningEsp
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Icon(Icons.sensors_rounded, size: 20),
-                  label: Text(
-                    _isScanningEsp ? context.tr('wifi_scanning_signal') : context.tr('wifi_scan_esp_btn'),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
+                child: ZenGlassButton(
+                  label: _isScanningEsp
+                      ? context.tr('wifi_scanning_signal')
+                      : context.tr('wifi_scan_esp_btn'),
+                  icon: Icons.sensors_rounded,
+                  isLoading: _isScanningEsp,
+                  accentColor:
+                      _detectedEspMac != null ? AppColors.emeraldGlow : null,
+                  onPressed: (_isScanningEsp || _isConnectingInApp)
+                      ? null
+                      : _scanForEspDevices,
                 ),
               ),
 
@@ -1465,13 +1664,13 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                 Center(
                   child: Column(
                     children: [
-                      const CircularProgressIndicator(color: Color(0xFF0F766E)),
+                      CircularProgressIndicator(color: accentColor),
                       const SizedBox(height: 10),
                       Text(
                         context.tr('wifi_scanning_signal'),
                         style: TextStyle(
                           fontSize: 13,
-                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                          color: mutedColor,
                         ),
                       ),
                     ],
@@ -1480,39 +1679,53 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
               ] else if (_scannedEspDevices.isNotEmpty) ...[
                 const SizedBox(height: 18),
                 Text(
-                  context.tr('wifi_detected_esp_title').replaceAll('{count}', _scannedEspDevices.length.toString()),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  context
+                      .tr('wifi_detected_esp_title')
+                      .replaceAll('{count}', _scannedEspDevices.length.toString()),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: textColor,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _scannedEspDevices.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     final ap = _scannedEspDevices[i];
-                    final isConnectingThis = _isConnectingInApp && _connectingSsid == ap.ssid;
+                    final isConnectingThis =
+                        _isConnectingInApp && _connectingSsid == ap.ssid;
+                    final bool isStrong = ap.level >= -60;
 
-                    return Container(
+                    return ZenLiquidGlass(
+                      blurSigma: 0,
+                      borderRadius: 16,
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                        ),
-                      ),
+                      surfaceColor: isDark
+                          ? Colors.white.withOpacity(0.05)
+                          : Colors.white.withOpacity(0.62),
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(9),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0F766E).withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(10),
+                              color: (isStrong
+                                      ? AppColors.emeraldGlow
+                                      : AppColors.amberGlow)
+                                  .withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(11),
                             ),
                             child: Icon(
-                              ap.level >= -60 ? Icons.wifi : Icons.wifi_2_bar_rounded,
-                              color: ap.level >= -60 ? const Color(0xFF10B981) : Colors.amber,
+                              isStrong
+                                  ? Icons.wifi_rounded
+                                  : Icons.wifi_2_bar_rounded,
+                              color: isStrong
+                                  ? AppColors.emeraldGlow
+                                  : AppColors.amberGlow,
                               size: 20,
                             ),
                           ),
@@ -1523,36 +1736,43 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                               children: [
                                 Text(
                                   ap.ssid,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: textColor,
+                                  ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  context.tr('wifi_signal_quality')
+                                  context
+                                      .tr('wifi_signal_quality')
                                       .replaceAll('{rssi}', ap.level.toString())
-                                      .replaceAll('{quality}', WifiProvisioningService.getSignalQuality(ap.level)),
+                                      .replaceAll(
+                                        '{quality}',
+                                        WifiProvisioningService.getSignalQuality(
+                                            ap.level),
+                                      ),
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    fontSize: 11.5,
+                                    color: mutedColor,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                           const SizedBox(width: 8),
-                          SizedBox(
-                            height: 36,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                              onPressed: _isConnectingInApp ? null : () => _showConnectToEspModal(ap),
-                              child: isConnectingThis
-                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : Text(context.tr('btn_connect'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ),
+                          ZenGlassButton(
+                            label: context.tr('btn_connect'),
+                            isLoading: isConnectingThis,
+                            accentColor: _detectedEspMac != null
+                                ? AppColors.emeraldGlow
+                                : null,
+                            borderRadius: 12,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 9),
+                            onPressed: _isConnectingInApp
+                                ? null
+                                : () => _showConnectToEspModal(ap),
                           ),
                         ],
                       ),
@@ -1561,19 +1781,20 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                 ),
               ] else if (_hasScannedEsp && !_isScanningEsp) ...[
                 const SizedBox(height: 14),
-                Container(
+                ZenLiquidGlass(
+                  blurSigma: 0,
+                  borderRadius: 16,
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.amber.withOpacity(0.35)),
-                  ),
+                  surfaceColor:
+                      AppColors.amberGlow.withOpacity(isDark ? 0.12 : 0.08),
+                  glowColor: AppColors.amberGlow,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.info_outline_rounded, color: Colors.amber, size: 22),
+                          const Icon(Icons.info_outline_rounded,
+                              color: AppColors.amberGlow, size: 22),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
@@ -1581,7 +1802,9 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                                color: isDark
+                                    ? Colors.amber.shade200
+                                    : Colors.amber.shade900,
                               ),
                             ),
                           ),
@@ -1597,7 +1820,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.5,
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+                          color: mutedColor,
                         ),
                       ),
                     ],
@@ -1609,95 +1832,87 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
               // Phím tắt mở Cài đặt Wi-Fi máy nếu người dùng muốn thao tác truyền thống
               Center(
                 child: TextButton.icon(
-                  onPressed: () => WifiProvisioningService.openSystemWifiSettings(),
-                  icon: const Icon(Icons.settings_suggest_outlined, size: 16),
+                  onPressed: () =>
+                      WifiProvisioningService.openSystemWifiSettings(),
+                  icon: Icon(Icons.settings_suggest_outlined,
+                      size: 16, color: accentColor),
                   label: Text(
                     context.tr('wifi_open_settings_shortcut'),
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: accentColor,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
         // 3. Phím kiểm tra kết nối thủ công
-        Container(
-          width: double.infinity,
+        ZenGlassCard(
+          blurSigma: 14,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF131B2E) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-          ),
           child: Column(
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        _detectedEspMac != null ? Icons.check_circle : Icons.link_rounded,
-                        color: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
+                  Icon(
+                    _detectedEspMac != null
+                        ? Icons.check_circle_rounded
+                        : Icons.link_rounded,
+                    color: _detectedEspMac != null
+                        ? AppColors.emeraldGlow
+                        : accentColor,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _detectedEspMac != null
+                          ? context.tr('wifi_found_esp')
+                          : context.tr('wifi_check_conn_label'),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: textColor,
                       ),
-                      const SizedBox(width: 10),
-                      Text(
-                        _detectedEspMac != null ? context.tr('wifi_found_esp') : context.tr('wifi_check_conn_label'),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
-                height: 44,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0F766E),
-                    side: const BorderSide(color: Color(0xFF0F766E)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
+                child: ZenGlassButton(
+                  label: _isCheckingEsp
+                      ? context.tr('wifi_checking_esp')
+                      : context.tr('wifi_check_esp_btn'),
+                  icon: Icons.refresh_rounded,
+                  isPrimary: false,
+                  isLoading: _isCheckingEsp,
                   onPressed: _isCheckingEsp ? null : _checkEspConnection,
-                  icon: _isCheckingEsp
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.refresh_rounded, size: 18),
-                  label: Text(_isCheckingEsp ? context.tr('wifi_checking_esp') : context.tr('wifi_check_esp_btn')),
                 ),
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 22),
         // 4. Nút Tiếp tục cấu hình
         SizedBox(
           width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              elevation: 2,
-            ),
-            onPressed: _isCheckingEsp ? null : _proceedToStep1WithVerification,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  _detectedEspMac != null
-                      ? 'Đã kết nối (${MaskingHelper.maskMac(_detectedEspMac)}) • Tiếp tục'
-                      : 'Kiểm tra kết nối Hub & Tiếp tục',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.arrow_forward_rounded, size: 20),
-              ],
-            ),
+          child: ZenGlassButton(
+            label: _detectedEspMac != null
+                ? 'Đã kết nối (${MaskingHelper.maskMac(_detectedEspMac)}) • Tiếp tục'
+                : 'Kiểm tra kết nối Hub & Tiếp tục',
+            icon: Icons.arrow_forward_rounded,
+            accentColor:
+                _detectedEspMac != null ? AppColors.emeraldGlow : null,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            onPressed:
+                _isCheckingEsp ? null : _proceedToStep1WithVerification,
           ),
         ),
       ],
@@ -1711,27 +1926,29 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     required IconData icon,
     required bool isDark,
   }) {
-    return Container(
+    final zen = context.zenColors;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final accentColor = isDark ? zen.primaryAccent : zen.primary;
+
+    return ZenGlassCard(
+      blurSigma: 12,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF131B2E) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F766E).withOpacity(0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                stepNumber,
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F766E), fontSize: 14),
+          ZenGlassPill(
+            blurSigma: 0,
+            isSelected: true,
+            glowColor: zen.primary,
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+            child: Text(
+              stepNumber,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: accentColor,
+                fontSize: 13.5,
               ),
             ),
           ),
@@ -1740,21 +1957,28 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: textColor,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   description,
                   style: TextStyle(
                     fontSize: 13,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                    height: 1.4,
+                    color: mutedColor,
+                    height: 1.45,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Icon(icon, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400, size: 24),
+          Icon(icon, color: mutedColor.withOpacity(0.75), size: 22),
         ],
       ),
     );
@@ -1762,29 +1986,41 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
 
   // --- STEP 1: Cấu hình Mạng & Mật khẩu kỹ thuật ---
   Widget _buildStep1Configure(bool isDark) {
+    final zen = context.zenColors;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final accentColor = isDark ? zen.primaryAccent : zen.primary;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
+        // Wi-Fi Credentials Card
+        ZenGlassCard(
+          blurSigma: 16,
           padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF131B2E).withOpacity(isDark ? 1 : 0.04),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.wifi_rounded, color: Color(0xFF0F766E)),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: zen.primary.withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(Icons.wifi_rounded, color: accentColor, size: 20),
+                  ),
                   const SizedBox(width: 10),
-                  Text(
-                    context.tr('wifi_home_info_section'),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  Expanded(
+                    child: Text(
+                      context.tr('wifi_home_info_section'),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: textColor,
+                      ),
                     ),
                   ),
                 ],
@@ -1793,19 +2029,27 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
 
               TextField(
                 controller: _ssidController,
-                decoration: InputDecoration(
+                style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                decoration: zenGlassInputDecoration(
+                  context,
                   labelText: context.tr('wifi_ssid'),
                   hintText: context.tr('wifi_ssid_hint'),
-                  prefixIcon: const Icon(Icons.router_outlined),
+                  prefixIcon: Icons.router_outlined,
                   suffixIcon: IconButton(
                     tooltip: context.tr('wifi_scan_nearby_home_btn'),
                     icon: _isScanningHomeWifi
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.wifi_find_rounded, color: Color(0xFF0F766E)),
-                    onPressed: _isScanningHomeWifi ? null : _openHomeWifiPicker,
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: accentColor,
+                            ),
+                          )
+                        : Icon(Icons.wifi_find_rounded, color: accentColor),
+                    onPressed:
+                        _isScanningHomeWifi ? null : _openHomeWifiPicker,
                   ),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 ),
               ),
               const SizedBox(height: 14),
@@ -1813,44 +2057,57 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
               TextField(
                 controller: _passController,
                 obscureText: _obscureWifiPass,
-                decoration: InputDecoration(
+                style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                decoration: zenGlassInputDecoration(
+                  context,
                   labelText: context.tr('wifi_pass'),
                   hintText: context.tr('wifi_pass_hint'),
-                  prefixIcon: const Icon(Icons.lock_outline),
+                  prefixIcon: Icons.lock_outline_rounded,
                   suffixIcon: IconButton(
-                    icon: Icon(_obscureWifiPass ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () => setState(() => _obscureWifiPass = !_obscureWifiPass),
+                    icon: Icon(
+                      _obscureWifiPass
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: mutedColor,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscureWifiPass = !_obscureWifiPass),
                   ),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 ),
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
 
-        Container(
+        // Admin Password Card
+        ZenGlassCard(
+          blurSigma: 16,
           padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF131B2E).withOpacity(isDark ? 1 : 0.04),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.admin_panel_settings_outlined, color: Color(0xFF0F766E)),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: zen.primary.withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(Icons.admin_panel_settings_outlined,
+                        color: accentColor, size: 20),
+                  ),
                   const SizedBox(width: 10),
-                  Text(
-                    context.tr('wifi_admin_pass_section'),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  Expanded(
+                    child: Text(
+                      context.tr('wifi_admin_pass_section'),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: textColor,
+                      ),
                     ),
                   ),
                 ],
@@ -1860,16 +2117,22 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
               TextField(
                 controller: _adminPassController,
                 obscureText: _obscureAdminPass,
-                decoration: InputDecoration(
+                style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                decoration: zenGlassInputDecoration(
+                  context,
                   labelText: context.tr('admin_pass_opt'),
                   hintText: context.tr('admin_pass_hint'),
-                  prefixIcon: const Icon(Icons.vpn_key_outlined),
+                  prefixIcon: Icons.vpn_key_outlined,
                   suffixIcon: IconButton(
-                    icon: Icon(_obscureAdminPass ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () => setState(() => _obscureAdminPass = !_obscureAdminPass),
+                    icon: Icon(
+                      _obscureAdminPass
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: mutedColor,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscureAdminPass = !_obscureAdminPass),
                   ),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 ),
               ),
               const SizedBox(height: 14),
@@ -1877,75 +2140,96 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
               TextField(
                 controller: _confirmAdminPassController,
                 obscureText: _obscureConfirmPass,
-                decoration: InputDecoration(
+                style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                decoration: zenGlassInputDecoration(
+                  context,
                   labelText: context.tr('confirm_admin_pass'),
                   hintText: context.tr('confirm_admin_pass_hint'),
-                  prefixIcon: const Icon(Icons.key_outlined),
+                  prefixIcon: Icons.key_outlined,
                   suffixIcon: IconButton(
-                    icon: Icon(_obscureConfirmPass ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () => setState(() => _obscureConfirmPass = !_obscureConfirmPass),
+                    icon: Icon(
+                      _obscureConfirmPass
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: mutedColor,
+                    ),
+                    onPressed: () => setState(
+                        () => _obscureConfirmPass = !_obscureConfirmPass),
                   ),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 ),
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
 
-        // Cấu hình MQTT nâng cao (Collapsible)
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF131B2E).withOpacity(isDark ? 1 : 0.04),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-          ),
+        // Cấu hình MQTT nâng cao (Collapsible Glass Card)
+        ZenGlassCard(
+          blurSigma: 16,
+          padding: EdgeInsets.zero,
           child: Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
             child: ExpansionTile(
               initiallyExpanded: _showAdvancedMqtt,
-              onExpansionChanged: (val) => setState(() => _showAdvancedMqtt = val),
-              leading: const Icon(Icons.cloud_sync_outlined, color: Color(0xFF0F766E)),
-              title: Text(context.tr('wifi_mqtt_adv_title'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              onExpansionChanged: (val) =>
+                  setState(() => _showAdvancedMqtt = val),
+              leading: Icon(Icons.cloud_sync_outlined, color: accentColor),
+              title: Text(
+                context.tr('wifi_mqtt_adv_title'),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: textColor,
+                ),
+              ),
               subtitle: Text(
-                _mqttServerController.text.isNotEmpty ? _mqttServerController.text : context.tr('wifi_mqtt_default_cloud'),
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                _mqttServerController.text.isNotEmpty
+                    ? _mqttServerController.text
+                    : context.tr('wifi_mqtt_default_cloud'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: mutedColor),
               ),
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
                   child: Column(
                     children: [
                       TextField(
                         controller: _mqttServerController,
-                        decoration: InputDecoration(
+                        style: TextStyle(
+                            color: textColor, fontWeight: FontWeight.w600),
+                        decoration: zenGlassInputDecoration(
+                          context,
                           labelText: context.tr('mqtt_server_address'),
                           hintText: context.tr('mqtt_server_hint'),
-                          prefixIcon: const Icon(Icons.dns_outlined),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          prefixIcon: Icons.dns_outlined,
                         ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: _mqttUserController,
-                        decoration: InputDecoration(
+                        style: TextStyle(
+                            color: textColor, fontWeight: FontWeight.w600),
+                        decoration: zenGlassInputDecoration(
+                          context,
                           labelText: context.tr('mqtt_user'),
                           hintText: context.tr('mqtt_user_hint'),
-                          prefixIcon: const Icon(Icons.person_outline),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          prefixIcon: Icons.person_outline_rounded,
                         ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: _mqttPassController,
                         obscureText: true,
-                        decoration: InputDecoration(
+                        style: TextStyle(
+                            color: textColor, fontWeight: FontWeight.w600),
+                        decoration: zenGlassInputDecoration(
+                          context,
                           labelText: context.tr('mqtt_pass'),
                           hintText: context.tr('mqtt_pass_hint'),
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          prefixIcon: Icons.lock_outline_rounded,
                         ),
                       ),
                     ],
@@ -1956,47 +2240,33 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
           ),
         ),
 
-        const SizedBox(height: 28),
+        const SizedBox(height: 26),
 
         Row(
           children: [
             Expanded(
-              child: SizedBox(
-                height: 52,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  onPressed: () {
-                    ref.read(wifiSetupWizardProvider.notifier).setStep(0);
-                    setState(() => _currentStep = 0);
-                  },
-                  child: Text(context.tr('wifi_btn_back')),
-                ),
+              child: ZenGlassButton(
+                label: context.tr('wifi_btn_back'),
+                isPrimary: false,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                onPressed: () {
+                  ref.read(wifiSetupWizardProvider.notifier).setStep(0);
+                  setState(() => _currentStep = 0);
+                },
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
               flex: 2,
-              child: SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 2,
-                  ),
-                  onPressed: _validateAndStartPairing,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(context.tr('wifi_btn_start_pairing'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.flash_on_rounded, size: 20),
-                    ],
-                  ),
-                ),
+              child: ZenGlassButton(
+                label: context.tr('wifi_btn_start_pairing'),
+                icon: Icons.flash_on_rounded,
+                accentColor:
+                    _detectedEspMac != null ? AppColors.emeraldGlow : null,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+                onPressed: _validateAndStartPairing,
               ),
             ),
           ],
@@ -2007,111 +2277,125 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
 
   // --- STEP 2: Đang ghép nối & nạp cấu hình ---
   Widget _buildStep2Pairing(bool isDark) {
-    final remainingSecs = ref.watch(wifiSetupWizardProvider.select((s) => s.remainingTimeoutSeconds));
+    final zen = context.zenColors;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final accentColor = isDark ? zen.primaryAccent : zen.primary;
+
+    final remainingSecs = ref.watch(
+        wifiSetupWizardProvider.select((s) => s.remainingTimeoutSeconds));
     final mins = remainingSecs ~/ 60;
     final secs = remainingSecs % 60;
-    final timeFormatted = '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+    final timeFormatted =
+        '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF131B2E) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    return ZenGlassCard(
+      blurSigma: 18,
+      isActive: true,
+      glowColor: _pairingFailed ? AppColors.roseGlow : zen.primary,
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 30),
       child: Column(
         children: [
           if (!_pairingFailed) ...[
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F766E).withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: SizedBox(
-                  width: 50,
-                  height: 50,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 4,
-                    color: Color(0xFF0F766E),
-                  ),
+            ZenLiquidGlass(
+              blurSigma: 0,
+              width: 92,
+              height: 92,
+              borderRadius: 46,
+              glowColor: zen.primary,
+              alignment: Alignment.center,
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: CircularProgressIndicator(
+                  strokeWidth: 4,
+                  color: accentColor,
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 22),
             Text(
               '${(_pairingProgress * 100).toInt()}%',
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0F766E),
+              style: TextStyle(
+                fontSize: 34,
+                fontWeight: FontWeight.w800,
+                color: accentColor,
+                letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: LinearProgressIndicator(
-                value: _pairingProgress,
-                backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0F766E)),
-                minHeight: 8,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: _pairingProgress,
+                  backgroundColor: isDark
+                      ? Colors.white.withOpacity(0.10)
+                      : const Color(0xFFE2E8F0),
+                  valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                  minHeight: 8,
+                ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 22),
             Text(
               _pairingMessage,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.grey.shade300 : const Color(0xFF334155),
+                color: textColor,
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F766E).withOpacity(0.08),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF0F766E).withOpacity(0.2)),
-              ),
+            const SizedBox(height: 16),
+            ZenGlassPill(
+              blurSigma: 0,
+              isSelected: true,
+              glowColor: zen.primary,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.timer_outlined, size: 16, color: Color(0xFF0F766E)),
+                  Icon(Icons.timer_outlined, size: 16, color: accentColor),
                   const SizedBox(width: 6),
                   Text(
-                    context.tr('wifi_time_remaining').replaceAll('{time}', timeFormatted),
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF0F766E)),
+                    context
+                        .tr('wifi_time_remaining')
+                        .replaceAll('{time}', timeFormatted),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.bold,
+                      color: accentColor,
+                    ),
                   ),
                 ],
               ),
             ),
           ] else ...[
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.redAccent.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+            ZenLiquidGlass(
+              blurSigma: 0,
+              width: 84,
+              height: 84,
+              borderRadius: 42,
+              glowColor: AppColors.roseGlow,
+              surfaceColor: AppColors.roseGlow.withOpacity(0.14),
+              alignment: Alignment.center,
+              child: const Icon(Icons.error_outline_rounded,
+                  color: AppColors.roseGlow, size: 46),
             ),
             const SizedBox(height: 20),
             Text(
               context.tr('wifi_pairing_failed_title'),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.redAccent),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.roseGlow,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -2119,34 +2403,29 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                color: mutedColor,
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 26),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    onPressed: _isCheckingEsp ? null : _proceedToStep1WithVerification,
-                    child: Text(context.tr('wifi_btn_change_wifi_pass')),
+                  child: ZenGlassButton(
+                    label: context.tr('wifi_btn_change_wifi_pass'),
+                    isPrimary: false,
+                    onPressed: _isCheckingEsp
+                        ? null
+                        : _proceedToStep1WithVerification,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
+                  child: ZenGlassButton(
+                    label: context.tr('wifi_btn_retry'),
+                    accentColor:
+                        _detectedEspMac != null ? AppColors.emeraldGlow : null,
                     onPressed: _validateAndStartPairing,
-                    child: Text(context.tr('wifi_btn_retry')),
                   ),
                 ),
               ],
@@ -2159,36 +2438,36 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
 
   // --- STEP 3: Hoàn tất & Sẵn sàng ---
   Widget _buildStep3Complete(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF131B2E) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
+    return ZenGlassCard(
+      blurSigma: 18,
+      isActive: true,
+      glowColor: AppColors.emeraldGlow,
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 30),
       child: Column(
         children: [
-          Container(
-            width: 90,
-            height: 90,
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withOpacity(0.14),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 55),
+          ZenLiquidGlass(
+            blurSigma: 0,
+            width: 92,
+            height: 92,
+            borderRadius: 46,
+            glowColor: AppColors.emeraldGlow,
+            surfaceColor: AppColors.emeraldGlow.withOpacity(0.16),
+            alignment: Alignment.center,
+            child: const Icon(Icons.check_circle_rounded,
+                color: AppColors.emeraldGlow, size: 54),
           ),
           const SizedBox(height: 20),
           Text(
             context.tr('wifi_pairing_success_title'),
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppColors.emeraldGlow,
+            ),
           ),
           const SizedBox(height: 10),
           Text(
@@ -2196,68 +2475,65 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
-              color: isDark ? Colors.grey.shade300 : Colors.grey.shade600,
-              height: 1.4,
+              color: mutedColor,
+              height: 1.45,
             ),
           ),
           const SizedBox(height: 20),
 
           if (_detectedEspMac != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(12),
-              ),
+            ZenGlassPill(
+              blurSigma: 0,
+              isSelected: true,
+              glowColor: AppColors.emeraldGlow,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.memory_rounded, size: 18, color: Color(0xFF0F766E)),
+                  const Icon(Icons.memory_rounded,
+                      size: 17, color: AppColors.emeraldGlow),
                   const SizedBox(width: 8),
                   Text(
                     'MAC: $_detectedEspMac',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      fontFamily: 'monospace',
+                      color: AppColors.emeraldGlow,
+                    ),
                   ),
                 ],
               ),
             ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 28),
 
           SizedBox(
             width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _detectedEspMac != null ? const Color(0xFF10B981) : const Color(0xFF0F766E),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 2,
-              ),
+            child: ZenGlassButton(
+              label: context.tr('wifi_btn_device_mapping'),
+              icon: Icons.dashboard_customize_rounded,
+              accentColor: AppColors.emeraldGlow,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               onPressed: () {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => const DeviceMappingScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => const DeviceMappingScreen()),
                 );
               },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.dashboard_customize_rounded, size: 20),
-                  const SizedBox(width: 8),
-                  Text(context.tr('wifi_btn_device_mapping'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                ],
-              ),
             ),
           ),
           const SizedBox(height: 12),
 
           SizedBox(
             width: double.infinity,
-            height: 48,
-            child: TextButton(
+            child: ZenGlassButton(
+              label: context.tr('wifi_btn_return_home'),
+              isPrimary: false,
               onPressed: () => Navigator.pop(context),
-              child: Text(context.tr('wifi_btn_return_home'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             ),
           ),
         ],
@@ -2269,22 +2545,30 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     final themeColor = HomeHelper.getThemeColor(home.homeColor);
     final iconData = HomeHelper.getIconData(home.homeIcon);
     final typeName = HomeHelper.getHomeTypeLabel(home.homeType, context);
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
-    return Container(
+    return ZenGlassCard(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: themeColor.withOpacity(isDark ? 0.16 : 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: themeColor.withOpacity(0.35)),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      blurSigma: 14,
+      isActive: true,
+      glowColor: themeColor,
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: themeColor,
               borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: themeColor.withOpacity(0.32),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Icon(iconData, color: Colors.white, size: 20),
           ),
@@ -2299,7 +2583,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                       'Đang cài đặt cho: ',
                       style: TextStyle(
                         fontSize: 11.5,
-                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                        color: mutedColor,
                       ),
                     ),
                     Flexible(
@@ -2308,7 +2592,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                         style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color: textColor,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -2321,7 +2605,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                   '$typeName • Hub ESP32 sẽ liên kết độc quyền với nhà này',
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: themeColor,
                   ),
                   maxLines: 1,
@@ -2330,7 +2614,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
               ],
             ),
           ),
-          Icon(Icons.lock_outline_rounded, size: 16, color: themeColor),
+          Icon(Icons.lock_outline_rounded, size: 17, color: themeColor),
         ],
       ),
     );
@@ -2359,7 +2643,8 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
             if (mounted) {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const DeviceMappingScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const DeviceMappingScreen()),
               );
             }
           });
@@ -2368,66 +2653,105 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     });
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
     return PopScope(
       canPop: _currentStep != 2,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final shouldCancel = await showDialog<bool>(
+        final shouldCancel = await showZenGlassDialog<bool>(
           context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 28),
-                const SizedBox(width: 8),
-                Expanded(child: Text(context.tr('wifi_cancel_pairing_title'))),
-              ],
-            ),
-            content: Text(context.tr('wifi_cancel_pairing_desc')),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(context.tr('btn_cancel')),
+          accentColor: AppColors.roseGlow,
+          builder: (ctx) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.amberGlow.withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: AppColors.amberGlow.withOpacity(0.32)),
+                    ),
+                    child: const Icon(Icons.warning_amber_rounded,
+                        color: AppColors.amberGlow, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      context.tr('wifi_cancel_pairing_title'),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              const SizedBox(height: 14),
+              Text(
+                context.tr('wifi_cancel_pairing_desc'),
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.45,
+                  color: mutedColor,
                 ),
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(context.tr('btn_understood')),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: ZenGlassButton(
+                      label: context.tr('btn_cancel'),
+                      isPrimary: false,
+                      onPressed: () => Navigator.pop(ctx, false),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ZenGlassButton(
+                      label: context.tr('btn_understood'),
+                      isDanger: true,
+                      onPressed: () => Navigator.pop(ctx, true),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         );
 
         if (shouldCancel == true && context.mounted) {
-          await ref.read(wifiSetupWizardProvider.notifier).cancelSetupWorkflow();
+          await ref
+              .read(wifiSetupWizardProvider.notifier)
+              .cancelSetupWorkflow();
           if (context.mounted) Navigator.pop(context);
         }
       },
-      child: Scaffold(
-        backgroundColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF6F8FB),
-        appBar: AppBar(
-          title: Text(
-            context.tr('wifi_setup_title'),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
+      child: ZenGlassScaffold(
+        appBar: ZenGlassAppBar(
           centerTitle: true,
-          iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
+          titleText: context.tr('wifi_setup_title'),
+          onBack: () => Navigator.maybePop(context),
         ),
         body: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           child: Column(
             children: [
-              _buildTargetHomeBanner(isDark, widget.targetHome ?? ref.watch(homeConfigProvider).activeConfig),
+              _buildTargetHomeBanner(
+                isDark,
+                widget.targetHome ??
+                    ref.watch(homeConfigProvider).activeConfig,
+              ),
               _buildStepperHeader(isDark),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               if (_currentStep == 0) _buildStep0Prepare(isDark),
               if (_currentStep == 1) _buildStep1Configure(isDark),
               if (_currentStep == 2) _buildStep2Pairing(isDark),

@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 /// Provider theo dõi trạng thái kết nối Internet thực tế (true: có mạng, false: mất mạng)
-final connectivityProvider = StateNotifierProvider<ConnectivityNotifier, bool>((ref) {
+final connectivityProvider =
+    StateNotifierProvider<ConnectivityNotifier, bool>((ref) {
   return ConnectivityNotifier();
 });
 
@@ -30,8 +32,17 @@ class ConnectivityNotifier extends StateNotifier<bool> {
     bool hasInternet = false;
     try {
       // 1. Thử kết nối TCP Socket tới Cloudflare DNS (1.1.1.1:53) hoặc Google DNS (8.8.8.8:53)
-      final socket = await Socket.connect('1.1.1.1', 53, timeout: const Duration(milliseconds: 2000))
-          .catchError((_) => Socket.connect('8.8.8.8', 53, timeout: const Duration(milliseconds: 2000)));
+      final socket = await Socket.connect(
+        '1.1.1.1',
+        53,
+        timeout: const Duration(milliseconds: 2000),
+      ).catchError(
+        (_) => Socket.connect(
+          '8.8.8.8',
+          53,
+          timeout: const Duration(milliseconds: 2000),
+        ),
+      );
       socket.destroy();
       hasInternet = true;
     } catch (_) {
@@ -63,16 +74,18 @@ class ConnectivityNotifier extends StateNotifier<bool> {
 }
 
 /// Widget bọc toàn bộ ứng dụng (MaterialApp.builder)
-/// Tự động hiển thị thanh thông báo trạng thái mạng mượt mà, sang trọng thay vì màn hình trắng xóa
+/// Tự động hiển thị thanh thông báo Kính Lỏng trạng thái mạng mượt mà
 class ConnectivityBannerWrapper extends ConsumerStatefulWidget {
   final Widget child;
   const ConnectivityBannerWrapper({super.key, required this.child});
 
   @override
-  ConsumerState<ConnectivityBannerWrapper> createState() => _ConnectivityBannerWrapperState();
+  ConsumerState<ConnectivityBannerWrapper> createState() =>
+      _ConnectivityBannerWrapperState();
 }
 
-class _ConnectivityBannerWrapperState extends ConsumerState<ConnectivityBannerWrapper> {
+class _ConnectivityBannerWrapperState
+    extends ConsumerState<ConnectivityBannerWrapper> {
   bool _showRestoredBanner = false;
   Timer? _restoredTimer;
   bool _wasOffline = false;
@@ -87,6 +100,7 @@ class _ConnectivityBannerWrapperState extends ConsumerState<ConnectivityBannerWr
   Widget build(BuildContext context) {
     final isOnline = ref.watch(connectivityProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
 
     // Khi vừa khôi phục kết nối từ trạng thái offline -> hiện banner xanh trong 2.5s
     if (isOnline && _wasOffline) {
@@ -104,7 +118,7 @@ class _ConnectivityBannerWrapperState extends ConsumerState<ConnectivityBannerWr
       children: [
         widget.child,
 
-        // 1. Banner MẤT KẾT NỐI INTERNET (Animated Slide-down)
+        // 1. Banner KÍNH LỎNG MẤT KẾT NỐI INTERNET
         if (!isOnline)
           Positioned(
             top: 0,
@@ -113,33 +127,32 @@ class _ConnectivityBannerWrapperState extends ConsumerState<ConnectivityBannerWr
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Material(
                   color: Colors.transparent,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1F1612) : const Color(0xFFFFF7ED),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: AppColors.amberGlow.withOpacity(0.6),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.amberGlow.withOpacity(isDark ? 0.25 : 0.15),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                  child: ZenLiquidGlass(
+                    borderRadius: 20,
+                    blurSigma: 22,
+                    glowColor: AppColors.amberGlow,
+                    rimWidth: 1.3,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 11,
                     ),
+                    surfaceColor: isDark
+                        ? const Color(0xFF1A140E).withOpacity(0.74)
+                        : const Color(0xFFFFFBEB).withOpacity(0.84),
                     child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(7),
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.amberGlow.withOpacity(0.2),
-                            shape: BoxShape.circle,
+                            color: AppColors.amberGlow.withOpacity(0.20),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.amberGlow.withOpacity(0.42),
+                            ),
                           ),
                           child: const Icon(
                             Icons.wifi_off_rounded,
@@ -156,52 +169,62 @@ class _ConnectivityBannerWrapperState extends ConsumerState<ConnectivityBannerWr
                               Text(
                                 context.tr('no_internet_title'),
                                 style: TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w800,
                                   fontSize: 13,
-                                  color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                                  color: isDark
+                                      ? Colors.amber.shade200
+                                      : Colors.amber.shade900,
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 context.tr('no_internet_banner'),
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                                  fontSize: 11.2,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : AppColors.lightTextMuted,
                                 ),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Nút Thử lại
-                        InkWell(
-                          borderRadius: BorderRadius.circular(10),
+                        ZenGlassPill(
+                          blurSigma: 0,
+                          isSelected: true,
+                          glowColor: AppColors.amberGlow,
+                          customGradient: const LinearGradient(
+                            colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 11,
+                            vertical: 7,
+                          ),
+                          borderRadius: 12,
                           onTap: () {
-                            ref.read(connectivityProvider.notifier).checkConnectivity();
+                            ref
+                                .read(connectivityProvider.notifier)
+                                .checkConnectivity();
                           },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.refresh_rounded,
+                                color: Colors.white,
+                                size: 14,
                               ),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.refresh_rounded, color: Colors.white, size: 14),
-                                const SizedBox(width: 4),
-                                Text(
-                                  context.tr('btn_retry'),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              const SizedBox(width: 4),
+                              Text(
+                                context.tr('btn_retry'),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -212,7 +235,7 @@ class _ConnectivityBannerWrapperState extends ConsumerState<ConnectivityBannerWr
             ),
           ),
 
-        // 2. Banner ĐÃ KHÔI PHỤC KẾT NỐI (Tự tắt sau 2.5s)
+        // 2. Banner KÍNH LỎNG ĐÃ KHÔI PHỤC KẾT NỐI (Tự tắt sau 2.5s)
         if (_showRestoredBanner && isOnline)
           Positioned(
             top: 0,
@@ -221,31 +244,43 @@ class _ConnectivityBannerWrapperState extends ConsumerState<ConnectivityBannerWr
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Material(
                   color: Colors.transparent,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: AppColors.brandHero,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(0.35),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        ),
+                  child: ZenLiquidGlass(
+                    borderRadius: 20,
+                    blurSigma: 22,
+                    glowColor: AppColors.emeraldGlow,
+                    rimWidth: 1.3,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 11,
+                    ),
+                    surfaceColor: isDark
+                        ? const Color(0xFF0A211D).withOpacity(0.76)
+                        : Colors.white.withOpacity(0.84),
+                    customGradient: LinearGradient(
+                      colors: [
+                        zen.primary.withOpacity(isDark ? 0.55 : 0.85),
+                        AppColors.emeraldGlow.withOpacity(isDark ? 0.45 : 0.80),
                       ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withOpacity(0.22),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.wifi_rounded, color: Colors.white, size: 18),
+                          child: const Icon(
+                            Icons.wifi_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -254,7 +289,7 @@ class _ConnectivityBannerWrapperState extends ConsumerState<ConnectivityBannerWr
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
@@ -270,7 +305,7 @@ class _ConnectivityBannerWrapperState extends ConsumerState<ConnectivityBannerWr
   }
 }
 
-/// Màn hình Offline toàn diện (Hiển thị khi cần thông báo rõ ràng thay vì để trắng xóa)
+/// Màn hình Offline toàn diện với Nền Cực Quang & Thẻ Kính Lỏng
 class NoInternetScreen extends ConsumerStatefulWidget {
   final VoidCallback? onRetry;
   final VoidCallback? onContinueOffline;
@@ -290,8 +325,11 @@ class _NoInternetScreenState extends ConsumerState<NoInternetScreen> {
 
   void _handleRetry() async {
     setState(() => _isChecking = true);
-    final hasNet = await ref.read(connectivityProvider.notifier).checkConnectivity();
-    setState(() => _isChecking = false);
+    final hasNet =
+        await ref.read(connectivityProvider.notifier).checkConnectivity();
+    if (mounted) {
+      setState(() => _isChecking = false);
+    }
     if (hasNet) {
       widget.onRetry?.call();
     }
@@ -300,54 +338,45 @@ class _NoInternetScreenState extends ConsumerState<NoInternetScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppColors.darkBg : AppColors.lightBg;
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final cardColor = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final borderColor = isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
-    return Scaffold(
-      backgroundColor: bgColor,
+    return ZenGlassScaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(28.0),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: borderColor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
+            padding: const EdgeInsets.all(26.0),
+            child: ZenGlassCard(
+              borderRadius: 30,
+              blurSigma: 22,
+              isActive: true,
+              glowColor: AppColors.amberGlow,
+              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 36),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Icon Glowing
                   Container(
                     width: 88,
                     height: 88,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.amberGlow.withOpacity(0.2),
-                          AppColors.amberGlow.withOpacity(0.05),
+                          AppColors.amberGlow.withOpacity(0.24),
+                          AppColors.amberGlow.withOpacity(0.06),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.amberGlow.withOpacity(0.4), width: 1.5),
+                      border: Border.all(
+                        color: AppColors.amberGlow.withOpacity(0.45),
+                        width: 1.5,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.amberGlow.withOpacity(0.2),
-                          blurRadius: 24,
+                          color: AppColors.amberGlow.withOpacity(0.24),
+                          blurRadius: 26,
                         ),
                       ],
                     ),
@@ -358,90 +387,44 @@ class _NoInternetScreenState extends ConsumerState<NoInternetScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Title
                   Text(
                     context.tr('no_internet_title'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                       color: textColor,
                       letterSpacing: -0.3,
                     ),
                   ),
                   const SizedBox(height: 10),
-
-                  // Description
                   Text(
                     context.tr('no_internet_desc'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
                       color: mutedColor,
-                      height: 1.45,
+                      height: 1.48,
                     ),
                   ),
-                  const SizedBox(height: 32),
-
-                  // Nút Thử lại
-                  Container(
+                  const SizedBox(height: 30),
+                  SizedBox(
                     width: double.infinity,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.brandHero,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(0.35),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
+                    child: ZenGlassButton(
+                      label: context.tr('btn_retry'),
+                      icon: Icons.refresh_rounded,
+                      isLoading: _isChecking,
                       onPressed: _isChecking ? null : _handleRetry,
-                      child: _isChecking
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  context.tr('btn_retry'),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
                     ),
                   ),
-
-                  // Nút Tiếp tục ngoại tuyến
                   if (widget.onContinueOffline != null) ...[
                     const SizedBox(height: 12),
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primaryLight,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                      onPressed: widget.onContinueOffline,
-                      child: Text(
-                        context.tr('btn_continue_offline'),
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ZenGlassButton(
+                        label: context.tr('btn_continue_offline'),
+                        isPrimary: false,
+                        onPressed: widget.onContinueOffline,
                       ),
                     ),
                   ],

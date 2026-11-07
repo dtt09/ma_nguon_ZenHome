@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
@@ -15,7 +14,6 @@ import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/premium_dialog.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
-import 'package:zenhome_app/core/services/local_network_service.dart';
 import 'package:zenhome_app/core/providers/local_network_provider.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
@@ -426,12 +424,21 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
       return;
     }
 
+    final zenInit = context.zenColors;
     bool isEdit = editScene != null;
     String newSceneName = isEdit ? editScene['name'] : '';
     IconData selectedIcon = isEdit ? editScene['icon'] : Icons.auto_awesome;
-    Color selectedColor = isEdit ? editScene['color'] : Colors.purple;
+    Color selectedColor = isEdit ? editScene['color'] : zenInit.primary;
     bool _shareWithAll = isEdit ? (editScene['isShared'] ?? false) : false;
-    
+
+    final List<Color> colorOptions = [
+      if (!_availableColors.any((c) => c.value == zenInit.primary.value)) zenInit.primary,
+      ..._availableColors,
+    ];
+    if (isEdit && !colorOptions.any((c) => c.value == selectedColor.value)) {
+      colorOptions.insert(0, selectedColor);
+    }
+
     final allTopics = getSortedDeviceTopicsList(context, activeConfig);
     final dynamicDeviceTopicsList = allTopics.where((topic) {
       if (activeConfig.role == 'owner' || activeConfig.role == 'co_owner' || activeConfig.allowedDevices == null) {
@@ -447,9 +454,9 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
     }
     Map<String, String?> newActions = {};
     for (String baseTopic in dynamicDeviceTopicsList) {
-      newActions[baseTopic] = null; 
+      newActions[baseTopic] = null;
     }
-    
+
     if (isEdit) {
       Map<String, String> existingActions = editScene['actions'];
       existingActions.forEach((key, val) {
@@ -459,862 +466,1131 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
       });
     }
 
-    showModalBottomSheet(
+    showZenGlassBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext context) {
+      maxHeightFactor: 0.88,
+      padBottomForKeyboard: true,
+      accentColor: selectedColor,
+      builder: (BuildContext ctx) {
         return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
-            final bool isDark = Theme.of(context).brightness == Brightness.dark;
-            final Color sheetBg = isDark ? const Color(0xF20F172A) : const Color(0xF8FFFFFF);
-            final Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-            final Color subTextColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-            final Color cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
-            final Color cardBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+          builder: (BuildContext ctx, StateSetter setModalState) {
+            final bool isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final Color textColor = isDark ? AppColors.darkText : AppColors.lightText;
+            final Color subTextColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
-            return ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  height: MediaQuery.of(context).size.height * 0.88,
-                  padding: EdgeInsets.only(
-                    top: 14,
-                    left: 20,
-                    right: 20,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-                  ),
-                  decoration: BoxDecoration(
-                    color: sheetBg,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                    border: Border.all(
-                      color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08),
-                      width: 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.6 : 0.15),
-                        blurRadius: 30,
-                        offset: const Offset(0, -6),
-                      ),
-                      BoxShadow(
-                        color: selectedColor.withOpacity(isDark ? 0.18 : 0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Drag Handle
-                      Center(
-                        child: Container(
-                          width: 44,
-                          height: 4.5,
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
-                            borderRadius: BorderRadius.circular(10),
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Row (showZenGlassBottomSheet already renders top drag handle)
+                    Row(
+                      children: [
+                        ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 18,
+                          padding: const EdgeInsets.all(11),
+                          glowColor: selectedColor,
+                          rimWidth: 1.35,
+                          surfaceColor: selectedColor.withOpacity(isDark ? 0.22 : 0.14),
+                          customGradient: LinearGradient(
+                            colors: [
+                              selectedColor.withOpacity(isDark ? 0.30 : 0.20),
+                              selectedColor.withOpacity(isDark ? 0.10 : 0.06),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          customShadows: [
+                            BoxShadow(
+                              color: selectedColor.withOpacity(isDark ? 0.32 : 0.20),
+                              blurRadius: 12,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                          child: Icon(selectedIcon, color: selectedColor, size: 24),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isEdit ? context.tr('scene_edit') : context.tr('scene_create'),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: textColor,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Kịch bản thông minh đồng bộ chỉ với 1 chạm',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: subTextColor,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
+                        ZenGlassIconButton(
+                          icon: Icons.close_rounded,
+                          size: 36,
+                          iconSize: 19,
+                          blurSigma: 0,
+                          onTap: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
 
-                      // Header Row
-                      Row(
+                    // Nội dung cuộn chính
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        physics: const BouncingScrollPhysics(),
                         children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
-                            padding: const EdgeInsets.all(11),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  selectedColor.withOpacity(0.25),
-                                  selectedColor.withOpacity(0.1),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+                          // 1. Tên Ngữ cảnh (Zen Glass Input)
+                          TextFormField(
+                            initialValue: newSceneName,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                            decoration: zenGlassInputDecoration(
+                              ctx,
+                              labelText: context.tr('scene_name_hint'),
+                              hintText: 'VD: Rời khỏi nhà, Thư giãn tối...',
+                              borderRadius: 18,
+                              accentColor: selectedColor,
+                            ).copyWith(
+                              prefixIcon: Icon(Icons.edit_note_rounded, color: selectedColor, size: 22),
+                              floatingLabelStyle: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: selectedColor,
                               ),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: selectedColor.withOpacity(0.4),
-                                width: 1.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: selectedColor.withOpacity(0.35),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
                             ),
-                            child: Icon(selectedIcon, color: selectedColor, size: 24),
+                            onChanged: (val) => newSceneName = val,
                           ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  isEdit ? context.tr('scene_edit') : context.tr('scene_create'),
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    color: textColor,
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Kịch bản thông minh đồng bộ chỉ với 1 chạm',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: subTextColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: Icon(
-                              Icons.close_rounded,
-                              color: subTextColor,
-                              size: 22,
-                            ),
-                            style: IconButton.styleFrom(
-                              backgroundColor: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
-                              padding: const EdgeInsets.all(8),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
+                          const SizedBox(height: 20),
 
-                      // Nội dung cuộn chính
-                      Expanded(
-                        child: ListView(
-                          physics: const BouncingScrollPhysics(),
-                          children: [
-                            // 1. Tên Ngữ cảnh
-                            Container(
-                              decoration: BoxDecoration(
-                                color: cardBg,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: selectedColor.withOpacity(0.35),
-                                  width: 1.2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: selectedColor.withOpacity(isDark ? 0.1 : 0.04),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: TextFormField(
-                                initialValue: newSceneName,
+                          // 2. Chọn Icon
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                context.tr('select_icon'),
                                 style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
                                   color: textColor,
                                 ),
-                                decoration: InputDecoration(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                  prefixIcon: Icon(Icons.edit_note_rounded, color: selectedColor, size: 22),
-                                  labelText: context.tr('scene_name_hint'),
-                                  labelStyle: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: subTextColor,
-                                  ),
-                                  floatingLabelStyle: TextStyle(
-                                    fontSize: 13,
+                              ),
+                              ZenGlassPill(
+                                blurSigma: 0,
+                                color: selectedColor,
+                                glowColor: selectedColor,
+                                isSelected: true,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                                child: Text(
+                                  '${_availableIcons.length} Biểu tượng',
+                                  style: TextStyle(
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                     color: selectedColor,
                                   ),
-                                  border: InputBorder.none,
-                                  hintText: 'VD: Rời khỏi nhà, Thư giãn tối...',
-                                  hintStyle: TextStyle(
-                                    color: subTextColor.withOpacity(0.6),
-                                    fontSize: 13.5,
-                                  ),
                                 ),
-                                onChanged: (val) => newSceneName = val,
                               ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 56,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: _availableIcons.length,
+                              itemBuilder: (ctx, index) {
+                                final icon = _availableIcons[index];
+                                final bool isSelected = selectedIcon == icon;
+                                return ZenLiquidGlass(
+                                  blurSigma: 0,
+                                  width: 52,
+                                  height: 52,
+                                  margin: const EdgeInsets.only(right: 10, top: 2, bottom: 2),
+                                  borderRadius: 16,
+                                  alignment: Alignment.center,
+                                  glowColor: isSelected ? selectedColor : null,
+                                  rimWidth: isSelected ? 1.45 : 1.05,
+                                  surfaceColor: isSelected
+                                      ? selectedColor.withOpacity(0.92)
+                                      : (isDark
+                                          ? Colors.white.withOpacity(0.06)
+                                          : Colors.white.withOpacity(0.64)),
+                                  customGradient: isSelected
+                                      ? LinearGradient(
+                                          colors: [
+                                            selectedColor,
+                                            Color.lerp(selectedColor, Colors.white, 0.20)!,
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        )
+                                      : null,
+                                  customShadows: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: selectedColor.withOpacity(isDark ? 0.45 : 0.28),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ]
+                                      : [],
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setModalState(() => selectedIcon = icon);
+                                  },
+                                  child: Icon(
+                                    icon,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : (isDark ? AppColors.darkText : AppColors.lightTextMuted),
+                                    size: 23,
+                                  ),
+                                );
+                              },
                             ),
-                            const SizedBox(height: 20),
+                          ),
+                          const SizedBox(height: 20),
 
-                            // 2. Chọn Icon
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  context.tr('select_icon'),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: textColor,
-                                  ),
+                          // 3. Chọn Màu Sắc Thần Thái
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                context.tr('choose_color'),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: textColor,
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: selectedColor.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    '12 Biểu tượng',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: selectedColor,
+                              ),
+                              Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: selectedColor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: selectedColor.withOpacity(0.65),
+                                      blurRadius: 8,
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              height: 54,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                physics: const BouncingScrollPhysics(),
-                                itemCount: _availableIcons.length,
-                                itemBuilder: (context, index) {
-                                  final icon = _availableIcons[index];
-                                  final bool isSelected = selectedIcon == icon;
-                                  return GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setModalState(() => selectedIcon = icon);
-                                    },
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      width: 52,
-                                      margin: const EdgeInsets.only(right: 10),
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? selectedColor
-                                            : cardBg,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? Colors.white
-                                              : cardBorder,
-                                          width: isSelected ? 2 : 1,
-                                        ),
-                                        boxShadow: isSelected
-                                            ? [
-                                                BoxShadow(
-                                                  color: selectedColor.withOpacity(0.55),
-                                                  blurRadius: 10,
-                                                  spreadRadius: 1,
-                                                  offset: const Offset(0, 3),
-                                                ),
-                                              ]
-                                            : null,
-                                      ),
-                                      child: Icon(
-                                        icon,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 48,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: colorOptions.length,
+                              itemBuilder: (ctx, index) {
+                                final col = colorOptions[index];
+                                final bool isSelected = selectedColor.value == col.value;
+                                return GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setModalState(() => selectedColor = col);
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    width: 44,
+                                    height: 44,
+                                    margin: const EdgeInsets.only(right: 10, top: 2, bottom: 2),
+                                    decoration: BoxDecoration(
+                                      color: col,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
                                         color: isSelected
                                             ? Colors.white
-                                            : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
-                                        size: 24,
+                                            : Colors.white.withOpacity(isDark ? 0.22 : 0.55),
+                                        width: isSelected ? 2.8 : 1.2,
                                       ),
+                                      boxShadow: isSelected
+                                          ? [
+                                              BoxShadow(
+                                                color: col.withOpacity(0.65),
+                                                blurRadius: 10,
+                                                spreadRadius: 1.5,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ]
+                                          : [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.14),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ],
                                     ),
-                                  );
-                                },
-                              ),
+                                    child: isSelected
+                                        ? const Center(
+                                            child: Icon(
+                                              Icons.check_rounded,
+                                              color: Colors.white,
+                                              size: 21,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                );
+                              },
                             ),
-                            const SizedBox(height: 20),
+                          ),
+                          const SizedBox(height: 22),
 
-                            // 3. Chọn Màu Sắc Thần Thái
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  context.tr('choose_color'),
+                          // 4. Thiết lập hành động thiết bị
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                context.tr('set_actions'),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: textColor,
+                                ),
+                              ),
+                              ZenGlassPill(
+                                blurSigma: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                                child: Text(
+                                  '${newActions.values.where((v) => v != null).length}/${dynamicDeviceTopicsList.length} thiết bị',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 11.5,
                                     fontWeight: FontWeight.w700,
-                                    color: textColor,
+                                    color: subTextColor,
                                   ),
                                 ),
-                                Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: BoxDecoration(
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Danh sách thiết bị dạng Translucent Glass Card (blurSigma: 0)
+                          ...dynamicDeviceTopicsList.map((topic) {
+                            final name = getDeviceNameHelper(context, topic, activeConfig);
+                            final devId = topic.split('/').last;
+                            String roomName = '';
+                            IconData devIcon = Icons.devices_other_rounded;
+                            try {
+                              final dev = activeConfig.devices.firstWhere((d) => d.id == devId);
+                              roomName = dev.room;
+                              switch (dev.icon) {
+                                case 'light':
+                                case 'lightbulb':
+                                  devIcon = Icons.lightbulb_rounded;
+                                  break;
+                                case 'fan':
+                                  devIcon = Icons.mode_fan_off;
+                                  break;
+                                case 'ac':
+                                  devIcon = Icons.air_rounded;
+                                  break;
+                                case 'socket':
+                                  devIcon = Icons.power_rounded;
+                                  break;
+                                case 'tv':
+                                  devIcon = Icons.tv_rounded;
+                                  break;
+                                case 'pump':
+                                case 'water':
+                                  devIcon = Icons.water_drop_rounded;
+                                  break;
+                                default:
+                                  devIcon = Icons.bolt_rounded;
+                                  break;
+                              }
+                            } catch (_) {}
+
+                            final currentAction = newActions[topic];
+                            final Color? actionGlow = currentAction == '1'
+                                ? AppColors.emeraldGlow
+                                : (currentAction == '0' ? AppColors.roseGlow : null);
+
+                            return ZenLiquidGlass(
+                              blurSigma: 0,
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(14),
+                              borderRadius: 20,
+                              glowColor: actionGlow,
+                              rimWidth: currentAction != null ? 1.35 : 1.05,
+                              surfaceColor: isDark
+                                  ? Colors.white.withOpacity(currentAction != null ? 0.08 : 0.05)
+                                  : Colors.white.withOpacity(currentAction != null ? 0.76 : 0.62),
+                              customShadows: [
+                                if (actionGlow != null)
+                                  BoxShadow(
+                                    color: actionGlow.withOpacity(isDark ? 0.18 : 0.10),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 3),
+                                  ),
+                              ],
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Thông tin thiết bị
+                                  Row(
+                                    children: [
+                                      ZenLiquidGlass(
+                                        blurSigma: 0,
+                                        borderRadius: 12,
+                                        padding: const EdgeInsets.all(8),
+                                        glowColor: actionGlow,
+                                        surfaceColor: actionGlow != null
+                                            ? actionGlow.withOpacity(isDark ? 0.20 : 0.14)
+                                            : (isDark
+                                                ? Colors.white.withOpacity(0.07)
+                                                : Colors.white.withOpacity(0.72)),
+                                        customShadows: const [],
+                                        child: Icon(
+                                          devIcon,
+                                          size: 18,
+                                          color: actionGlow ?? subTextColor,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              name,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14.5,
+                                                color: textColor,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            if (roomName.isNotEmpty) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                context.tr(roomName),
+                                                style: TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: subTextColor,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  // Bộ điều khiển 3 trạng thái Glass Capsule (Bỏ qua / Bật / Tắt)
+                                  Container(
+                                    padding: const EdgeInsets.all(3.5),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? Colors.black.withOpacity(0.28)
+                                          : const Color(0xFFE2E8F0).withOpacity(0.68),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? Colors.white.withOpacity(0.07)
+                                            : Colors.white.withOpacity(0.8),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // 1. Bỏ qua
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              HapticFeedback.selectionClick();
+                                              setModalState(() => newActions[topic] = null);
+                                            },
+                                            child: AnimatedContainer(
+                                              duration: const Duration(milliseconds: 180),
+                                              padding: const EdgeInsets.symmetric(vertical: 8),
+                                              decoration: BoxDecoration(
+                                                color: currentAction == null
+                                                    ? (isDark
+                                                        ? Colors.white.withOpacity(0.14)
+                                                        : Colors.white.withOpacity(0.92))
+                                                    : Colors.transparent,
+                                                borderRadius: BorderRadius.circular(11),
+                                                border: currentAction == null
+                                                    ? Border.all(
+                                                        color: Colors.white.withOpacity(isDark ? 0.18 : 0.9),
+                                                        width: 1,
+                                                      )
+                                                    : null,
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  context.tr('action_ignore'),
+                                                  style: TextStyle(
+                                                    fontSize: 12.5,
+                                                    fontWeight: currentAction == null ? FontWeight.w800 : FontWeight.w600,
+                                                    color: currentAction == null ? textColor : subTextColor,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+
+                                        // 2. BẬT
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              HapticFeedback.selectionClick();
+                                              setModalState(() => newActions[topic] = '1');
+                                            },
+                                            child: AnimatedContainer(
+                                              duration: const Duration(milliseconds: 180),
+                                              padding: const EdgeInsets.symmetric(vertical: 8),
+                                              decoration: BoxDecoration(
+                                                gradient: currentAction == '1'
+                                                    ? const LinearGradient(
+                                                        colors: [AppColors.emeraldGlow, AppColors.emeraldDeep],
+                                                      )
+                                                    : null,
+                                                borderRadius: BorderRadius.circular(11),
+                                                border: currentAction == '1'
+                                                    ? Border.all(
+                                                        color: Colors.white.withOpacity(0.35),
+                                                        width: 1,
+                                                      )
+                                                    : null,
+                                                boxShadow: currentAction == '1'
+                                                    ? [
+                                                        BoxShadow(
+                                                          color: AppColors.emeraldGlow.withOpacity(0.38),
+                                                          blurRadius: 8,
+                                                          offset: const Offset(0, 2),
+                                                        ),
+                                                      ]
+                                                    : null,
+                                              ),
+                                              child: Center(
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    if (currentAction == '1')
+                                                      const Padding(
+                                                        padding: EdgeInsets.only(right: 4),
+                                                        child: Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
+                                                      ),
+                                                    Text(
+                                                      context.tr('action_on'),
+                                                      style: TextStyle(
+                                                        fontSize: 12.5,
+                                                        fontWeight: currentAction == '1' ? FontWeight.w800 : FontWeight.w600,
+                                                        color: currentAction == '1'
+                                                            ? Colors.white
+                                                            : (isDark ? const Color(0xFF34D399) : AppColors.emeraldDeep),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+
+                                        // 3. TẮT
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              HapticFeedback.selectionClick();
+                                              setModalState(() => newActions[topic] = '0');
+                                            },
+                                            child: AnimatedContainer(
+                                              duration: const Duration(milliseconds: 180),
+                                              padding: const EdgeInsets.symmetric(vertical: 8),
+                                              decoration: BoxDecoration(
+                                                gradient: currentAction == '0'
+                                                    ? const LinearGradient(
+                                                        colors: [AppColors.roseGlow, Color(0xFFE11D48)],
+                                                      )
+                                                    : null,
+                                                borderRadius: BorderRadius.circular(11),
+                                                border: currentAction == '0'
+                                                    ? Border.all(
+                                                        color: Colors.white.withOpacity(0.35),
+                                                        width: 1,
+                                                      )
+                                                    : null,
+                                                boxShadow: currentAction == '0'
+                                                    ? [
+                                                        BoxShadow(
+                                                          color: AppColors.roseGlow.withOpacity(0.38),
+                                                          blurRadius: 8,
+                                                          offset: const Offset(0, 2),
+                                                        ),
+                                                      ]
+                                                    : null,
+                                              ),
+                                              child: Center(
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    if (currentAction == '0')
+                                                      const Padding(
+                                                        padding: EdgeInsets.only(right: 4),
+                                                        child: Icon(Icons.power_settings_new_rounded, size: 13, color: Colors.white),
+                                                      ),
+                                                    Text(
+                                                      context.tr('action_off'),
+                                                      style: TextStyle(
+                                                        fontSize: 12.5,
+                                                        fontWeight: currentAction == '0' ? FontWeight.w800 : FontWeight.w600,
+                                                        color: currentAction == '0'
+                                                            ? Colors.white
+                                                            : (isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48)),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          const SizedBox(height: 14),
+
+                          // 5. Thẻ Chia Sẻ Gia Đình (Translucent Glass Family Sharing Card)
+                          ZenLiquidGlass(
+                            blurSigma: 0,
+                            padding: const EdgeInsets.all(14),
+                            borderRadius: 20,
+                            glowColor: _shareWithAll ? selectedColor : null,
+                            surfaceColor: isDark
+                                ? Colors.white.withOpacity(0.05)
+                                : Colors.white.withOpacity(0.64),
+                            customShadows: const [],
+                            child: Row(
+                              children: [
+                                ZenLiquidGlass(
+                                  blurSigma: 0,
+                                  borderRadius: 12,
+                                  padding: const EdgeInsets.all(9),
+                                  glowColor: selectedColor,
+                                  surfaceColor: selectedColor.withOpacity(isDark ? 0.18 : 0.12),
+                                  customShadows: const [],
+                                  child: Icon(
+                                    Icons.group_work_rounded,
                                     color: selectedColor,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: selectedColor.withOpacity(0.6),
-                                        blurRadius: 6,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        context.tr('share_with_all'),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Tất cả thành viên trong nhà đều có thể kích hoạt',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w500,
+                                          color: subTextColor,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              height: 46,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                physics: const BouncingScrollPhysics(),
-                                itemCount: _availableColors.length,
-                                itemBuilder: (context, index) {
-                                  final col = _availableColors[index];
-                                  final bool isSelected = selectedColor.value == col.value;
-                                  return GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setModalState(() => selectedColor = col);
-                                    },
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      width: 44,
-                                      height: 44,
-                                      margin: const EdgeInsets.only(right: 10),
-                                      decoration: BoxDecoration(
-                                        color: col,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: isSelected ? Colors.white : Colors.transparent,
-                                          width: isSelected ? 2.8 : 0,
-                                        ),
-                                        boxShadow: isSelected
-                                            ? [
-                                                BoxShadow(
-                                                  color: col.withOpacity(0.65),
-                                                  blurRadius: 10,
-                                                  spreadRadius: 2,
-                                                  offset: const Offset(0, 2),
-                                                ),
-                                              ]
-                                            : [
-                                                BoxShadow(
-                                                  color: Colors.black.withOpacity(0.12),
-                                                  blurRadius: 4,
-                                                  offset: const Offset(0, 1),
-                                                ),
-                                              ],
-                                      ),
-                                      child: isSelected
-                                          ? const Center(
-                                              child: Icon(
-                                                Icons.check_rounded,
-                                                color: Colors.white,
-                                                size: 22,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-
-                            // 4. Thiết lập hành động thiết bị
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  context.tr('set_actions'),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: textColor,
-                                  ),
-                                ),
-                                Text(
-                                  '${newActions.values.where((v) => v != null).length}/${dynamicDeviceTopicsList.length} thiết bị',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: subTextColor,
-                                  ),
+                                Switch(
+                                  value: _shareWithAll,
+                                  activeColor: selectedColor,
+                                  onChanged: (val) {
+                                    HapticFeedback.selectionClick();
+                                    setModalState(() => _shareWithAll = val);
+                                  },
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
-
-                            // Danh sách thiết bị dạng Luxury Card
-                            ...dynamicDeviceTopicsList.map((topic) {
-                              final name = getDeviceNameHelper(context, topic, activeConfig);
-                              final devId = topic.split('/').last;
-                              String roomName = '';
-                              IconData devIcon = Icons.devices_other_rounded;
-                              try {
-                                final dev = activeConfig.devices.firstWhere((d) => d.id == devId);
-                                roomName = dev.room;
-                                switch (dev.icon) {
-                                  case 'light': case 'lightbulb': devIcon = Icons.lightbulb_rounded; break;
-                                  case 'fan': devIcon = Icons.mode_fan_off; break;
-                                  case 'ac': devIcon = Icons.air_rounded; break;
-                                  case 'socket': devIcon = Icons.power_rounded; break;
-                                  case 'tv': devIcon = Icons.tv_rounded; break;
-                                  case 'pump': case 'water': devIcon = Icons.water_drop_rounded; break;
-                                  default: devIcon = Icons.bolt_rounded; break;
-                                }
-                              } catch (_) {}
-
-                              final currentAction = newActions[topic];
-
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: cardBg,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: currentAction != null
-                                        ? (currentAction == '1'
-                                            ? const Color(0xFF10B981).withOpacity(0.4)
-                                            : const Color(0xFFF43F5E).withOpacity(0.4))
-                                        : cardBorder,
-                                    width: currentAction != null ? 1.4 : 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Thông tin thiết bị
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: currentAction == '1'
-                                                ? const Color(0xFF10B981).withOpacity(0.18)
-                                                : (currentAction == '0'
-                                                    ? const Color(0xFFF43F5E).withOpacity(0.18)
-                                                    : (isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04))),
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Icon(
-                                            devIcon,
-                                            size: 18,
-                                            color: currentAction == '1'
-                                                ? const Color(0xFF10B981)
-                                                : (currentAction == '0'
-                                                    ? const Color(0xFFF43F5E)
-                                                    : subTextColor),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                name,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 14.5,
-                                                  color: textColor,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              if (roomName.isNotEmpty) ...[
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  context.tr(roomName),
-                                                  style: TextStyle(
-                                                    fontSize: 11.5,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: subTextColor,
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-
-                                    // Bộ điều khiển 3 trạng thái Capsule (Bỏ qua / Bật / Tắt)
-                                    Container(
-                                      padding: const EdgeInsets.all(3),
-                                      decoration: BoxDecoration(
-                                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          // 1. Bỏ qua
-                                          Expanded(
-                                            child: GestureDetector(
-                                              onTap: () {
-                                                HapticFeedback.selectionClick();
-                                                setModalState(() => newActions[topic] = null);
-                                              },
-                                              child: AnimatedContainer(
-                                                duration: const Duration(milliseconds: 180),
-                                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                                decoration: BoxDecoration(
-                                                  color: currentAction == null
-                                                      ? (isDark ? const Color(0xFF334155) : Colors.white)
-                                                      : Colors.transparent,
-                                                  borderRadius: BorderRadius.circular(11),
-                                                  boxShadow: currentAction == null
-                                                      ? [
-                                                          BoxShadow(
-                                                            color: Colors.black.withOpacity(0.1),
-                                                            blurRadius: 4,
-                                                            offset: const Offset(0, 1),
-                                                          ),
-                                                        ]
-                                                      : null,
-                                                ),
-                                                child: Center(
-                                                  child: Text(
-                                                    context.tr('action_ignore'),
-                                                    style: TextStyle(
-                                                      fontSize: 12.5,
-                                                      fontWeight: currentAction == null ? FontWeight.w800 : FontWeight.w600,
-                                                      color: currentAction == null
-                                                          ? textColor
-                                                          : subTextColor,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-
-                                          // 2. BẬT
-                                          Expanded(
-                                            child: GestureDetector(
-                                              onTap: () {
-                                                HapticFeedback.selectionClick();
-                                                setModalState(() => newActions[topic] = '1');
-                                              },
-                                              child: AnimatedContainer(
-                                                duration: const Duration(milliseconds: 180),
-                                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                                decoration: BoxDecoration(
-                                                  gradient: currentAction == '1'
-                                                      ? const LinearGradient(
-                                                          colors: [Color(0xFF10B981), Color(0xFF059669)],
-                                                        )
-                                                      : null,
-                                                  color: currentAction == '1' ? null : Colors.transparent,
-                                                  borderRadius: BorderRadius.circular(11),
-                                                  boxShadow: currentAction == '1'
-                                                      ? [
-                                                          BoxShadow(
-                                                            color: const Color(0xFF10B981).withOpacity(0.4),
-                                                            blurRadius: 6,
-                                                            offset: const Offset(0, 2),
-                                                          ),
-                                                        ]
-                                                      : null,
-                                                ),
-                                                child: Center(
-                                                  child: Row(
-                                                    mainAxisAlignment: MainAxisAlignment.center,
-                                                    children: [
-                                                      if (currentAction == '1')
-                                                        const Padding(
-                                                          padding: EdgeInsets.only(right: 4),
-                                                          child: Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
-                                                        ),
-                                                      Text(
-                                                        context.tr('action_on'),
-                                                        style: TextStyle(
-                                                          fontSize: 12.5,
-                                                          fontWeight: currentAction == '1' ? FontWeight.w800 : FontWeight.w600,
-                                                          color: currentAction == '1'
-                                                              ? Colors.white
-                                                              : (isDark ? const Color(0xFF34D399) : const Color(0xFF059669)),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-
-                                          // 3. TẮT
-                                          Expanded(
-                                            child: GestureDetector(
-                                              onTap: () {
-                                                HapticFeedback.selectionClick();
-                                                setModalState(() => newActions[topic] = '0');
-                                              },
-                                              child: AnimatedContainer(
-                                                duration: const Duration(milliseconds: 180),
-                                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                                decoration: BoxDecoration(
-                                                  gradient: currentAction == '0'
-                                                      ? const LinearGradient(
-                                                          colors: [Color(0xFFF43F5E), Color(0xFFE11D48)],
-                                                        )
-                                                      : null,
-                                                  color: currentAction == '0' ? null : Colors.transparent,
-                                                  borderRadius: BorderRadius.circular(11),
-                                                  boxShadow: currentAction == '0'
-                                                      ? [
-                                                          BoxShadow(
-                                                            color: const Color(0xFFF43F5E).withOpacity(0.4),
-                                                            blurRadius: 6,
-                                                            offset: const Offset(0, 2),
-                                                          ),
-                                                        ]
-                                                      : null,
-                                                ),
-                                                child: Center(
-                                                  child: Row(
-                                                    mainAxisAlignment: MainAxisAlignment.center,
-                                                    children: [
-                                                      if (currentAction == '0')
-                                                        const Padding(
-                                                          padding: EdgeInsets.only(right: 4),
-                                                          child: Icon(Icons.power_settings_new_rounded, size: 13, color: Colors.white),
-                                                        ),
-                                                      Text(
-                                                        context.tr('action_off'),
-                                                        style: TextStyle(
-                                                          fontSize: 12.5,
-                                                          fontWeight: currentAction == '0' ? FontWeight.w800 : FontWeight.w600,
-                                                          color: currentAction == '0'
-                                                              ? Colors.white
-                                                              : (isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48)),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                            const SizedBox(height: 14),
-
-                            // 5. Thẻ Chia Sẻ Gia Đình (Family Sharing Card)
-                            Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: cardBg,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: cardBorder),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(9),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF6366F1).withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.group_work_rounded,
-                                      color: Color(0xFF6366F1),
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          context.tr('share_with_all'),
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w700,
-                                            color: textColor,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Tất cả thành viên trong nhà đều có thể kích hoạt',
-                                          style: TextStyle(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w500,
-                                            color: subTextColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Switch(
-                                    value: _shareWithAll,
-                                    activeColor: selectedColor,
-                                    onChanged: (val) {
-                                      HapticFeedback.selectionClick();
-                                      setModalState(() => _shareWithAll = val);
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                        ),
-                      ),
-
-                      // Thanh nút bấm Action bên dưới
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                side: BorderSide(color: cardBorder, width: 1.2),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
-                              onPressed: () => Navigator.pop(context),
-                              child: Text(
-                                context.tr('btn_close'),
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: subTextColor,
-                                ),
-                              ),
-                            ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: selectedColor,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                elevation: 4,
-                                shadowColor: selectedColor.withOpacity(0.5),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
-                              onPressed: () {
-                                if (newSceneName.trim().isEmpty) { 
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('err_empty_name')), backgroundColor: Colors.red)); 
-                                  return; 
-                                }
-                                
-                                Map<String, String> finalActions = {};
-                                newActions.forEach((key, value) { 
-                                  if (value != null) finalActions[key] = value; 
-                                });
-                                
-                                if (finalActions.isEmpty) { 
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('err_no_action')), backgroundColor: Colors.red)); 
-                                  return; 
-                                }
-                                
-                                HapticFeedback.heavyImpact();
-                                String newId = isEdit ? editScene['id'] : DateTime.now().millisecondsSinceEpoch.toString();
-                                final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
-                                final currentName = FirebaseAuth.instance.currentUser?.displayName ?? 
-                                                    FirebaseAuth.instance.currentUser?.email ?? 'Thành viên';
-                                final authorUid = isEdit ? (editScene['authorUid'] ?? currentUid) : currentUid;
-                                final authorName = isEdit ? (editScene['authorName'] ?? currentName) : currentName;
-
-                                Map<String, dynamic> newScene = {
-                                  'id': newId,
-                                  'name': newSceneName,
-                                  'icon': selectedIcon,
-                                  'color': selectedColor,
-                                  'actions': finalActions,
-                                  'isShared': _shareWithAll,
-                                  'order': isEdit ? editScene['order'] : _customScenes.length,
-                                  'authorUid': authorUid,
-                                  'authorName': authorName,
-                                  'iconName': _iconName(selectedIcon),
-                                  'colorValue': selectedColor.value,
-                                };
-                                
-                                Map<String, dynamic> firebaseScene = {
-                                  'id': newId, 
-                                  'name': newSceneName, 
-                                  'actions': finalActions, 
-                                  'isShared': _shareWithAll,
-                                  'iconName': _iconName(selectedIcon),
-                                  'colorValue': selectedColor.value,
-                                  'order': newScene['order'],
-                                  'authorUid': authorUid,
-                                  'authorName': authorName,
-                                };
-                                
-                                if (!mounted) return;
-                                setState(() {
-                                  if (isEdit) {
-                                    int idx = _customScenes.indexWhere((s) => s['id'] == editScene['id']);
-                                    _customScenes[idx] = newScene;
-                                  } else {
-                                    _customScenes.add(newScene);
-                                  }
-                                });
-                                
-                                final activeConfig = ref.read(homeConfigProvider).activeConfig;
-                                String targetId = activeConfig.userId;
-                                if (_shareWithAll && targetId.isNotEmpty && targetId != 'guest') {
-                                  FirebaseFirestore.instance.collection('users').doc(targetId).collection('scenes').doc(newId).set(firebaseScene);
-                                  
-                                  if (activeConfig.role != 'owner' && FirebaseAuth.instance.currentUser != null) {
-                                    String name = FirebaseAuth.instance.currentUser!.displayName ?? FirebaseAuth.instance.currentUser!.email ?? context.tr('a_member') ?? 'Một thành viên';
-                                    FirebaseFirestore.instance.collection('users').doc(targetId).collection('alerts').add({
-                                      'type': 'automation_edit',
-                                      'author': name,
-                                      'actionName': isEdit ? (context.tr('act_edit_scene') ?? 'vừa sửa một ngữ cảnh') : (context.tr('act_add_scene') ?? 'vừa thêm một ngữ cảnh mới'),
-                                      'timestamp': FieldValue.serverTimestamp(),
-                                    });
-                                  }
-                                } else if (targetId.isNotEmpty && targetId != 'guest') {
-                                  FirebaseFirestore.instance.collection('users').doc(targetId).collection('scenes').doc(newId).delete();
-                                }
-                                _saveScenesToDisk();
-                                
-                                Navigator.pop(context);
-                                showAlertDialogHelper(context, context.tr('msg_saved_title'), context.tr('msg_saved_desc'));
-                              },
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.check_circle_rounded, size: 18),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    context.tr('btn_save'),
-                                    style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                          const SizedBox(height: 8),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Thanh nút bấm Luminous Glass Action bên dưới
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: ZenGlassButton(
+                            label: context.tr('btn_close'),
+                            isPrimary: false,
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ZenGlassButton(
+                            label: context.tr('btn_save'),
+                            icon: Icons.check_circle_rounded,
+                            isPrimary: true,
+                            accentColor: selectedColor,
+                            onPressed: () {
+                              if (newSceneName.trim().isEmpty) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(
+                                    content: Text(context.tr('err_empty_name')),
+                                    backgroundColor: AppColors.roseGlow,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              Map<String, String> finalActions = {};
+                              newActions.forEach((key, value) {
+                                if (value != null) finalActions[key] = value;
+                              });
+
+                              if (finalActions.isEmpty) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(
+                                    content: Text(context.tr('err_no_action')),
+                                    backgroundColor: AppColors.roseGlow,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              HapticFeedback.heavyImpact();
+                              String newId = isEdit ? editScene['id'] : DateTime.now().millisecondsSinceEpoch.toString();
+                              final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+                              final currentName = FirebaseAuth.instance.currentUser?.displayName ??
+                                  FirebaseAuth.instance.currentUser?.email ??
+                                  'Thành viên';
+                              final authorUid = isEdit ? (editScene['authorUid'] ?? currentUid) : currentUid;
+                              final authorName = isEdit ? (editScene['authorName'] ?? currentName) : currentName;
+
+                              Map<String, dynamic> newScene = {
+                                'id': newId,
+                                'name': newSceneName,
+                                'icon': selectedIcon,
+                                'color': selectedColor,
+                                'actions': finalActions,
+                                'isShared': _shareWithAll,
+                                'order': isEdit ? editScene['order'] : _customScenes.length,
+                                'authorUid': authorUid,
+                                'authorName': authorName,
+                                'iconName': _iconName(selectedIcon),
+                                'colorValue': selectedColor.value,
+                              };
+
+                              Map<String, dynamic> firebaseScene = {
+                                'id': newId,
+                                'name': newSceneName,
+                                'actions': finalActions,
+                                'isShared': _shareWithAll,
+                                'iconName': _iconName(selectedIcon),
+                                'colorValue': selectedColor.value,
+                                'order': newScene['order'],
+                                'authorUid': authorUid,
+                                'authorName': authorName,
+                              };
+
+                              if (!mounted) return;
+                              setState(() {
+                                if (isEdit) {
+                                  int idx = _customScenes.indexWhere((s) => s['id'] == editScene['id']);
+                                  _customScenes[idx] = newScene;
+                                } else {
+                                  _customScenes.add(newScene);
+                                }
+                              });
+
+                              final activeConfig = ref.read(homeConfigProvider).activeConfig;
+                              String targetId = activeConfig.userId;
+                              if (_shareWithAll && targetId.isNotEmpty && targetId != 'guest') {
+                                FirebaseFirestore.instance.collection('users').doc(targetId).collection('scenes').doc(newId).set(firebaseScene);
+
+                                if (activeConfig.role != 'owner' && FirebaseAuth.instance.currentUser != null) {
+                                  String name = FirebaseAuth.instance.currentUser!.displayName ??
+                                      FirebaseAuth.instance.currentUser!.email ??
+                                      context.tr('a_member') ??
+                                      'Một thành viên';
+                                  FirebaseFirestore.instance.collection('users').doc(targetId).collection('alerts').add({
+                                    'type': 'automation_edit',
+                                    'author': name,
+                                    'actionName': isEdit
+                                        ? (context.tr('act_edit_scene') ?? 'vừa sửa một ngữ cảnh')
+                                        : (context.tr('act_add_scene') ?? 'vừa thêm một ngữ cảnh mới'),
+                                    'timestamp': FieldValue.serverTimestamp(),
+                                  });
+                                }
+                              } else if (targetId.isNotEmpty && targetId != 'guest') {
+                                FirebaseFirestore.instance.collection('users').doc(targetId).collection('scenes').doc(newId).delete();
+                              }
+                              _saveScenesToDisk();
+
+                              Navigator.pop(ctx);
+                              if (mounted) {
+                                showAlertDialogHelper(context, context.tr('msg_saved_title'), context.tr('msg_saved_desc'));
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             );
           },
+        );
+      },
+    );
+  }
+
+  Widget _buildSceneOptionTile({
+    required BuildContext ctx,
+    required IconData icon,
+    required String label,
+    String? subtitle,
+    required Color accentColor,
+    required VoidCallback onTap,
+    bool isDanger = false,
+  }) {
+    final isDark = Theme.of(ctx).brightness == Brightness.dark;
+    final effectiveColor = isDanger ? AppColors.roseGlow : accentColor;
+
+    return ZenLiquidGlass(
+      blurSigma: 0,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      borderRadius: 18,
+      glowColor: isDanger ? AppColors.roseGlow : null,
+      surfaceColor: isDanger
+          ? AppColors.roseGlow.withOpacity(isDark ? 0.14 : 0.08)
+          : (isDark
+              ? Colors.white.withOpacity(0.06)
+              : Colors.white.withOpacity(0.68)),
+      customShadows: const [],
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Row(
+        children: [
+          ZenLiquidGlass(
+            blurSigma: 0,
+            width: 38,
+            height: 38,
+            borderRadius: 12,
+            alignment: Alignment.center,
+            glowColor: effectiveColor,
+            surfaceColor: effectiveColor.withOpacity(isDark ? 0.20 : 0.12),
+            customShadows: const [],
+            child: Icon(icon, color: effectiveColor, size: 19),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: isDanger
+                        ? AppColors.roseGlow
+                        : (isDark ? AppColors.darkText : AppColors.lightText),
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 20,
+            color: isDanger
+                ? AppColors.roseGlow.withOpacity(0.75)
+                : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSceneOptionsSheet(Map<String, dynamic> scene, int index) {
+    final Color sceneColor = scene['color'] as Color;
+    final int actionCount = (scene['actions'] as Map?)?.length ?? 0;
+    final zen = context.zenColors;
+
+    showZenGlassBottomSheet(
+      context: context,
+      accentColor: sceneColor,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final isEn = Localizations.localeOf(context).languageCode == 'en';
+
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Row (showZenGlassBottomSheet already renders drag handle)
+                Row(
+                  children: [
+                    ZenLiquidGlass(
+                      blurSigma: 0,
+                      width: 46,
+                      height: 46,
+                      borderRadius: 15,
+                      alignment: Alignment.center,
+                      glowColor: sceneColor,
+                      surfaceColor: sceneColor.withOpacity(isDark ? 0.22 : 0.14),
+                      customShadows: [
+                        BoxShadow(
+                          color: sceneColor.withOpacity(0.25),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                      child: Icon(scene['icon'], color: sceneColor, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _getSceneName(scene),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? AppColors.darkText : AppColors.lightText,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$actionCount ${context.tr('action')} • ${scene['isShared'] == true ? context.tr('shared') : context.tr('private')}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ZenGlassIconButton(
+                      icon: Icons.close_rounded,
+                      size: 36,
+                      iconSize: 18,
+                      blurSigma: 0,
+                      onTap: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+
+                // Option 1: Run Scene Immediately
+                _buildSceneOptionTile(
+                  ctx: ctx,
+                  icon: Icons.play_arrow_rounded,
+                  label: isEn ? 'Run Scene Now' : 'Kích hoạt ngữ cảnh ngay',
+                  subtitle: isEn
+                      ? 'Execute $actionCount configured device actions'
+                      : 'Thực thi đồng bộ $actionCount thiết bị ngay lập tức',
+                  accentColor: sceneColor,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _executeCustomScene(scene);
+                  },
+                ),
+
+                if (_canManageScene(scene)) ...[
+                  // Option 2: Edit Scene
+                  _buildSceneOptionTile(
+                    ctx: ctx,
+                    icon: Icons.edit_rounded,
+                    label: context.tr('scene_edit'),
+                    subtitle: isEn
+                        ? 'Customize icon, color & device actions'
+                        : 'Tùy chỉnh biểu tượng, màu sắc và thiết bị',
+                    accentColor: isDark ? zen.primaryAccent : zen.primary,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showAddSceneBottomSheet(editScene: scene);
+                    },
+                  ),
+
+                  // Option 3: Delete Scene (AppColors.roseGlow)
+                  _buildSceneOptionTile(
+                    ctx: ctx,
+                    icon: Icons.delete_outline_rounded,
+                    label: context.tr('scene_delete'),
+                    subtitle: isEn
+                        ? 'Permanently remove this smart scene'
+                        : 'Xóa vĩnh viễn ngữ cảnh này khỏi danh sách',
+                    accentColor: AppColors.roseGlow,
+                    isDanger: true,
+                    onTap: () {
+                      Navigator.pop(ctx);
+
+                      showPremiumConfirmDialog(
+                        context: context,
+                        title: context.tr('confirm_title'),
+                        message: context.tr('confirm_delete_scene') ?? 'Bạn có chắc chắn muốn xóa ngữ cảnh này không?',
+                        confirmText: context.tr('btn_delete'),
+                        cancelText: context.tr('btn_cancel'),
+                        isDanger: true,
+                        icon: Icons.delete_forever,
+                        onConfirm: () {
+                          setState(() => _customScenes.removeAt(index));
+                          final activeConfig = ref.read(homeConfigProvider).activeConfig;
+                          String targetId = activeConfig.userId;
+                          if (scene['isShared'] == true && targetId.isNotEmpty && targetId != 'guest') {
+                            FirebaseFirestore.instance.collection('users').doc(targetId).collection('scenes').doc(scene['id']).delete();
+
+                            if (activeConfig.role != 'owner' && FirebaseAuth.instance.currentUser != null) {
+                              String name = FirebaseAuth.instance.currentUser!.displayName ??
+                                  FirebaseAuth.instance.currentUser!.email ??
+                                  context.tr('a_member') ??
+                                  'Một thành viên';
+                              FirebaseFirestore.instance.collection('users').doc(targetId).collection('alerts').add({
+                                'type': 'automation_edit',
+                                'author': name,
+                                'actionName': context.tr('act_delete_scene') ?? 'vừa xóa một ngữ cảnh',
+                                'timestamp': FieldValue.serverTimestamp(),
+                              });
+                            }
+                          }
+                          _saveScenesToDisk();
+                          showFloatingToast(
+                            context,
+                            context.tr('msg_deleted_title'),
+                            context.tr('msg_scene_deleted') ?? 'Đã xóa ngữ cảnh thành công!',
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ] else ...[
+                  ZenLiquidGlass(
+                    blurSigma: 0,
+                    padding: const EdgeInsets.all(14),
+                    borderRadius: 18,
+                    glowColor: zen.primary,
+                    surfaceColor: zen.primary.withOpacity(isDark ? 0.14 : 0.08),
+                    customShadows: const [],
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ZenLiquidGlass(
+                          blurSigma: 0,
+                          width: 36,
+                          height: 36,
+                          borderRadius: 11,
+                          alignment: Alignment.center,
+                          surfaceColor: zen.primary.withOpacity(isDark ? 0.22 : 0.14),
+                          customShadows: const [],
+                          child: Icon(
+                            Icons.info_outline_rounded,
+                            color: isDark ? zen.primaryAccent : zen.primary,
+                            size: 19,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                context.tr('perm_view_activate_only'),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: isDark ? AppColors.darkText : AppColors.lightText,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                isEn
+                                    ? (scene['authorName'] != null && scene['authorName'].toString().isNotEmpty
+                                        ? 'Created by ${scene['authorName']}. You can activate it but cannot edit or delete.'
+                                        : 'You can activate this shared scene but cannot edit or delete it.')
+                                    : (scene['authorName'] != null && scene['authorName'].toString().isNotEmpty
+                                        ? 'Ngữ cảnh này do ${scene['authorName']} tạo. Bạn có thể bấm để kích hoạt nhưng không có quyền sửa hoặc xóa.'
+                                        : 'Bạn có thể bấm để kích hoạt nhưng không có quyền sửa hoặc xóa ngữ cảnh chung này.'),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.4,
+                                  color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         );
       },
     );
@@ -1330,7 +1606,9 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
       }
     });
 
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1338,55 +1616,76 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppColors.purpleGlow.withOpacity(0.2), AppColors.primaryLight.withOpacity(0.1)],
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ZenLiquidGlass(
+                    blurSigma: 8,
+                    borderRadius: 11,
+                    padding: const EdgeInsets.all(7),
+                    glowColor: zen.primary,
+                    surfaceColor: zen.primary.withOpacity(isDark ? 0.20 : 0.12),
+                    customGradient: LinearGradient(
+                      colors: [
+                        zen.primary.withOpacity(isDark ? 0.28 : 0.18),
+                        zen.primaryAccent.withOpacity(isDark ? 0.12 : 0.06),
+                      ],
                     ),
-                    borderRadius: BorderRadius.circular(10),
+                    child: Icon(
+                      Icons.auto_awesome_rounded,
+                      color: isDark ? zen.primaryAccent : zen.primary,
+                      size: 18,
+                    ),
                   ),
-                  child: const Icon(Icons.auto_awesome_rounded, color: AppColors.purpleGlow, size: 18),
-                ),
-                const SizedBox(width: 10),
-                Text(context.tr('scene_title'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
-                if (_customScenes.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                  const SizedBox(width: 10),
+                  Flexible(
                     child: Text(
-                      '${_customScenes.length}',
+                      context.tr('scene_title'),
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppColors.darkText : AppColors.lightText,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (_customScenes.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    ZenGlassPill(
+                      blurSigma: 8,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                      child: Text(
+                        '${_customScenes.length}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
+            const SizedBox(width: 8),
             BouncingButton(
               onTap: () => _showAddSceneBottomSheet(),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  gradient: AppColors.navPillGradient,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryLight.withOpacity(0.35),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+              child: ZenLiquidGlass(
+                blurSigma: 10,
+                borderRadius: 20,
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+                glowColor: zen.primary,
+                surfaceColor: zen.primary,
+                customGradient: zen.navPillGradient,
+                customShadows: [
+                  BoxShadow(
+                    color: zen.primary.withOpacity(isDark ? 0.38 : 0.24),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1403,18 +1702,29 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
           ],
         ),
         const SizedBox(height: 14),
-        
+
         if (_customScenes.isEmpty)
           ZenGlassCard(
             borderRadius: 22,
             padding: const EdgeInsets.all(24),
             blurSigma: 12,
+            glowColor: zen.primary,
             child: Center(
               child: Column(
                 children: [
-                  Icon(Icons.auto_awesome_outlined, size: 36, color: (isDark ? Colors.white : Colors.black).withOpacity(0.25)),
+                  Icon(
+                    Icons.auto_awesome_outlined,
+                    size: 36,
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.28),
+                  ),
                   const SizedBox(height: 10),
-                  Text(context.tr('scene_empty'), style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                  Text(
+                    context.tr('scene_empty'),
+                    style: TextStyle(
+                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1432,7 +1742,7 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                   builder: (BuildContext context, Widget? child) {
                     final double animValue = Curves.easeInOut.transform(animation.value);
                     final double scale = 1.0 + (0.06 * animValue);
-                    
+
                     return Transform.scale(
                       scale: scale,
                       child: Material(
@@ -1447,18 +1757,18 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
               },
               onReorder: (int oldIndex, int newIndex) {
                 if (!mounted) return;
-    setState(() {
+                setState(() {
                   if (oldIndex < newIndex) {
                     newIndex -= 1;
                   }
                   final Map<String, dynamic> item = _customScenes.removeAt(oldIndex);
                   _customScenes.insert(newIndex, item);
-                  
+
                   for (int i = 0; i < _customScenes.length; i++) {
                     _customScenes[i]['order'] = i;
                   }
                   _saveScenesToDisk();
-                  
+
                   final activeConfig = ref.read(homeConfigProvider).activeConfig;
                   String targetId = activeConfig.userId;
                   if (targetId.isNotEmpty && targetId != 'guest') {
@@ -1488,7 +1798,7 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                     borderRadius: 22,
                     glowColor: sceneColor,
                     isActive: true,
-                    blurSigma: 10,
+                    blurSigma: 12,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1497,19 +1807,19 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
+                            ZenLiquidGlass(
+                              blurSigma: 0,
                               padding: const EdgeInsets.all(9),
-                              decoration: BoxDecoration(
-                                color: sceneColor.withOpacity(isDark ? 0.22 : 0.14),
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: sceneColor.withOpacity(0.2),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
+                              borderRadius: 14,
+                              glowColor: sceneColor,
+                              surfaceColor: sceneColor.withOpacity(isDark ? 0.24 : 0.15),
+                              customShadows: [
+                                BoxShadow(
+                                  color: sceneColor.withOpacity(0.22),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                               child: Icon(scene['icon'], color: sceneColor, size: 22),
                             ),
                             Row(
@@ -1517,113 +1827,23 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                               children: [
                                 Icon(
                                   scene['isShared'] == true ? Icons.public : Icons.lock_outline,
-                                  size: 14,
-                                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.4),
+                                  size: 13.5,
+                                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.45),
                                 ),
                                 const SizedBox(width: 2),
                                 GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
                                   onTap: () {
-                                    showModalBottomSheet(
-                                      context: context,
-                                      backgroundColor: Colors.transparent,
-                                      builder: (ctx) => Container(
-                                        padding: const EdgeInsets.only(top: 20, bottom: 40, left: 20, right: 20),
-                                        decoration: BoxDecoration(
-                                          color: isDark ? AppColors.darkCardElevated : Colors.white,
-                                          borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(10))),
-                                            const SizedBox(height: 18), 
-                                            Text(
-                                              '${context.tr('scene_options')}: ${_getSceneName(scene)}',
-                                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                            ), 
-                                            const SizedBox(height: 16),
-                                            if (_canManageScene(scene)) ...[
-                                              ListTile(
-                                                leading: Container(
-                                                  padding: const EdgeInsets.all(8),
-                                                  decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle),
-                                                  child: const Icon(Icons.edit, color: Colors.blue, size: 20),
-                                                ),
-                                                title: Text(context.tr('scene_edit'), style: const TextStyle(fontWeight: FontWeight.w600)), 
-                                                onTap: () { 
-                                                  Navigator.pop(ctx); 
-                                                  _showAddSceneBottomSheet(editScene: scene); 
-                                                }
-                                              ),
-                                              ListTile(
-                                                leading: Container(
-                                                  padding: const EdgeInsets.all(8),
-                                                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), shape: BoxShape.circle),
-                                                  child: const Icon(Icons.delete, color: Colors.red, size: 20),
-                                                ),
-                                                title: Text(context.tr('scene_delete'), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)), 
-                                                onTap: () { 
-                                                    Navigator.pop(ctx);
-                                                    
-                                                    showPremiumConfirmDialog(
-                                                      context: context,
-                                                      title: context.tr('confirm_title'),
-                                                      message: context.tr('confirm_delete_scene') ?? 'Bạn có chắc chắn muốn xóa ngữ cảnh này không?',
-                                                      confirmText: context.tr('btn_delete'),
-                                                      cancelText: context.tr('btn_cancel'),
-                                                      isDanger: true,
-                                                      icon: Icons.delete_forever,
-                                                      onConfirm: () {
-                                                        setState(() => _customScenes.removeAt(index)); 
-                                                        final activeConfig = ref.read(homeConfigProvider).activeConfig;
-                                                        String targetId = activeConfig.userId;
-                                                        if (scene['isShared'] == true && targetId.isNotEmpty && targetId != 'guest') {
-                                                          FirebaseFirestore.instance.collection('users').doc(targetId).collection('scenes').doc(scene['id']).delete();
-                                                          
-                                                          if (activeConfig.role != 'owner' && FirebaseAuth.instance.currentUser != null) {
-                                                            String name = FirebaseAuth.instance.currentUser!.displayName ?? FirebaseAuth.instance.currentUser!.email ?? context.tr('a_member') ?? 'Một thành viên';
-                                                            FirebaseFirestore.instance.collection('users').doc(targetId).collection('alerts').add({
-                                                              'type': 'automation_edit',
-                                                              'author': name,
-                                                              'actionName': context.tr('act_delete_scene') ?? 'vừa xóa một ngữ cảnh',
-                                                              'timestamp': FieldValue.serverTimestamp(),
-                                                            });
-                                                          }
-                                                        }
-                                                        _saveScenesToDisk();
-                                                        showFloatingToast(context, context.tr('msg_deleted_title'), context.tr('msg_scene_deleted') ?? 'Đã xóa ngữ cảnh thành công!');
-                                                      }
-                                                    );
-                                                  }
-                                              ),
-                                            ] else ...[
-                                              ListTile(
-                                                leading: Container(
-                                                  padding: const EdgeInsets.all(8),
-                                                  decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle),
-                                                  child: const Icon(Icons.info_outline_rounded, color: Colors.blue, size: 20),
-                                                ),
-                                                title: Text(context.tr('perm_view_activate_only'), style: const TextStyle(fontWeight: FontWeight.w600)),
-                                                subtitle: Text(
-                                                  (Localizations.localeOf(context).languageCode == 'en')
-                                                      ? (scene["authorName"] != null && scene["authorName"].toString().isNotEmpty
-                                                          ? "Created by ${scene["authorName"]}. You can activate it but cannot edit or delete."
-                                                          : "You can activate this shared scene but cannot edit or delete it.")
-                                                      : (scene["authorName"] != null && scene["authorName"].toString().isNotEmpty
-                                                          ? "Ngữ cảnh này do ${scene["authorName"]} tạo. Bạn có thể bấm để kích hoạt nhưng không có quyền sửa hoặc xóa."
-                                                          : "Bạn có thể bấm để kích hoạt nhưng không có quyền sửa hoặc xóa ngữ cảnh chung này."),
-                                                  style: const TextStyle(fontSize: 12),
-                                                ),
-                                              ),
-                                            ]
-                                          ],
-                                        ),
-                                      ),
-                                    );
+                                    HapticFeedback.selectionClick();
+                                    _showSceneOptionsSheet(scene, index);
                                   },
-                                  child: Container(
+                                  child: Padding(
                                     padding: const EdgeInsets.all(4),
-                                    child: Icon(Icons.more_vert, size: 18, color: (isDark ? Colors.white : Colors.black).withOpacity(0.5)),
+                                    child: Icon(
+                                      Icons.more_vert_rounded,
+                                      size: 18,
+                                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.58),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1666,7 +1886,11 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
         if (_customScenes.isNotEmpty)
           Text(
             context.tr('tip_scene'),
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+              fontStyle: FontStyle.italic,
+            ),
           ),
       ],
     );

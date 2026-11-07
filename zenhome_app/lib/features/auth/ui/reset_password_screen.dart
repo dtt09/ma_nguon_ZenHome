@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/widgets/animations/dual_layer_screen_wrapper.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/features/auth/ui/login_screen.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
@@ -19,15 +22,17 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+  ConsumerState<ResetPasswordScreen> createState() =>
+      _ResetPasswordScreenState();
 }
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   final FocusNode _passwordFocus = FocusNode();
   final FocusNode _confirmPasswordFocus = FocusNode();
-  
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -47,22 +52,29 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     });
   }
 
-  Widget _buildRequirement(String text, bool isMet, Color baseColor, bool isTopLayer) {
+  Widget _buildRequirement(String text, bool isMet, bool isDark) {
+    final Color mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 2.5),
       child: Row(
         children: [
           Icon(
-            isMet ? Icons.check_circle : Icons.cancel,
-            color: isMet ? Colors.green : (isTopLayer ? Colors.white54 : baseColor.withOpacity(0.5)),
+            isMet
+                ? Icons.check_circle_rounded
+                : Icons.radio_button_unchecked_rounded,
+            color: isMet ? AppColors.emeraldGlow : mutedColor.withOpacity(0.65),
             size: 16,
           ),
           const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              color: isMet ? Colors.green : (isTopLayer ? Colors.white70 : baseColor.withOpacity(0.8)),
-              fontSize: 12,
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: isMet ? AppColors.emeraldGlow : mutedColor,
+                fontSize: 12,
+                fontWeight: isMet ? FontWeight.w600 : FontWeight.w400,
+              ),
             ),
           ),
         ],
@@ -73,8 +85,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   @override
   void initState() {
     super.initState();
-    _passwordFocus.addListener(() { if (mounted) setState(() {}); });
-    _confirmPasswordFocus.addListener(() { if (mounted) setState(() {}); });
+    _passwordFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _confirmPasswordFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -91,16 +107,35 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     final String confirmPassword = _confirmPasswordController.text;
 
     if (password.isEmpty || confirmPassword.isEmpty) {
-      showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_empty_field') ?? 'Vui lòng nhập đầy đủ thông tin!', isError: true);
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('err_empty_field'),
+        isError: true,
+      );
       return;
     }
 
     if (password != confirmPassword) {
-      showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_pass_mismatch') ?? 'Mật khẩu xác nhận không khớp!', isError: true);
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('err_pass_mismatch'),
+        isError: true,
+      );
       return;
     }
-    if (!_hasMinLength || !_hasUppercase || !_hasLowercase || !_hasNumber || !_hasSpecialChar) {
-      showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_firebase_weak_password') ?? 'Mật khẩu chưa đạt đủ các yêu cầu bảo mật!', isError: true);
+    if (!_hasMinLength ||
+        !_hasUppercase ||
+        !_hasLowercase ||
+        !_hasNumber ||
+        !_hasSpecialChar) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('err_firebase_weak_password'),
+        isError: true,
+      );
       return;
     }
 
@@ -108,188 +143,355 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null && currentUser.uid == widget.uid) {
-         // Người dùng đã đăng nhập bằng Phone Provider qua OTP
-         await currentUser.updatePassword(password);
-         
-         // Liên kết với Email Provider (nếu chưa có)
-         final String dummyEmail = '${widget.phoneNumber.replaceAll('+', '')}@zenhome.local';
-         try {
-             final cred = EmailAuthProvider.credential(email: dummyEmail, password: password);
-             await currentUser.linkWithCredential(cred);
-         } catch (e) {
-             // Bỏ qua nếu đã liên kết từ trước
-         }
+        // Người dùng đã đăng nhập bằng Phone Provider qua OTP
+        await currentUser.updatePassword(password);
+
+        // Liên kết với Email Provider (nếu chưa có)
+        final String dummyEmail =
+            '${widget.phoneNumber.replaceAll('+', '')}@zenhome.local';
+        try {
+          final cred = EmailAuthProvider.credential(
+            email: dummyEmail,
+            password: password,
+          );
+          await currentUser.linkWithCredential(cred);
+        } catch (_) {
+          // Bỏ qua nếu đã liên kết từ trước
+        }
       }
 
       LoadingOverlay.hide();
       if (mounted) {
-        showFloatingToast(context, context.tr('toast_success') ?? 'Thành công', context.tr('password_updated_success') ?? 'Đổi mật khẩu thành công! Hãy đăng nhập lại.');
+        showFloatingToast(
+          context,
+          context.tr('toast_success'),
+          context.tr('password_updated_success'),
+        );
         FirebaseAuth.instance.signOut();
-        Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginScreen()), (r) => false);
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (r) => false,
+        );
       }
     } catch (e) {
       LoadingOverlay.hide();
-      showFloatingToast(context, context.tr('error') ?? 'Lỗi', '${context.tr('err_generic') ?? "Đã xảy ra lỗi"}: $e', isError: true);
+      if (mounted) {
+        showFloatingToast(
+          context,
+          context.tr('error'),
+          '${context.tr('err_generic')}: $e',
+          isError: true,
+        );
+      }
     }
   }
 
-  Widget _buildContent(BuildContext context, bool isTopLayer, ScrollController controller) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color color = isTopLayer ? Colors.white : (isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E));
+  Widget _buildMainContent(
+    BuildContext context, {
+    required bool isOverWave,
+    required ScrollController controller,
+  }) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+    final Color primaryColor = isDark ? zen.primaryAccent : zen.primary;
+    final Color textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final Color mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final bool canPop = ModalRoute.of(context)?.canPop ?? false;
 
-    int strengthScore = (_hasMinLength ? 1 : 0) +
+    // Split-wave header colors
+    final Color headerLogoColor = isOverWave ? Colors.white : primaryColor;
+    final Color headerTitleColor =
+        isOverWave ? Colors.white : (isDark ? AppColors.darkText : AppColors.lightText);
+    final Color headerSubtitleColor = isOverWave
+        ? Colors.white.withOpacity(0.86)
+        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
+
+    final int strengthScore = (_hasMinLength ? 1 : 0) +
         (_hasUppercase ? 1 : 0) +
         (_hasLowercase ? 1 : 0) +
         (_hasNumber ? 1 : 0) +
         (_hasSpecialChar ? 1 : 0);
-    double strengthPercent = strengthScore / 5;
-    Color strengthColor = strengthPercent <= 0.4 ? Colors.red : (strengthPercent <= 0.8 ? Colors.orange : Colors.green);
+    final double strengthPercent = strengthScore / 5;
+    final Color strengthColor = strengthPercent <= 0.4
+        ? AppColors.roseGlow
+        : (strengthPercent <= 0.8 ? AppColors.amberGlow : AppColors.emeraldGlow);
 
     return SafeArea(
       bottom: false,
       child: Column(
         children: [
-          const SizedBox(height: 20),
+          if (canPop)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                child: ZenGlassIconButton(
+                  icon: Icons.arrow_back_ios_new_rounded,
+                  size: 40,
+                  iconSize: 18,
+                  borderRadius: 14,
+                  blurSigma: isOverWave ? 0 : 14,
+                  iconColor: isDark ? Colors.white : AppColors.lightText,
+                  onTap: () => Navigator.maybePop(context),
+                ),
+              ),
+            )
+          else
+            const SizedBox(height: 16),
+
+          const SizedBox(height: 8),
+
+          // --- Split-Wave Brand Header ---
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset('public/zenhome_logo_transparent.png', width: 60, height: 60, fit: BoxFit.contain, color: color),
+              Container(
+                width: 72,
+                height: 72,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  color: isOverWave
+                      ? Colors.white.withOpacity(0.18)
+                      : primaryColor.withOpacity(0.12),
+                  border: Border.all(
+                    color: isOverWave
+                        ? Colors.white.withOpacity(0.34)
+                        : primaryColor.withOpacity(0.28),
+                    width: 1.2,
+                  ),
+                ),
+                child: Image.asset(
+                  'public/zenhome_logo_transparent.png',
+                  width: 46,
+                  height: 46,
+                  fit: BoxFit.contain,
+                  color: headerLogoColor,
+                ),
+              ),
               const SizedBox(height: 10),
-              Text('ZenHome', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: color)),
-              const SizedBox(height: 5),
-              Text(context.tr('reset_password_desc') ?? 'Đặt lại mật khẩu mới', style: TextStyle(color: color.withOpacity(0.8), fontStyle: FontStyle.italic)),
+              Text(
+                'ZenHome',
+                style: TextStyle(
+                  fontSize: 25,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.3,
+                  color: headerTitleColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                context.tr('reset_password_desc'),
+                style: TextStyle(
+                  color: headerSubtitleColor,
+                  fontStyle: FontStyle.italic,
+                  fontSize: 14,
+                ),
+              ),
             ],
           ),
+
+          const SizedBox(height: 16),
 
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
                   controller: controller,
-                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(24, 6, 24, 28),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                    Builder(
-                      builder: (context) {
-                        Widget field = TextField(
-                          controller: _passwordController,
-                          focusNode: isTopLayer ? null : _passwordFocus,
-                          obscureText: _obscurePassword,
-                          onChanged: (value) {
-                             if (true) {
-                                _checkPasswordStrength(value);
-                             }
-                          },
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: isTopLayer ? Colors.white.withOpacity(0.1) : (isDark ? const Color(0xFF121827) : Colors.white),
-                            labelText: context.tr('new_password') ?? 'Mật khẩu mới',
-                            labelStyle: TextStyle(color: isTopLayer ? Colors.white70 : null),
-                            prefixIcon: Icon(Icons.lock, color: color),
-                            suffixIcon: IconButton(
-                              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: color),
-                              onPressed: () { if (true) { setState(() => _obscurePassword = !_obscurePassword); } },
-                            ),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: (isTopLayer && _passwordFocus.hasFocus) ? color : color.withOpacity(0.3))),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: color)),
-                          ),
-                          style: TextStyle(color: isTopLayer ? Colors.white : (isDark ? Colors.white : Colors.black)),
-                        );
-                        if (isTopLayer) {
-                        }
-                        return field;
-                      }
+                    constraints: BoxConstraints(
+                      minHeight: (constraints.maxHeight - 34).clamp(0.0, double.infinity),
                     ),
-                    const SizedBox(height: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(5),
-                          child: LinearProgressIndicator(
-                            value: strengthPercent,
-                            backgroundColor: isTopLayer ? Colors.white24 : color.withOpacity(0.2),
-                            color: strengthColor,
-                            minHeight: 6,
-                          ),
+                    child: Center(
+                      child: ZenLiquidGlass(
+                        borderRadius: 28,
+                        blurSigma: isOverWave ? 0 : 20,
+                        rimWidth: 1.3,
+                        glowColor: zen.primary,
+                        padding: const EdgeInsets.all(24),
+                        customShadows: isOverWave ? const [] : null,
+                        customGradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: isDark
+                              ? [
+                                  const Color(0xFF0F172A).withOpacity(0.70),
+                                  const Color(0xFF0A1120).withOpacity(0.54),
+                                ]
+                              : [
+                                  Colors.white.withOpacity(0.84),
+                                  Colors.white.withOpacity(0.70),
+                                ],
                         ),
-                        const SizedBox(height: 8),
-                        _buildRequirement(context.tr('req_min_length') ?? 'Ít nhất 8 ký tự', _hasMinLength, color, isTopLayer),
-                        _buildRequirement(context.tr('req_uppercase') ?? 'Chữ hoa', _hasUppercase, color, isTopLayer),
-                        _buildRequirement(context.tr('req_lowercase') ?? 'Chữ thường', _hasLowercase, color, isTopLayer),
-                        _buildRequirement(context.tr('req_number') ?? 'Chữ số', _hasNumber, color, isTopLayer),
-                        _buildRequirement(context.tr('req_special_char') ?? 'Ký tự đặc biệt (!@#\$%^&*)', _hasSpecialChar, color, isTopLayer),
-                      ],
-                    ),
-                    const SizedBox(height: 15),
-                    Builder(
-                      builder: (context) {
-                        Widget field = TextField(
-                          controller: _confirmPasswordController,
-                          focusNode: isTopLayer ? null : _confirmPasswordFocus,
-                          obscureText: _obscureConfirmPassword,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: isTopLayer ? Colors.white.withOpacity(0.1) : (isDark ? const Color(0xFF121827) : Colors.white),
-                            labelText: context.tr('confirm_new_password') ?? 'Xác nhận mật khẩu mới',
-                            labelStyle: TextStyle(color: isTopLayer ? Colors.white70 : null),
-                            prefixIcon: Icon(Icons.lock_outline, color: color),
-                            suffixIcon: IconButton(
-                              icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: color),
-                              onPressed: () { if (true) { setState(() => _obscureConfirmPassword = !_obscureConfirmPassword); } },
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextField(
+                              controller: _passwordController,
+                              focusNode: isOverWave ? null : _passwordFocus,
+                              obscureText: _obscurePassword,
+                              onChanged: _checkPasswordStrength,
+                              decoration: zenGlassInputDecoration(
+                                context,
+                                labelText: context.tr('new_password'),
+                                prefixIcon: Icons.lock_outline_rounded,
+                                borderRadius: 16,
+                                accentColor: primaryColor,
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off_rounded
+                                        : Icons.visibility_rounded,
+                                    size: 20,
+                                    color: _passwordFocus.hasFocus
+                                        ? primaryColor
+                                        : mutedColor,
+                                  ),
+                                  onPressed: () {
+                                    setState(
+                                      () =>
+                                          _obscurePassword = !_obscurePassword,
+                                    );
+                                  },
+                                ),
+                              ),
+                              style: TextStyle(color: textColor),
                             ),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: (isTopLayer && _confirmPasswordFocus.hasFocus) ? color : color.withOpacity(0.3))),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: color)),
-                          ),
-                          style: TextStyle(color: isTopLayer ? Colors.white : (isDark ? Colors.white : Colors.black)),
-                        );
-                        if (isTopLayer) {
-                        }
-                        return field;
-                      }
-                    ),
-                    const SizedBox(height: 30),
+                            const SizedBox(height: 12),
 
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isTopLayer ? Colors.white : const Color(0xFF0F766E),
-                          foregroundColor: isTopLayer ? const Color(0xFF0F766E) : Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            // Frosted Password Strength Checklist
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white
+                                    .withOpacity(isDark ? 0.05 : 0.56),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isDark
+                                      ? Colors.white.withOpacity(0.08)
+                                      : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: LinearProgressIndicator(
+                                      value: strengthPercent,
+                                      backgroundColor: isDark
+                                          ? Colors.white.withOpacity(0.10)
+                                          : const Color(0xFFE2E8F0),
+                                      color: strengthColor,
+                                      minHeight: 6,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildRequirement(
+                                    context.tr('req_min_length'),
+                                    _hasMinLength,
+                                    isDark,
+                                  ),
+                                  _buildRequirement(
+                                    context.tr('req_uppercase'),
+                                    _hasUppercase,
+                                    isDark,
+                                  ),
+                                  _buildRequirement(
+                                    context.tr('req_lowercase'),
+                                    _hasLowercase,
+                                    isDark,
+                                  ),
+                                  _buildRequirement(
+                                    context.tr('req_number'),
+                                    _hasNumber,
+                                    isDark,
+                                  ),
+                                  _buildRequirement(
+                                    context.tr('req_special_char'),
+                                    _hasSpecialChar,
+                                    isDark,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            TextField(
+                              controller: _confirmPasswordController,
+                              focusNode:
+                                  isOverWave ? null : _confirmPasswordFocus,
+                              obscureText: _obscureConfirmPassword,
+                              decoration: zenGlassInputDecoration(
+                                context,
+                                labelText: context.tr('confirm_new_password'),
+                                prefixIcon: Icons.verified_user_outlined,
+                                borderRadius: 16,
+                                accentColor: primaryColor,
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscureConfirmPassword
+                                        ? Icons.visibility_off_rounded
+                                        : Icons.visibility_rounded,
+                                    size: 20,
+                                    color: _confirmPasswordFocus.hasFocus
+                                        ? primaryColor
+                                        : mutedColor,
+                                  ),
+                                  onPressed: () {
+                                    setState(
+                                      () => _obscureConfirmPassword =
+                                          !_obscureConfirmPassword,
+                                    );
+                                  },
+                                ),
+                              ),
+                              style: TextStyle(color: textColor),
+                            ),
+                            const SizedBox(height: 24),
+
+                            SizedBox(
+                              width: double.infinity,
+                              height: 54,
+                              child: ZenGlassButton(
+                                label: context.tr('update_password'),
+                                icon: Icons.check_circle_outline_rounded,
+                                borderRadius: 16,
+                                onPressed: () {
+                                  HapticFeedback.lightImpact();
+                                  _handleResetPassword();
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                        onPressed: _handleResetPassword,
-                        child: Text(context.tr('update_password') ?? 'Cập nhật Mật khẩu', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ),
-      ],
-    ),
-  );
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
+    return ZenGlassScaffold(
       body: DualLayerScreenWrapper(
         waveHeightPercent: 0.45,
-        builder: _buildContent,
+        builder: (context, isTopLayer, controller) => _buildMainContent(
+          context,
+          isOverWave: isTopLayer,
+          controller: controller,
+        ),
       ),
     );
   }
 }
-
-

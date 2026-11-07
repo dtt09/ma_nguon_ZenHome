@@ -1,7 +1,9 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/features/home/ui/main_layout.dart'; 
 import 'package:zenhome_app/features/auth/ui/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -79,90 +81,125 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color brandColor = isDark ? Colors.white : const Color(0xFF0F766E);
-    
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF090C15) : Colors.white, 
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+    final Color brandColor = isDark ? Colors.white : zen.primary;
+
+    return ZenGlassScaffold(
+      meshIntensity: 1.15,
       body: Stack(
         children: [
-          // Centered Logo and Brand Name
+          // Centered Glass Emblem & Brand Name
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo Icon
-                Image.asset(
-                  'public/zenhome_logo_transparent.png', 
-                  width: 85, 
-                  height: 85, 
-                  fit: BoxFit.contain, 
-                  color: brandColor
-                ).animate()
-                 .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), duration: 1000.ms, curve: Curves.easeOutCubic)
-                 .fade(duration: 800.ms),
-                
-                const SizedBox(height: 16),
-                
-                // Brand Name
+                ZenLiquidGlass(
+                  width: 118,
+                  height: 118,
+                  borderRadius: 34,
+                  blurSigma: 22,
+                  glowColor: zen.primary,
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    'public/zenhome_logo_transparent.png',
+                    width: 68,
+                    height: 68,
+                    fit: BoxFit.contain,
+                    color: brandColor,
+                  ),
+                )
+                    .animate()
+                    .scale(
+                      begin: const Offset(0.8, 0.8),
+                      end: const Offset(1, 1),
+                      duration: 1000.ms,
+                      curve: Curves.easeOutCubic,
+                    )
+                    .fade(duration: 800.ms),
+                const SizedBox(height: 20),
                 RichText(
                   text: TextSpan(
                     style: TextStyle(
                       fontSize: 34,
-                      color: brandColor,
+                      color: isDark ? Colors.white : AppColors.lightText,
                       letterSpacing: 1.5,
                     ),
-                    children: const [
-                      TextSpan(text: 'Zen', style: TextStyle(fontWeight: FontWeight.w400)),
-                      TextSpan(text: 'Home', style: TextStyle(fontWeight: FontWeight.bold)),
+                    children: [
+                      const TextSpan(
+                        text: 'Zen',
+                        style: TextStyle(fontWeight: FontWeight.w400),
+                      ),
+                      TextSpan(
+                        text: 'Home',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? zen.primaryAccent : zen.primary,
+                        ),
+                      ),
                     ],
                   ),
-                ).animate()
-                 .slideY(begin: 0.2, end: 0, duration: 800.ms, curve: Curves.easeOutQuart)
-                 .fade(duration: 800.ms),
+                )
+                    .animate()
+                    .slideY(
+                      begin: 0.2,
+                      end: 0,
+                      duration: 800.ms,
+                      curve: Curves.easeOutQuart,
+                    )
+                    .fade(duration: 800.ms),
               ],
             ),
           ),
-          
-          // Bottom Footer (like "from Meta" or "from TikTok")
+
+          // Bottom Footer Glass Pill
           Positioned(
             bottom: 40,
             left: 0,
             right: 0,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'from',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade500,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                // Gradient or styled company name
-                ShaderMask(
-                  blendMode: BlendMode.srcIn,
-                  shaderCallback: (bounds) => LinearGradient(
-                    colors: isDark 
-                        ? [const Color(0xFF14B8A6), const Color(0xFF2DD4BF)]
-                        : [const Color(0xFF0F766E), const Color(0xFF14B8A6)],
-                  ).createShader(bounds),
-                  child: const Text(
-                    'STEM 2026',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
+            child: Center(
+              child: ZenGlassPill(
+                blurSigma: 16,
+                borderRadius: 20,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'from',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.6,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 2),
+                    ShaderMask(
+                      blendMode: BlendMode.srcIn,
+                      shaderCallback: (bounds) => zen.brandHero.createShader(bounds),
+                      child: const Text(
+                        'STEM 2026',
+                        style: TextStyle(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ).animate(delay: 500.ms)
-             .slideY(begin: 0.5, end: 0, duration: 600.ms, curve: Curves.easeOutCubic)
-             .fade(duration: 600.ms),
+              ),
+            )
+                .animate(delay: 500.ms)
+                .slideY(
+                  begin: 0.5,
+                  end: 0,
+                  duration: 600.ms,
+                  curve: Curves.easeOutCubic,
+                )
+                .fade(duration: 600.ms),
           ),
         ],
       ),

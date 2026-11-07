@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../theme/app_theme.dart';
+import 'zen_liquid_glass.dart';
 
 class UserAvatar extends StatelessWidget {
   final double radius;
@@ -7,47 +10,60 @@ class UserAvatar extends StatelessWidget {
 
   const UserAvatar({
     super.key,
-    this.radius = 25,
+    this.radius = 21,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final zen = context.zenColors;
     Widget avatarWidget;
-    
+
     if (user?.photoURL != null && user!.photoURL!.isNotEmpty) {
       avatarWidget = CircleAvatar(
-        radius: radius,
+        radius: radius - 2.5,
         backgroundImage: NetworkImage(user.photoURL!),
         backgroundColor: Colors.transparent,
       );
     } else {
-      String firstLetter = (user?.displayName ?? 'U').isNotEmpty 
-          ? (user?.displayName ?? 'U').substring(0, 1).toUpperCase() 
+      final String firstLetter = (user?.displayName ?? 'U').isNotEmpty
+          ? (user?.displayName ?? 'U').substring(0, 1).toUpperCase()
           : 'U';
-      avatarWidget = CircleAvatar(
-        radius: radius,
-        backgroundColor: const Color(0xFF0F766E),
+      avatarWidget = Container(
+        width: (radius - 2.5) * 2,
+        height: (radius - 2.5) * 2,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: zen.brandHero,
+        ),
         child: Text(
           firstLetter,
           style: TextStyle(
-            fontSize: radius * 0.8,
-            fontWeight: FontWeight.bold,
+            fontSize: radius * 0.72,
+            fontWeight: FontWeight.w800,
             color: Colors.white,
           ),
         ),
       );
     }
-    
-    if (onTap != null) {
-      return GestureDetector(
-        onTap: onTap,
-        child: avatarWidget,
-      );
-    }
-    
-    return avatarWidget;
+
+    return ZenLiquidGlass(
+      width: radius * 2,
+      height: radius * 2,
+      borderRadius: radius,
+      blurSigma: 14,
+      padding: const EdgeInsets.all(2.2),
+      alignment: Alignment.center,
+      onTap: onTap != null
+          ? () {
+              HapticFeedback.selectionClick();
+              onTap!();
+            }
+          : null,
+      child: avatarWidget,
+    );
   }
 }
 

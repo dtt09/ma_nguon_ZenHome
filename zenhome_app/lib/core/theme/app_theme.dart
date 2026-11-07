@@ -393,6 +393,34 @@ class AppTheme {
         color: AppColors.lightCardBorder,
         thickness: 1,
       ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: Colors.white.withOpacity(0.88),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: BorderSide(color: Colors.white.withOpacity(0.9), width: 1.2),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: Colors.white.withOpacity(0.90),
+        surfaceTintColor: Colors.transparent,
+        elevation: 10,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppColors.lightCardBorder, width: 1.0),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: Colors.transparent,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF0F172A).withOpacity(0.86),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
       extensions: [
         ZenThemeColorsExtension(
           primary: cfg.primary,
@@ -446,6 +474,34 @@ class AppTheme {
       dividerTheme: const DividerThemeData(
         color: Color(0x1AFFFFFF),
         thickness: 1,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: const Color(0xFF0D1528).withOpacity(0.86),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: BorderSide(color: Colors.white.withOpacity(0.16), width: 1.2),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: const Color(0xFF0E172A).withOpacity(0.90),
+        surfaceTintColor: Colors.transparent,
+        elevation: 12,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.white.withOpacity(0.14), width: 1.0),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: Colors.transparent,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF0F172A).withOpacity(0.88),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
       extensions: [
         ZenThemeColorsExtension(

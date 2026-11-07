@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/models/app_version_info.dart';
 import 'package:zenhome_app/core/services/app_update_service.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
-
 import 'package:zenhome_app/core/utils/toast_helper.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/features/settings/ui/version_changelog_screen.dart';
 
 class AppUpdateDialog extends StatefulWidget {
@@ -60,7 +61,8 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
     final latestVer = widget.updateInfo.latestVersion;
     final expectedBytes = widget.updateInfo.fileSizeBytes;
 
-    final isDone = await AppUpdateService.isApkAlreadyDownloaded(latestVer, expectedBytes);
+    final isDone =
+        await AppUpdateService.isApkAlreadyDownloaded(latestVer, expectedBytes);
     if (isDone && mounted) {
       setState(() {
         _isAlreadyComplete = true;
@@ -72,7 +74,8 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
       return;
     }
 
-    final partialBytes = await AppUpdateService.getExistingPartialBytes(latestVer);
+    final partialBytes =
+        await AppUpdateService.getExistingPartialBytes(latestVer);
     if (partialBytes > 0 && mounted) {
       setState(() {
         _receivedBytes = partialBytes;
@@ -86,11 +89,14 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
 
   @override
   void dispose() {
-    AppUpdateService.isDownloadingNotifier.removeListener(_onDownloadStateChanged);
-    AppUpdateService.downloadProgressNotifier.removeListener(_onProgressChanged);
+    AppUpdateService.isDownloadingNotifier
+        .removeListener(_onDownloadStateChanged);
+    AppUpdateService.downloadProgressNotifier
+        .removeListener(_onProgressChanged);
     AppUpdateService.downloadStatusNotifier.removeListener(_onStatusChanged);
     AppUpdateService.downloadSpeedNotifier.removeListener(_onSpeedChanged);
-    AppUpdateService.downloadReceivedBytesNotifier.removeListener(_onBytesChanged);
+    AppUpdateService.downloadReceivedBytesNotifier
+        .removeListener(_onBytesChanged);
     AppUpdateService.downloadTotalBytesNotifier.removeListener(_onBytesChanged);
     AppUpdateService.downloadErrorNotifier.removeListener(_onErrorChanged);
     super.dispose();
@@ -100,7 +106,8 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
     if (mounted) {
       setState(() {
         _isDownloading = AppUpdateService.isDownloadingNotifier.value;
-        if (!_isDownloading && AppUpdateService.downloadProgressNotifier.value >= 1.0) {
+        if (!_isDownloading &&
+            AppUpdateService.downloadProgressNotifier.value >= 1.0) {
           _isAlreadyComplete = true;
         }
       });
@@ -148,63 +155,75 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
     }
   }
 
-  /// Bảng xác nhận khi người dùng bấm Hủy tải bản cập nhật
+  /// Bảng Kính Lỏng xác nhận khi người dùng bấm Hủy tải bản cập nhật
   Future<void> _confirmCancel() async {
     final isVi = Localizations.localeOf(context).languageCode == 'vi';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final shouldCancel = await showDialog<bool>(
+    final shouldCancel = await showZenGlassDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        backgroundColor: isDark ? const Color(0xFF1E2433) : Colors.white,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
+      accentColor: AppColors.amberGlow,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.amberGlow.withOpacity(0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: AppColors.amberGlow,
+                  size: 24,
+                ),
               ),
-              child: const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                isVi ? 'Xác nhận hủy tải' : 'Confirm Cancellation',
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  isVi ? 'Xác nhận hủy tải' : 'Confirm Cancellation',
+                  style: TextStyle(
+                    fontSize: 17.5,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-        content: Text(
-          isVi
-              ? 'Bạn có chắc chắn muốn hủy quá trình tải bản cập nhật này không? Mọi tiến trình tải về sẽ bị dừng lại.'
-              : 'Are you sure you want to cancel downloading the update? Any download progress will be stopped.',
-          style: TextStyle(
-            fontSize: 13.5,
-            color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(
-              isVi ? 'Tiếp tục tải' : 'Keep Downloading',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+          const SizedBox(height: 14),
+          Text(
+            isVi
+                ? 'Bạn có chắc chắn muốn hủy quá trình tải bản cập nhật này không? Mọi tiến trình tải về sẽ bị dừng lại.'
+                : 'Are you sure you want to cancel downloading the update? Any download progress will be stopped.',
+            style: TextStyle(
+              fontSize: 13.8,
+              height: 1.45,
+              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
             ),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              isVi ? 'Hủy tải' : 'Cancel Download',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
+          const SizedBox(height: 22),
+          Row(
+            children: [
+              Expanded(
+                child: ZenGlassButton(
+                  label: isVi ? 'Tiếp tục tải' : 'Keep Downloading',
+                  isPrimary: false,
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ZenGlassButton(
+                  label: isVi ? 'Hủy tải' : 'Cancel',
+                  isDanger: true,
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -215,106 +234,122 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
     }
   }
 
-  /// Bảng chẩn đoán và Thử lại khi thao tác tải bản cập nhật bị lỗi
+  /// Bảng Kính Lỏng chẩn đoán và Thử lại khi thao tác tải bản cập nhật bị lỗi
   Future<void> _showRetryDialog(String error) async {
     final isVi = Localizations.localeOf(context).languageCode == 'vi';
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final liveBase = await AppUpdateService.getLiveServerBaseUrl() ?? 'http://192.168.1.6:5000';
+    final liveBase =
+        await AppUpdateService.getLiveServerBaseUrl() ?? 'http://192.168.1.6:5000';
 
     if (!mounted) return;
 
-    await showDialog(
+    await showZenGlassDialog(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        backgroundColor: isDark ? const Color(0xFF1E2433) : Colors.white,
-        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.sync_problem_rounded, color: Colors.redAccent, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                isVi ? 'Tải cập nhật không thành công' : 'Update Download Failed',
-                style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              error,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: isDark ? Colors.red.shade300 : Colors.red.shade700,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isDark ? Colors.white12 : Colors.black12,
+      accentColor: AppColors.roseGlow,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.roseGlow.withOpacity(0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.sync_problem_rounded,
+                  color: AppColors.roseGlow,
+                  size: 24,
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.checklist_rounded, size: 16, color: Colors.blue.shade400),
-                      const SizedBox(width: 6),
-                      Text(
-                        isVi ? 'Bảng kiểm tra sự cố & Thử lại' : 'Troubleshooting Checklist',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue.shade400),
-                      ),
-                    ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  isVi
+                      ? 'Tải cập nhật không thành công'
+                      : 'Update Download Failed',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    isVi
-                        ? '• Đảm bảo điện thoại và máy tính chạy ZenHome cùng kết nối chung một mạng Wi-Fi.\n'
-                          '• Kiểm tra máy chủ ZenHome Server (IP: $liveBase) có đang hoạt động.\n'
-                          '• Nếu không tải được tự động trong app, bạn có thể tải trực tiếp file APK qua Trình duyệt.'
-                        : '• Ensure phone and ZenHome host are on the same Wi-Fi.\n'
-                          '• Check if ZenHome Server (IP: $liveBase) is running.\n'
-                          '• If direct in-app download fails, open via Browser to download.',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      height: 1.45,
-                      color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-                    ),
-                  ),
-                ],
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            error,
+            style: TextStyle(
+              fontSize: 12.8,
+              color: isDark ? Colors.red.shade300 : Colors.red.shade700,
+              fontWeight: FontWeight.w600,
             ),
-          ],
-        ),
-        actions: [
+          ),
+          const SizedBox(height: 14),
+          ZenLiquidGlass(
+            blurSigma: 0,
+            borderRadius: 16,
+            padding: const EdgeInsets.all(12),
+            surfaceColor: isDark
+                ? Colors.white.withOpacity(0.06)
+                : Colors.white.withOpacity(0.65),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.checklist_rounded,
+                      size: 16,
+                      color: context.zenColors.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isVi
+                          ? 'Bảng kiểm tra sự cố & Thử lại'
+                          : 'Troubleshooting Checklist',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark
+                            ? context.zenColors.primaryAccent
+                            : context.zenColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isVi
+                      ? '• Đảm bảo điện thoại và máy tính chạy ZenHome cùng kết nối chung một mạng Wi-Fi.\n'
+                        '• Kiểm tra máy chủ ZenHome Server (IP: $liveBase) có đang hoạt động.\n'
+                        '• Nếu không tải được tự động trong app, bạn có thể tải trực tiếp file APK qua Trình duyệt.'
+                      : '• Ensure phone and ZenHome host are on the same Wi-Fi.\n'
+                        '• Check if ZenHome Server (IP: $liveBase) is running.\n'
+                        '• If direct in-app download fails, open via Browser to download.',
+                  style: TextStyle(
+                    fontSize: 11.8,
+                    height: 1.45,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
+                child: ZenGlassButton(
+                  label: isVi ? 'Trình duyệt' : 'Browser',
+                  icon: Icons.open_in_browser_rounded,
+                  isPrimary: false,
                   onPressed: () {
                     Navigator.of(ctx).pop();
                     String targetUrl = widget.updateInfo.downloadUrl;
@@ -324,22 +359,17 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                     }
                     AppUpdateService.launchDownloadUrl(targetUrl);
                   },
-                  child: Text(isVi ? 'Trình duyệt' : 'Browser', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
+                child: ZenGlassButton(
+                  label: isVi ? 'Thử lại' : 'Retry',
+                  icon: Icons.refresh_rounded,
                   onPressed: () {
                     Navigator.of(ctx).pop();
                     _startDownload();
                   },
-                  child: Text(isVi ? 'Thử lại' : 'Retry', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -354,7 +384,8 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
     final isVi = Localizations.localeOf(context).languageCode == 'vi';
 
     if (_isAlreadyComplete) {
-      final installed = await AppUpdateService.installCompletedApk(updateInfo.latestVersion);
+      final installed =
+          await AppUpdateService.installCompletedApk(updateInfo.latestVersion);
       if (!installed && mounted) {
         setState(() => _isAlreadyComplete = false);
       } else {
@@ -367,7 +398,8 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
     });
 
     String targetUrl = updateInfo.downloadUrl;
-    if (updateInfo.directApkUrl != null && updateInfo.directApkUrl!.trim().isNotEmpty) {
+    if (updateInfo.directApkUrl != null &&
+        updateInfo.directApkUrl!.trim().isNotEmpty) {
       final direct = updateInfo.directApkUrl!.trim();
       if (direct.startsWith('http://') || direct.startsWith('https://')) {
         targetUrl = direct;
@@ -376,7 +408,8 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
       }
     }
 
-    final isApkFile = targetUrl.toLowerCase().endsWith('.apk') || targetUrl.contains('/downloads/');
+    final isApkFile =
+        targetUrl.toLowerCase().endsWith('.apk') || targetUrl.contains('/downloads/');
 
     if (isApkFile) {
       final success = await AppUpdateService.startBackgroundDownload(
@@ -391,7 +424,8 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
       );
 
       if (!success && mounted) {
-        final err = AppUpdateService.downloadErrorNotifier.value ?? context.tr('download_error');
+        final err = AppUpdateService.downloadErrorNotifier.value ??
+            context.tr('download_error');
         setState(() {
           _errorMessage = err;
         });
@@ -401,7 +435,9 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
       final launched = await AppUpdateService.launchDownloadUrl(targetUrl);
       if (!mounted) return;
       if (!launched) {
-        final err = isVi ? 'Không thể mở liên kết: $targetUrl' : 'Could not open update link: $targetUrl';
+        final err = isVi
+            ? 'Không thể mở liên kết: $targetUrl'
+            : 'Could not open update link: $targetUrl';
         setState(() {
           _errorMessage = err;
         });
@@ -416,11 +452,14 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
     final currentVersion = widget.currentVersion;
     final currentBuildNumber = widget.currentBuildNumber;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
     final isForce = updateInfo.isMustUpdate(currentBuildNumber);
     final isVi = Localizations.localeOf(context).languageCode == 'vi';
 
     final title = isVi ? updateInfo.titleVi : updateInfo.titleEn;
-    final releaseNotes = isVi ? updateInfo.releaseNotesVi : updateInfo.releaseNotesEn;
+    final releaseNotes =
+        isVi ? updateInfo.releaseNotesVi : updateInfo.releaseNotesEn;
+    final Color accentColor = isForce ? AppColors.roseGlow : zen.primary;
 
     return PopScope(
       canPop: !isForce && !_isDownloading,
@@ -432,147 +471,327 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
       },
       child: Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 420),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF131B2E) : Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.15),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Top Gradient Graphic Banner
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isForce
-                          ? [const Color(0xFFDC2626), const Color(0xFF991B1B)]
-                          : (isDark
-                              ? [const Color(0xFF2563EB), const Color(0xFF1D4ED8)]
-                              : [const Color(0xFF0F766E), const Color(0xFF14B8A6)]),
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-                        ),
-                        child: const Icon(
-                          Icons.system_update_rounded,
-                          color: Colors.white,
-                          size: 36,
-                        ),
-                      ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isForce
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          isForce
-                              ? context.tr('update_dialog_critical_badge')
-                              : context.tr('update_dialog_new_badge'),
-                          style: TextStyle(
-                            color: isForce ? const Color(0xFFDC2626) : Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+        child: ZenGlassDialogSurface(
+          maxWidth: 420,
+          accentColor: accentColor,
+          padding: EdgeInsets.zero,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Top Liquid Luminous Banner
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                decoration: BoxDecoration(
+                  gradient: isForce
+                      ? const LinearGradient(
+                          colors: [Color(0xFFDC2626), Color(0xFF991B1B)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : zen.brandHero,
                 ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.20),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.38),
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.system_update_rounded,
+                        color: Colors.white,
+                        size: 35,
+                      ),
+                    ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isForce
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.24),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        isForce
+                            ? context.tr('update_dialog_critical_badge')
+                            : context.tr('update_dialog_new_badge'),
+                        style: TextStyle(
+                          color: isForce
+                              ? const Color(0xFFDC2626)
+                              : Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-                // Content Section
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Version Comparison Pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05),
+              // Content Section
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ZenLiquidGlass(
+                      blurSigma: 0,
+                      borderRadius: 16,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
+                      surfaceColor: isDark
+                          ? Colors.white.withOpacity(0.06)
+                          : Colors.white.withOpacity(0.68),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                context.tr('current_version'),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : AppColors.lightTextMuted,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'v$currentVersion (+$currentBuildNumber)',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark
+                                      ? AppColors.darkText
+                                      : AppColors.lightText,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 18,
+                            color: isDark
+                                ? AppColors.darkTextMuted
+                                : AppColors.lightTextMuted,
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                context.tr('latest_version'),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? AppColors.darkTextMuted
+                                      : AppColors.lightTextMuted,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'v${updateInfo.latestVersion} (+${updateInfo.latestBuildNumber})',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark
+                                      ? zen.primaryAccent
+                                      : zen.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Text(
+                      context.tr('whats_new_in_release'),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? AppColors.darkText : AppColors.lightText,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    ZenLiquidGlass(
+                      blurSigma: 0,
+                      borderRadius: 16,
+                      padding: const EdgeInsets.all(12),
+                      surfaceColor: isDark
+                          ? Colors.white.withOpacity(0.05)
+                          : Colors.white.withOpacity(0.62),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 155),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: SingleChildScrollView(
+                            child: Text(
+                              releaseNotes,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                height: 1.5,
+                                color: isDark
+                                    ? const Color(0xFFCBD5E1)
+                                    : const Color(0xFF334155),
+                              ),
+                            ),
                           ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    if (_isDownloading) ...[
+                      ZenLiquidGlass(
+                        blurSigma: 0,
+                        borderRadius: 20,
+                        glowColor: zen.primary,
+                        padding: const EdgeInsets.all(16),
+                        surfaceColor: isDark
+                            ? Colors.white.withOpacity(0.07)
+                            : Colors.white.withOpacity(0.70),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  context.tr('current_version'),
-                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.2,
+                                          color: isDark
+                                              ? zen.primaryAccent
+                                              : zen.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          _statusText.isNotEmpty
+                                              ? _statusText
+                                              : context.tr('downloading_update'),
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark
+                                                ? AppColors.darkText
+                                                : AppColors.lightText,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'v$currentVersion (+$currentBuildNumber)',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.grey.shade300 : Colors.black87,
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: zen.brandHero,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.bolt_rounded,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _speedText.isNotEmpty
+                                            ? _speedText
+                                            : '0 KB/s',
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                            Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.grey.shade400),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                            const SizedBox(height: 14),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: LinearProgressIndicator(
+                                value: _progress > 0 ? _progress : null,
+                                minHeight: 10,
+                                backgroundColor: isDark
+                                    ? Colors.white.withOpacity(0.10)
+                                    : Colors.black.withOpacity(0.08),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(zen.primary),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  context.tr('latest_version'),
-                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                  '${(_progress * 100).toInt()}%',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark
+                                        ? zen.primaryAccent
+                                        : zen.primary,
+                                  ),
                                 ),
-                                const SizedBox(height: 2),
                                 Text(
-                                  'v${updateInfo.latestVersion} (+${updateInfo.latestBuildNumber})',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blueAccent,
+                                  _receivedBytes > 0
+                                      ? '${(_receivedBytes / 1048576).toStringAsFixed(1)} MB / ${_totalBytes > 0 ? (_totalBytes / 1048576).toStringAsFixed(1) : (updateInfo.fileSizeBytes != null ? (updateInfo.fileSizeBytes! / 1048576).toStringAsFixed(1) : "?")} MB'
+                                      : '0.0 MB / ${(updateInfo.fileSizeBytes != null ? (updateInfo.fileSizeBytes! / 1048576).toStringAsFixed(1) : "?")} MB',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted,
                                   ),
                                 ),
                               ],
@@ -580,356 +799,199 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                           ],
                         ),
                       ),
-
-                      const SizedBox(height: 16),
-
-                      Text(
-                        context.tr('whats_new_in_release'),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Release Notes Container
-                      Container(
-                        constraints: const BoxConstraints(maxHeight: 160),
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: isDark ? const Color(0xFF243049) : const Color(0xFFE2E8F0),
-                          ),
-                        ),
-                        child: SingleChildScrollView(
-                          child: Text(
-                            releaseNotes,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              height: 1.5,
-                              color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ZenGlassButton(
+                              label: context.tr('btn_download_in_background'),
+                              icon: Icons.arrow_downward_rounded,
+                              isPrimary: false,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 11,
+                              ),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                showFloatingToast(
+                                  context,
+                                  context.tr('notification'),
+                                  context.tr('downloading_in_background_title'),
+                                  isError: false,
+                                );
+                              },
                             ),
                           ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Action Buttons or In-App Download Progress
-                      if (_isDownloading) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF162032) : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isDark ? const Color(0xFF2E3E5B) : const Color(0xFFCBD5E1),
-                              width: 1.2,
+                          const SizedBox(width: 8),
+                          ZenGlassButton(
+                            label: isVi ? 'Hủy' : 'Cancel',
+                            icon: Icons.close_rounded,
+                            isPrimary: false,
+                            isDanger: true,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 11,
                             ),
+                            onPressed: _confirmCancel,
                           ),
+                        ],
+                      ),
+                    ] else ...[
+                      if (_errorMessage != null) ...[
+                        ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 16,
+                          glowColor: AppColors.roseGlow,
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.all(14),
+                          surfaceColor: AppColors.roseGlow
+                              .withOpacity(isDark ? 0.14 : 0.08),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(strokeWidth: 2.2),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            _statusText.isNotEmpty
-                                                ? _statusText
-                                                : context.tr('downloading_update'),
-                                            style: TextStyle(
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark ? Colors.grey.shade200 : Colors.black87,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                  const Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 18,
+                                    color: AppColors.roseGlow,
                                   ),
                                   const SizedBox(width: 8),
-                                  // BADGE HIỂN THỊ TỐC ĐỘ TẢI (DOWNLOAD SPEED CHIP)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [Color(0xFF2563EB), Color(0xFF0D9488)],
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF2563EB).withValues(alpha: 0.35),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          _speedText.isNotEmpty ? _speedText : '0 KB/s',
-                                          style: const TextStyle(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                            letterSpacing: 0.2,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: LinearProgressIndicator(
-                                  value: _progress > 0 ? _progress : null,
-                                  minHeight: 10,
-                                  backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
                                   Text(
-                                    '${(_progress * 100).toInt()}%',
+                                    isVi
+                                        ? 'Không thể tải file tự động'
+                                        : 'Direct download failed',
                                     style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF2563EB),
-                                    ),
-                                  ),
-                                  Text(
-                                    _receivedBytes > 0
-                                        ? '${(_receivedBytes / 1048576).toStringAsFixed(1)} MB / ${_totalBytes > 0 ? (_totalBytes / 1048576).toStringAsFixed(1) : (updateInfo.fileSizeBytes != null ? (updateInfo.fileSizeBytes! / 1048576).toStringAsFixed(1) : "?")} MB'
-                                        : '0.0 MB / ${(updateInfo.fileSizeBytes != null ? (updateInfo.fileSizeBytes! / 1048576).toStringAsFixed(1) : "?")} MB',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.roseGlow,
                                     ),
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _errorMessage!,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: isDark
+                                      ? Colors.red.shade200
+                                      : Colors.red.shade800,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
+                      ],
+                      Center(
+                        child: ZenGlassPill(
+                          blurSigma: 0,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => VersionChangelogScreen(
+                                  updateInfo: updateInfo,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.article_rounded,
+                                size: 15,
+                                color:
+                                    isDark ? zen.primaryAccent : zen.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                context.tr('version_changelog_title'),
+                                style: TextStyle(
+                                  fontSize: 12.2,
+                                  fontWeight: FontWeight.w700,
+                                  color:
+                                      isDark ? zen.primaryAccent : zen.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          if (!isForce) ...[
                             Expanded(
-                              child: OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  side: BorderSide(
-                                    color: isDark ? Colors.white24 : Colors.grey.shade400,
-                                  ),
-                                ),
-                                icon: const Icon(Icons.arrow_downward_rounded, size: 16),
-                                label: Text(
-                                  context.tr('btn_download_in_background'),
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                ),
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  showFloatingToast(
-                                    context,
-                                    context.tr('notification'),
-                                    context.tr('downloading_in_background_title'),
-                                    isError: false,
+                              child: ZenGlassButton(
+                                label: context.tr('btn_later'),
+                                isPrimary: false,
+                                onPressed: () => Navigator.of(context).pop(),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          if (_errorMessage != null) ...[
+                            Expanded(
+                              child: ZenGlassButton(
+                                label: isVi ? 'Trình duyệt' : 'Browser',
+                                icon: Icons.open_in_browser_rounded,
+                                isPrimary: false,
+                                onPressed: () async {
+                                  String targetUrl = updateInfo.downloadUrl;
+                                  if (updateInfo.directApkUrl != null &&
+                                      updateInfo.directApkUrl!
+                                          .trim()
+                                          .isNotEmpty) {
+                                    targetUrl =
+                                        updateInfo.directApkUrl!.trim();
+                                  }
+                                  await AppUpdateService.launchDownloadUrl(
+                                    targetUrl,
                                   );
                                 },
                               ),
                             ),
                             const SizedBox(width: 8),
-                            TextButton.icon(
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                                foregroundColor: Colors.redAccent,
-                              ),
-                              icon: const Icon(Icons.close_rounded, size: 16),
-                              label: Text(
-                                isVi ? 'Hủy' : 'Cancel',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                              ),
-                              onPressed: _confirmCancel,
-                            ),
                           ],
-                        ),
-                      ] else ...[
-                        if (_errorMessage != null) ...[
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            margin: const EdgeInsets.only(bottom: 14),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF2C1517) : const Color(0xFFFEF2F2),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFCA5A5),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFDC2626)),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      isVi ? 'Không thể tải file tự động' : 'Direct download failed',
-                                      style: const TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFFDC2626),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  _errorMessage!,
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: isDark ? Colors.red.shade200 : Colors.red.shade800,
-                                  ),
-                                ),
-                              ],
+                          Expanded(
+                            flex: isForce ? 1 : 2,
+                            child: ZenGlassButton(
+                              label: _isAlreadyComplete
+                                  ? (isVi ? 'Cài đặt ngay' : 'Install Now')
+                                  : (_receivedBytes > 0 && !_isDownloading
+                                      ? (isVi
+                                          ? 'Tiếp tục (${(_progress * 100).toInt()}%)'
+                                          : 'Resume (${(_progress * 100).toInt()}%)')
+                                      : (_errorMessage != null
+                                          ? (isVi ? 'Thử lại' : 'Retry')
+                                          : context.tr('btn_update_now'))),
+                              icon: _isAlreadyComplete
+                                  ? Icons.install_mobile_rounded
+                                  : (_receivedBytes > 0 && !_isDownloading
+                                      ? Icons.play_arrow_rounded
+                                      : (_errorMessage != null
+                                          ? Icons.refresh_rounded
+                                          : Icons.download_rounded)),
+                              isDanger: isForce,
+                              onPressed: _startDownload,
                             ),
                           ),
                         ],
-                        Center(
-                          child: TextButton.icon(
-                            style: TextButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              foregroundColor: const Color(0xFF3B82F6),
-                            ),
-                            icon: const Icon(Icons.article_rounded, size: 16),
-                            label: Text(
-                              context.tr('version_changelog_title'),
-                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
-                            ),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => VersionChangelogScreen(updateInfo: updateInfo),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            if (!isForce) ...[
-                              Expanded(
-                                child: TextButton(
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    foregroundColor: Colors.grey.shade500,
-                                  ),
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: Text(
-                                    context.tr('btn_later'),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                            ],
-                            if (_errorMessage != null) ...[
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  ),
-                                  icon: const Icon(Icons.open_in_browser_rounded, size: 18),
-                                  label: Text(
-                                    isVi ? 'Trình duyệt' : 'Browser',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                  ),
-                                  onPressed: () async {
-                                    String targetUrl = updateInfo.downloadUrl;
-                                    if (updateInfo.directApkUrl != null &&
-                                        updateInfo.directApkUrl!.trim().isNotEmpty) {
-                                      targetUrl = updateInfo.directApkUrl!.trim();
-                                    }
-                                    await AppUpdateService.launchDownloadUrl(targetUrl);
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                            ],
-                            Expanded(
-                              flex: isForce ? 1 : 2,
-                              child: FilledButton.icon(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: isForce ? const Color(0xFFDC2626) : const Color(0xFF2563EB),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  elevation: 4,
-                                ),
-                                icon: Icon(
-                                  _isAlreadyComplete
-                                      ? Icons.install_mobile_rounded
-                                      : (_receivedBytes > 0 && !_isDownloading
-                                          ? Icons.play_arrow_rounded
-                                          : (_errorMessage != null ? Icons.refresh_rounded : Icons.download_rounded)),
-                                  size: 20,
-                                ),
-                                label: Text(
-                                  _isAlreadyComplete
-                                      ? (isVi ? 'Cài đặt ngay' : 'Install Now')
-                                      : (_receivedBytes > 0 && !_isDownloading
-                                          ? (isVi ? 'Tiếp tục tải (${(_progress * 100).toInt()}%)' : 'Resume Download (${(_progress * 100).toInt()}%)')
-                                          : (_errorMessage != null
-                                              ? (isVi ? 'Thử lại' : 'Retry')
-                                              : context.tr('btn_update_now'))),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                ),
-                                onPressed: _startDownload,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 }
-
-

@@ -394,15 +394,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
               // Thẻ kênh ưu tiên hiện tại dạng Kính Lỏng phát quang
               ZenLiquidGlass(
                 borderRadius: 20,
-                blurSigma: 12,
+                blurSigma: 0,
+                glowColor: gradientColors.last,
                 customGradient: LinearGradient(
-                  colors: gradientColors,
+                  colors: [
+                    gradientColors.first.withOpacity(0.88),
+                    gradientColors.last.withOpacity(0.82),
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                ),
-                customBorder: Border.all(
-                  color: Colors.white.withOpacity(0.24),
-                  width: 1.2,
                 ),
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -425,12 +425,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Container(
+                        ZenGlassPill(
+                          blurSigma: 0,
+                          borderRadius: 10,
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+                          isSelected: true,
+                          glowColor: Colors.white,
                           child: Text(
                             'Độ trễ: $activeLatency',
                             style: const TextStyle(
@@ -461,11 +461,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
               ZenLiquidGlass(
                 borderRadius: 20,
                 blurSigma: 0,
-                surfaceColor: isDark ? const Color(0xFF0F172A).withOpacity(0.65) : const Color(0xFFF8FAFC).withOpacity(0.85),
-                customBorder: Border.all(
-                  color: isDark ? Colors.white.withOpacity(0.12) : const Color(0xFFCBD5E1).withOpacity(0.7),
-                  width: 1.1,
-                ),
+                surfaceColor: isDark
+                    ? Colors.white.withOpacity(0.05)
+                    : Colors.white.withOpacity(0.65),
                 child: Column(
                   children: [
                     // Kênh 1: Local LAN Wi-Fi
@@ -501,14 +499,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                               ],
                             ),
                           ),
-                          Container(
+                          ZenGlassPill(
+                            blurSigma: 0,
+                            borderRadius: 9,
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: isLanConnected
-                                  ? const Color(0xFF10B981).withOpacity(0.15)
-                                  : Colors.grey.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                            isSelected: isLanConnected,
+                            glowColor: const Color(0xFF10B981),
                             child: Text(
                               isLanConnected ? context.tr('hub_ready_lan') : context.tr('hub_channel_unavailable'),
                               style: TextStyle(
@@ -562,14 +558,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                               ],
                             ),
                           ),
-                          Container(
+                          ZenGlassPill(
+                            blurSigma: 0,
+                            borderRadius: 9,
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: (isBleConnected || isBleNearby)
-                                  ? const Color(0xFF6366F1).withOpacity(0.15)
-                                  : Colors.grey.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                            isSelected: isBleConnected || isBleNearby,
+                            glowColor: const Color(0xFF6366F1),
                             child: Text(
                               isBleConnected
                                   ? (BleLocalService().isAuthenticated ? context.tr('hub_ble_key_ready') : context.tr('hub_ble_key_waiting'))
@@ -622,14 +616,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                               ],
                             ),
                           ),
-                          Container(
+                          ZenGlassPill(
+                            blurSigma: 0,
+                            borderRadius: 9,
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: isEspOnline
-                                  ? const Color(0xFF0EA5E9).withOpacity(0.15)
-                                  : Colors.grey.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                            isSelected: isEspOnline,
+                            glowColor: const Color(0xFF0EA5E9),
                             child: Text(
                               isEspOnline ? context.tr('hub_ready_cloud') : context.tr('hub_channel_unavailable'),
                               style: TextStyle(
@@ -648,10 +640,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
 
               const SizedBox(height: 20),
 
-              // Nút Chẩn đoán & Quét lại kết nối
+              // Nút Chẩn đoán & Quét lại kết nối dạng Kính Lỏng
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
+                child: ZenGlassButton(
+                  icon: Icons.radar_rounded,
+                  label: context.tr('hub_btn_diagnose'),
+                  accentColor: const Color(0xFF10B981),
                   onPressed: () async {
                     Navigator.pop(ctx);
                     showFloatingToast(context, context.tr('hub_status_title'), context.tr('hub_diagnosing'));
@@ -675,20 +670,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                       }
                     }
                   },
-                  icon: const Icon(Icons.radar_rounded, size: 18),
-                  label: Text(
-                    context.tr('hub_btn_diagnose'),
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
                 ),
               ),
             ],
@@ -718,7 +699,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
       bottom: false,
       child: RefreshIndicator(
         onRefresh: _onRefresh,
-        color: const Color(0xFF0F766E),
+        color: context.zenColors.primary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
@@ -740,14 +721,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                       Expanded(
                         child: Row(
                           children: [
-                            Container(
+                            ZenLiquidGlass(
+                              blurSigma: 12,
+                              borderRadius: 16,
                               padding: const EdgeInsets.all(2.5),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white.withOpacity(0.08)
-                                    : const Color(0xFFF1F5F9),
-                              ),
                               child: ClipOval(
                                 child: Image.asset('public/zenhome_logo_padded.png', width: 22, height: 22, fit: BoxFit.contain),
                               ),
@@ -760,8 +737,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w600,
                                   color: Theme.of(context).brightness == Brightness.dark
-                                      ? const Color(0xFF94A3B8)
-                                      : const Color(0xFF64748B),
+                                      ? const Color(0xFFCBD5E1)
+                                      : const Color(0xFF475569),
                                   letterSpacing: 0.3,
                                 ),
                                 overflow: TextOverflow.ellipsis,
@@ -780,13 +757,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                                     : (activeConfig.role == 'co_owner'
                                         ? const Color(0xFF3B82F6)
                                         : const Color(0xFF10B981));
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: roleColor.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: roleColor.withOpacity(0.25), width: 1),
-                                  ),
+                                return ZenGlassPill(
+                                  blurSigma: 10,
+                                  borderRadius: 10,
+                                  padding: const EdgeInsets.symmetric(horizontal: 7.5, vertical: 2.5),
+                                  isSelected: true,
+                                  glowColor: roleColor,
                                   child: Text(
                                     roleName,
                                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: roleColor),
@@ -824,7 +800,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                   // TẦNG 2: THANH KÍNH LỎNG QUANG HỌC (ZEN LIQUID GLASS CAPSULE)
                   // Thiết kế độc quyền: Không gian tên nhà rộng mở 100%, chip kết nối phát quang tinh tế, tuyệt đối không bao giờ đè lấn nhau
                   ZenLiquidGlass(
-                    borderRadius: 20,
+                    borderRadius: 22,
+                    blurSigma: 20,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -836,17 +813,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                             onTap: () => showHomeSwitcherBottomSheet(context, ref),
                             child: Row(
                               children: [
-                                Container(
+                                ZenLiquidGlass(
+                                  blurSigma: 0,
+                                  borderRadius: 11,
                                   padding: const EdgeInsets.all(6),
                                   margin: const EdgeInsets.only(right: 9),
-                                  decoration: BoxDecoration(
-                                    color: HomeHelper.getThemeColor(activeConfig.homeColor).withOpacity(0.18),
-                                    borderRadius: BorderRadius.circular(11),
-                                    border: Border.all(
-                                      color: HomeHelper.getThemeColor(activeConfig.homeColor).withOpacity(0.3),
-                                      width: 1,
-                                    ),
-                                  ),
+                                  glowColor: HomeHelper.getThemeColor(activeConfig.homeColor),
+                                  surfaceColor: HomeHelper.getThemeColor(activeConfig.homeColor).withOpacity(0.16),
                                   child: Icon(
                                     HomeHelper.getIconData(activeConfig.homeIcon),
                                     color: HomeHelper.getThemeColor(activeConfig.homeColor),
@@ -925,57 +898,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                               statusIcon = Icons.cloud_off_rounded;
                             }
 
-                            return Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () => _showConnectionDetailSheet(context, activeConfig),
-                                borderRadius: BorderRadius.circular(14),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: statusColor.withOpacity(0.35), width: 1),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: statusColor.withOpacity(0.12),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: statusColor,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: statusColor.withOpacity(0.8),
-                                              blurRadius: 4,
-                                              spreadRadius: 1,
-                                            ),
-                                          ],
+                            return ZenGlassPill(
+                              blurSigma: 0,
+                              borderRadius: 14,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              isSelected: true,
+                              glowColor: statusColor,
+                              onTap: () => _showConnectionDetailSheet(context, activeConfig),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: statusColor,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: statusColor.withOpacity(0.8),
+                                          blurRadius: 4,
+                                          spreadRadius: 1,
                                         ),
-                                      ),
-                                      const SizedBox(width: 5),
-                                      Icon(statusIcon, size: 12.5, color: statusColor),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        statusText,
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: statusColor,
-                                        ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 5),
+                                  Icon(statusIcon, size: 12.5, color: statusColor),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    statusText,
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: statusColor,
+                                    ),
+                                  ),
+                                ],
                               ),
                             );
                           },
@@ -1057,18 +1016,41 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                       }).toList();
 
                   if (activeDevices.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 30),
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: ZenGlassCard(
+                        width: double.infinity,
+                        borderRadius: 24,
+                        blurSigma: 18,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 34),
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.widgets_outlined, size: 50, color: Colors.grey.shade400),
-                            const SizedBox(height: 10),
-                            Text(context.tr('no_device'), style: TextStyle(color: Colors.grey.shade500)),
+                            ZenLiquidGlass(
+                              blurSigma: 0,
+                              borderRadius: 20,
+                              padding: const EdgeInsets.all(14),
+                              child: Icon(
+                                Icons.widgets_outlined,
+                                size: 36,
+                                color: context.zenColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              context.tr('no_device'),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.lightTextMuted,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                    ).animate().fade(duration: 300.ms).scale(begin: const Offset(0.9, 0.9), curve: Curves.easeOutBack);
+                    ).animate().fade(duration: 300.ms).scale(begin: const Offset(0.95, 0.95), curve: Curves.easeOutBack);
                   }
 
                   return AnimatedOpacity(
@@ -1106,62 +1088,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
   // ==========================================
   void _showQuickAutomationModal(DeviceConfig dev, bool currentIsOn) {
     HapticFeedback.heavyImpact();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
     final deviceTopic = '${activeConfig.mqttPrefix}/${dev.room}/${dev.id}';
     final targetAction = currentIsOn ? 'delay_off' : 'delay_on';
     final targetActionText = currentIsOn ? context.tr('action_turn_off') : context.tr('action_turn_on');
-    final targetColor = currentIsOn ? AppColors.roseGlow : AppColors.primary;
+    final targetColor = currentIsOn ? AppColors.roseGlow : context.zenColors.primary;
 
-    showModalBottomSheet(
+    showZenGlassBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      accentColor: targetColor,
       builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkCard : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(
-              color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: SafeArea(
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 26),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Handle bar
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white24 : Colors.black12,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-
                 // Header: Device Info & Status
                 Row(
                   children: [
-                    Container(
+                    ZenLiquidGlass(
+                      blurSigma: 0,
+                      borderRadius: 18,
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: (currentIsOn ? Colors.amber : Colors.blueGrey).withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
+                      glowColor: currentIsOn ? Colors.amber : null,
+                      surfaceColor: (currentIsOn ? Colors.amber : Colors.blueGrey).withOpacity(0.16),
                       child: Icon(
                         _getIconData(dev.icon),
                         color: currentIsOn ? Colors.amber : (isDark ? Colors.white70 : Colors.black87),
@@ -1177,7 +1131,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                             dev.name,
                             style: TextStyle(
                               fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w800,
                               color: isDark ? Colors.white : Colors.black87,
                             ),
                           ),
@@ -1192,13 +1146,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                         ],
                       ),
                     ),
-                    Container(
+                    ZenGlassPill(
+                      blurSigma: 0,
+                      borderRadius: 12,
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: targetColor.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: targetColor.withOpacity(0.3)),
-                      ),
+                      isSelected: true,
+                      glowColor: targetColor,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1218,21 +1171,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                   ],
                 ),
 
-                const SizedBox(height: 22),
+                const SizedBox(height: 20),
                 Divider(color: isDark ? Colors.white10 : Colors.black12, height: 1),
                 const SizedBox(height: 18),
 
                 // Section 1: Hẹn giờ nhanh
                 Row(
                   children: [
-                    Icon(Icons.timer_outlined, size: 18, color: isDark ? Colors.white70 : Colors.black87),
+                    Icon(Icons.timer_outlined, size: 18, color: targetColor),
                     const SizedBox(width: 8),
-                    Text(
-                      '${context.tr('timer_quick_title') ?? 'Hẹn giờ'} $targetActionText ${context.tr('timer_quick_after') ?? 'nhanh sau:'}',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                    Expanded(
+                      child: Text(
+                        '${context.tr('timer_quick_title') ?? 'Hẹn giờ'} $targetActionText ${context.tr('timer_quick_after') ?? 'nhanh sau:'}',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
                       ),
                     ),
                   ],
@@ -1257,14 +1212,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                 // Custom time button
                 SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
-                    ),
-                    icon: const Icon(Icons.edit_calendar_rounded, size: 18),
-                    label: Text(context.tr('quick_timer_custom_title')),
+                  child: ZenGlassButton(
+                    isPrimary: false,
+                    icon: Icons.edit_calendar_rounded,
+                    label: context.tr('quick_timer_custom_title'),
                     onPressed: () {
                       Navigator.pop(ctx);
                       _showCustomQuickTimerDialog(dev, deviceTopic, targetAction, targetActionText);
@@ -1276,33 +1227,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                 Divider(color: isDark ? Colors.white10 : Colors.black12, height: 1),
                 const SizedBox(height: 14),
 
-                // Section 2: Tạo lịch trình định kỳ
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.purpleGlow.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.calendar_month_rounded, color: AppColors.purpleGlow, size: 22),
-                  ),
-                  title: Text(
-                    context.tr('periodic_schedule'),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  subtitle: Text(
-                    context.tr('periodic_schedule_desc'),
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: isDark ? Colors.white60 : Colors.black54,
-                    ),
-                  ),
-                  trailing: const Icon(Icons.chevron_right_rounded),
+                // Section 2: Tạo lịch trình định kỳ dạng Kính Lỏng
+                ZenGlassCard(
+                  blurSigma: 0,
+                  borderRadius: 18,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   onTap: () {
                     Navigator.pop(ctx);
                     Navigator.push(
@@ -1310,6 +1239,46 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                       MaterialPageRoute(builder: (context) => const ScenesScreen()),
                     );
                   },
+                  child: Row(
+                    children: [
+                      ZenLiquidGlass(
+                        blurSigma: 0,
+                        borderRadius: 12,
+                        padding: const EdgeInsets.all(10),
+                        glowColor: AppColors.purpleGlow,
+                        surfaceColor: AppColors.purpleGlow.withOpacity(0.14),
+                        child: const Icon(Icons.calendar_month_rounded, color: AppColors.purpleGlow, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.tr('periodic_schedule'),
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              context.tr('periodic_schedule_desc'),
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: isDark ? Colors.white60 : Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: isDark ? Colors.white54 : Colors.black45,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -1330,41 +1299,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     bool isDark,
   ) {
     return Expanded(
-      child: InkWell(
+      child: ZenGlassCard(
+        blurSigma: 0,
+        borderRadius: 16,
+        padding: const EdgeInsets.symmetric(vertical: 12),
         onTap: () {
           Navigator.pop(ctx);
           _applyQuickTimer(dev, deviceTopic, targetAction, targetActionText, minutes);
         },
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0x1AFFFFFF) : const Color(0x0A000000),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isDark ? const Color(0x28FFFFFF) : const Color(0x18000000),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              minutes < 60 ? '$minutes' : '${minutes ~/ 60}',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : AppColors.lightText,
+              ),
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                minutes < 60 ? '$minutes' : '${minutes ~/ 60}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
+            const SizedBox(height: 2),
+            Text(
+              minutes < 60 ? context.tr('minutes') : context.tr('hours'),
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? Colors.white60 : Colors.black54,
               ),
-              const SizedBox(height: 2),
-              Text(
-                minutes < 60 ? context.tr('minutes') : context.tr('hours'),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: isDark ? Colors.white60 : Colors.black54,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1429,67 +1391,98 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     String targetActionText,
   ) {
     final TextEditingController minutesCtrl = TextEditingController(text: '45');
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = targetAction == 'delay_off' ? AppColors.roseGlow : context.zenColors.primary;
 
-    showDialog(
+    showZenGlassDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.timer_outlined, color: AppColors.primary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                '${context.tr('timer')} $targetActionText: ${dev.name}',
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
+      accentColor: accent,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(context.tr('quick_timer_enter_minutes'), style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+            Row(
+              children: [
+                ZenLiquidGlass(
+                  blurSigma: 0,
+                  borderRadius: 12,
+                  padding: const EdgeInsets.all(9),
+                  glowColor: accent,
+                  surfaceColor: accent.withOpacity(0.16),
+                  child: Icon(Icons.timer_outlined, color: accent, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '${context.tr('timer')} $targetActionText: ${dev.name}',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? AppColors.darkText : AppColors.lightText,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              context.tr('quick_timer_enter_minutes'),
+              style: TextStyle(
+                fontSize: 13.5,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: minutesCtrl,
               keyboardType: TextInputType.number,
               autofocus: true,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : AppColors.lightText,
+              ),
+              decoration: zenGlassInputDecoration(
+                ctx,
+                borderRadius: 16,
+                accentColor: accent,
+              ).copyWith(
                 suffixText: context.tr('minutes'),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('btn_cancel'), style: const TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: ZenGlassButton(
+                    isPrimary: false,
+                    label: context.tr('btn_cancel'),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ZenGlassButton(
+                    label: context.tr('btn_confirm'),
+                    accentColor: accent,
+                    onPressed: () {
+                      final int? mins = int.tryParse(minutesCtrl.text.trim());
+                      if (mins != null && mins > 0 && mins <= 1440) {
+                        Navigator.pop(ctx);
+                        _applyQuickTimer(dev, deviceTopic, targetAction, targetActionText, mins);
+                      } else {
+                        showFloatingToast(context, context.tr('error'), context.tr('quick_timer_invalid_minutes'), isError: true);
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
-            onPressed: () {
-              int? mins = int.tryParse(minutesCtrl.text.trim());
-              if (mins != null && mins > 0 && mins <= 1440) {
-                Navigator.pop(ctx);
-                _applyQuickTimer(dev, deviceTopic, targetAction, targetActionText, mins);
-              } else {
-                showFloatingToast(context, context.tr('error'), context.tr('quick_timer_invalid_minutes'), isError: true);
-              }
-            },
-            child: Text(context.tr('btn_confirm')),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 

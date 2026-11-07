@@ -1,8 +1,8 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/haptic_helper.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 /// Các phân loại thông báo trạng thái của ZenHome
 enum ZenHomeStatusType {
@@ -12,8 +12,7 @@ enum ZenHomeStatusType {
   caution,
 }
 
-/// Bảng thông báo trạng thái Luxury chuẩn ZenHome (Thay thế hoàn toàn phong cách cũ)
-/// Thiết kế kính mờ cao cấp Glassmorphism với viền bo góc đồng bộ, chống tràn chữ và tương phản cao.
+/// Bảng thông báo trạng thái Liquid Glass 2.0 chuẩn ZenHome
 class ZenHomeLuxuryDialog extends StatelessWidget {
   final ZenHomeStatusType type;
   final String title;
@@ -39,13 +38,13 @@ class ZenHomeLuxuryDialog extends StatelessWidget {
   Color _getPrimaryColor() {
     switch (type) {
       case ZenHomeStatusType.success:
-        return const Color(0xFF10B981); // Emerald
+        return const Color(0xFF10B981);
       case ZenHomeStatusType.error:
-        return const Color(0xFFF43F5E); // Crimson Ruby
+        return const Color(0xFFF43F5E);
       case ZenHomeStatusType.warning:
-        return const Color(0xFFF59E0B); // Imperial Gold / Amber
+        return const Color(0xFFF59E0B);
       case ZenHomeStatusType.caution:
-        return const Color(0xFFFF7A00); // Solar Orange
+        return const Color(0xFFFF7A00);
     }
   }
 
@@ -97,257 +96,176 @@ class ZenHomeLuxuryDialog extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Material(
           color: Colors.transparent,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 390),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.65 : 0.18),
-                  blurRadius: 36,
-                  offset: const Offset(0, 16),
+          child: ZenGlassDialogSurface(
+            accentColor: primaryColor,
+            maxWidth: 390,
+            padding: EdgeInsets.zero,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Thanh ánh sáng đỉnh đầu (Accent Horizon Bar)
+                Container(
+                  height: 4,
+                  width: double.infinity,
+                  decoration: BoxDecoration(gradient: gradient),
                 ),
-                BoxShadow(
-                  color: primaryColor.withOpacity(isDark ? 0.22 : 0.12),
-                  blurRadius: 28,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            // Kẹp ClipRRect bên ngoài BackdropFilter: KHÔNG BAO GIỜ BỊ TRÀN VIỀN MỜ
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A).withOpacity(0.92) : Colors.white.withOpacity(0.95),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(
-                      color: isDark ? primaryColor.withOpacity(0.35) : primaryColor.withOpacity(0.25),
-                      width: 1.5,
-                    ),
-                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Thanh ánh sáng đỉnh đầu (Accent Horizon Bar)
-                      Container(
-                        height: 4,
-                        width: double.infinity,
-                        decoration: BoxDecoration(gradient: gradient),
-                      ),
-
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
-                        child: Column(
-                          children: [
-                            // Hero Squircle Icon với hào quang Breathing Aura
-                            Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Lớp quầng sáng nhịp điệu (Aura Ring)
-                                Container(
-                                  width: 82,
-                                  height: 82,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: primaryColor.withOpacity(isDark ? 0.15 : 0.1),
-                                  ),
-                                )
-                                    .animate(onPlay: (c) => c.repeat(reverse: true))
-                                    .scale(begin: const Offset(0.92, 0.92), end: const Offset(1.12, 1.12), duration: 2000.ms, curve: Curves.easeInOut),
-
-                                // Khối Squircle biểu tượng chính
-                                Container(
-                                  width: 62,
-                                  height: 62,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(20),
-                                    gradient: gradient,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: primaryColor.withOpacity(0.42),
-                                        blurRadius: 18,
-                                        offset: const Offset(0, 6),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    _getIconData(),
-                                    size: 34,
-                                    color: Colors.white,
-                                  ),
-                                )
-                                    .animate()
-                                    .scale(duration: 450.ms, curve: Curves.easeOutBack),
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 82,
+                            height: 82,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: primaryColor.withOpacity(isDark ? 0.16 : 0.12),
+                            ),
+                          )
+                              .animate(onPlay: (c) => c.repeat(reverse: true))
+                              .scale(
+                                begin: const Offset(0.92, 0.92),
+                                end: const Offset(1.12, 1.12),
+                                duration: 2000.ms,
+                                curve: Curves.easeInOut,
+                              ),
+                          Container(
+                            width: 62,
+                            height: 62,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              gradient: gradient,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: primaryColor.withOpacity(0.42),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 6),
+                                ),
                               ],
                             ),
-
-                            const SizedBox(height: 20),
-
-                            // Tiêu đề thông báo sắc nét, tương phản cao
-                            Text(
-                              title,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.3,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              ),
-                            ).animate().fadeIn(duration: 250.ms).slideY(begin: 0.1, end: 0),
-
-                            const SizedBox(height: 10),
-
-                            // Mô tả chi tiết chống chìm màu
-                            Text(
-                              message,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                height: 1.48,
-                                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ).animate().fadeIn(delay: 80.ms, duration: 250.ms),
-
-                            // Khung hiển thị chi tiết (Chống tràn chữ 100%)
-                            if (details != null && details!.isNotEmpty) ...[
-                              const SizedBox(height: 18),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF1E293B).withOpacity(0.7) : const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Column(
-                                  children: details!.entries.map((entry) {
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 5),
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          SizedBox(
-                                            width: 105,
-                                            child: Text(
-                                              entry.key,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              entry.value,
-                                              textAlign: TextAlign.right,
-                                              softWrap: true,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                                fontFamily: (entry.value.contains(':') && entry.value.contains('-')) || entry.value.length > 18 ? 'monospace' : null,
-                                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ).animate().fadeIn(delay: 150.ms, duration: 250.ms),
-                            ],
-
-                            const SizedBox(height: 24),
-
-                            // Nút hành động chính (Luxury Gradient Button)
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  padding: EdgeInsets.zero,
-                                ),
-                                onPressed: () {
-                                  HapticHelper.light();
-                                  Navigator.of(context, rootNavigator: true).pop();
-                                  onPrimaryPressed?.call();
-                                },
-                                child: Ink(
-                                  decoration: BoxDecoration(
-                                    gradient: gradient,
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: primaryColor.withOpacity(0.35),
-                                        blurRadius: 14,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Container(
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      primaryButtonText ?? (type == ZenHomeStatusType.error ? 'Đóng' : 'Đồng ý'),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: -0.2,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            child: Icon(
+                              _getIconData(),
+                              size: 34,
+                              color: Colors.white,
                             ),
-
-                            // Nút hành động phụ (nếu có)
-                            if (secondaryButtonText != null) ...[
-                              const SizedBox(height: 10),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 44,
-                                child: OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    side: BorderSide(
-                                      color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                          ).animate().scale(duration: 450.ms, curve: Curves.easeOutBack),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          color: isDark ? AppColors.darkText : AppColors.lightText,
+                        ),
+                      ).animate().fadeIn(duration: 250.ms).slideY(begin: 0.1, end: 0),
+                      const SizedBox(height: 10),
+                      Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13.8,
+                          height: 1.48,
+                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                        ),
+                      ).animate().fadeIn(delay: 80.ms, duration: 250.ms),
+                      if (details != null && details!.isNotEmpty) ...[
+                        const SizedBox(height: 18),
+                        ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 16,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          surfaceColor: isDark
+                              ? Colors.white.withOpacity(0.06)
+                              : Colors.white.withOpacity(0.65),
+                          child: Column(
+                            children: details!.entries.map((entry) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 5),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      width: 105,
+                                      child: Text(
+                                        entry.key,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: isDark
+                                              ? AppColors.darkTextMuted
+                                              : AppColors.lightTextMuted,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  onPressed: () {
-                                    HapticHelper.light();
-                                    Navigator.of(context, rootNavigator: true).pop();
-                                    onSecondaryPressed?.call();
-                                  },
-                                  child: Text(
-                                    secondaryButtonText!,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        entry.value,
+                                        textAlign: TextAlign.right,
+                                        softWrap: true,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          fontFamily: (entry.value.contains(':') &&
+                                                      entry.value.contains('-')) ||
+                                                  entry.value.length > 18
+                                              ? 'monospace'
+                                              : null,
+                                          color: isDark
+                                              ? AppColors.darkText
+                                              : AppColors.lightText,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ],
+                              );
+                            }).toList(),
+                          ),
+                        ).animate().fadeIn(delay: 150.ms, duration: 250.ms),
+                      ],
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ZenGlassButton(
+                          label: primaryButtonText ??
+                              (type == ZenHomeStatusType.error ? 'Đóng' : 'Đồng ý'),
+                          accentColor: primaryColor,
+                          onPressed: () {
+                            HapticHelper.light();
+                            Navigator.of(context, rootNavigator: true).pop();
+                            onPrimaryPressed?.call();
+                          },
                         ),
                       ),
+                      if (secondaryButtonText != null) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ZenGlassButton(
+                            label: secondaryButtonText!,
+                            isPrimary: false,
+                            onPressed: () {
+                              HapticHelper.light();
+                              Navigator.of(context, rootNavigator: true).pop();
+                              onSecondaryPressed?.call();
+                            },
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -355,10 +273,6 @@ class ZenHomeLuxuryDialog extends StatelessWidget {
     );
   }
 }
-
-// ==============================================================================
-// CÁC HÀM TIỆN ÍCH HIỂN THỊ THÔNG BÁO CHUẨN ZENHOME (TOÀN ỨNG DỤNG)
-// ==============================================================================
 
 Future<void> showZenHomeSuccessDialog(
   BuildContext context, {
@@ -372,6 +286,7 @@ Future<void> showZenHomeSuccessDialog(
   return showDialog<void>(
     context: context,
     barrierDismissible: true,
+    barrierColor: Colors.black.withOpacity(0.56),
     builder: (ctx) => ZenHomeLuxuryDialog(
       type: ZenHomeStatusType.success,
       title: title,
@@ -395,6 +310,7 @@ Future<void> showZenHomeErrorDialog(
   return showDialog<void>(
     context: context,
     barrierDismissible: true,
+    barrierColor: Colors.black.withOpacity(0.56),
     builder: (ctx) => ZenHomeLuxuryDialog(
       type: ZenHomeStatusType.error,
       title: title,
@@ -418,6 +334,7 @@ Future<void> showZenHomeWarningDialog(
   return showDialog<void>(
     context: context,
     barrierDismissible: true,
+    barrierColor: Colors.black.withOpacity(0.56),
     builder: (ctx) => ZenHomeLuxuryDialog(
       type: ZenHomeStatusType.warning,
       title: title,
@@ -429,7 +346,7 @@ Future<void> showZenHomeWarningDialog(
   );
 }
 
-/// Hộp thoại xác nhận thận trọng / cảnh báo nguy hiểm (Caution Confirmation Modal)
+/// Hộp thoại xác nhận thận trọng / cảnh báo nguy hiểm (Liquid Glass Caution Modal)
 Future<bool> showZenHomeCautionDialog(
   BuildContext context, {
   required String title,
@@ -441,179 +358,125 @@ Future<bool> showZenHomeCautionDialog(
 }) async {
   HapticHelper.warning();
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final accentColor = isDanger ? const Color(0xFFF43F5E) : const Color(0xFFF59E0B);
+  final accentColor = isDanger ? AppColors.roseGlow : AppColors.amberGlow;
   final gradient = isDanger
       ? const LinearGradient(colors: [Color(0xFFE11D48), Color(0xFFF43F5E)])
       : const LinearGradient(colors: [Color(0xFFD97706), Color(0xFFF59E0B)]);
 
-  final result = await showDialog<bool>(
+  final result = await showZenGlassDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (ctx) => Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 390),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.65 : 0.18),
-                  blurRadius: 36,
-                  offset: const Offset(0, 16),
+    accentColor: accentColor,
+    maxWidth: 390,
+    padding: EdgeInsets.zero,
+    builder: (ctx) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: 4,
+          width: double.infinity,
+          decoration: BoxDecoration(gradient: gradient),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+          child: Column(
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: accentColor.withOpacity(0.14),
+                  border: Border.all(
+                    color: accentColor.withOpacity(0.38),
+                    width: 1.5,
+                  ),
                 ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A).withOpacity(0.92) : Colors.white.withOpacity(0.95),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(
-                      color: accentColor.withOpacity(0.35),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(height: 4, width: double.infinity, decoration: BoxDecoration(gradient: gradient)),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 62,
-                              height: 62,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                color: accentColor.withOpacity(0.12),
-                                border: Border.all(color: accentColor.withOpacity(0.3), width: 1.5),
-                              ),
-                              child: Icon(
-                                isDanger ? Icons.warning_amber_rounded : Icons.shield_outlined,
-                                size: 34,
-                                color: accentColor,
-                              ),
-                            ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
-
-                            const SizedBox(height: 18),
-
-                            Text(
-                              title,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w800,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              ),
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: accentColor.withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: accentColor.withOpacity(0.2)),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(Icons.info_outline_rounded, size: 18, color: accentColor),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      warningText,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        height: 1.45,
-                                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF1E293B),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            if (cautionDetails != null) ...[
-                              const SizedBox(height: 12),
-                              Text(
-                                cautionDetails,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
-
-                            const SizedBox(height: 22),
-
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: accentColor,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  elevation: 2,
-                                ),
-                                onPressed: () {
-                                  HapticHelper.medium();
-                                  Navigator.pop(ctx, true);
-                                },
-                                child: Text(
-                                  confirmText,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 44,
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  side: BorderSide(
-                                    color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  HapticHelper.light();
-                                  Navigator.pop(ctx, false);
-                                },
-                                child: Text(
-                                  cancelText,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                child: Icon(
+                  isDanger ? Icons.warning_amber_rounded : Icons.shield_outlined,
+                  size: 34,
+                  color: accentColor,
+                ),
+              ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+              const SizedBox(height: 18),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
                 ),
               ),
-            ),
+              const SizedBox(height: 12),
+              ZenLiquidGlass(
+                blurSigma: 0,
+                borderRadius: 14,
+                glowColor: accentColor,
+                padding: const EdgeInsets.all(12),
+                surfaceColor: accentColor.withOpacity(isDark ? 0.12 : 0.08),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 18, color: accentColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        warningText,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.45,
+                          color: isDark
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF1E293B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (cautionDetails != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  cautionDetails,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                child: ZenGlassButton(
+                  label: confirmText,
+                  isDanger: isDanger,
+                  accentColor: accentColor,
+                  onPressed: () {
+                    HapticHelper.medium();
+                    Navigator.pop(ctx, true);
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: ZenGlassButton(
+                  label: cancelText,
+                  isPrimary: false,
+                  onPressed: () {
+                    HapticHelper.light();
+                    Navigator.pop(ctx, false);
+                  },
+                ),
+              ),
+            ],
           ),
         ),
-      ),
+      ],
     ),
   );
 
@@ -622,7 +485,6 @@ Future<bool> showZenHomeCautionDialog(
 
 // ==============================================================================
 // CÁC HÀM VÀ LỚP BẢO LƯU TƯƠNG THÍCH (BACKWARD COMPATIBILITY ALIASES)
-// Giúp toàn bộ mã nguồn cũ chuyển tiếp mượt mà mà không làm vỡ code bất kỳ đâu!
 // ==============================================================================
 typedef ZaloPayStatusType = ZenHomeStatusType;
 typedef ZaloPayStatusDialog = ZenHomeLuxuryDialog;
@@ -634,14 +496,15 @@ Future<void> showZaloPaySuccessDialog(
   Map<String, String>? details,
   String? buttonText,
   VoidCallback? onDismiss,
-}) => showZenHomeSuccessDialog(
-  context,
-  title: title,
-  message: message,
-  details: details,
-  buttonText: buttonText,
-  onDismiss: onDismiss,
-);
+}) =>
+    showZenHomeSuccessDialog(
+      context,
+      title: title,
+      message: message,
+      details: details,
+      buttonText: buttonText,
+      onDismiss: onDismiss,
+    );
 
 Future<void> showZaloPayErrorDialog(
   BuildContext context, {
@@ -650,14 +513,15 @@ Future<void> showZaloPayErrorDialog(
   Map<String, String>? details,
   String? buttonText,
   VoidCallback? onDismiss,
-}) => showZenHomeErrorDialog(
-  context,
-  title: title,
-  message: message,
-  details: details,
-  buttonText: buttonText,
-  onDismiss: onDismiss,
-);
+}) =>
+    showZenHomeErrorDialog(
+      context,
+      title: title,
+      message: message,
+      details: details,
+      buttonText: buttonText,
+      onDismiss: onDismiss,
+    );
 
 Future<void> showZaloPayWarningDialog(
   BuildContext context, {
@@ -666,14 +530,15 @@ Future<void> showZaloPayWarningDialog(
   Map<String, String>? details,
   String? buttonText,
   VoidCallback? onDismiss,
-}) => showZenHomeWarningDialog(
-  context,
-  title: title,
-  message: message,
-  details: details,
-  buttonText: buttonText,
-  onDismiss: onDismiss,
-);
+}) =>
+    showZenHomeWarningDialog(
+      context,
+      title: title,
+      message: message,
+      details: details,
+      buttonText: buttonText,
+      onDismiss: onDismiss,
+    );
 
 Future<bool> showCautionConfirmDialog(
   BuildContext context, {
@@ -683,12 +548,13 @@ Future<bool> showCautionConfirmDialog(
   String confirmText = 'Xác nhận thực hiện',
   String cancelText = 'Hủy bỏ',
   bool isDanger = true,
-}) => showZenHomeCautionDialog(
-  context,
-  title: title,
-  warningText: warningText,
-  cautionDetails: cautionDetails,
-  confirmText: confirmText,
-  cancelText: cancelText,
-  isDanger: isDanger,
-);
+}) =>
+    showZenHomeCautionDialog(
+      context,
+      title: title,
+      warningText: warningText,
+      cautionDetails: cautionDetails,
+      confirmText: confirmText,
+      cancelText: cancelText,
+      isDanger: isDanger,
+    );

@@ -1,20 +1,20 @@
-import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
-/// Custom Track Shape cho Slider phong cách Luxury Smart Home
-/// Có góc bo tròn hoàn hảo, hỗ trợ dải màu Gradient rực rỡ và viền bóng phát sáng
+/// Custom Track Shape cho Slider phong cách Liquid Glass 2.0
 class LuxurySliderTrackShape extends RoundedRectSliderTrackShape {
   final List<Color> activeGradient;
   final Color inactiveColor;
+  final Color borderColor;
   final double trackHeight;
   final bool enableGlow;
 
   const LuxurySliderTrackShape({
     this.activeGradient = const [Color(0xFFF59E0B), Color(0xFFEA580C)],
     this.inactiveColor = const Color(0x1FFFFFFF),
+    this.borderColor = const Color(0x26FFFFFF),
     this.trackHeight = 10.0,
     this.enableGlow = true,
   });
@@ -27,7 +27,10 @@ class LuxurySliderTrackShape extends RoundedRectSliderTrackShape {
     bool isEnabled = false,
     bool isDiscrete = false,
   }) {
-    final double overlayWidth = sliderTheme.overlayShape?.getPreferredSize(isEnabled, isDiscrete).width ?? 24.0;
+    final double overlayWidth = sliderTheme.overlayShape
+            ?.getPreferredSize(isEnabled, isDiscrete)
+            .width ??
+        24.0;
     final double trackLeft = offset.dx + overlayWidth / 2;
     final double trackTop = offset.dy + (parentBox.size.height - trackHeight) / 2;
     final double trackWidth = parentBox.size.width - overlayWidth;
@@ -60,21 +63,21 @@ class LuxurySliderTrackShape extends RoundedRectSliderTrackShape {
     final Radius trackRadius = Radius.circular(trackRect.height / 2);
     final RRect fullRRect = RRect.fromRectAndRadius(trackRect, trackRadius);
 
-    // 1. Vẽ rãnh không hoạt động (Inactive Track) với viền kính mờ tinh tế
+    // 1. Rãnh kính mờ không hoạt động (Translucent Glass Track)
     final Paint inactivePaint = Paint()
       ..color = inactiveColor
       ..style = PaintingStyle.fill;
     canvas.drawRRect(fullRRect, inactivePaint);
 
-    // Đường viền mảnh chống chìm màu cho Inactive Track
     final Paint borderPaint = Paint()
-      ..color = Colors.white.withOpacity(0.08)
+      ..color = borderColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+      ..strokeWidth = 1.1;
     canvas.drawRRect(fullRRect, borderPaint);
 
-    // 2. Vẽ rãnh đang hoạt động (Active Track) với Gradient rực rỡ
-    final double activeWidth = (thumbCenter.dx - trackRect.left).clamp(0.0, trackRect.width);
+    // 2. Rãnh đang hoạt động (Luminous Liquid Active Track)
+    final double activeWidth =
+        (thumbCenter.dx - trackRect.left).clamp(0.0, trackRect.width);
     if (activeWidth > 0) {
       final Rect activeRect = Rect.fromLTWH(
         trackRect.left,
@@ -84,11 +87,10 @@ class LuxurySliderTrackShape extends RoundedRectSliderTrackShape {
       );
       final RRect activeRRect = RRect.fromRectAndRadius(activeRect, trackRadius);
 
-      // Hiệu ứng phát sáng nhẹ bên dưới thanh active
       if (enableGlow && activeGradient.isNotEmpty) {
         final Paint glowPaint = Paint()
-          ..color = activeGradient.first.withOpacity(0.35)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+          ..color = activeGradient.first.withOpacity(0.38)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
         canvas.drawRRect(activeRRect, glowPaint);
       }
 
@@ -105,8 +107,7 @@ class LuxurySliderTrackShape extends RoundedRectSliderTrackShape {
   }
 }
 
-/// Custom Thumb Shape cho Slider: Nút kéo nổi 3D sang trọng
-/// Vành ngoài màu trắng kim loại cao cấp + Lõi phát sáng gradient + Tâm phản quang
+/// Nút kéo Kính Ngọc 3D (Liquid Crystal Thumb)
 class LuxurySliderThumbShape extends SliderComponentShape {
   final double enabledThumbRadius;
   final Color glowColor;
@@ -140,19 +141,22 @@ class LuxurySliderThumbShape extends SliderComponentShape {
   }) {
     final Canvas canvas = context.canvas;
 
-    // 1. Lớp bóng đổ sâu 3D (Ambient Glow & Depth Shadow)
     final Path shadowPath = Path()
-      ..addOval(Rect.fromCircle(center: center + const Offset(0, 3), radius: enabledThumbRadius + 1));
+      ..addOval(
+        Rect.fromCircle(
+          center: center + const Offset(0, 3),
+          radius: enabledThumbRadius + 1,
+        ),
+      );
     canvas.drawShadow(shadowPath, glowColor.withOpacity(0.55), 8, true);
 
-    // 2. Vành ngoài màu trắng kim loại chống chìm màu tuyệt đối (Brushed Chrome Ring)
     final Paint outerRingPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, enabledThumbRadius, outerRingPaint);
 
-    // 3. Lõi Gradient đá quý rực rỡ bên trong (Vibrant Core)
-    final Rect coreRect = Rect.fromCircle(center: center, radius: enabledThumbRadius - 2.8);
+    final Rect coreRect =
+        Rect.fromCircle(center: center, radius: enabledThumbRadius - 2.8);
     final Paint corePaint = Paint()
       ..shader = LinearGradient(
         colors: coreGradient,
@@ -162,9 +166,8 @@ class LuxurySliderThumbShape extends SliderComponentShape {
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, enabledThumbRadius - 2.8, corePaint);
 
-    // 4. Khía rãnh xúc giác ở tâm nút (Tactile Micro Grip)
     final Paint gripPaint = Paint()
-      ..color = Colors.white.withOpacity(0.9)
+      ..color = Colors.white.withOpacity(0.92)
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeWidth = 1.8;
@@ -176,7 +179,7 @@ class LuxurySliderThumbShape extends SliderComponentShape {
   }
 }
 
-/// Widget Thanh Trượt Cao Cấp (Luxury Slider) tích hợp sẵn Haptics, Milestones và Giao diện Sang trọng
+/// Widget Thanh Trượt Kính Lỏng Cao Cấp (Luxury Liquid Glass Slider)
 class LuxurySlider extends StatelessWidget {
   final double value;
   final double min;
@@ -206,8 +209,11 @@ class LuxurySlider extends StatelessWidget {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color effectiveGlow = glowColor ?? activeGradient.first;
     final Color inactiveTrack = isDark
-        ? const Color(0xFF1E293B)
-        : const Color(0xFFE2E8F0);
+        ? Colors.white.withOpacity(0.09)
+        : const Color(0xFF94A3B8).withOpacity(0.20);
+    final Color trackBorder = isDark
+        ? Colors.white.withOpacity(0.14)
+        : const Color(0xFFCBD5E1).withOpacity(0.75);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -218,6 +224,7 @@ class LuxurySlider extends StatelessWidget {
             trackShape: LuxurySliderTrackShape(
               activeGradient: activeGradient,
               inactiveColor: inactiveTrack,
+              borderColor: trackBorder,
               trackHeight: 10,
               enableGlow: true,
             ),
@@ -235,8 +242,8 @@ class LuxurySlider extends StatelessWidget {
             max: max,
             onChanged: (val) {
               if (val.round() != value.round()) {
-                // Rung nhẹ khi trượt qua từng nấc giá trị
-                if (milestoneValues != null && milestoneValues!.contains(val.round())) {
+                if (milestoneValues != null &&
+                    milestoneValues!.contains(val.round())) {
                   HapticFeedback.mediumImpact();
                 } else if (val.round() % 5 == 0) {
                   HapticFeedback.selectionClick();
@@ -248,35 +255,47 @@ class LuxurySlider extends StatelessWidget {
           ),
         ),
 
-        // Hàng đánh dấu mốc (Milestones) nếu được truyền vào
         if (milestoneValues != null && milestoneValues!.isNotEmpty) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: milestoneValues!.map((m) {
+                final bool isSelected = value.round() == m;
                 final bool isReached = value >= m;
                 final String label = milestoneLabelBuilder != null
                     ? milestoneLabelBuilder!(m)
                     : (m < 60 ? '${m}m' : '${m ~/ 60}h');
 
-                return GestureDetector(
+                return ZenGlassPill(
+                  blurSigma: 0,
+                  isSelected: isSelected,
+                  glowColor: effectiveGlow,
+                  borderRadius: 12,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8.5,
+                    vertical: 4.5,
+                  ),
                   onTap: () {
                     HapticFeedback.selectionClick();
                     onChanged(m.toDouble());
                     onChangeEnd?.call(m.toDouble());
                   },
-                  child: AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 180),
+                  child: Text(
+                    label,
                     style: TextStyle(
                       fontSize: 10.5,
-                      fontWeight: isReached ? FontWeight.w800 : FontWeight.w600,
-                      color: isReached
-                          ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                          : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                      fontWeight:
+                          (isSelected || isReached) ? FontWeight.w800 : FontWeight.w600,
+                      color: isSelected
+                          ? (isDark ? Colors.white : effectiveGlow)
+                          : (isReached
+                              ? (isDark ? AppColors.darkText : AppColors.lightText)
+                              : (isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.lightTextMuted)),
                     ),
-                    child: Text(label),
                   ),
                 );
               }).toList(),

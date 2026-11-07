@@ -40,7 +40,6 @@ import 'package:zenhome_app/core/services/app_update_service.dart';
 import 'package:zenhome_app/core/services/crash_sync_service.dart';
 import 'package:zenhome_app/features/feedback/ui/bug_report_dialog.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:zenhome_app/core/services/local_network_service.dart';
 import 'package:zenhome_app/core/providers/local_network_provider.dart';
 import 'package:zenhome_app/core/services/ble_local_service.dart';
 import 'package:zenhome_app/core/utils/masking_helper.dart';
@@ -242,117 +241,217 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Builder(
-      
-      builder: (context) { ThemeMode currentThemeMode = ref.watch(themeModeNotifierProvider);
+      builder: (context) {
+        ThemeMode currentThemeMode = ref.watch(themeModeNotifierProvider);
         return Builder(
-          
-          builder: (context) { String currentLang = ref.watch(localeNotifierProvider).languageCode;
+          builder: (context) {
+            String currentLang = ref.watch(localeNotifierProvider).languageCode;
             bool isDark = Theme.of(context).brightness == Brightness.dark;
             bool isEng = currentLang == 'en';
+            final zen = context.zenColors;
             final activeConfig = ref.watch(homeConfigProvider).activeConfig;
             final currentPreset = ref.watch(themePresetNotifierProvider);
             final currentPresetConfig = ThemePresetConfig.fromPreset(currentPreset);
-            
-            return SafeArea(
-              bottom: false,
-              child: RefreshIndicator(
-                color: const Color(0xFF0F766E),
-                onRefresh: () async {
-                  await ref.read(homeConfigProvider).syncFromFirestore();
-                  final activeConfig = ref.read(homeConfigProvider).activeConfig;
-                  ref.read(mqttRepositoryProvider).disconnect();
-                  await Future.delayed(const Duration(milliseconds: 300));
-                  ref.read(mqttRepositoryProvider).connect(
-                    userId: activeConfig.userId,
-                    mqttServer: activeConfig.mqttServer,
-                    mqttPrefix: activeConfig.mqttPrefix,
-                    dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
-                    mqttUser: activeConfig.mqttUser,
-                    mqttPass: activeConfig.mqttPass,
-                  );
-                  await Future.delayed(const Duration(milliseconds: 500));
-                },
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
-                children: [
-                  Text(context.tr('setting_title'), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))
-                      .animate().slideY(begin: -0.2, end: 0),
-                  const SizedBox(height: 25),
-                  
-                  // --- GROUP 1: TÀI KHOẢN ---
-                  ZenLiquidGlass(
-                    borderRadius: 24,
-                    blurSigma: 12,
-                    surfaceColor: isDark
-                        ? const Color(0xFF0F172A).withOpacity(0.65)
-                        : Colors.white.withOpacity(0.85),
-                    customBorder: Border.all(
-                      color: isDark
-                          ? Colors.white.withOpacity(0.12)
-                          : const Color(0xFFCBD5E1).withOpacity(0.7),
-                      width: 1.1,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                    child: ListTile(
-                      leading: const UserAvatar(radius: 25),
-                      title: Text(FirebaseAuth.instance.currentUser?.displayName ?? context.tr('profile_title'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      subtitle: Text(getDisplayEmailOrPhone(FirebaseAuth.instance.currentUser)),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen())).then((_) {
-                          (context as Element).markNeedsBuild();
-                        });
-                      },
-                    ),
-                  ).animate(delay: 100.ms).fade(duration: 400.ms).slideX(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuart),
-                  const SizedBox(height: 25),
-                  
-                  // --- GROUP 2: CÀI ĐẶT CHUNG ---
-                  Text(context.tr('general_settings'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500))
-                      .animate(delay: 200.ms).fade(duration: 400.ms),
-                  const SizedBox(height: 10),
-                  ZenLiquidGlass(
-                    borderRadius: 24,
-                    blurSigma: 12,
-                    surfaceColor: isDark
-                        ? const Color(0xFF0F172A).withOpacity(0.65)
-                        : Colors.white.withOpacity(0.85),
-                    customBorder: Border.all(
-                      color: isDark
-                          ? Colors.white.withOpacity(0.12)
-                          : const Color(0xFFCBD5E1).withOpacity(0.7),
-                      width: 1.1,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Column(
+            final Color glassDividerColor = isDark
+                ? Colors.white.withOpacity(0.08)
+                : const Color(0xFFCBD5E1).withOpacity(0.55);
+
+            return Scaffold(
+              backgroundColor: Colors.transparent,
+              body: SafeArea(
+                bottom: false,
+                child: RefreshIndicator(
+                  color: zen.primary,
+                  onRefresh: () async {
+                    await ref.read(homeConfigProvider).syncFromFirestore();
+                    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+                    ref.read(mqttRepositoryProvider).disconnect();
+                    await Future.delayed(const Duration(milliseconds: 300));
+                    ref.read(mqttRepositoryProvider).connect(
+                      userId: activeConfig.userId,
+                      mqttServer: activeConfig.mqttServer,
+                      mqttPrefix: activeConfig.mqttPrefix,
+                      dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
+                      mqttUser: activeConfig.mqttUser,
+                      mqttPass: activeConfig.mqttPass,
+                    );
+                    await Future.delayed(const Duration(milliseconds: 500));
+                  },
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+                    children: [
+                      Text(
+                        context.tr('setting_title'),
+                        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.4),
+                      ).animate().slideY(begin: -0.2, end: 0),
+                      const SizedBox(height: 22),
+
+                      // --- GROUP 1: TÀI KHOẢN (PROFILE HERO GLASS CARD 2.0) ---
+                      ZenGlassCard(
+                        borderRadius: 26,
+                        blurSigma: 14,
+                        isActive: true,
+                        glowColor: zen.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                          ).then((_) {
+                            if (context.mounted) {
+                              (context as Element).markNeedsBuild();
+                            }
+                          });
+                        },
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(2.5),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: zen.brandHero,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: zen.primary.withOpacity(isDark ? 0.42 : 0.25),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const UserAvatar(radius: 26),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    FirebaseAuth.instance.currentUser?.displayName ?? context.tr('profile_title'),
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.2,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    getDisplayEmailOrPhone(FirebaseAuth.instance.currentUser),
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 7),
+                                  ZenGlassPill(
+                                    blurSigma: 0,
+                                    isSelected: true,
+                                    glowColor: zen.primary,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          activeConfig.role == 'owner'
+                                              ? Icons.verified_user_rounded
+                                              : Icons.home_rounded,
+                                          size: 12.5,
+                                          color: isDark ? zen.primaryAccent : zen.primary,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Flexible(
+                                          child: Text(
+                                            activeConfig.homeName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: isDark ? zen.primaryAccent : zen.primary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ZenLiquidGlass(
+                              width: 36,
+                              height: 36,
+                              borderRadius: 12,
+                              blurSigma: 0,
+                              alignment: Alignment.center,
+                              surfaceColor: isDark
+                                  ? Colors.white.withOpacity(0.08)
+                                  : Colors.white.withOpacity(0.68),
+                              child: Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 14,
+                                color: isDark ? zen.primaryAccent : zen.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ).animate(delay: 100.ms).fade(duration: 400.ms).slideX(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuart),
+                      const SizedBox(height: 25),
+
+                      // --- GROUP 2: CÀI ĐẶT CHUNG ---
+                      Text(
+                        context.tr('general_settings'),
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                        ),
+                      ).animate(delay: 200.ms).fade(duration: 400.ms),
+                      const SizedBox(height: 10),
+                      ZenGlassCard(
+                        borderRadius: 24,
+                        blurSigma: 14,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Column(
                           children: [
                             // --- QUẢN LÝ NGÔI NHÀ & CHUYỂN ĐỔI NHÀ ---
                             ListTile(
                               leading: Container(
                                 padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0F766E).withOpacity(0.12),
+                                  color: zen.primary.withOpacity(0.14),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: const Icon(Icons.home_work_rounded, color: Color(0xFF0F766E), size: 22),
+                                child: Icon(
+                                  Icons.home_work_rounded,
+                                  color: isDark ? zen.primaryAccent : zen.primary,
+                                  size: 22,
+                                ),
                               ),
-                              title: Text(context.tr('manage_homes') ?? 'Quản lý ngôi nhà', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                              title: Text(
+                                context.tr('manage_homes') ?? 'Quản lý ngôi nhà',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                              ),
                               subtitle: Text(
                                 '${activeConfig.homeName} • ${ref.watch(homeConfigProvider).availableHomes.length} ${context.tr('homes_count') ?? 'ngôi nhà'}',
-                                style: TextStyle(fontSize: 12.5, color: Colors.grey.shade500),
+                                style: TextStyle(fontSize: 12.5, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                               ),
                               trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                               onTap: () => showHomeSwitcherBottomSheet(context, ref),
                             ),
-                            Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+                            Divider(height: 1, color: glassDividerColor, indent: 64, endIndent: 16),
 
                             if (activeConfig.role == 'owner') ...[
                               ListTile(
                                 leading: Container(
                                   padding: const EdgeInsets.all(9),
                                   decoration: BoxDecoration(
-                                    color: Colors.orange.withOpacity(0.12),
+                                    color: Colors.orange.withOpacity(0.14),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                   child: const Icon(Icons.group_add_rounded, color: Colors.orange, size: 22),
@@ -361,85 +460,70 @@ class SettingsScreen extends ConsumerWidget {
                                 trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MemberScreen())),
                               ),
-                              Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+                              Divider(height: 1, color: glassDividerColor, indent: 64, endIndent: 16),
                             ],
-                            
-                            // --- NÚT CHỌN THEME 3 NẤC ---
+
+                            // --- NÚT CHỌN THEME 3 NẤC (FROSTED GLASS CAPSULE 2.0) ---
                             ListTile(
                               leading: Container(
                                 padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
-                                  color: Colors.purple.withOpacity(0.12),
+                                  color: zen.primary.withOpacity(0.14),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: Icon(
                                   currentThemeMode == ThemeMode.light
                                       ? Icons.light_mode_rounded
-                                      : (currentThemeMode == ThemeMode.dark ? Icons.dark_mode_rounded : Icons.brightness_auto_rounded), 
-                                  color: Colors.purple,
+                                      : (currentThemeMode == ThemeMode.dark
+                                          ? Icons.dark_mode_rounded
+                                          : Icons.brightness_auto_rounded),
+                                  color: isDark ? zen.primaryAccent : zen.primary,
                                   size: 22,
                                 ),
                               ),
                               title: Text(context.tr('theme_mode'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                              trailing: Container(
-                                width: 142,
+                              trailing: ZenLiquidGlass(
+                                width: 144,
                                 height: 40,
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xCC111827) : const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(22),
-                                  border: Border.all(
-                                    color: isDark ? const Color(0x2EFFFFFF) : const Color(0x14000000),
-                                    width: 1.2,
+                                borderRadius: 22,
+                                blurSigma: 0,
+                                rimWidth: 1.1,
+                                surfaceColor: isDark
+                                    ? Colors.white.withOpacity(0.06)
+                                    : Colors.white.withOpacity(0.58),
+                                customShadows: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(isDark ? 0.24 : 0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                                ),
+                                ],
                                 child: Stack(
                                   children: [
-                                    // Sliding Indicator Pill
+                                    // Glowing Active Droplet Pill
                                     AnimatedAlign(
                                       duration: const Duration(milliseconds: 300),
                                       curve: Curves.easeOutCubic,
                                       alignment: currentThemeMode == ThemeMode.light
                                           ? Alignment.centerLeft
-                                          : (currentThemeMode == ThemeMode.system ? Alignment.center : Alignment.centerRight),
+                                          : (currentThemeMode == ThemeMode.system
+                                              ? Alignment.center
+                                              : Alignment.centerRight),
                                       child: FractionallySizedBox(
                                         widthFactor: 1 / 3,
                                         child: Container(
                                           margin: const EdgeInsets.all(3.5),
                                           decoration: BoxDecoration(
-                                            gradient: currentThemeMode == ThemeMode.light
-                                                ? const LinearGradient(
-                                                    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-                                                    begin: Alignment.topLeft,
-                                                    end: Alignment.bottomRight,
-                                                  )
-                                                : (currentThemeMode == ThemeMode.system
-                                                    ? const LinearGradient(
-                                                        colors: [Color(0xFF0D9488), Color(0xFF059669)],
-                                                        begin: Alignment.topLeft,
-                                                        end: Alignment.bottomRight,
-                                                      )
-                                                    : const LinearGradient(
-                                                        colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                                                        begin: Alignment.topLeft,
-                                                        end: Alignment.bottomRight,
-                                                      )),
+                                            gradient: zen.brandHero,
                                             borderRadius: BorderRadius.circular(18),
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(0.36),
+                                              width: 0.9,
+                                            ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: (currentThemeMode == ThemeMode.light
-                                                        ? const Color(0xFFF59E0B)
-                                                        : (currentThemeMode == ThemeMode.system
-                                                            ? const Color(0xFF0D9488)
-                                                            : const Color(0xFF8B5CF6)))
-                                                    .withOpacity(0.4),
-                                                blurRadius: 8,
+                                                color: zen.primary.withOpacity(0.45),
+                                                blurRadius: 10,
                                                 offset: const Offset(0, 2),
                                               ),
                                             ],
@@ -447,119 +531,117 @@ class SettingsScreen extends ConsumerWidget {
                                         ),
                                       ),
                                     ),
-                                     // Action Options
-                                     Row(
-                                       children: [
-                                         Expanded(
-                                           child: GestureDetector(
-                                             behavior: HitTestBehavior.opaque,
-                                             onTapDown: (details) {
-                                               _changeThemeWithTelegramTransition(
-                                                 context,
-                                                 ThemeMode.light,
-                                                 currentThemeMode,
-                                                 ref,
-                                                 details.globalPosition,
-                                               );
-                                             },
-                                             child: Center(
-                                               child: Icon(
-                                                 Icons.light_mode_rounded,
-                                                 size: 18,
-                                                 color: currentThemeMode == ThemeMode.light
-                                                     ? Colors.white
-                                                     : (isDark ? Colors.white60 : Colors.black54),
-                                               ),
-                                             ),
-                                           ),
-                                         ),
-                                         Expanded(
-                                           child: GestureDetector(
-                                             behavior: HitTestBehavior.opaque,
-                                             onTapDown: (details) {
-                                               _changeThemeWithTelegramTransition(
-                                                 context,
-                                                 ThemeMode.system,
-                                                 currentThemeMode,
-                                                 ref,
-                                                 details.globalPosition,
-                                               );
-                                             },
-                                             child: Center(
-                                               child: Icon(
-                                                 Icons.brightness_auto_rounded,
-                                                 size: 18,
-                                                 color: currentThemeMode == ThemeMode.system
-                                                     ? Colors.white
-                                                     : (isDark ? Colors.white60 : Colors.black54),
-                                               ),
-                                             ),
-                                           ),
-                                         ),
-                                         Expanded(
-                                           child: GestureDetector(
-                                             behavior: HitTestBehavior.opaque,
-                                             onTapDown: (details) {
-                                               _changeThemeWithTelegramTransition(
-                                                 context,
-                                                 ThemeMode.dark,
-                                                 currentThemeMode,
-                                                 ref,
-                                                 details.globalPosition,
-                                               );
-                                             },
-                                             child: Center(
-                                               child: Icon(
-                                                 Icons.dark_mode_rounded,
-                                                 size: 18,
-                                                 color: currentThemeMode == ThemeMode.dark
-                                                     ? Colors.white
-                                                     : (isDark ? Colors.white60 : Colors.black54),
-                                               ),
-                                             ),
-                                           ),
-                                         ),
-                                       ],
-                                     ),
-                                   ],
-                                 ),
-                               ),
-                             ),
-                             
-                            Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
-                            
-                            // --- NÚT ĐỔI NGÔN NGỮ ---
+                                    // Action Options
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTapDown: (details) {
+                                              _changeThemeWithTelegramTransition(
+                                                context,
+                                                ThemeMode.light,
+                                                currentThemeMode,
+                                                ref,
+                                                details.globalPosition,
+                                              );
+                                            },
+                                            child: Center(
+                                              child: Icon(
+                                                Icons.light_mode_rounded,
+                                                size: 18,
+                                                color: currentThemeMode == ThemeMode.light
+                                                    ? Colors.white
+                                                    : (isDark ? Colors.white60 : Colors.black54),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTapDown: (details) {
+                                              _changeThemeWithTelegramTransition(
+                                                context,
+                                                ThemeMode.system,
+                                                currentThemeMode,
+                                                ref,
+                                                details.globalPosition,
+                                              );
+                                            },
+                                            child: Center(
+                                              child: Icon(
+                                                Icons.brightness_auto_rounded,
+                                                size: 18,
+                                                color: currentThemeMode == ThemeMode.system
+                                                    ? Colors.white
+                                                    : (isDark ? Colors.white60 : Colors.black54),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTapDown: (details) {
+                                              _changeThemeWithTelegramTransition(
+                                                context,
+                                                ThemeMode.dark,
+                                                currentThemeMode,
+                                                ref,
+                                                details.globalPosition,
+                                              );
+                                            },
+                                            child: Center(
+                                              child: Icon(
+                                                Icons.dark_mode_rounded,
+                                                size: 18,
+                                                color: currentThemeMode == ThemeMode.dark
+                                                    ? Colors.white
+                                                    : (isDark ? Colors.white60 : Colors.black54),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            Divider(height: 1, color: glassDividerColor, indent: 64, endIndent: 16),
+
+                            // --- NÚT ĐỔI NGÔN NGỮ (FROSTED GLASS CAPSULE 2.0) ---
                             ListTile(
                               leading: Container(
                                 padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.12),
+                                  color: AppColors.cyanGlow.withOpacity(0.14),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: const Icon(Icons.translate_rounded, color: Colors.blue, size: 22),
+                                child: const Icon(Icons.translate_rounded, color: AppColors.cyanGlow, size: 22),
                               ),
                               title: Text(context.tr('language'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                              trailing: Container(
-                                width: 124,
+                              trailing: ZenLiquidGlass(
+                                width: 126,
                                 height: 40,
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xCC111827) : const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(22),
-                                  border: Border.all(
-                                    color: isDark ? const Color(0x2EFFFFFF) : const Color(0x14000000),
-                                    width: 1.2,
+                                borderRadius: 22,
+                                blurSigma: 0,
+                                rimWidth: 1.1,
+                                surfaceColor: isDark
+                                    ? Colors.white.withOpacity(0.06)
+                                    : Colors.white.withOpacity(0.58),
+                                customShadows: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(isDark ? 0.24 : 0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                                ),
+                                ],
                                 child: Stack(
                                   children: [
-                                    // Sliding Indicator Pill
+                                    // Glowing Active Droplet Pill
                                     AnimatedAlign(
                                       duration: const Duration(milliseconds: 300),
                                       curve: Curves.easeOutCubic,
@@ -569,16 +651,16 @@ class SettingsScreen extends ConsumerWidget {
                                         child: Container(
                                           margin: const EdgeInsets.all(3.5),
                                           decoration: BoxDecoration(
-                                            gradient: const LinearGradient(
-                                              colors: [Color(0xFF0F766E), Color(0xFF0D9488)],
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                            ),
+                                            gradient: zen.brandHero,
                                             borderRadius: BorderRadius.circular(18),
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(0.36),
+                                              width: 0.9,
+                                            ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: const Color(0xFF0F766E).withOpacity(0.4),
-                                                blurRadius: 8,
+                                                color: zen.primary.withOpacity(0.45),
+                                                blurRadius: 10,
                                                 offset: const Offset(0, 2),
                                               ),
                                             ],
@@ -653,8 +735,8 @@ class SettingsScreen extends ConsumerWidget {
                                 ),
                               ),
                             ),
-                            
-                            Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+
+                            Divider(height: 1, color: glassDividerColor, indent: 64, endIndent: 16),
                             
                             // --- CÁ NHÂN HÓA BẢNG MÀU CHỦ ĐỀ (THEME PRESETS) ---
                             Padding(
@@ -784,21 +866,19 @@ class SettingsScreen extends ConsumerWidget {
                   
                   // --- GROUP 3: HỆ THỐNG ESP32 ---
                   if (activeConfig.role == 'owner') ...[
-                    Text(context.tr('system_settings'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500))
-                        .animate(delay: 300.ms).fade(duration: 400.ms),
-                    const SizedBox(height: 10),
-                    ZenLiquidGlass(
-                      borderRadius: 24,
-                      blurSigma: 12,
-                      surfaceColor: isDark
-                          ? const Color(0xFF0F172A).withOpacity(0.65)
-                          : Colors.white.withOpacity(0.85),
-                      customBorder: Border.all(
-                        color: isDark
-                            ? Colors.white.withOpacity(0.12)
-                            : const Color(0xFFCBD5E1).withOpacity(0.7),
-                        width: 1.1,
+                    Text(
+                      context.tr('system_settings'),
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                       ),
+                    ).animate(delay: 300.ms).fade(duration: 400.ms),
+                    const SizedBox(height: 10),
+                    ZenGlassCard(
+                      borderRadius: 24,
+                      blurSigma: 14,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Column(
                             children: [
@@ -806,13 +886,13 @@ class SettingsScreen extends ConsumerWidget {
                                 leading: Container(
                                   padding: const EdgeInsets.all(9),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF0D9488).withOpacity(0.12),
+                                    color: zen.primary.withOpacity(0.14),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.wifi_find_rounded,
                                     size: 22,
-                                    color: Color(0xFF0D9488),
+                                    color: isDark ? zen.primaryAccent : zen.primary,
                                   ),
                                 ),
                                 title: Text(
@@ -825,103 +905,110 @@ class SettingsScreen extends ConsumerWidget {
                                       : 'Cấu hình mạng Wi-Fi và liên kết Hub',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                                   ),
                                 ),
                                 trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                                 onTap: () async {
                                   final isLinked = activeConfig.macAddress.isNotEmpty && activeConfig.macAddress != 'unknown_mac';
                                   if (isLinked) {
-                                    final action = await showDialog<String>(
+                                    final action = await showZenGlassDialog<String>(
                                       context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                        title: Row(
-                                          children: [
-                                            const Icon(Icons.settings_suggest_rounded, color: Color(0xFF0D9488)),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                context.tr('setup_wifi'),
-                                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        content: SingleChildScrollView(
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                      accentColor: zen.primary,
+                                      builder: (ctx) => Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          Row(
                                             children: [
                                               Container(
-                                                padding: const EdgeInsets.all(12),
+                                                padding: const EdgeInsets.all(10),
                                                 decoration: BoxDecoration(
-                                                  color: const Color(0xFF0D9488).withOpacity(0.08),
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  border: Border.all(color: const Color(0xFF0D9488).withOpacity(0.2)),
-                                                ),
-                                                child: Row(
-                                                  children: [
-                                                    const Icon(Icons.memory_rounded, size: 20, color: Color(0xFF0D9488)),
-                                                    const SizedBox(width: 8),
-                                                    Expanded(
-                                                      child: Text(
-                                                        'MAC: ${MaskingHelper.maskMac(activeConfig.macAddress)}',
-                                                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                                                      ),
+                                                  gradient: zen.brandHero,
+                                                  borderRadius: BorderRadius.circular(14),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: zen.primary.withOpacity(0.35),
+                                                      blurRadius: 12,
+                                                      offset: const Offset(0, 4),
                                                     ),
                                                   ],
                                                 ),
+                                                child: const Icon(
+                                                  Icons.settings_suggest_rounded,
+                                                  color: Colors.white,
+                                                  size: 22,
+                                                ),
                                               ),
-                                              const SizedBox(height: 14),
-                                              const Text(
-                                                'Thiết bị Hub đã được liên kết bảo mật với tài khoản. Bạn muốn cấu hình lại Wi-Fi hay hủy liên kết & Factory Reset Hub từ xa?',
-                                                style: TextStyle(fontSize: 14, height: 1.45),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  context.tr('setup_wifi'),
+                                                  style: const TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w800,
+                                                    letterSpacing: -0.2,
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ),
-                                        ),
-                                        actions: [
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          const SizedBox(height: 16),
+                                          ZenLiquidGlass(
+                                            blurSigma: 0,
+                                            borderRadius: 14,
+                                            padding: const EdgeInsets.all(12),
+                                            surfaceColor: zen.primary.withOpacity(isDark ? 0.14 : 0.08),
+                                            glowColor: zen.primary,
+                                            child: Row(
                                               children: [
-                                                ElevatedButton.icon(
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor: const Color(0xFF0D9488),
-                                                    foregroundColor: Colors.white,
-                                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                                    elevation: 1,
-                                                  ),
-                                                  icon: const Icon(Icons.settings_suggest_rounded, size: 18),
-                                                  onPressed: () => Navigator.pop(ctx, 'setup'),
-                                                  label: Text(context.tr('reconfig_wifi_mqtt'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                Icon(
+                                                  Icons.memory_rounded,
+                                                  size: 20,
+                                                  color: isDark ? zen.primaryAccent : zen.primary,
                                                 ),
-                                                const SizedBox(height: 8),
-                                                OutlinedButton.icon(
-                                                  style: OutlinedButton.styleFrom(
-                                                    foregroundColor: Colors.redAccent,
-                                                    side: const BorderSide(color: Colors.redAccent),
-                                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                                const SizedBox(width: 9),
+                                                Expanded(
+                                                  child: Text(
+                                                    'MAC: ${MaskingHelper.maskMac(activeConfig.macAddress)}',
+                                                    style: const TextStyle(
+                                                      fontWeight: FontWeight.w700,
+                                                      fontSize: 13,
+                                                    ),
                                                   ),
-                                                  icon: const Icon(Icons.link_off_rounded, size: 18),
-                                                  onPressed: () => Navigator.pop(ctx, 'unlink'),
-                                                  label: Text(
-                                                    context.tr('unlink_hub_menu_title'),
-                                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                                    textAlign: TextAlign.center,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                TextButton(
-                                                  onPressed: () => Navigator.pop(ctx, 'cancel'),
-                                                  child: Text(context.tr('cancel'), style: const TextStyle(color: Colors.grey)),
                                                 ),
                                               ],
                                             ),
+                                          ),
+                                          const SizedBox(height: 14),
+                                          Text(
+                                            'Thiết bị Hub đã được liên kết bảo mật với tài khoản. Bạn muốn cấu hình lại Wi-Fi hay hủy liên kết & Factory Reset Hub từ xa?',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              height: 1.45,
+                                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 20),
+                                          ZenGlassButton(
+                                            label: context.tr('reconfig_wifi_mqtt'),
+                                            icon: Icons.settings_suggest_rounded,
+                                            isPrimary: true,
+                                            onPressed: () => Navigator.pop(ctx, 'setup'),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          ZenGlassButton(
+                                            label: context.tr('unlink_hub_menu_title'),
+                                            icon: Icons.link_off_rounded,
+                                            isPrimary: false,
+                                            isDanger: true,
+                                            onPressed: () => Navigator.pop(ctx, 'unlink'),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          ZenGlassButton(
+                                            label: context.tr('cancel'),
+                                            isPrimary: false,
+                                            onPressed: () => Navigator.pop(ctx, 'cancel'),
                                           ),
                                         ],
                                       ),
@@ -1071,7 +1158,7 @@ class SettingsScreen extends ConsumerWidget {
                                   }
                                 },
                               ),
-                              Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+                              Divider(height: 1, color: glassDividerColor, indent: 64, endIndent: 16),
 
                               // --- NÚT KHỞI ĐỘNG LẠI HUB ESP32 (SYSTEM RESTART) ---
                               ListTile(
@@ -1155,7 +1242,7 @@ class SettingsScreen extends ConsumerWidget {
                                   }
                                 },
                               ),
-                              Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+                              Divider(height: 1, color: glassDividerColor, indent: 64, endIndent: 16),
 
                               // --- NÚT NÂNG CẤP FIRMWARE ESP32 (FIRMWARE OTA) ---
                               ListTile(
@@ -1178,7 +1265,7 @@ class SettingsScreen extends ConsumerWidget {
                                 trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                                 onTap: () => EspOtaDialog.startOtaProcess(context, ref, activeConfig),
                               ),
-                              Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+                              Divider(height: 1, color: glassDividerColor, indent: 64, endIndent: 16),
 
                               // --- KHU VỰC KỸ THUẬT ---
                               ListTile(
@@ -1207,31 +1294,36 @@ class SettingsScreen extends ConsumerWidget {
                   
                   // --- GROUP 4: THÀNH VIÊN RỜI NHÀ ---
                   if (activeConfig.role != 'owner' && activeConfig.userId.isNotEmpty && activeConfig.userId != 'guest') ...[
-                    Text(context.tr('leave_home_title') ?? 'QUẢN LÝ QUYỀN TRUY CẬP', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500))
-                        .animate(delay: 400.ms).fade(duration: 400.ms),
-                    const SizedBox(height: 10),
-                    ZenLiquidGlass(
-                      borderRadius: 24,
-                      blurSigma: 12,
-                      surfaceColor: isDark
-                          ? const Color(0xFF0F172A).withOpacity(0.65)
-                          : Colors.white.withOpacity(0.85),
-                      customBorder: Border.all(
-                        color: Colors.red.withOpacity(0.25),
-                        width: 1.1,
+                    Text(
+                      context.tr('leave_home_title') ?? 'QUẢN LÝ QUYỀN TRUY CẬP',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                       ),
+                    ).animate(delay: 400.ms).fade(duration: 400.ms),
+                    const SizedBox(height: 10),
+                    ZenGlassCard(
+                      borderRadius: 24,
+                      blurSigma: 14,
+                      isActive: true,
+                      glowColor: AppColors.roseGlow,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: ListTile(
                         leading: Container(
                           padding: const EdgeInsets.all(9),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.12),
+                            color: AppColors.roseGlow.withOpacity(0.14),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(Icons.exit_to_app_rounded, color: Colors.red, size: 22),
+                          child: const Icon(Icons.exit_to_app_rounded, color: AppColors.roseGlow, size: 22),
                         ),
-                        title: Text(context.tr('btn_leave_home') ?? 'Rời khỏi nhà này', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.red)),
-                        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
+                        title: Text(
+                          context.tr('btn_leave_home') ?? 'Rời khỏi nhà này',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.roseGlow),
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.roseGlow),
                         onTap: () => _handleLeaveHome(context, ref, activeConfig.ownerEmail, activeConfig.userId),
                       ),
                     ).animate().slideX(begin: 0.1, end: 0),
@@ -1239,68 +1331,76 @@ class SettingsScreen extends ConsumerWidget {
 
                   // --- GROUP: XÓA NGÔI NHÀ PHỤ HIỆN TẠI (CHO CHỦ SỞ HỮU) ---
                   if (activeConfig.isSubHome && activeConfig.role == 'owner') ...[
-                    Text(context.tr('manage_sub_home_title') ?? 'QUẢN LÝ NGÔI NHÀ PHỤ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500))
-                        .animate(delay: 400.ms).fade(duration: 400.ms),
-                    const SizedBox(height: 10),
-                    ZenLiquidGlass(
-                      borderRadius: 24,
-                      blurSigma: 12,
-                      surfaceColor: isDark
-                          ? const Color(0xFF0F172A).withOpacity(0.65)
-                          : Colors.white.withOpacity(0.85),
-                      customBorder: Border.all(
-                        color: Colors.red.withOpacity(0.25),
-                        width: 1.1,
+                    const SizedBox(height: 18),
+                    Text(
+                      context.tr('manage_sub_home_title') ?? 'QUẢN LÝ NGÔI NHÀ PHỤ',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                       ),
+                    ).animate(delay: 400.ms).fade(duration: 400.ms),
+                    const SizedBox(height: 10),
+                    ZenGlassCard(
+                      borderRadius: 24,
+                      blurSigma: 14,
+                      isActive: true,
+                      glowColor: AppColors.roseGlow,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: ListTile(
                         leading: Container(
                           padding: const EdgeInsets.all(9),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.12),
+                            color: AppColors.roseGlow.withOpacity(0.14),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 22),
+                          child: const Icon(Icons.delete_forever_rounded, color: AppColors.roseGlow, size: 22),
                         ),
-                        title: Text(context.tr('delete_this_sub_home') ?? 'Xóa ngôi nhà phụ này', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.red)),
+                        title: Text(
+                          context.tr('delete_this_sub_home') ?? 'Xóa ngôi nhà phụ này',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.roseGlow),
+                        ),
                         subtitle: Text(
                           'Xóa vĩnh viễn ${activeConfig.homeName} và trở về nhà chính',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                          style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                         ),
-                        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
+                        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.roseGlow),
                         onTap: () => _handleDeleteCurrentSubHome(context, ref, activeConfig),
                       ),
                     ).animate().slideX(begin: 0.1, end: 0),
                   ],
 
                   // --- GROUP: CẬP NHẬT & PHIÊN BẢN ỨNG DỤNG ---
-                  const SizedBox(height: 10),
-                  Text(context.tr('app_version_title'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade500))
-                      .animate(delay: 420.ms).fade(duration: 400.ms),
-                  const SizedBox(height: 10),
-                  ZenLiquidGlass(
-                    borderRadius: 24,
-                    blurSigma: 12,
-                    surfaceColor: isDark
-                        ? const Color(0xFF0F172A).withOpacity(0.65)
-                        : Colors.white.withOpacity(0.85),
-                    customBorder: Border.all(
-                      color: isDark
-                          ? Colors.white.withOpacity(0.12)
-                          : const Color(0xFFCBD5E1).withOpacity(0.7),
-                      width: 1.1,
+                  const SizedBox(height: 22),
+                  Text(
+                    context.tr('app_version_title'),
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                  ).animate(delay: 420.ms).fade(duration: 400.ms),
+                  const SizedBox(height: 10),
+                  ZenGlassCard(
+                    borderRadius: 24,
+                    blurSigma: 14,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Column(
                           children: [
                             ListTile(
                               leading: Container(
                                 padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
-                                  color: Colors.blueAccent.withOpacity(0.12),
+                                  color: zen.primary.withOpacity(0.14),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: const Icon(Icons.system_update_rounded, color: Colors.blueAccent, size: 22),
+                                child: Icon(
+                                  Icons.system_update_rounded,
+                                  color: isDark ? zen.primaryAccent : zen.primary,
+                                  size: 22,
+                                ),
                               ),
                               title: Row(
                                 children: [
@@ -1320,7 +1420,7 @@ class SettingsScreen extends ConsumerWidget {
                                         return Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFDC2626),
+                                            color: AppColors.roseGlow,
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Text(
@@ -1343,24 +1443,32 @@ class SettingsScreen extends ConsumerWidget {
                                 builder: (context, snapshot) {
                                   if (snapshot.hasData && snapshot.data != null) {
                                     final info = snapshot.data!;
-                                    return Text('ZenHome v${info.version} (Build ${info.buildNumber})', style: const TextStyle(fontSize: 12, color: Colors.grey));
+                                    return Text(
+                                      'ZenHome v${info.version} (Build ${info.buildNumber})',
+                                      style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                    );
                                   }
                                   return const Text('ZenHome...', style: TextStyle(fontSize: 12, color: Colors.grey));
                                 },
                               ),
-                              trailing: Container(
+                              trailing: ZenGlassPill(
+                                blurSigma: 0,
+                                isSelected: true,
+                                glowColor: zen.primary,
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: Colors.blueAccent.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
-                                ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.refresh_rounded, size: 14, color: Colors.blueAccent),
+                                    Icon(Icons.refresh_rounded, size: 14, color: isDark ? zen.primaryAccent : zen.primary),
                                     const SizedBox(width: 4),
-                                    Text(context.tr('btn_check'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                                    Text(
+                                      context.tr('btn_check'),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? zen.primaryAccent : zen.primary,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1368,15 +1476,15 @@ class SettingsScreen extends ConsumerWidget {
                                 AppUpdateService.checkAndPromptUpdate(context, isManualCheck: true);
                               },
                             ),
-                            Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+                            Divider(height: 1, color: glassDividerColor, indent: 64, endIndent: 16),
                             ListTile(
                               leading: Container(
                                 padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF8B5CF6).withOpacity(0.12),
+                                  color: AppColors.purpleGlow.withOpacity(0.14),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: const Icon(Icons.article_rounded, color: Color(0xFF8B5CF6), size: 22),
+                                child: const Icon(Icons.article_rounded, color: AppColors.purpleGlow, size: 22),
                               ),
                               title: Text(
                                 context.tr('version_changelog_title'),
@@ -1384,7 +1492,7 @@ class SettingsScreen extends ConsumerWidget {
                               ),
                               subtitle: Text(
                                 context.tr('version_changelog_desc'),
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                                style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                               ),
                               trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                               onTap: () {
@@ -1394,15 +1502,15 @@ class SettingsScreen extends ConsumerWidget {
                                 );
                               },
                             ),
-                            Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+                            Divider(height: 1, color: glassDividerColor, indent: 64, endIndent: 16),
                             ListTile(
                               leading: Container(
                                 padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF59E0B).withOpacity(0.12),
+                                  color: AppColors.amberGlow.withOpacity(0.14),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: const Icon(Icons.bug_report_rounded, color: Color(0xFFF59E0B), size: 22),
+                                child: const Icon(Icons.bug_report_rounded, color: AppColors.amberGlow, size: 22),
                               ),
                               title: Text(
                                 context.tr('report_bug_title') ?? 'Báo cáo sự cố & Góp ý',
@@ -1410,20 +1518,20 @@ class SettingsScreen extends ConsumerWidget {
                               ),
                               subtitle: Text(
                                 context.tr('report_bug_desc') ?? 'Gửi phản hồi trực tiếp tới đội ngũ phát triển',
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                                style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                               ),
                               trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                               onTap: () => BugReportDialog.show(context),
                             ),
-                            Divider(height: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, indent: 60),
+                            Divider(height: 1, color: glassDividerColor, indent: 64, endIndent: 16),
                             ListTile(
                               leading: Container(
                                 padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFE11D48).withOpacity(0.12),
+                                  color: AppColors.roseGlow.withOpacity(0.14),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: const Icon(Icons.flourescent_rounded, color: Color(0xFFE11D48), size: 22),
+                                child: const Icon(Icons.flourescent_rounded, color: AppColors.roseGlow, size: 22),
                               ),
                               title: const Text(
                                 'Kiểm tra Crashlytics Realtime',
@@ -1431,21 +1539,22 @@ class SettingsScreen extends ConsumerWidget {
                               ),
                               subtitle: Text(
                                 'Mô phỏng gửi lỗi lên Firebase & đồng bộ Web Admin',
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                                style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                               ),
-                              trailing: Container(
+                              trailing: ZenGlassPill(
+                                blurSigma: 0,
+                                isSelected: true,
+                                glowColor: AppColors.roseGlow,
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE11D48).withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFE11D48).withOpacity(0.3)),
-                                ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.send_rounded, size: 14, color: Color(0xFFE11D48)),
+                                    const Icon(Icons.send_rounded, size: 14, color: AppColors.roseGlow),
                                     const SizedBox(width: 4),
-                                    Text(context.tr('btn_send_test'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFE11D48))),
+                                    Text(
+                                      context.tr('btn_send_test'),
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.roseGlow),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1464,30 +1573,38 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                     ).animate(delay: 450.ms).fade(duration: 400.ms).slideX(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuart),
 
-                  const SizedBox(height: 35),
+                  const SizedBox(height: 32),
                   // --- ĐĂNG XUẤT ---
-                  ZenLiquidGlass(
-                    borderRadius: 20,
-                    blurSigma: 10,
-                    surfaceColor: Colors.red.withOpacity(isDark ? 0.15 : 0.08),
-                    glowColor: Colors.red,
-                    customBorder: Border.all(color: Colors.red.withOpacity(0.3), width: 1.2),
-                    height: 55,
+                  ZenGlassCard(
+                    borderRadius: 22,
+                    blurSigma: 12,
+                    isActive: true,
+                    glowColor: AppColors.roseGlow,
+                    height: 56,
+                    padding: EdgeInsets.zero,
                     onTap: () => _handleLogout(context, ref),
                     child: Center(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.logout_rounded, color: Colors.red),
-                          const SizedBox(width: 8),
-                          Text(context.tr('btn_logout'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
+                          const Icon(Icons.logout_rounded, color: AppColors.roseGlow, size: 21),
+                          const SizedBox(width: 9),
+                          Text(
+                            context.tr('btn_logout'),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.roseGlow,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ).animate(delay: 500.ms).fade(duration: 400.ms).scaleXY(begin: 0.9, end: 1, duration: 400.ms, curve: Curves.easeOutBack),
-                  const SizedBox(height: 100),
-                ],
-              ),
+                  const SizedBox(height: 110),
+                    ],
+                  ),
+                ),
               ),
             );
           },

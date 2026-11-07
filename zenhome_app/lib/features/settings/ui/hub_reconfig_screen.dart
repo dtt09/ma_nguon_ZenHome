@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/haptic_helper.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/core/widgets/zenhome_luxury_dialog.dart';
 import 'package:zenhome_app/core/utils/masking_helper.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
@@ -147,83 +149,74 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
     final isEspOnline = ref.watch(mqttRepositoryProvider).isEspOnline;
     final isScanningWifi = ref.watch(hubReconfigProvider).isScanningWifi;
 
-    final primaryColor = const Color(0xFF0F766E);
-    final cardBg = isDark ? const Color(0xFF131B2E) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final Color statusColor = isEspOnline ? AppColors.emeraldGlow : AppColors.amberGlow;
+    final String currentBroker = _mqttServerController.text.trim();
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF6F8FB),
-      appBar: AppBar(
-        title: const Text(
-          'Cấu hình Wi-Fi & MQTT Hub',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+    return ZenGlassScaffold(
+      appBar: const ZenGlassAppBar(
+        titleText: 'Cấu hình Wi-Fi & MQTT Hub',
         centerTitle: true,
-        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
       ),
       body: SafeArea(
+        top: false,
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- BANNER TRẠNG THÁI HUB ---
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isEspOnline
-                          ? const Color(0xFF10B981).withOpacity(0.35)
-                          : const Color(0xFFF59E0B).withOpacity(0.35),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.35 : 0.04),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
+                // --- BANNER TRẠNG THÁI HUB (CONNECTION MODE GLASS CARD) ---
+                ZenGlassCard(
+                  blurSigma: 16,
+                  borderRadius: 24,
+                  isActive: true,
+                  glowColor: statusColor,
+                  padding: const EdgeInsets.all(18),
                   child: Column(
                     children: [
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.all(11),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: (isEspOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withOpacity(0.12),
+                              color: statusColor.withOpacity(0.16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: statusColor.withOpacity(0.28),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
                             child: Icon(
                               isEspOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
-                              color: isEspOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                              color: statusColor,
                               size: 24,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
-                                    Text(
-                                      isEspOnline ? 'Hub ESP32 Trực tuyến' : 'Hub ESP32 Ngoại tuyến',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: isEspOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                    Flexible(
+                                      child: Text(
+                                        isEspOnline ? 'Hub ESP32 Trực tuyến' : 'Hub ESP32 Ngoại tuyến',
+                                        style: TextStyle(
+                                          fontSize: 15.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: statusColor,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -232,18 +225,24 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                                       height: 8,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: isEspOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                                        color: statusColor,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: statusColor.withOpacity(0.6),
+                                            blurRadius: 6,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 3),
+                                const SizedBox(height: 4),
                                 Text(
                                   'MAC: ${MaskingHelper.maskMac(activeConfig.macAddress)}',
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 12.5,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                                   ),
                                 ),
                               ],
@@ -251,20 +250,20 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Container(
+                      const SizedBox(height: 14),
+                      ZenLiquidGlass(
+                        blurSigma: 0,
+                        borderRadius: 14,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: (isEspOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        surfaceColor: statusColor.withOpacity(isDark ? 0.12 : 0.08),
+                        glowColor: statusColor,
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Icon(
                               Icons.info_outline_rounded,
                               size: 16,
-                              color: isEspOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                              color: statusColor,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -273,9 +272,9 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                                     ? 'Hub đang online MQTT. Bạn có thể gửi cấu hình Wi-Fi và Broker mới trực tiếp qua OTA mà không cần cắm lại thiết bị!'
                                     : 'Hub đang offline. Bạn có thể lưu cấu hình mới lên Cloud hoặc bấm nút bên dưới để cấu hình trực tiếp qua Wi-Fi AP (192.168.4.1).',
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 12.5,
                                   height: 1.4,
-                                  color: isDark ? Colors.grey.shade300 : const Color(0xFF334155),
+                                  color: isDark ? AppColors.darkText : AppColors.lightText,
                                 ),
                               ),
                             ),
@@ -286,80 +285,82 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
 
                 // --- CARD 1: CẤU HÌNH WI-FI ---
                 _buildSectionHeader(
                   title: 'Mạng Wi-Fi Kết Nối',
                   icon: Icons.wifi_rounded,
                   isDark: isDark,
-                  primaryColor: primaryColor,
+                  primaryColor: isDark ? zen.primaryAccent : zen.primary,
                 ),
                 const SizedBox(height: 10),
-                Container(
+                ZenGlassCard(
+                  blurSigma: 16,
+                  borderRadius: 24,
                   padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: borderColor),
-                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Tên Wi-Fi (SSID)
                       Text(
                         'Tên Wi-Fi (SSID)',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                         ),
                       ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _ssidController,
-                        decoration: InputDecoration(
+                        decoration: zenGlassInputDecoration(
+                          context,
                           hintText: 'Nhập tên Wi-Fi 2.4GHz',
-                          prefixIcon: const Icon(Icons.wifi, color: Color(0xFF0F766E), size: 20),
+                          prefixIcon: Icons.wifi_rounded,
                           suffixIcon: IconButton(
                             icon: isScanningWifi
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 18,
                                     height: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F766E)),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: isDark ? zen.primaryAccent : zen.primary,
+                                    ),
                                   )
-                                : const Icon(Icons.wifi_find_rounded, color: Color(0xFF0F766E)),
+                                : Icon(
+                                    Icons.wifi_find_rounded,
+                                    color: isDark ? zen.primaryAccent : zen.primary,
+                                  ),
                             tooltip: 'Quét Wi-Fi xung quanh',
                             onPressed: _openWifiPicker,
                           ),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      // Mật khẩu Wi-Fi
                       Text(
                         'Mật khẩu Wi-Fi',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                         ),
                       ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _wifiPassController,
                         obscureText: _obscureWifiPass,
-                        decoration: InputDecoration(
+                        decoration: zenGlassInputDecoration(
+                          context,
                           hintText: 'Mật khẩu Wi-Fi (để trống nếu không có)',
-                          prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                          prefixIcon: Icons.lock_outline_rounded,
                           suffixIcon: IconButton(
-                            icon: Icon(_obscureWifiPass ? Icons.visibility_off : Icons.visibility),
+                            icon: Icon(
+                              _obscureWifiPass ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                              size: 20,
+                            ),
                             onPressed: () => setState(() => _obscureWifiPass = !_obscureWifiPass),
                           ),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                         ),
                       ),
                     ],
@@ -373,59 +374,66 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                   title: 'Cấu hình MQTT Broker',
                   icon: Icons.hub_rounded,
                   isDark: isDark,
-                  primaryColor: primaryColor,
+                  primaryColor: isDark ? zen.primaryAccent : zen.primary,
                 ),
                 const SizedBox(height: 10),
-                Container(
+                ZenGlassCard(
+                  blurSigma: 16,
+                  borderRadius: 24,
                   padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: borderColor),
-                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Máy chủ MQTT (Server / Host)
                       Text(
                         'Máy chủ MQTT (Server / Broker Host)',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                         ),
                       ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _mqttServerController,
-                        decoration: InputDecoration(
+                        onChanged: (_) => setState(() {}),
+                        decoration: zenGlassInputDecoration(
+                          context,
                           hintText: 'e.g. e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud',
-                          prefixIcon: const Icon(Icons.dns_rounded, size: 20),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                          prefixIcon: Icons.dns_rounded,
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Vui lòng nhập địa chỉ máy chủ MQTT';
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Vui lòng nhập địa chỉ máy chủ MQTT';
+                          }
                           return null;
                         },
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
 
-                      // Preset nhanh máy chủ
-                      Row(
+                      // Preset nhanh máy chủ (ZenGlassPill)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           _buildPresetChip(
+                            context: context,
                             label: 'HiveMQ TLS',
+                            isSelected: currentBroker ==
+                                'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud',
                             onTap: () {
+                              HapticHelper.light();
                               setState(() {
-                                _mqttServerController.text = 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
+                                _mqttServerController.text =
+                                    'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
                               });
                             },
                           ),
-                          const SizedBox(width: 8),
                           _buildPresetChip(
+                            context: context,
                             label: 'EMQX Public',
+                            isSelected: currentBroker == 'broker.emqx.io',
                             onTap: () {
+                              HapticHelper.light();
                               setState(() {
                                 _mqttServerController.text = 'broker.emqx.io';
                               });
@@ -438,6 +446,7 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
 
                       // Username & Password MQTT
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Column(
@@ -447,18 +456,18 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                                   'MQTT Username',
                                   style: TextStyle(
                                     fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _mqttUserController,
-                                  decoration: InputDecoration(
+                                  decoration: zenGlassInputDecoration(
+                                    context,
                                     hintText: 'Username',
-                                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 18),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                    prefixIcon: Icons.person_outline_rounded,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
                                   ),
                                 ),
                               ],
@@ -473,23 +482,26 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                                   'MQTT Password',
                                   style: TextStyle(
                                     fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
                                 TextFormField(
                                   controller: _mqttPassController,
                                   obscureText: _obscureMqttPass,
-                                  decoration: InputDecoration(
+                                  decoration: zenGlassInputDecoration(
+                                    context,
                                     hintText: 'Password',
-                                    prefixIcon: const Icon(Icons.key_rounded, size: 18),
+                                    prefixIcon: Icons.key_rounded,
                                     suffixIcon: IconButton(
-                                      icon: Icon(_obscureMqttPass ? Icons.visibility_off : Icons.visibility, size: 18),
+                                      icon: Icon(
+                                        _obscureMqttPass ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                        size: 18,
+                                      ),
                                       onPressed: () => setState(() => _obscureMqttPass = !_obscureMqttPass),
                                     ),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
                                   ),
                                 ),
                               ],
@@ -501,31 +513,34 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                       const SizedBox(height: 16),
 
                       // Bảo mật kênh truyền thông (Ẩn topic MQTT kỹ thuật)
-                      Container(
+                      ZenLiquidGlass(
+                        blurSigma: 0,
+                        borderRadius: 14,
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: borderColor),
-                        ),
+                        surfaceColor: zen.primary.withOpacity(isDark ? 0.12 : 0.07),
+                        glowColor: zen.primary,
                         child: Row(
                           children: [
-                            const Icon(Icons.security_rounded, size: 18, color: Color(0xFF0F766E)),
-                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.security_rounded,
+                              size: 19,
+                              color: isDark ? zen.primaryAccent : zen.primary,
+                            ),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
                                     'Kênh truyền thông: Bảo mật nội bộ',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     'Định tuyến bảo mật riêng biệt gắn liền với User ID và MAC của Hub.',
                                     style: TextStyle(
-                                      fontSize: 11,
-                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                      fontSize: 11.5,
+                                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                                     ),
                                   ),
                                 ],
@@ -540,48 +555,77 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
 
                 const SizedBox(height: 24),
 
-                // --- CARD 3: MẬT KHẨU QUẢN TRỊ HUB ---
+                // --- CARD 3: MẬT KHẨU QUẢN TRỊ & TÁC VỤ ĐỒNG BỘ ---
                 _buildSectionHeader(
-                  title: 'Mật khẩu Quản trị Bo mạch',
+                  title: 'Bảo mật Quản trị & Đồng bộ',
                   icon: Icons.shield_rounded,
                   isDark: isDark,
-                  primaryColor: primaryColor,
+                  primaryColor: isDark ? zen.primaryAccent : zen.primary,
                 ),
                 const SizedBox(height: 10),
-                Container(
+                ZenGlassCard(
+                  blurSigma: 16,
+                  borderRadius: 24,
                   padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: borderColor),
-                  ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
                         'Mật khẩu quản trị Hub (Dùng để bảo vệ phân quyền, gán chân, hủy liên kết)',
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                          height: 1.35,
+                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                         ),
                       ),
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _adminPassController,
                         obscureText: _obscureAdminPass,
-                        decoration: InputDecoration(
+                        decoration: zenGlassInputDecoration(
+                          context,
                           hintText: 'Mật khẩu quản trị (Mặc định: admin)',
-                          prefixIcon: const Icon(Icons.admin_panel_settings_outlined, size: 20),
+                          prefixIcon: Icons.admin_panel_settings_outlined,
                           suffixIcon: IconButton(
-                            icon: Icon(_obscureAdminPass ? Icons.visibility_off : Icons.visibility),
+                            icon: Icon(
+                              _obscureAdminPass ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                              size: 20,
+                            ),
                             onPressed: () => setState(() => _obscureAdminPass = !_obscureAdminPass),
                           ),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Vui lòng không để trống mật khẩu quản trị';
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Vui lòng không để trống mật khẩu quản trị';
+                          }
                           return null;
+                        },
+                      ),
+                      const SizedBox(height: 22),
+
+                      // Nút hành động chính (ZenGlassButton)
+                      ZenGlassButton(
+                        label: isEspOnline
+                            ? 'Lưu & Bắn Cấu hình OTA sang Hub'
+                            : 'Lưu Cấu hình lên Cloud',
+                        icon: Icons.send_rounded,
+                        isPrimary: true,
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+                        onPressed: _handleApplyConfig,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Nút cấu hình qua SoftAP nếu cần
+                      ZenGlassButton(
+                        label: 'Cấu hình qua Wi-Fi AP của Hub (192.168.4.1)',
+                        icon: Icons.wifi_tethering_rounded,
+                        isPrimary: false,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const WifiSetupScreen()),
+                          );
                         },
                       ),
                     ],
@@ -589,57 +633,6 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
                 ),
 
                 const SizedBox(height: 32),
-
-                // --- NÚT HÀNH ĐỘNG CHÍNH ---
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      foregroundColor: Colors.white,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    icon: const Icon(Icons.send_rounded, size: 20),
-                    label: Text(
-                      isEspOnline ? 'Lưu & Bắn Cấu hình OTA sang Hub' : 'Lưu Cấu hình lên Cloud',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                    onPressed: _handleApplyConfig,
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // Nút cấu hình qua SoftAP nếu cần
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      side: BorderSide(color: borderColor),
-                    ),
-                    icon: const Icon(Icons.wifi_tethering_rounded, size: 18),
-                    label: Text(
-                      'Cấu hình qua Wi-Fi AP của Hub (192.168.4.1)',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.grey.shade300 : const Color(0xFF334155),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const WifiSetupScreen()),
-                      );
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 30),
               ],
             ),
           ),
@@ -656,12 +649,14 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
   }) {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(7),
-          decoration: BoxDecoration(
-            color: primaryColor.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
+        ZenLiquidGlass(
+          width: 34,
+          height: 34,
+          borderRadius: 11,
+          blurSigma: 0,
+          alignment: Alignment.center,
+          surfaceColor: primaryColor.withOpacity(0.14),
+          glowColor: primaryColor,
           child: Icon(icon, size: 18, color: primaryColor),
         ),
         const SizedBox(width: 10),
@@ -669,22 +664,54 @@ class _HubReconfigScreenState extends ConsumerState<HubReconfigScreen> {
           title,
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
+            color: isDark ? AppColors.darkText : AppColors.lightText,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildPresetChip({required String label, required VoidCallback onTap}) {
-    return ActionChip(
-      label: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-      avatar: const Icon(Icons.bolt_rounded, size: 15, color: Color(0xFF0F766E)),
-      backgroundColor: const Color(0xFF0F766E).withOpacity(0.08),
-      side: BorderSide(color: const Color(0xFF0F766E).withOpacity(0.2)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      onPressed: onTap,
+  Widget _buildPresetChip({
+    required BuildContext context,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+    final Color activeColor = isDark ? zen.primaryAccent : zen.primary;
+
+    return ZenGlassPill(
+      blurSigma: 0,
+      isSelected: isSelected,
+      glowColor: zen.primary,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.bolt_rounded,
+            size: 15,
+            color: isSelected
+                ? activeColor
+                : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              color: isSelected
+                  ? activeColor
+                  : (isDark ? AppColors.darkText : AppColors.lightText),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

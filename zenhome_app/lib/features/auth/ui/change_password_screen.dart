@@ -1,14 +1,13 @@
 import 'dart:io';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
-import 'dart:io';
-import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/features/auth/ui/forgot_password_screen.dart';
-import 'package:zenhome_app/core/widgets/loading_overlay.dart';
 
 class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -22,7 +21,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   final TextEditingController _oldPassController = TextEditingController();
   final TextEditingController _newPassController = TextEditingController();
   final TextEditingController _confirmPassController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscureOldPass = true;
   bool _obscureNewPass = true;
@@ -66,22 +65,25 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     });
   }
 
-  Widget _buildRequirement(String text, bool isMet, Color baseColor) {
+  Widget _buildRequirement(String text, bool isMet, Color mutedColor) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
           Icon(
-            isMet ? Icons.check_circle : Icons.cancel,
-            color: isMet ? Colors.green : baseColor.withOpacity(0.5),
+            isMet ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            color: isMet ? AppColors.emeraldGlow : mutedColor.withOpacity(0.6),
             size: 16,
           ),
           const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              color: isMet ? Colors.green : baseColor.withOpacity(0.8),
-              fontSize: 12,
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: isMet ? AppColors.emeraldGlow : mutedColor,
+                fontSize: 12.5,
+                fontWeight: isMet ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -91,17 +93,32 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
   void _updatePassword() async {
     if (_hasPasswordProvider && _oldPassController.text.isEmpty) {
-      showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_empty_old_pass') ?? 'Vui lòng nhập mật khẩu cũ', isError: true);
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('err_empty_old_pass'),
+        isError: true,
+      );
       return;
     }
-    
+
     if (!_hasMinLength || !_hasUppercase || !_hasLowercase || !_hasNumber || !_hasSpecialChar) {
-      showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_firebase_weak_password') ?? 'Mật khẩu chưa đạt đủ các yêu cầu bảo mật!', isError: true);
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('err_firebase_weak_password'),
+        isError: true,
+      );
       return;
     }
 
     if (_newPassController.text != _confirmPassController.text) {
-      showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_pass_mismatch') ?? 'Mật khẩu không khớp', isError: true);
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('err_pass_mismatch'),
+        isError: true,
+      );
       return;
     }
 
@@ -114,21 +131,42 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         );
         await user!.reauthenticateWithCredential(credential);
       }
-      
+
       await user!.updatePassword(_newPassController.text.trim());
       await user!.reload();
-      
-      showFloatingToast(context, context.tr('toast_success') ?? 'Thành công', context.tr('password_updated_success') ?? 'Mật khẩu đã được cập nhật');
-      if (mounted) Navigator.pop(context);
-      
+
+      if (!mounted) return;
+      showFloatingToast(
+        context,
+        context.tr('toast_success'),
+        context.tr('password_updated_success'),
+      );
+      Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_wrong_old_pass') ?? 'Mật khẩu cũ không đúng', isError: true);
+        showFloatingToast(
+          context,
+          context.tr('error'),
+          context.tr('err_wrong_old_pass'),
+          isError: true,
+        );
       } else {
-        showFloatingToast(context, context.tr('error') ?? 'Lỗi', e.message ?? context.tr('error') ?? 'Lỗi', isError: true);
+        showFloatingToast(
+          context,
+          context.tr('error'),
+          e.message ?? context.tr('error'),
+          isError: true,
+        );
       }
     } catch (e) {
-      showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('error') ?? 'Lỗi', isError: true);
+      if (!mounted) return;
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('error'),
+        isError: true,
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -136,126 +174,197 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    Color color = isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E);
-    
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+
     int strengthScore = (_hasMinLength ? 1 : 0) +
         (_hasUppercase ? 1 : 0) +
         (_hasLowercase ? 1 : 0) +
         (_hasNumber ? 1 : 0) +
         (_hasSpecialChar ? 1 : 0);
     double strengthPercent = strengthScore / 5;
-    Color strengthColor = strengthPercent <= 0.4 ? Colors.red : (strengthPercent <= 0.8 ? Colors.orange : Colors.green);
+    Color strengthColor = strengthPercent <= 0.4
+        ? AppColors.roseGlow
+        : (strengthPercent <= 0.8 ? AppColors.amberGlow : AppColors.emeraldGlow);
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF090C15) : const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: Text(context.tr('menu_change_password') ?? 'Đổi mật khẩu', style: const TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
+    return ZenGlassScaffold(
+      appBar: ZenGlassAppBar(
+        titleText: context.tr('menu_change_password'),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(25.0),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(context.tr('change_password') ?? 'Đổi mật khẩu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 15),
-            
-            if (_hasPasswordProvider) ...[
-              TextField(
-                controller: _oldPassController,
-                obscureText: _obscureOldPass,
-                decoration: InputDecoration(
-                  labelText: context.tr('old_password') ?? 'Mật khẩu hiện tại',
-                  prefixIcon: const Icon(Icons.lock_clock),
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscureOldPass ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () => setState(() => _obscureOldPass = !_obscureOldPass),
+            // Password Form & Strength Card
+            ZenGlassCard(
+              blurSigma: 18,
+              isActive: true,
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(11),
+                        decoration: BoxDecoration(
+                          gradient: zen.brandHero,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: zen.primary.withOpacity(0.28),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.lock_reset_rounded, color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          context.tr('change_password'),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 17,
+                            color: textColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()));
-                  },
-                  child: Text(context.tr('forgot_password') ?? 'Quên mật khẩu?', style: const TextStyle(color: Colors.blue)),
-                ),
-              ),
-              const SizedBox(height: 5),
-            ],
-            
-            TextField(
-              controller: _newPassController,
-              obscureText: _obscureNewPass,
-              onChanged: _checkPasswordStrength,
-              decoration: InputDecoration(
-                labelText: context.tr('new_password') ?? 'Mật khẩu mới',
-                prefixIcon: const Icon(Icons.lock_reset),
-                suffixIcon: IconButton(
-                  icon: Icon(_obscureNewPass ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() => _obscureNewPass = !_obscureNewPass),
-                ),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                  const SizedBox(height: 20),
+
+                  if (_hasPasswordProvider) ...[
+                    TextField(
+                      controller: _oldPassController,
+                      obscureText: _obscureOldPass,
+                      style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                      decoration: zenGlassInputDecoration(
+                        context,
+                        labelText: context.tr('old_password'),
+                        prefixIcon: Icons.lock_clock_outlined,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureOldPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            color: mutedColor,
+                          ),
+                          onPressed: () => setState(() => _obscureOldPass = !_obscureOldPass),
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+                          );
+                        },
+                        child: Text(
+                          context.tr('forgot_password'),
+                          style: TextStyle(
+                            color: isDark ? zen.primaryAccent : zen.primary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+
+                  TextField(
+                    controller: _newPassController,
+                    obscureText: _obscureNewPass,
+                    onChanged: _checkPasswordStrength,
+                    style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                    decoration: zenGlassInputDecoration(
+                      context,
+                      labelText: context.tr('new_password'),
+                      prefixIcon: Icons.lock_reset_rounded,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureNewPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: mutedColor,
+                        ),
+                        onPressed: () => setState(() => _obscureNewPass = !_obscureNewPass),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Password Strength Indicator Glass Sub-panel (blurSigma: 0)
+                  ZenLiquidGlass(
+                    blurSigma: 0,
+                    borderRadius: 16,
+                    padding: const EdgeInsets.all(14),
+                    surfaceColor: isDark
+                        ? Colors.white.withOpacity(0.05)
+                        : Colors.white.withOpacity(0.60),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: strengthPercent,
+                            backgroundColor: isDark
+                                ? Colors.white.withOpacity(0.10)
+                                : const Color(0xFFE2E8F0),
+                            color: strengthColor,
+                            minHeight: 7,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _buildRequirement(context.tr('req_min_length'), _hasMinLength, mutedColor),
+                        _buildRequirement(context.tr('req_uppercase'), _hasUppercase, mutedColor),
+                        _buildRequirement(context.tr('req_lowercase'), _hasLowercase, mutedColor),
+                        _buildRequirement(context.tr('req_number'), _hasNumber, mutedColor),
+                        _buildRequirement(context.tr('req_special_char'), _hasSpecialChar, mutedColor),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  TextField(
+                    controller: _confirmPassController,
+                    obscureText: _obscureConfirmPass,
+                    style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+                    decoration: zenGlassInputDecoration(
+                      context,
+                      labelText: context.tr('confirm_new_password'),
+                      prefixIcon: Icons.lock_outline_rounded,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: mutedColor,
+                        ),
+                        onPressed: () => setState(() => _obscureConfirmPass = !_obscureConfirmPass),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            
-            ClipRRect(
-              borderRadius: BorderRadius.circular(5),
-              child: LinearProgressIndicator(
-                value: strengthPercent,
-                backgroundColor: color.withOpacity(0.2),
-                color: strengthColor,
-                minHeight: 6,
-              ),
+
+            const SizedBox(height: 24),
+
+            ZenGlassButton(
+              label: context.tr('update_password'),
+              icon: Icons.verified_user_rounded,
+              isLoading: _isLoading,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              onPressed: _isLoading ? null : _updatePassword,
             ),
-            const SizedBox(height: 8),
-            _buildRequirement(context.tr('req_min_length') ?? 'Ít nhất 8 ký tự', _hasMinLength, color),
-            _buildRequirement(context.tr('req_uppercase') ?? 'Chữ hoa', _hasUppercase, color),
-            _buildRequirement(context.tr('req_lowercase') ?? 'Chữ thường', _hasLowercase, color),
-            _buildRequirement(context.tr('req_number') ?? 'Chữ số', _hasNumber, color),
-            _buildRequirement(context.tr('req_special_char') ?? 'Ký tự đặc biệt (!@#\$%^&*)', _hasSpecialChar, color),
-            
-            const SizedBox(height: 15),
-            
-            TextField(
-              controller: _confirmPassController,
-              obscureText: _obscureConfirmPass,
-              decoration: InputDecoration(
-                labelText: context.tr('confirm_new_password') ?? 'Xác nhận mật khẩu mới',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(_obscureConfirmPass ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() => _obscureConfirmPass = !_obscureConfirmPass),
-                ),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-              ),
-            ),
-            const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity, height: 55,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F766E),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))
-                ),
-                onPressed: _isLoading ? null : _updatePassword,
-                child: _isLoading 
-                     ? LogoLoadingIndicator(color: Colors.white, size: 24) 
-                     : Text(context.tr('update_password') ?? 'Cập nhật Mật khẩu', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-            )
           ],
         ),
       ),
     );
   }
 }
-
-

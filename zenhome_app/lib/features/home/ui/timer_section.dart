@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
@@ -17,6 +18,7 @@ import 'package:zenhome_app/core/widgets/premium_dialog.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
 import 'package:zenhome_app/core/widgets/luxury_slider.dart';
+import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 class TimerSection extends ConsumerStatefulWidget {
   const TimerSection({super.key});
@@ -62,20 +64,31 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
 
   void _showCustomTimeDialog() {
     int currentTotalMinutes = _timerMinutes.round();
-    int initialHours = currentTotalMinutes ~/ 60;
-    int initialMinutes = currentTotalMinutes % 60;
+    int initialHours = (currentTotalMinutes ~/ 60).clamp(0, 24);
+    int initialMinutes = (currentTotalMinutes % 60).clamp(0, 59);
+    if (initialHours == 0 && initialMinutes == 0) {
+      initialMinutes = 30;
+    }
 
-    final TextEditingController hoursCtrl = TextEditingController(text: initialHours > 0 ? '$initialHours' : '');
-    final TextEditingController minutesCtrl = TextEditingController(text: initialMinutes > 0 ? '$initialMinutes' : (initialHours > 0 ? '0' : '30'));
+    final FixedExtentScrollController hourWheelCtrl =
+        FixedExtentScrollController(initialItem: initialHours);
+    final FixedExtentScrollController minWheelCtrl =
+        FixedExtentScrollController(initialItem: initialMinutes);
+    final TextEditingController hoursCtrl =
+        TextEditingController(text: initialHours > 0 ? '$initialHours' : '0');
+    final TextEditingController minutesCtrl =
+        TextEditingController(text: '$initialMinutes');
+    bool isSyncingWheel = false;
 
-    showModalBottomSheet(
+    showZenGlassBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      padBottomForKeyboard: true,
+      accentColor: AppColors.amberGlow,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final amberText = isDark ? AppColors.amberGlow : AppColors.amberDeep;
             int h = int.tryParse(hoursCtrl.text.trim()) ?? 0;
             int m = int.tryParse(minutesCtrl.text.trim()) ?? 0;
             int totalMins = (h * 60) + m;
@@ -83,6 +96,8 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
             String previewText;
             if (totalMins <= 0) {
               previewText = 'Vui lòng nhập thời gian lớn hơn 0';
+            } else if (totalMins > 1440) {
+              previewText = 'Thời gian tối đa 24 ${context.tr('hours')} (1440 ${context.tr('minutes')})';
             } else if (h > 0 && m > 0) {
               previewText = '$h ${context.tr('hours')} $m ${context.tr('minutes')} ($totalMins ${context.tr('minutes')})';
             } else if (h > 0) {
@@ -91,40 +106,169 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
               previewText = '$m ${context.tr('minutes')}';
             }
 
-            return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-              child: Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF131D31) : Colors.white,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  border: Border.all(
-                    color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-                  ),
-                ),
+            return SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 22),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Header Row (showZenGlassBottomSheet already renders drag handle)
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _timerAction == 'delay_off' ? context.tr('time_off_label') : context.tr('time_on_label'),
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ZenLiquidGlass(
+                          blurSigma: 0,
+                          width: 40,
+                          height: 40,
+                          borderRadius: 13,
+                          alignment: Alignment.center,
+                          glowColor: AppColors.amberGlow,
+                          surfaceColor: AppColors.amberGlow.withOpacity(isDark ? 0.20 : 0.14),
+                          customShadows: const [],
+                          child: const Icon(
+                            Icons.hourglass_top_rounded,
+                            color: AppColors.amberGlow,
+                            size: 20,
+                          ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => Navigator.pop(ctx),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _timerAction == 'delay_off'
+                                ? context.tr('time_off_label')
+                                : context.tr('time_on_label'),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? AppColors.darkText : AppColors.lightText,
+                            ),
+                          ),
+                        ),
+                        ZenGlassIconButton(
+                          icon: Icons.close_rounded,
+                          size: 36,
+                          iconSize: 18,
+                          blurSigma: 0,
+                          onTap: () => Navigator.pop(ctx),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
+
+                    // Frosted Glass Cupertino Wheel Picker Container (blurSigma: 0)
+                    ZenLiquidGlass(
+                      blurSigma: 0,
+                      height: 146,
+                      borderRadius: 20,
+                      glowColor: AppColors.amberGlow,
+                      surfaceColor: isDark
+                          ? Colors.white.withOpacity(0.05)
+                          : Colors.white.withOpacity(0.68),
+                      customShadows: const [],
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      child: Row(
+                        children: [
+                          // Hours Wheel
+                          Expanded(
+                            child: CupertinoPicker(
+                              scrollController: hourWheelCtrl,
+                              itemExtent: 38,
+                              diameterRatio: 1.25,
+                              magnification: 1.08,
+                              useMagnifier: true,
+                              selectionOverlay: Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.amberGlow.withOpacity(isDark ? 0.16 : 0.12),
+                                  borderRadius: BorderRadius.circular(11),
+                                  border: Border.all(
+                                    color: AppColors.amberGlow.withOpacity(0.35),
+                                  ),
+                                ),
+                              ),
+                              onSelectedItemChanged: (val) {
+                                if (isSyncingWheel) return;
+                                HapticFeedback.selectionClick();
+                                hoursCtrl.text = '$val';
+                                if (val == 24 && (int.tryParse(minutesCtrl.text) ?? 0) > 0) {
+                                  isSyncingWheel = true;
+                                  minutesCtrl.text = '0';
+                                  minWheelCtrl.jumpToItem(0);
+                                  isSyncingWheel = false;
+                                }
+                                setDialogState(() {});
+                              },
+                              children: List.generate(25, (hr) {
+                                return Center(
+                                  child: Text(
+                                    '$hr ${context.tr('hours')}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? AppColors.darkText : AppColors.lightText,
+                                      fontFeatures: const [FontFeature.tabularFigures()],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 86,
+                            color: isDark
+                                ? Colors.white.withOpacity(0.10)
+                                : const Color(0xFFCBD5E1).withOpacity(0.7),
+                          ),
+                          // Minutes Wheel
+                          Expanded(
+                            child: CupertinoPicker(
+                              scrollController: minWheelCtrl,
+                              itemExtent: 38,
+                              diameterRatio: 1.25,
+                              magnification: 1.08,
+                              useMagnifier: true,
+                              selectionOverlay: Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.amberGlow.withOpacity(isDark ? 0.16 : 0.12),
+                                  borderRadius: BorderRadius.circular(11),
+                                  border: Border.all(
+                                    color: AppColors.amberGlow.withOpacity(0.35),
+                                  ),
+                                ),
+                              ),
+                              onSelectedItemChanged: (val) {
+                                if (isSyncingWheel) return;
+                                HapticFeedback.selectionClick();
+                                minutesCtrl.text = '$val';
+                                setDialogState(() {});
+                              },
+                              children: List.generate(60, (mn) {
+                                return Center(
+                                  child: Text(
+                                    '$mn ${context.tr('minutes')}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? AppColors.darkText : AppColors.lightText,
+                                      fontFeatures: const [FontFeature.tabularFigures()],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 14),
 
-                    // Two input fields: Giờ (Hours) & Phút (Minutes)
+                    // Two Direct Glass Input Fields: Giờ (Hours) & Phút (Minutes)
                     Row(
                       children: [
-                        // Hours Input
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,24 +285,40 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                               TextField(
                                 controller: hoursCtrl,
                                 keyboardType: TextInputType.number,
-                                autofocus: true,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                decoration: InputDecoration(
-                                  hintText: '0',
-                                  suffixText: context.tr('hours'),
-                                  filled: true,
-                                  fillColor: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppColors.darkText : AppColors.lightText,
                                 ),
-                                onChanged: (_) => setDialogState(() {}),
+                                decoration: zenGlassInputDecoration(
+                                  ctx,
+                                  hintText: '0',
+                                  borderRadius: 14,
+                                  accentColor: AppColors.amberGlow,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                                ).copyWith(
+                                  suffixText: context.tr('hours'),
+                                  suffixStyle: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: amberText,
+                                  ),
+                                ),
+                                onChanged: (txt) {
+                                  final parsed = int.tryParse(txt.trim());
+                                  if (parsed != null && parsed >= 0 && parsed <= 24 && hourWheelCtrl.hasClients) {
+                                    isSyncingWheel = true;
+                                    hourWheelCtrl.jumpToItem(parsed);
+                                    isSyncingWheel = false;
+                                  }
+                                  setDialogState(() {});
+                                },
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(width: 14),
-                        // Minutes Input
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,16 +336,34 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                                 controller: minutesCtrl,
                                 keyboardType: TextInputType.number,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                decoration: InputDecoration(
-                                  hintText: '0',
-                                  suffixText: context.tr('minutes'),
-                                  filled: true,
-                                  fillColor: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppColors.darkText : AppColors.lightText,
                                 ),
-                                onChanged: (_) => setDialogState(() {}),
+                                decoration: zenGlassInputDecoration(
+                                  ctx,
+                                  hintText: '0',
+                                  borderRadius: 14,
+                                  accentColor: AppColors.amberGlow,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                                ).copyWith(
+                                  suffixText: context.tr('minutes'),
+                                  suffixStyle: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: amberText,
+                                  ),
+                                ),
+                                onChanged: (txt) {
+                                  final parsed = int.tryParse(txt.trim());
+                                  if (parsed != null && parsed >= 0 && parsed <= 59 && minWheelCtrl.hasClients) {
+                                    isSyncingWheel = true;
+                                    minWheelCtrl.jumpToItem(parsed);
+                                    isSyncingWheel = false;
+                                  }
+                                  setDialogState(() {});
+                                },
                               ),
                             ],
                           ),
@@ -194,39 +372,51 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                     ),
                     const SizedBox(height: 12),
 
-                    // Quick Hour Buttons
+                    // Quick Hour Glass Pills
                     Wrap(
                       spacing: 8,
-                      runSpacing: 6,
+                      runSpacing: 7,
                       children: [1, 2, 3, 4, 6, 8, 12, 24].map((hr) {
                         bool isHrSelected = h == hr && m == 0;
-                        return GestureDetector(
+                        return ZenGlassPill(
+                          blurSigma: 0,
+                          borderRadius: 11,
+                          isSelected: isHrSelected,
+                          color: AppColors.amberGlow,
+                          glowColor: AppColors.amberGlow,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           onTap: () {
                             HapticFeedback.selectionClick();
+                            isSyncingWheel = true;
                             hoursCtrl.text = '$hr';
                             minutesCtrl.text = '0';
+                            if (hourWheelCtrl.hasClients) {
+                              hourWheelCtrl.animateToItem(
+                                hr,
+                                duration: const Duration(milliseconds: 220),
+                                curve: Curves.easeOutCubic,
+                              );
+                            }
+                            if (minWheelCtrl.hasClients) {
+                              minWheelCtrl.animateToItem(
+                                0,
+                                duration: const Duration(milliseconds: 220),
+                                curve: Curves.easeOutCubic,
+                              );
+                            }
+                            Future.delayed(const Duration(milliseconds: 240), () {
+                              isSyncingWheel = false;
+                            });
                             setDialogState(() {});
                           },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
+                          child: Text(
+                            '$hr ${context.tr('hours')}',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: isHrSelected ? FontWeight.bold : FontWeight.w600,
                               color: isHrSelected
-                                  ? AppColors.amberGlow.withOpacity(0.2)
-                                  : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04)),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isHrSelected ? AppColors.amberGlow : Colors.transparent,
-                              ),
-                            ),
-                            child: Text(
-                              '$hr ${context.tr('hours')}',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: isHrSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isHrSelected
-                                    ? AppColors.amberGlow
-                                    : (isDark ? Colors.white70 : Colors.black87),
-                              ),
+                                  ? amberText
+                                  : (isDark ? AppColors.darkText : AppColors.lightText),
                             ),
                           ),
                         );
@@ -234,26 +424,26 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                     ),
                     const SizedBox(height: 14),
 
-                    // Preview Banner
-                    Container(
+                    // Frosted Glass Preview Banner
+                    ZenLiquidGlass(
+                      blurSigma: 0,
                       width: double.infinity,
+                      borderRadius: 14,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.amberGlow.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.amberGlow.withOpacity(0.25)),
-                      ),
+                      glowColor: AppColors.amberGlow,
+                      surfaceColor: AppColors.amberGlow.withOpacity(isDark ? 0.14 : 0.10),
+                      customShadows: const [],
                       child: Row(
                         children: [
-                          const Icon(Icons.timer_outlined, size: 18, color: AppColors.amberGlow),
+                          Icon(Icons.timer_outlined, size: 18, color: amberText),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               previewText,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.amberGlow,
+                                fontWeight: FontWeight.w700,
+                                color: amberText,
                               ),
                             ),
                           ),
@@ -262,26 +452,20 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                     ),
                     const SizedBox(height: 16),
 
-                    // Confirm Button
+                    // Confirm ZenGlassButton
                     SizedBox(
                       width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.amberGlow,
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
+                      child: ZenGlassButton(
+                        label: context.tr('btn_confirm'),
+                        icon: Icons.check_circle_rounded,
+                        isPrimary: true,
+                        accentColor: AppColors.amberGlow,
                         onPressed: totalMins >= 1 && totalMins <= 1440
                             ? () {
                                 _animateToMinutes(totalMins.toDouble());
                                 Navigator.pop(ctx);
                               }
                             : null,
-                        child: Text(
-                          context.tr('btn_confirm'),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                        ),
                       ),
                     ),
                   ],
@@ -291,7 +475,14 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
           },
         );
       },
-    );
+    ).whenComplete(() {
+      Future.delayed(const Duration(milliseconds: 350), () {
+        hourWheelCtrl.dispose();
+        minWheelCtrl.dispose();
+        hoursCtrl.dispose();
+        minutesCtrl.dispose();
+      });
+    });
   }
 
   void _animateToMinutes(double targetMinutes) {
@@ -376,362 +567,348 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
   }
 
   void _showDevicePicker(List<String> dynamicDeviceTopicsList, SmartConfig activeConfig) {
-    showModalBottomSheet(
+    final zenOuter = context.zenColors;
+    showZenGlassBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      maxHeightFactor: 0.78,
+      accentColor: zenOuter.primary,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final zen = ctx.zenColors;
             final states = ref.read(globalDeviceStatesProvider);
 
-            return Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(ctx).size.height * 0.75,
-              ),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF131D31) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 12),
-                    Center(
-                      child: Container(
-                        width: 42,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white24 : Colors.black12,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
+            return SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header & Single/Multi Mode Switcher (showZenGlassBottomSheet already renders drag handle)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
                                 context.tr('select_device') ?? 'Chọn thiết bị hẹn giờ',
                                 style: TextStyle(
                                   fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : Colors.black87,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark ? AppColors.darkText : AppColors.lightText,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            ZenGlassIconButton(
+                              icon: Icons.close_rounded,
+                              size: 36,
+                              iconSize: 18,
+                              blurSigma: 0,
+                              onTap: () => Navigator.pop(ctx),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 16,
+                          padding: const EdgeInsets.all(4),
+                          surfaceColor: isDark
+                              ? Colors.white.withOpacity(0.06)
+                              : Colors.white.withOpacity(0.64),
+                          customShadows: const [],
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setSheetState(() {
+                                      _isMultiDeviceMode = false;
+                                      if (_timerDevices.length > 1) {
+                                        _timerDevices = [_timerDevices.first];
+                                        _updateDefaultActionForDevice(_timerDevices.first);
+                                      }
+                                    });
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(vertical: 9),
+                                    decoration: BoxDecoration(
+                                      gradient: !_isMultiDeviceMode ? zen.navPillGradient : null,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: !_isMultiDeviceMode
+                                          ? [
+                                              BoxShadow(
+                                                color: zen.primary.withOpacity(isDark ? 0.35 : 0.22),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        context.tr('timer_single_device'),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: !_isMultiDeviceMode ? FontWeight.w800 : FontWeight.w600,
+                                          color: !_isMultiDeviceMode
+                                              ? Colors.white
+                                              : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.close_rounded, size: 22),
-                                onPressed: () => Navigator.pop(ctx),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setSheetState(() {
+                                      _isMultiDeviceMode = true;
+                                    });
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(vertical: 9),
+                                    decoration: BoxDecoration(
+                                      gradient: _isMultiDeviceMode ? zen.navPillGradient : null,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: _isMultiDeviceMode
+                                          ? [
+                                              BoxShadow(
+                                                color: zen.primary.withOpacity(isDark ? 0.35 : 0.22),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        context.tr('timer_multi_device'),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: _isMultiDeviceMode ? FontWeight.w800 : FontWeight.w600,
+                                          color: _isMultiDeviceMode
+                                              ? Colors.white
+                                              : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setSheetState(() {
-                                        _isMultiDeviceMode = false;
-                                        if (_timerDevices.length > 1) {
-                                          _timerDevices = [_timerDevices.first];
-                                          _updateDefaultActionForDevice(_timerDevices.first);
-                                        }
-                                      });
-                                    },
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: !_isMultiDeviceMode
-                                            ? (isDark ? AppColors.primaryLight.withOpacity(0.2) : Colors.white)
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(10),
-                                        boxShadow: !_isMultiDeviceMode
-                                            ? [
-                                                BoxShadow(
-                                                  color: Colors.black.withOpacity(0.08),
-                                                  blurRadius: 4,
-                                                  offset: const Offset(0, 1),
-                                                ),
-                                              ]
-                                            : null,
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          context.tr('timer_single_device'),
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: !_isMultiDeviceMode ? FontWeight.bold : FontWeight.w500,
-                                            color: !_isMultiDeviceMode
-                                                ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                                : (isDark ? Colors.white60 : Colors.black54),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setSheetState(() {
-                                        _isMultiDeviceMode = true;
-                                      });
-                                    },
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: _isMultiDeviceMode
-                                            ? (isDark ? AppColors.primaryLight.withOpacity(0.2) : Colors.white)
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(10),
-                                        boxShadow: _isMultiDeviceMode
-                                            ? [
-                                                BoxShadow(
-                                                  color: Colors.black.withOpacity(0.08),
-                                                  blurRadius: 4,
-                                                  offset: const Offset(0, 1),
-                                                ),
-                                              ]
-                                            : null,
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          context.tr('timer_multi_device'),
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: _isMultiDeviceMode ? FontWeight.bold : FontWeight.w500,
-                                            color: _isMultiDeviceMode
-                                                ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                                : (isDark ? Colors.white60 : Colors.black54),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                    Divider(color: isDark ? Colors.white10 : Colors.black12, height: 1),
+                  ),
+                  Divider(
+                    color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE2E8F0),
+                    height: 1,
+                  ),
 
-                    Flexible(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        itemCount: dynamicDeviceTopicsList.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 6),
-                        itemBuilder: (ctx, idx) {
-                          final topic = dynamicDeviceTopicsList[idx];
-                          final devId = topic.split('/').last;
-                          final devName = getDeviceNameHelper(ctx, topic, activeConfig);
-                          final bool isSelected = _timerDevices.contains(topic);
-                          final bool isOn = states[devId] ?? false;
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      itemCount: dynamicDeviceTopicsList.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (ctx, idx) {
+                        final topic = dynamicDeviceTopicsList[idx];
+                        final devId = topic.split('/').last;
+                        final devName = getDeviceNameHelper(ctx, topic, activeConfig);
+                        final bool isSelected = _timerDevices.contains(topic);
+                        final bool isOn = states[devId] ?? false;
 
-                          final DeviceConfig? devObj = activeConfig.devices.firstWhere(
-                            (d) => d.id == devId,
-                            orElse: () => DeviceConfig(id: devId, pin: -1, room: '', name: devName, icon: 'lightbulb_rounded'),
-                          );
+                        final DeviceConfig? devObj = activeConfig.devices.firstWhere(
+                          (d) => d.id == devId,
+                          orElse: () => DeviceConfig(id: devId, pin: -1, room: '', name: devName, icon: 'lightbulb_rounded'),
+                        );
 
-                          return InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              if (!_isMultiDeviceMode) {
-                                setState(() {
-                                  _timerDevices = [topic];
-                                  _timerAction = isOn ? 'delay_off' : 'delay_on';
-                                });
-                                Navigator.pop(ctx);
-                              } else {
-                                setSheetState(() {
-                                  if (isSelected) {
-                                    if (_timerDevices.length > 1) {
-                                      _timerDevices.remove(topic);
-                                    }
-                                  } else {
-                                    _timerDevices.add(topic);
+                        return ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 18,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          glowColor: isSelected ? zen.primary : null,
+                          rimWidth: isSelected ? 1.4 : 1.05,
+                          surfaceColor: isSelected
+                              ? zen.primary.withOpacity(isDark ? 0.20 : 0.12)
+                              : (isDark
+                                  ? Colors.white.withOpacity(0.05)
+                                  : Colors.white.withOpacity(0.66)),
+                          customShadows: const [],
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            if (!_isMultiDeviceMode) {
+                              setState(() {
+                                _timerDevices = [topic];
+                                _timerAction = isOn ? 'delay_off' : 'delay_on';
+                              });
+                              Navigator.pop(ctx);
+                            } else {
+                              setSheetState(() {
+                                if (isSelected) {
+                                  if (_timerDevices.length > 1) {
+                                    _timerDevices.remove(topic);
                                   }
-                                });
-                                setState(() {});
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? (isDark ? AppColors.primaryLight.withOpacity(0.12) : AppColors.primary.withOpacity(0.08))
-                                    : (isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.02)),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                      : Colors.transparent,
-                                  width: 1.5,
+                                } else {
+                                  _timerDevices.add(topic);
+                                }
+                              });
+                              setState(() {});
+                            }
+                          },
+                          child: Row(
+                            children: [
+                              ZenLiquidGlass(
+                                blurSigma: 0,
+                                width: 42,
+                                height: 42,
+                                borderRadius: 14,
+                                alignment: Alignment.center,
+                                glowColor: isOn ? AppColors.amberGlow : null,
+                                surfaceColor: isOn
+                                    ? AppColors.amberGlow.withOpacity(isDark ? 0.20 : 0.14)
+                                    : (isDark
+                                        ? Colors.white.withOpacity(0.07)
+                                        : Colors.white.withOpacity(0.75)),
+                                customShadows: const [],
+                                child: Icon(
+                                  _getDeviceIcon(devObj?.icon ?? 'lightbulb_rounded'),
+                                  size: 21,
+                                  color: isOn
+                                      ? AppColors.amberGlow
+                                      : (isDark ? AppColors.darkText : AppColors.lightText),
                                 ),
                               ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: (isOn ? Colors.amber : Colors.blueGrey).withOpacity(0.15),
-                                      shape: BoxShape.circle,
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      devName,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? AppColors.darkText : AppColors.lightText,
+                                      ),
                                     ),
-                                    child: Icon(
-                                      _getDeviceIcon(devObj?.icon ?? 'lightbulb_rounded'),
-                                      size: 22,
-                                      color: isOn ? Colors.amber : (isDark ? Colors.white70 : Colors.black87),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                    const SizedBox(height: 4),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 4,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
                                       children: [
-                                        Text(
-                                          devName,
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark ? Colors.white : Colors.black87,
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: (isOn ? AppColors.emeraldGlow : Colors.grey).withOpacity(0.16),
+                                            borderRadius: BorderRadius.circular(6),
                                           ),
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: (isOn ? Colors.green : Colors.grey).withOpacity(0.14),
-                                                borderRadius: BorderRadius.circular(6),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Container(
+                                                width: 6,
+                                                height: 6,
+                                                decoration: BoxDecoration(
+                                                  color: isOn ? AppColors.emeraldGlow : Colors.grey,
+                                                  shape: BoxShape.circle,
+                                                ),
                                               ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Container(
-                                                    width: 6,
-                                                    height: 6,
-                                                    decoration: BoxDecoration(
-                                                      color: isOn ? Colors.green : Colors.grey,
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    isOn ? 'Đang bật' : 'Đang tắt',
-                                                    style: TextStyle(
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: isOn ? Colors.green : Colors.grey,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            if (!_isMultiDeviceMode)
+                                              const SizedBox(width: 4),
                                               Text(
-                                                isOn ? '→ Tự động: Hẹn giờ TẮT' : '→ Tự động: Hẹn giờ BẬT',
+                                                isOn ? 'Đang bật' : 'Đang tắt',
                                                 style: TextStyle(
                                                   fontSize: 11,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: isOn ? Colors.redAccent : Colors.teal,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isOn
+                                                      ? (isDark ? AppColors.emeraldGlow : AppColors.emeraldDeep)
+                                                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                                                 ),
                                               ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
+                                        if (!_isMultiDeviceMode)
+                                          Text(
+                                            isOn ? '→ Tự động: Hẹn giờ TẮT' : '→ Tự động: Hẹn giờ BẬT',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: isOn
+                                                  ? AppColors.roseGlow
+                                                  : (isDark ? zen.primaryAccent : zen.primary),
+                                            ),
+                                          ),
                                       ],
                                     ),
-                                  ),
-
-                                  if (!_isMultiDeviceMode)
-                                    Radio<bool>(
-                                      value: true,
-                                      groupValue: isSelected,
-                                      onChanged: (_) {
-                                        setState(() {
-                                          _timerDevices = [topic];
-                                          _timerAction = isOn ? 'delay_off' : 'delay_on';
-                                        });
-                                        Navigator.pop(ctx);
-                                      },
-                                    )
-                                  else
-                                    Checkbox(
-                                      value: isSelected,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                      onChanged: (val) {
-                                        setSheetState(() {
-                                          if (val == true) {
-                                            _timerDevices.add(topic);
-                                          } else if (_timerDevices.length > 1) {
-                                            _timerDevices.remove(topic);
-                                          }
-                                        });
-                                        setState(() {});
-                                      },
-                                    ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
-                    if (_isMultiDeviceMode) ...[
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                            onPressed: () => Navigator.pop(ctx),
-                            child: Text(
-                              'Xác nhận (${_timerDevices.length} thiết bị)',
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                            ),
+                              if (!_isMultiDeviceMode)
+                                Radio<bool>(
+                                  value: true,
+                                  groupValue: isSelected,
+                                  activeColor: isDark ? zen.primaryAccent : zen.primary,
+                                  onChanged: (_) {
+                                    setState(() {
+                                      _timerDevices = [topic];
+                                      _timerAction = isOn ? 'delay_off' : 'delay_on';
+                                    });
+                                    Navigator.pop(ctx);
+                                  },
+                                )
+                              else
+                                Checkbox(
+                                  value: isSelected,
+                                  activeColor: isDark ? zen.primaryAccent : zen.primary,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                  onChanged: (val) {
+                                    setSheetState(() {
+                                      if (val == true) {
+                                        _timerDevices.add(topic);
+                                      } else if (_timerDevices.length > 1) {
+                                        _timerDevices.remove(topic);
+                                      }
+                                    });
+                                    setState(() {});
+                                  },
+                                ),
+                            ],
                           ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  if (_isMultiDeviceMode)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ZenGlassButton(
+                          label: 'Xác nhận (${_timerDevices.length} thiết bị)',
+                          icon: Icons.check_circle_rounded,
+                          isPrimary: true,
+                          onPressed: () => Navigator.pop(ctx),
                         ),
                       ),
-                    ],
-                  ],
-                ),
+                    ),
+                ],
               ),
             );
           },
@@ -752,65 +929,70 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
     }
   }
 
-  Widget _buildSelector({required String title, required String valueText, required IconData icon, VoidCallback? onTap}) {
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
+  Widget _buildSelector({
+    required String title,
+    required String valueText,
+    required IconData icon,
+    VoidCallback? onTap,
+  }) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+
+    return ZenLiquidGlass(
+      blurSigma: 0,
+      borderRadius: 16,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      glowColor: zen.primary,
+      surfaceColor: isDark
+          ? Colors.white.withOpacity(0.06)
+          : Colors.white.withOpacity(0.66),
+      customShadows: const [],
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0x12FFFFFF) : const Color(0x08000000),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? const Color(0x1FFFFFFF) : const Color(0x0F000000),
-            width: 1,
+      child: Row(
+        children: [
+          ZenLiquidGlass(
+            blurSigma: 0,
+            borderRadius: 11,
+            padding: const EdgeInsets.all(8),
+            glowColor: zen.primary,
+            surfaceColor: zen.primary.withOpacity(isDark ? 0.20 : 0.12),
+            customShadows: const [],
+            child: Icon(icon, size: 20, color: isDark ? zen.primaryAccent : zen.primary),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: (isDark ? AppColors.primaryLight : AppColors.primary).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 20, color: isDark ? AppColors.primaryLight : AppColors.primary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                    ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    valueText,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? AppColors.darkText : AppColors.lightText,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  valueText,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppColors.darkText : AppColors.lightText,
                   ),
-                ],
-              ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            if (onTap != null)
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: isDark ? Colors.white54 : Colors.black45,
-                size: 20,
-              ),
-          ],
-        ),
+          ),
+          if (onTap != null)
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+              size: 20,
+            ),
+        ],
       ),
     );
   }
@@ -1082,7 +1264,9 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
       }
     });
 
-    bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+    final Color amberText = isDark ? AppColors.amberGlow : AppColors.amberDeep;
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
     final allDeviceTopics = getSortedDeviceTopicsList(context, activeConfig);
     final dynamicDeviceTopicsList = allDeviceTopics.where((topic) {
@@ -1099,56 +1283,71 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
         // Section Header
         Row(
           children: [
-            Container(
+            ZenLiquidGlass(
+              blurSigma: 8,
+              borderRadius: 11,
               padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.amberGlow.withOpacity(0.2), AppColors.amberDeep.withOpacity(0.1)],
-                ),
-                borderRadius: BorderRadius.circular(10),
+              glowColor: AppColors.amberGlow,
+              surfaceColor: AppColors.amberGlow.withOpacity(isDark ? 0.20 : 0.12),
+              customGradient: LinearGradient(
+                colors: [
+                  AppColors.amberGlow.withOpacity(isDark ? 0.28 : 0.18),
+                  AppColors.amberDeep.withOpacity(isDark ? 0.12 : 0.06),
+                ],
               ),
               child: const Icon(Icons.hourglass_top_rounded, color: AppColors.amberGlow, size: 18),
             ),
             const SizedBox(width: 10),
-            Text(context.tr('timer_title'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+            Text(
+              context.tr('timer_title'),
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.darkText : AppColors.lightText,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 14),
-        
+
         if (dynamicDeviceTopicsList.isEmpty)
-          Container(
+          ZenGlassCard(
+            borderRadius: 24,
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : AppColors.lightCard,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
+            blurSigma: 12,
+            glowColor: zen.primary,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.hourglass_disabled_rounded,
+                    size: 34,
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.28),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    context.tr('no_device'),
+                    style: TextStyle(
+                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Center(child: Text(context.tr('no_device'), style: TextStyle(color: Colors.grey.shade500))),
           )
         else
-          Container(
+          ZenGlassCard(
+            borderRadius: 26,
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : AppColors.lightCard,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
+            blurSigma: 16,
+            glowColor: zen.primary,
+            isActive: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Device Selector (Hỗ trợ chọn 1 hoặc nhiều thiết bị)
+                // Device Selector (nested inside ZenGlassCard -> blurSigma: 0)
                 _buildSelector(
                   title: context.tr('select_device'),
                   valueText: _timerDevices.isEmpty
@@ -1161,143 +1360,135 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                 ),
                 const SizedBox(height: 14),
 
-                // Action Toggle Pills
+                // ON / OFF Action Mode Selector Pills (ZenGlassPill with blurSigma: 0)
                 Row(
                   children: [
                     Expanded(
-                      child: GestureDetector(
+                      child: ZenGlassPill(
+                        blurSigma: 0,
+                        borderRadius: 16,
+                        isSelected: _timerAction == 'delay_off',
+                        color: AppColors.roseGlow,
+                        glowColor: AppColors.roseGlow,
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                         onTap: () {
                           HapticFeedback.selectionClick();
                           setState(() => _timerAction = 'delay_off');
                         },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: _timerAction == 'delay_off'
-                                ? (isDark ? AppColors.roseGlow.withOpacity(0.2) : Colors.red.shade50)
-                                : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03)),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: _timerAction == 'delay_off'
-                                  ? AppColors.roseGlow.withOpacity(0.5)
-                                  : Colors.transparent,
-                              width: 1.2,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.power_settings_new_rounded,
-                                    size: 15,
-                                    color: _timerAction == 'delay_off' ? AppColors.roseGlow : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Flexible(
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        context.tr('timer_action_off'),
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: _timerAction == 'delay_off' ? AppColors.roseGlow : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.power_settings_new_rounded,
+                                  size: 15,
+                                  color: _timerAction == 'delay_off'
+                                      ? AppColors.roseGlow
+                                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      context.tr('timer_action_off'),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: _timerAction == 'delay_off'
+                                            ? AppColors.roseGlow
+                                            : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  '(${context.tr('state_currently_on') ?? 'Đang bật'})',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: _timerAction == 'delay_off' 
-                                        ? AppColors.roseGlow.withOpacity(0.85) 
-                                        : (isDark ? AppColors.darkTextMuted.withOpacity(0.7) : AppColors.lightTextMuted.withOpacity(0.7)),
-                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '(${context.tr('state_currently_on') ?? 'Đang bật'})',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: _timerAction == 'delay_off'
+                                      ? AppColors.roseGlow.withOpacity(0.9)
+                                      : (isDark
+                                          ? AppColors.darkTextMuted.withOpacity(0.75)
+                                          : AppColors.lightTextMuted.withOpacity(0.75)),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: GestureDetector(
+                      child: ZenGlassPill(
+                        blurSigma: 0,
+                        borderRadius: 16,
+                        isSelected: _timerAction == 'delay_on',
+                        color: AppColors.emeraldGlow,
+                        glowColor: AppColors.emeraldGlow,
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                         onTap: () {
                           HapticFeedback.selectionClick();
                           setState(() => _timerAction = 'delay_on');
                         },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: _timerAction == 'delay_on'
-                                ? (isDark ? AppColors.emeraldGlow.withOpacity(0.2) : Colors.green.shade50)
-                                : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03)),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: _timerAction == 'delay_on'
-                                  ? AppColors.emeraldGlow.withOpacity(0.5)
-                                  : Colors.transparent,
-                              width: 1.2,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_outline_rounded,
-                                    size: 15,
-                                    color: _timerAction == 'delay_on' ? AppColors.emeraldGlow : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Flexible(
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        context.tr('timer_action_on'),
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: _timerAction == 'delay_on' ? AppColors.emeraldGlow : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle_outline_rounded,
+                                  size: 15,
+                                  color: _timerAction == 'delay_on'
+                                      ? (isDark ? AppColors.emeraldGlow : AppColors.emeraldDeep)
+                                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      context.tr('timer_action_on'),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: _timerAction == 'delay_on'
+                                            ? (isDark ? AppColors.emeraldGlow : AppColors.emeraldDeep)
+                                            : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  '(${context.tr('state_currently_off') ?? 'Đang tắt'})',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: _timerAction == 'delay_on' 
-                                        ? AppColors.emeraldGlow.withOpacity(0.85) 
-                                        : (isDark ? AppColors.darkTextMuted.withOpacity(0.7) : AppColors.lightTextMuted.withOpacity(0.7)),
-                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '(${context.tr('state_currently_off') ?? 'Đang tắt'})',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: _timerAction == 'delay_on'
+                                      ? (isDark ? AppColors.emeraldGlow : AppColors.emeraldDeep).withOpacity(0.9)
+                                      : (isDark
+                                          ? AppColors.darkTextMuted.withOpacity(0.75)
+                                          : AppColors.lightTextMuted.withOpacity(0.75)),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -1305,15 +1496,15 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                 ),
                 const SizedBox(height: 18),
 
-                // Digital Timer Display
+                // Digital Timer Display (ZenGlassPill with blurSigma: 0)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
                       child: Text(
-                        _timerAction == 'delay_off' 
-                            ? context.tr('time_off_label') 
+                        _timerAction == 'delay_off'
+                            ? context.tr('time_off_label')
                             : context.tr('time_on_label'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1325,109 +1516,97 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                       ),
                     ),
                     const SizedBox(width: 8),
-                    GestureDetector(
+                    ZenGlassPill(
+                      blurSigma: 0,
+                      borderRadius: 15,
+                      isSelected: true,
+                      color: AppColors.amberGlow,
+                      glowColor: AppColors.amberGlow,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                       onTap: _showCustomTimeDialog,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppColors.amberGlow.withOpacity(0.14),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: AppColors.amberGlow.withOpacity(0.35),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.amberGlow.withOpacity(0.18),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          if (_timerMinutes.round() >= 60) ...[
+                            Text(
+                              '${_timerMinutes.round() ~/ 60}',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                                color: amberText,
+                                fontFeatures: const [FontFeature.tabularFigures()],
+                              ),
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            if (_timerMinutes.round() >= 60) ...[
+                            const SizedBox(width: 2),
+                            Text(
+                              context.tr('hours'),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: amberText.withOpacity(0.88),
+                              ),
+                            ),
+                            if (_timerMinutes.round() % 60 > 0) ...[
+                              const SizedBox(width: 4),
                               Text(
-                                '${_timerMinutes.round() ~/ 60}',
-                                style: const TextStyle(
-                                  fontSize: 26,
+                                '${_timerMinutes.round() % 60}',
+                                style: TextStyle(
+                                  fontSize: 22,
                                   fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5,
-                                  color: AppColors.amberGlow,
-                                  fontFeatures: [FontFeature.tabularFigures()],
+                                  color: amberText,
+                                  fontFeatures: const [FontFeature.tabularFigures()],
                                 ),
                               ),
                               const SizedBox(width: 2),
                               Text(
-                                context.tr('hours'),
+                                'm',
                                 style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.amberGlow.withOpacity(0.85),
-                                ),
-                              ),
-                              if (_timerMinutes.round() % 60 > 0) ...[
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${_timerMinutes.round() % 60}',
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.amberGlow,
-                                    fontFeatures: [FontFeature.tabularFigures()],
-                                  ),
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  'm',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.amberGlow.withOpacity(0.85),
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(width: 6),
-                              Text(
-                                '(${_timerMinutes.round()}m)',
-                                style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.amberGlow.withOpacity(0.65),
-                                ),
-                              ),
-                            ] else ...[
-                              Text(
-                                '${_timerMinutes.round()}',
-                                style: const TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5,
-                                  color: AppColors.amberGlow,
-                                  fontFeatures: [FontFeature.tabularFigures()],
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                context.tr('minutes'),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.amberGlow.withOpacity(0.85),
+                                  color: amberText.withOpacity(0.88),
                                 ),
                               ),
                             ],
                             const SizedBox(width: 6),
-                            Icon(
-                              Icons.edit_calendar_rounded,
-                              size: 14,
-                              color: AppColors.amberGlow.withOpacity(0.75),
+                            Text(
+                              '(${_timerMinutes.round()}m)',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: amberText.withOpacity(0.70),
+                              ),
+                            ),
+                          ] else ...[
+                            Text(
+                              '${_timerMinutes.round()}',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                                color: amberText,
+                                fontFeatures: const [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              context.tr('minutes'),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: amberText.withOpacity(0.88),
+                              ),
                             ),
                           ],
-                        ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.edit_calendar_rounded,
+                            size: 14,
+                            color: amberText.withOpacity(0.80),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -1450,7 +1629,7 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                 ),
                 const SizedBox(height: 12),
 
-                // Quick Minutes & Hours Chips with horizontal scroll and smooth gliding animation
+                // Quick Minutes & Hours Glass Pills (blurSigma: 0)
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
@@ -1465,48 +1644,26 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                       } else {
                         chipLabel = '${(mins / 60).toStringAsFixed(1)} ${context.tr('hours')}';
                       }
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            _animateToMinutes(mins.toDouble());
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeOutBack,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.amberGlow.withOpacity(0.2)
-                                  : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03)),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.amberGlow
-                                    : Colors.transparent,
-                                width: 1.2,
-                              ),
-                              boxShadow: isSelected
-                                  ? [
-                                      BoxShadow(
-                                        color: AppColors.amberGlow.withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      )
-                                    ]
-                                  : [],
-                            ),
-                            child: Text(
-                              chipLabel,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                                color: isSelected
-                                    ? AppColors.amberGlow
-                                    : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
-                              ),
-                            ),
+                      return ZenGlassPill(
+                        blurSigma: 0,
+                        borderRadius: 12,
+                        margin: const EdgeInsets.only(right: 8, top: 2, bottom: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        isSelected: isSelected,
+                        color: AppColors.amberGlow,
+                        glowColor: AppColors.amberGlow,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          _animateToMinutes(mins.toDouble());
+                        },
+                        child: Text(
+                          chipLabel,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            color: isSelected
+                                ? amberText
+                                : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                           ),
                         ),
                       );
@@ -1515,48 +1672,49 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                 ),
                 const SizedBox(height: 20),
 
-                // Start Timer Button
+                // Start Timer Luminous Glass Button synced with context.zenColors
                 BouncingButton(
                   onTap: _executeTimer,
-                  child: Container(
+                  child: ZenLiquidGlass(
+                    blurSigma: 0,
                     width: double.infinity,
                     height: 50,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.navPillGradient,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryLight.withOpacity(0.35),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                    borderRadius: 16,
+                    glowColor: zen.primary,
+                    rimWidth: 1.35,
+                    surfaceColor: zen.primary,
+                    customGradient: zen.navPillGradient,
+                    customShadows: [
+                      BoxShadow(
+                        color: zen.primary.withOpacity(isDark ? 0.38 : 0.25),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22),
+                        const SizedBox(width: 6),
+                        Text(
+                          context.tr('timer_start'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3,
+                          ),
                         ),
                       ],
-                    ),
-                    child: Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22),
-                          const SizedBox(width: 6),
-                          Text(
-                            context.tr('timer_start'),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-        
-        // Timer History Section
+
+        // Timer History / Active Countdown List Section
         if (_timerHistory.isNotEmpty) ...[
           const SizedBox(height: 26),
           Row(
@@ -1564,10 +1722,20 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
             children: [
               Text(
                 context.tr('timer_history'),
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
+                ),
               ),
-              TextButton(
-                onPressed: () { 
+              ZenGlassPill(
+                blurSigma: 8,
+                borderRadius: 14,
+                color: AppColors.roseGlow,
+                glowColor: AppColors.roseGlow,
+                isSelected: false,
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                onTap: () {
                   showPremiumConfirmDialog(
                     context: context,
                     title: context.tr('clear_history'),
@@ -1589,12 +1757,26 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                       _saveTimerHistory();
                     },
                   );
-                }, 
-                child: Text(context.tr('clear_history'), style: const TextStyle(color: Colors.red, fontSize: 13)),
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.delete_sweep_rounded, size: 15, color: AppColors.roseGlow),
+                    const SizedBox(width: 4),
+                    Text(
+                      context.tr('clear_history'),
+                      style: const TextStyle(
+                        color: AppColors.roseGlow,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -1602,31 +1784,36 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
             itemBuilder: (context, index) {
               final item = _timerHistory[index];
               String status = item['status'];
-              Color statusColor = status == 'active' 
-                  ? AppColors.amberGlow 
+              final bool isActive = status == 'active';
+              final Color statusColor = isActive
+                  ? AppColors.amberGlow
                   : (status == 'completed' ? AppColors.emeraldGlow : Colors.grey);
-              
-              return Container(
+
+              return ZenGlassCard(
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder,
-                  ),
-                ),
+                borderRadius: 20,
+                blurSigma: 12,
+                isActive: isActive,
+                glowColor: isActive
+                    ? AppColors.amberGlow
+                    : (status == 'completed' ? AppColors.emeraldGlow : null),
                 child: Row(
                   children: [
-                    Container(
+                    ZenLiquidGlass(
+                      blurSigma: 0,
+                      borderRadius: 14,
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                      glowColor: isActive ? statusColor : null,
+                      surfaceColor: statusColor.withOpacity(isDark ? 0.20 : 0.13),
+                      customShadows: const [],
                       child: Icon(
-                        status == 'active' ? Icons.hourglass_top_rounded : (status == 'completed' ? Icons.check_circle_rounded : Icons.cancel_outlined), 
-                        color: statusColor, 
+                        isActive
+                            ? Icons.hourglass_top_rounded
+                            : (status == 'completed'
+                                ? Icons.check_circle_rounded
+                                : Icons.cancel_outlined),
+                        color: statusColor,
                         size: 24,
                       ),
                     ),
@@ -1642,58 +1829,110 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
                                   getDeviceNameHelper(context, item['topic'], activeConfig),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: status == 'active' ? (isDark ? AppColors.darkText : AppColors.lightText) : Colors.grey,
+                                    fontSize: 14.5,
+                                    color: isActive
+                                        ? (isDark ? AppColors.darkText : AppColors.lightText)
+                                        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const SizedBox(width: 6),
                               if (item['isShared'] == true)
-                                Container(
+                                ZenGlassPill(
+                                  blurSigma: 0,
+                                  borderRadius: 8,
+                                  isSelected: true,
+                                  color: zen.primary,
+                                  glowColor: zen.primary,
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                                  child: Text(
+                                    context.tr('shared'),
+                                    style: TextStyle(
+                                      color: isDark ? zen.primaryAccent : zen.primary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                  child: Text(context.tr('shared'), style: const TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
                                 )
                               else
-                                Container(
+                                ZenGlassPill(
+                                  blurSigma: 0,
+                                  borderRadius: 8,
+                                  isSelected: false,
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
+                                  child: Text(
+                                    context.tr('private'),
+                                    style: TextStyle(
+                                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                  child: Text(context.tr('private'), style: const TextStyle(color: Colors.grey, fontSize: 10)),
                                 ),
                             ],
                           ),
-                          const SizedBox(height: 3),
+                          const SizedBox(height: 4),
                           Text(
                             '${item['action']} ${item['minutes']} ${context.tr('minutes')} • ${item['timeStr']}',
-                            style: TextStyle(color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted, fontSize: 12),
+                            style: TextStyle(
+                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    if (status == 'active' && _canManageTimer(item)) 
-                      TextButton(
-                        onPressed: () => _cancelTimerHistory(index),
-                        child: Text(context.tr('cancel_cmd'), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(width: 8),
+                    if (isActive && _canManageTimer(item))
+                      ZenGlassPill(
+                        blurSigma: 0,
+                        borderRadius: 12,
+                        isSelected: true,
+                        color: AppColors.roseGlow,
+                        glowColor: AppColors.roseGlow,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        onTap: () => _cancelTimerHistory(index),
+                        child: Text(
+                          context.tr('cancel_cmd'),
+                          style: const TextStyle(
+                            color: AppColors.roseGlow,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12.5,
+                          ),
+                        ),
                       )
-                    else if (status == 'active')
+                    else if (isActive)
                       Text(
                         item['authorName'] != null && item['authorName'].toString().isNotEmpty
                             ? '${context.tr('status_waiting')} (${item['authorName']})'
                             : context.tr('status_waiting'),
-                        style: const TextStyle(color: Colors.orange, fontStyle: FontStyle.italic, fontSize: 12),
+                        style: TextStyle(
+                          color: amberText,
+                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
                       )
                     else if (status == 'completed')
-                      Text(context.tr('completed'), style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12))
-                    else 
-                      Text(context.tr('canceled'), style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic, fontSize: 12)),
+                      Text(
+                        context.tr('completed'),
+                        style: TextStyle(
+                          color: isDark ? AppColors.emeraldGlow : AppColors.emeraldDeep,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      )
+                    else
+                      Text(
+                        context.tr('canceled'),
+                        style: TextStyle(
+                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                          fontStyle: FontStyle.italic,
+                          fontSize: 12,
+                        ),
+                      ),
                   ],
                 ),
               );
