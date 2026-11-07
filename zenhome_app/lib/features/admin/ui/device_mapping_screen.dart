@@ -907,26 +907,29 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
             ),
           ],
         ),
-        floatingActionButton: ZenGlassButton(
-          label: context.tr('btn_add_device'),
-          icon: Icons.add_rounded,
-          borderRadius: 20,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          onPressed: () {
-            final currentConfig = ref.read(homeConfigProvider).activeConfig;
-            if (currentConfig.macAddress == 'unknown_mac' ||
-                currentConfig.macAddress.isEmpty ||
-                currentConfig.macAddress == 'unknown') {
-              showFloatingToast(
-                context,
-                context.tr('error'),
-                context.tr('err_link_esp_first'),
-                isError: true,
-              );
-              return;
-            }
-            _showDeviceBottomSheet();
-          },
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        floatingActionButton: IntrinsicWidth(
+          child: ZenGlassButton(
+            label: context.tr('btn_add_device'),
+            icon: Icons.add_rounded,
+            borderRadius: 22,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            onPressed: () {
+              final currentConfig = ref.read(homeConfigProvider).activeConfig;
+              if (currentConfig.macAddress == 'unknown_mac' ||
+                  currentConfig.macAddress.isEmpty ||
+                  currentConfig.macAddress == 'unknown') {
+                showFloatingToast(
+                  context,
+                  context.tr('error'),
+                  context.tr('err_link_esp_first'),
+                  isError: true,
+                );
+                return;
+              }
+              _showDeviceBottomSheet();
+            },
+          ),
         ),
         body: RefreshIndicator(
           color: zen.primary,

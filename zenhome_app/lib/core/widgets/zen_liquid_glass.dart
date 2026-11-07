@@ -1320,6 +1320,8 @@ class ZenGlassButton extends StatelessWidget {
   final double borderRadius;
   final EdgeInsetsGeometry padding;
   final Color? accentColor;
+  final double? width;
+  final double? height;
 
   const ZenGlassButton({
     super.key,
@@ -1332,6 +1334,8 @@ class ZenGlassButton extends StatelessWidget {
     this.borderRadius = 16.0,
     this.padding = const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
     this.accentColor,
+    this.width,
+    this.height,
   });
 
   @override
@@ -1366,6 +1370,8 @@ class ZenGlassButton extends StatelessWidget {
     return Opacity(
       opacity: onPressed == null && !isLoading ? 0.5 : 1.0,
       child: ZenLiquidGlass(
+        width: width,
+        height: height,
         borderRadius: borderRadius,
         padding: padding,
         blurSigma: 0,
@@ -1393,10 +1399,13 @@ class ZenGlassButton extends StatelessWidget {
                 ),
               ],
         onTap: isLoading ? null : onPressed,
-        alignment: Alignment.center,
+        alignment: (width != null || height != null) ? Alignment.center : null,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: (width != null && width == double.infinity)
+              ? MainAxisSize.max
+              : MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (isLoading) ...[
               SizedBox(
