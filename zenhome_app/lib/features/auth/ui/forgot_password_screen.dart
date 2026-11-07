@@ -178,9 +178,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     }
     final String displayName = data['displayName']?.toString() ?? username;
 
+    final zen = context.zenColors;
     showZenGlassDialog(
       context: context,
-      accentColor: AppColors.emeraldGlow,
+      accentColor: zen.success,
       builder: (ctx) {
         final bool isDark = Theme.of(ctx).brightness == Brightness.dark;
         final Color textColor =
@@ -198,15 +199,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.emeraldGlow.withOpacity(isDark ? 0.18 : 0.12),
+                color: zen.success.withOpacity(isDark ? 0.18 : 0.12),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: AppColors.emeraldGlow.withOpacity(0.35),
+                  color: zen.success.withOpacity(0.35),
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.verified_user_rounded,
-                color: AppColors.emeraldGlow,
+                color: zen.success,
                 size: 38,
               ),
             ),
@@ -319,7 +320,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     vertical: 12,
                   ),
                   isActive: true,
-                  glowColor: AppColors.roseGlow,
+                  glowColor: zen.primary,
                   onTap: () {
                     HapticFeedback.lightImpact();
                     final String targetEmail = email!;
@@ -381,8 +382,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 child: Text(
                   ctx.tr('err_no_recovery_method'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.roseGlow,
+                  style: TextStyle(
+                    color: zen.danger,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

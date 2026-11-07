@@ -1339,16 +1339,12 @@ class ZenGlassButton extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final zen = context.zenColors;
     final Color baseColor = isDanger
-        ? AppColors.roseGlow
+        ? zen.danger
         : (accentColor ?? zen.primary);
 
     final Gradient? gradient = isPrimary
         ? (isDanger
-            ? const LinearGradient(
-                colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
+            ? zen.dangerGradient
             : (accentColor != null
                 ? LinearGradient(
                     colors: [
@@ -1364,7 +1360,7 @@ class ZenGlassButton extends StatelessWidget {
     final Color fgColor = isPrimary
         ? Colors.white
         : (isDanger
-            ? AppColors.roseGlow
+            ? zen.danger
             : (isDark ? AppColors.darkText : AppColors.lightText));
 
     return Opacity(
@@ -1500,15 +1496,15 @@ InputDecoration zenGlassInputDecoration(
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(borderRadius),
-      borderSide: const BorderSide(
-        color: AppColors.roseGlow,
+      borderSide: BorderSide(
+        color: zen.danger,
         width: 1.3,
       ),
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(borderRadius),
-      borderSide: const BorderSide(
-        color: AppColors.roseGlow,
+      borderSide: BorderSide(
+        color: zen.danger,
         width: 1.6,
       ),
     ),
@@ -1864,7 +1860,7 @@ class _ZenGlassPopupRoute<T> extends PopupRoute<T> {
                                     height: 30,
                                     decoration: BoxDecoration(
                                       color: (item.isDanger
-                                              ? AppColors.roseGlow
+                                              ? zen.danger
                                               : (item.color ?? zen.primary))
                                           .withOpacity(isDark ? 0.18 : 0.12),
                                       borderRadius: BorderRadius.circular(9),
@@ -1873,7 +1869,7 @@ class _ZenGlassPopupRoute<T> extends PopupRoute<T> {
                                       item.icon,
                                       size: 16.5,
                                       color: item.isDanger
-                                          ? AppColors.roseGlow
+                                          ? zen.danger
                                           : (item.color ??
                                               (isDark
                                                   ? zen.primaryAccent
@@ -1894,7 +1890,7 @@ class _ZenGlassPopupRoute<T> extends PopupRoute<T> {
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
                                           color: item.isDanger
-                                              ? AppColors.roseGlow
+                                              ? zen.danger
                                               : (item.color ??
                                                   (isDark
                                                       ? AppColors.darkText

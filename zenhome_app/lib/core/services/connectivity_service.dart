@@ -134,7 +134,7 @@ class _ConnectivityBannerWrapperState
                   child: ZenLiquidGlass(
                     borderRadius: 20,
                     blurSigma: 22,
-                    glowColor: AppColors.amberGlow,
+                    glowColor: zen.warning,
                     rimWidth: 1.3,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -148,15 +148,15 @@ class _ConnectivityBannerWrapperState
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.amberGlow.withOpacity(0.20),
+                            color: zen.warning.withOpacity(0.20),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: AppColors.amberGlow.withOpacity(0.42),
+                              color: zen.warning.withOpacity(0.42),
                             ),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.wifi_off_rounded,
-                            color: AppColors.amberGlow,
+                            color: zen.warning,
                             size: 18,
                           ),
                         ),
@@ -171,9 +171,7 @@ class _ConnectivityBannerWrapperState
                                 style: TextStyle(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 13,
-                                  color: isDark
-                                      ? Colors.amber.shade200
-                                      : Colors.amber.shade900,
+                                  color: zen.warning,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -193,10 +191,8 @@ class _ConnectivityBannerWrapperState
                         ZenGlassPill(
                           blurSigma: 0,
                           isSelected: true,
-                          glowColor: AppColors.amberGlow,
-                          customGradient: const LinearGradient(
-                            colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
-                          ),
+                          glowColor: zen.warning,
+                          customGradient: zen.warningGradient,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 11,
                             vertical: 7,
@@ -251,7 +247,7 @@ class _ConnectivityBannerWrapperState
                   child: ZenLiquidGlass(
                     borderRadius: 20,
                     blurSigma: 22,
-                    glowColor: AppColors.emeraldGlow,
+                    glowColor: zen.success,
                     rimWidth: 1.3,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -263,7 +259,7 @@ class _ConnectivityBannerWrapperState
                     customGradient: LinearGradient(
                       colors: [
                         zen.primary.withOpacity(isDark ? 0.55 : 0.85),
-                        AppColors.emeraldGlow.withOpacity(isDark ? 0.45 : 0.80),
+                        zen.success.withOpacity(isDark ? 0.45 : 0.80),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -338,6 +334,7 @@ class _NoInternetScreenState extends ConsumerState<NoInternetScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
     final mutedColor =
         isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
@@ -351,7 +348,7 @@ class _NoInternetScreenState extends ConsumerState<NoInternetScreen> {
               borderRadius: 30,
               blurSigma: 22,
               isActive: true,
-              glowColor: AppColors.amberGlow,
+              glowColor: zen.warning,
               padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 36),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -362,27 +359,27 @@ class _NoInternetScreenState extends ConsumerState<NoInternetScreen> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.amberGlow.withOpacity(0.24),
-                          AppColors.amberGlow.withOpacity(0.06),
+                          zen.warning.withOpacity(0.24),
+                          zen.warning.withOpacity(0.06),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppColors.amberGlow.withOpacity(0.45),
+                        color: zen.warning.withOpacity(0.45),
                         width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.amberGlow.withOpacity(0.24),
+                          color: zen.warning.withOpacity(0.24),
                           blurRadius: 26,
                         ),
                       ],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.wifi_off_rounded,
-                      color: AppColors.amberGlow,
+                      color: zen.warning,
                       size: 42,
                     ),
                   ),

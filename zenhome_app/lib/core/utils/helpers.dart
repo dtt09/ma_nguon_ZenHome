@@ -105,7 +105,7 @@ void showAlertDialogHelper(
 
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final zen = context.zenColors;
-  final accent = isError ? AppColors.roseGlow : AppColors.emeraldGlow;
+  final accent = isError ? zen.danger : zen.success;
 
   showZenGlassDialog(
     context: context,
@@ -154,7 +154,7 @@ void showAlertDialogHelper(
             child: ZenGlassButton(
               label: 'OK',
               isDanger: isError,
-              accentColor: isError ? AppColors.roseGlow : zen.primary,
+              accentColor: isError ? zen.danger : zen.primary,
               onPressed: () => Navigator.of(ctx).pop(),
             ),
           ),

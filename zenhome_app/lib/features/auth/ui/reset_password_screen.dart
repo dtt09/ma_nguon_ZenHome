@@ -215,8 +215,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         (_hasSpecialChar ? 1 : 0);
     final double strengthPercent = strengthScore / 5;
     final Color strengthColor = strengthPercent <= 0.4
-        ? AppColors.roseGlow
-        : (strengthPercent <= 0.8 ? AppColors.amberGlow : AppColors.emeraldGlow);
+        ? zen.danger
+        : (strengthPercent <= 0.8 ? zen.warning : zen.success);
 
     return SafeArea(
       bottom: false,

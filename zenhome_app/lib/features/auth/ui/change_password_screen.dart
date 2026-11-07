@@ -66,13 +66,14 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   }
 
   Widget _buildRequirement(String text, bool isMet, Color mutedColor) {
+    final zen = context.zenColors;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
           Icon(
             isMet ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-            color: isMet ? AppColors.emeraldGlow : mutedColor.withOpacity(0.6),
+            color: isMet ? zen.success : mutedColor.withOpacity(0.6),
             size: 16,
           ),
           const SizedBox(width: 8),
@@ -80,7 +81,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             child: Text(
               text,
               style: TextStyle(
-                color: isMet ? AppColors.emeraldGlow : mutedColor,
+                color: isMet ? zen.success : mutedColor,
                 fontSize: 12.5,
                 fontWeight: isMet ? FontWeight.w700 : FontWeight.w500,
               ),
@@ -186,8 +187,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         (_hasSpecialChar ? 1 : 0);
     double strengthPercent = strengthScore / 5;
     Color strengthColor = strengthPercent <= 0.4
-        ? AppColors.roseGlow
-        : (strengthPercent <= 0.8 ? AppColors.amberGlow : AppColors.emeraldGlow);
+        ? zen.danger
+        : (strengthPercent <= 0.8 ? zen.warning : zen.success);
 
     return ZenGlassScaffold(
       appBar: ZenGlassAppBar(

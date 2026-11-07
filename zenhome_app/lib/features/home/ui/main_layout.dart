@@ -342,7 +342,7 @@ class _MainLayoutState extends ConsumerState<MainLayout>
                     borderRadius: 28,
                     blurSigma: 24,
                     isActive: true,
-                    glowColor: AppColors.roseGlow,
+                    glowColor: zen.danger,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -351,15 +351,15 @@ class _MainLayoutState extends ConsumerState<MainLayout>
                           height: 72,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AppColors.roseGlow.withOpacity(0.16),
+                            color: zen.danger.withOpacity(0.16),
                             border: Border.all(
-                              color: AppColors.roseGlow.withOpacity(0.45),
+                              color: zen.danger.withOpacity(0.45),
                               width: 1.5,
                             ),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.wifi_off_rounded,
-                            color: AppColors.roseGlow,
+                            color: zen.danger,
                             size: 38,
                           ),
                         ),

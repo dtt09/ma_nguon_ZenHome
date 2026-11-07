@@ -18,7 +18,7 @@ void showFloatingToast(
 
   final bool isDark = Theme.of(context).brightness == Brightness.dark;
   final zen = context.zenColors;
-  final Color accent = isError ? AppColors.roseGlow : zen.primary;
+  final Color accent = isError ? zen.danger : zen.primary;
 
   ScaffoldMessenger.of(context).hideCurrentSnackBar();
   ScaffoldMessenger.of(context).showSnackBar(
@@ -62,8 +62,8 @@ void showFloatingToast(
                   end: Alignment.bottomRight,
                   colors: isError
                       ? [
-                          AppColors.roseGlow.withOpacity(0.28),
-                          AppColors.roseGlow.withOpacity(0.10),
+                          zen.danger.withOpacity(0.28),
+                          zen.danger.withOpacity(0.10),
                         ]
                       : [
                           accent.withOpacity(0.28),
@@ -78,7 +78,7 @@ void showFloatingToast(
               child: Icon(
                 isError ? Icons.close_rounded : Icons.check_rounded,
                 color: isError
-                    ? AppColors.roseGlow
+                    ? zen.danger
                     : (isDark ? zen.primaryAccent : zen.primary),
                 size: 24,
               ),

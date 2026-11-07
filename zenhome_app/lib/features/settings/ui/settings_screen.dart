@@ -1333,22 +1333,22 @@ class SettingsScreen extends ConsumerWidget {
                       borderRadius: 24,
                       blurSigma: 14,
                       isActive: true,
-                      glowColor: AppColors.roseGlow,
+                      glowColor: zen.danger,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: ListTile(
                         leading: Container(
                           padding: const EdgeInsets.all(9),
                           decoration: BoxDecoration(
-                            color: AppColors.roseGlow.withOpacity(0.14),
+                            color: zen.danger.withOpacity(0.14),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(Icons.exit_to_app_rounded, color: AppColors.roseGlow, size: 22),
+                          child: Icon(Icons.exit_to_app_rounded, color: zen.danger, size: 22),
                         ),
                         title: Text(
                           context.tr('btn_leave_home') ?? 'Rời khỏi nhà này',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.roseGlow),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: zen.danger),
                         ),
-                        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.roseGlow),
+                        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: zen.danger),
                         onTap: () => _handleLeaveHome(context, ref, activeConfig.ownerEmail, activeConfig.userId),
                       ),
                     ).animate().slideX(begin: 0.1, end: 0),
@@ -1371,26 +1371,26 @@ class SettingsScreen extends ConsumerWidget {
                       borderRadius: 24,
                       blurSigma: 14,
                       isActive: true,
-                      glowColor: AppColors.roseGlow,
+                      glowColor: zen.danger,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: ListTile(
                         leading: Container(
                           padding: const EdgeInsets.all(9),
                           decoration: BoxDecoration(
-                            color: AppColors.roseGlow.withOpacity(0.14),
+                            color: zen.danger.withOpacity(0.14),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(Icons.delete_forever_rounded, color: AppColors.roseGlow, size: 22),
+                          child: Icon(Icons.delete_forever_rounded, color: zen.danger, size: 22),
                         ),
                         title: Text(
                           context.tr('delete_this_sub_home') ?? 'Xóa ngôi nhà phụ này',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.roseGlow),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: zen.danger),
                         ),
                         subtitle: Text(
                           'Xóa vĩnh viễn ${activeConfig.homeName} và trở về nhà chính',
                           style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                         ),
-                        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.roseGlow),
+                        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: zen.danger),
                         onTap: () => _handleDeleteCurrentSubHome(context, ref, activeConfig),
                       ),
                     ).animate().slideX(begin: 0.1, end: 0),
@@ -1445,7 +1445,7 @@ class SettingsScreen extends ConsumerWidget {
                                         return Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: AppColors.roseGlow,
+                                            color: zen.danger,
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Text(
@@ -1553,10 +1553,10 @@ class SettingsScreen extends ConsumerWidget {
                               leading: Container(
                                 padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
-                                  color: AppColors.roseGlow.withOpacity(0.14),
+                                  color: zen.danger.withOpacity(0.14),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: const Icon(Icons.flourescent_rounded, color: AppColors.roseGlow, size: 22),
+                                child: Icon(Icons.flourescent_rounded, color: zen.danger, size: 22),
                               ),
                               title: const Text(
                                 'Kiểm tra Crashlytics Realtime',
@@ -1569,16 +1569,16 @@ class SettingsScreen extends ConsumerWidget {
                               trailing: ZenGlassPill(
                                 blurSigma: 0,
                                 isSelected: true,
-                                glowColor: AppColors.roseGlow,
+                                glowColor: zen.danger,
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.send_rounded, size: 14, color: AppColors.roseGlow),
+                                    Icon(Icons.send_rounded, size: 14, color: zen.danger),
                                     const SizedBox(width: 4),
                                     Text(
                                       context.tr('btn_send_test'),
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.roseGlow),
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: zen.danger),
                                     ),
                                   ],
                                 ),
@@ -1604,7 +1604,7 @@ class SettingsScreen extends ConsumerWidget {
                     borderRadius: 22,
                     blurSigma: 12,
                     isActive: true,
-                    glowColor: AppColors.roseGlow,
+                    glowColor: zen.danger,
                     height: 56,
                     padding: EdgeInsets.zero,
                     onTap: () => _handleLogout(context, ref),
@@ -1612,14 +1612,14 @@ class SettingsScreen extends ConsumerWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.logout_rounded, color: AppColors.roseGlow, size: 21),
+                          Icon(Icons.logout_rounded, color: zen.danger, size: 21),
                           const SizedBox(width: 9),
                           Text(
                             context.tr('btn_logout'),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.roseGlow,
+                              color: zen.danger,
                             ),
                           ),
                         ],

@@ -794,13 +794,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget _buildRequirement(String text, bool isMet, bool isDark) {
     final Color mutedColor =
         isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
+    final zen = context.zenColors;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.5),
       child: Row(
         children: [
           Icon(
             isMet ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-            color: isMet ? AppColors.emeraldGlow : mutedColor.withOpacity(0.65),
+            color: isMet ? zen.success : mutedColor.withOpacity(0.65),
             size: 16,
           ),
           const SizedBox(width: 8),
@@ -808,7 +809,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             child: Text(
               text,
               style: TextStyle(
-                color: isMet ? AppColors.emeraldGlow : mutedColor,
+                color: isMet ? zen.success : mutedColor,
                 fontSize: 12,
                 fontWeight: isMet ? FontWeight.w600 : FontWeight.w400,
               ),
@@ -835,8 +836,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         (_hasSpecialChar ? 1 : 0);
     final double strengthPercent = strengthScore / 5;
     final Color strengthColor = strengthPercent <= 0.4
-        ? AppColors.roseGlow
-        : (strengthPercent <= 0.8 ? AppColors.amberGlow : AppColors.emeraldGlow);
+        ? zen.danger
+        : (strengthPercent <= 0.8 ? zen.warning : zen.success);
 
     final bool isGoogleFlow = !widget.isPhone &&
         (widget.uid != null || FirebaseAuth.instance.currentUser != null);

@@ -167,9 +167,10 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
 
   void _showDeleteConfirmDialog(int index) async {
     final dev = _tempDevices[index];
+    final zen = context.zenColors;
     final bool confirmed = await showZenGlassDialog<bool>(
           context: context,
-          accentColor: AppColors.roseGlow,
+          accentColor: zen.danger,
           builder: (ctx) {
             final isDark = Theme.of(ctx).brightness == Brightness.dark;
             final textColor = isDark ? AppColors.darkText : AppColors.lightText;
@@ -184,22 +185,22 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.roseGlow.withOpacity(0.14),
+                        color: zen.danger.withOpacity(0.14),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                            color: AppColors.roseGlow.withOpacity(0.32)),
+                            color: zen.danger.withOpacity(0.32)),
                       ),
-                      child: const Icon(Icons.delete_forever_rounded,
-                          color: AppColors.roseGlow, size: 24),
+                      child: Icon(Icons.delete_forever_rounded,
+                          color: zen.danger, size: 24),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         context.tr('confirm_delete_device_title'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
-                          color: AppColors.roseGlow,
+                          color: zen.danger,
                         ),
                       ),
                     ),
@@ -221,8 +222,8 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                   borderRadius: 14,
                   padding: const EdgeInsets.all(12),
                   surfaceColor:
-                      AppColors.roseGlow.withOpacity(isDark ? 0.10 : 0.06),
-                  glowColor: AppColors.roseGlow,
+                      zen.danger.withOpacity(isDark ? 0.10 : 0.06),
+                  glowColor: zen.danger,
                   child: Text(
                     'Khu vực: ${context.tr(dev.room)} • ID: ${dev.id}\nLưu ý: Mọi lịch trình, hẹn giờ và ngữ cảnh gắn với thiết bị này sẽ bị gỡ bỏ.',
                     style: TextStyle(
@@ -776,7 +777,7 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
         if (didPop) return;
         bool? confirm = await showZenGlassDialog<bool>(
           context: context,
-          accentColor: AppColors.roseGlow,
+          accentColor: zen.danger,
           builder: (ctx) => Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -786,13 +787,13 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.roseGlow.withOpacity(0.14),
+                      color: zen.danger.withOpacity(0.14),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                          color: AppColors.roseGlow.withOpacity(0.32)),
+                          color: zen.danger.withOpacity(0.32)),
                     ),
-                    child: const Icon(Icons.warning_amber_rounded,
-                        color: AppColors.roseGlow, size: 24),
+                    child: Icon(Icons.warning_amber_rounded,
+                        color: zen.danger, size: 24),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1372,8 +1373,8 @@ class _DeviceMappingScreenState extends ConsumerState<DeviceMappingScreen> {
                             iconSize: 18,
                             borderRadius: 12,
                             icon: Icons.delete_outline_rounded,
-                            iconColor: AppColors.roseGlow,
-                            glowColor: AppColors.roseGlow,
+                            iconColor: zen.danger,
+                            glowColor: zen.danger,
                             tooltip: context.tr('btn_delete'),
                             onTap: () => _showDeleteConfirmDialog(index),
                           ),

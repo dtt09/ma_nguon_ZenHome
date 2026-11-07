@@ -25,6 +25,21 @@ class ThemePresetConfig {
   final Color previewColor;
   final IconData icon;
 
+  // Anti-Collision Dynamic Semantic Tokens (Cảnh báo không bao giờ trùng màu chủ đề)
+  final Color danger;
+  final Color dangerLight;
+  final LinearGradient dangerGradient;
+  final Color warning;
+  final Color warningLight;
+  final LinearGradient warningGradient;
+  final Color success;
+  final Color successLight;
+  final LinearGradient successGradient;
+  final Color info;
+  final Color infoLight;
+  final LinearGradient infoGradient;
+  final Color offline;
+
   const ThemePresetConfig({
     required this.preset,
     required this.key,
@@ -38,6 +53,19 @@ class ThemePresetConfig {
     required this.navPillGradient,
     required this.previewColor,
     required this.icon,
+    required this.danger,
+    required this.dangerLight,
+    required this.dangerGradient,
+    required this.warning,
+    required this.warningLight,
+    required this.warningGradient,
+    required this.success,
+    required this.successLight,
+    required this.successGradient,
+    required this.info,
+    required this.infoLight,
+    required this.infoGradient,
+    required this.offline,
   });
 
   static const List<ThemePresetConfig> presets = [
@@ -62,6 +90,36 @@ class ThemePresetConfig {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
+      // Anti-Collision Semantic Tokens: Success shifts to Vivid Matrix Lime (distinguishes from Teal)
+      danger: Color(0xFFF43F5E),
+      dangerLight: Color(0xFFFB7185),
+      dangerGradient: LinearGradient(
+        colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      warning: Color(0xFFF59E0B),
+      warningLight: Color(0xFFFCD34D),
+      warningGradient: LinearGradient(
+        colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      success: Color(0xFF00E676),
+      successLight: Color(0xFF69F0AE),
+      successGradient: LinearGradient(
+        colors: [Color(0xFF00C853), Color(0xFF00E676)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      info: Color(0xFF0284C7),
+      infoLight: Color(0xFF38BDF8),
+      infoGradient: LinearGradient(
+        colors: [Color(0xFF0369A1), Color(0xFF0284C7)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      offline: Color(0xFF94A3B8),
     ),
     ThemePresetConfig(
       preset: AppThemePreset.midnightSapphire,
@@ -84,6 +142,36 @@ class ThemePresetConfig {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
+      // Anti-Collision Semantic Tokens: Info shifts to Glacier Cyan (distinguishes from Sapphire Blue)
+      danger: Color(0xFFEF4444),
+      dangerLight: Color(0xFFF87171),
+      dangerGradient: LinearGradient(
+        colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      warning: Color(0xFFF59E0B),
+      warningLight: Color(0xFFFBBF24),
+      warningGradient: LinearGradient(
+        colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      success: Color(0xFF10B981),
+      successLight: Color(0xFF34D399),
+      successGradient: LinearGradient(
+        colors: [Color(0xFF059669), Color(0xFF10B981)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      info: Color(0xFF00E5FF),
+      infoLight: Color(0xFF80DEEA),
+      infoGradient: LinearGradient(
+        colors: [Color(0xFF0097A7), Color(0xFF00E5FF)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      offline: Color(0xFF94A3B8),
     ),
     ThemePresetConfig(
       preset: AppThemePreset.amethystTwilight,
@@ -106,6 +194,35 @@ class ThemePresetConfig {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
+      danger: Color(0xFFF43F5E),
+      dangerLight: Color(0xFFFB7185),
+      dangerGradient: LinearGradient(
+        colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      warning: Color(0xFFF59E0B),
+      warningLight: Color(0xFFFBBF24),
+      warningGradient: LinearGradient(
+        colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      success: Color(0xFF10B981),
+      successLight: Color(0xFF34D399),
+      successGradient: LinearGradient(
+        colors: [Color(0xFF059669), Color(0xFF10B981)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      info: Color(0xFF06B6D4),
+      infoLight: Color(0xFF67E8F9),
+      infoGradient: LinearGradient(
+        colors: [Color(0xFF0891B2), Color(0xFF06B6D4)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      offline: Color(0xFF94A3B8),
     ),
     ThemePresetConfig(
       preset: AppThemePreset.champagneGold,
@@ -128,6 +245,36 @@ class ThemePresetConfig {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
+      // Anti-Collision Semantic Tokens: Warning shifts to Electric Persimmon Sunset Coral (distinguishes from Gold)
+      danger: Color(0xFFE11D48),
+      dangerLight: Color(0xFFFB7185),
+      dangerGradient: LinearGradient(
+        colors: [Color(0xFFBE123C), Color(0xFFE11D48)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      warning: Color(0xFFFF5722),
+      warningLight: Color(0xFFFF8A65),
+      warningGradient: LinearGradient(
+        colors: [Color(0xFFE64A19), Color(0xFFFF5722)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      success: Color(0xFF10B981),
+      successLight: Color(0xFF34D399),
+      successGradient: LinearGradient(
+        colors: [Color(0xFF059669), Color(0xFF10B981)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      info: Color(0xFF0284C7),
+      infoLight: Color(0xFF38BDF8),
+      infoGradient: LinearGradient(
+        colors: [Color(0xFF0369A1), Color(0xFF0284C7)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      offline: Color(0xFF94A3B8),
     ),
     ThemePresetConfig(
       preset: AppThemePreset.rubyCoral,
@@ -150,6 +297,36 @@ class ThemePresetConfig {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
+      // Anti-Collision Semantic Tokens: Danger shifts to Safety Hazard Flame Orange-Red (distinguishes from Ruby Coral)
+      danger: Color(0xFFFF3D00),
+      dangerLight: Color(0xFFFF6E40),
+      dangerGradient: LinearGradient(
+        colors: [Color(0xFFDD2C00), Color(0xFFFF5722)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      warning: Color(0xFFFFAB00),
+      warningLight: Color(0xFFFFD600),
+      warningGradient: LinearGradient(
+        colors: [Color(0xFFFF8F00), Color(0xFFFFAB00)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      success: Color(0xFF00E676),
+      successLight: Color(0xFF69F0AE),
+      successGradient: LinearGradient(
+        colors: [Color(0xFF00C853), Color(0xFF00E676)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      info: Color(0xFF00B0FF),
+      infoLight: Color(0xFF80D8FF),
+      infoGradient: LinearGradient(
+        colors: [Color(0xFF0091EA), Color(0xFF00B0FF)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      offline: Color(0xFF94A3B8),
     ),
     ThemePresetConfig(
       preset: AppThemePreset.obsidianCyber,
@@ -172,6 +349,35 @@ class ThemePresetConfig {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
+      danger: Color(0xFFEF4444),
+      dangerLight: Color(0xFFF87171),
+      dangerGradient: LinearGradient(
+        colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      warning: Color(0xFFF59E0B),
+      warningLight: Color(0xFFFBBF24),
+      warningGradient: LinearGradient(
+        colors: [Color(0xFFD97706), Color(0xFFF59E0B)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      success: Color(0xFF10B981),
+      successLight: Color(0xFF34D399),
+      successGradient: LinearGradient(
+        colors: [Color(0xFF059669), Color(0xFF10B981)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      info: Color(0xFF0284C7),
+      infoLight: Color(0xFF38BDF8),
+      infoGradient: LinearGradient(
+        colors: [Color(0xFF0369A1), Color(0xFF0284C7)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      offline: Color(0xFF94A3B8),
     ),
   ];
 
@@ -201,6 +407,21 @@ class ZenThemeColorsExtension extends ThemeExtension<ZenThemeColorsExtension> {
   final LinearGradient navPillGradient;
   final Color activeGlow;
 
+  // Anti-Collision Dynamic Semantic Tokens
+  final Color danger;
+  final Color dangerLight;
+  final LinearGradient dangerGradient;
+  final Color warning;
+  final Color warningLight;
+  final LinearGradient warningGradient;
+  final Color success;
+  final Color successLight;
+  final LinearGradient successGradient;
+  final Color info;
+  final Color infoLight;
+  final LinearGradient infoGradient;
+  final Color offline;
+
   const ZenThemeColorsExtension({
     required this.primary,
     required this.primaryDark,
@@ -209,6 +430,19 @@ class ZenThemeColorsExtension extends ThemeExtension<ZenThemeColorsExtension> {
     required this.brandHero,
     required this.navPillGradient,
     required this.activeGlow,
+    required this.danger,
+    required this.dangerLight,
+    required this.dangerGradient,
+    required this.warning,
+    required this.warningLight,
+    required this.warningGradient,
+    required this.success,
+    required this.successLight,
+    required this.successGradient,
+    required this.info,
+    required this.infoLight,
+    required this.infoGradient,
+    required this.offline,
   });
 
   @override
@@ -220,6 +454,19 @@ class ZenThemeColorsExtension extends ThemeExtension<ZenThemeColorsExtension> {
     LinearGradient? brandHero,
     LinearGradient? navPillGradient,
     Color? activeGlow,
+    Color? danger,
+    Color? dangerLight,
+    LinearGradient? dangerGradient,
+    Color? warning,
+    Color? warningLight,
+    LinearGradient? warningGradient,
+    Color? success,
+    Color? successLight,
+    LinearGradient? successGradient,
+    Color? info,
+    Color? infoLight,
+    LinearGradient? infoGradient,
+    Color? offline,
   }) {
     return ZenThemeColorsExtension(
       primary: primary ?? this.primary,
@@ -229,6 +476,19 @@ class ZenThemeColorsExtension extends ThemeExtension<ZenThemeColorsExtension> {
       brandHero: brandHero ?? this.brandHero,
       navPillGradient: navPillGradient ?? this.navPillGradient,
       activeGlow: activeGlow ?? this.activeGlow,
+      danger: danger ?? this.danger,
+      dangerLight: dangerLight ?? this.dangerLight,
+      dangerGradient: dangerGradient ?? this.dangerGradient,
+      warning: warning ?? this.warning,
+      warningLight: warningLight ?? this.warningLight,
+      warningGradient: warningGradient ?? this.warningGradient,
+      success: success ?? this.success,
+      successLight: successLight ?? this.successLight,
+      successGradient: successGradient ?? this.successGradient,
+      info: info ?? this.info,
+      infoLight: infoLight ?? this.infoLight,
+      infoGradient: infoGradient ?? this.infoGradient,
+      offline: offline ?? this.offline,
     );
   }
 
@@ -243,23 +503,52 @@ class ZenThemeColorsExtension extends ThemeExtension<ZenThemeColorsExtension> {
       brandHero: LinearGradient.lerp(brandHero, other.brandHero, t) ?? brandHero,
       navPillGradient: LinearGradient.lerp(navPillGradient, other.navPillGradient, t) ?? navPillGradient,
       activeGlow: Color.lerp(activeGlow, other.activeGlow, t)!,
+      danger: Color.lerp(danger, other.danger, t)!,
+      dangerLight: Color.lerp(dangerLight, other.dangerLight, t)!,
+      dangerGradient: LinearGradient.lerp(dangerGradient, other.dangerGradient, t) ?? dangerGradient,
+      warning: Color.lerp(warning, other.warning, t)!,
+      warningLight: Color.lerp(warningLight, other.warningLight, t)!,
+      warningGradient: LinearGradient.lerp(warningGradient, other.warningGradient, t) ?? warningGradient,
+      success: Color.lerp(success, other.success, t)!,
+      successLight: Color.lerp(successLight, other.successLight, t)!,
+      successGradient: LinearGradient.lerp(successGradient, other.successGradient, t) ?? successGradient,
+      info: Color.lerp(info, other.info, t)!,
+      infoLight: Color.lerp(infoLight, other.infoLight, t)!,
+      infoGradient: LinearGradient.lerp(infoGradient, other.infoGradient, t) ?? infoGradient,
+      offline: Color.lerp(offline, other.offline, t)!,
     );
   }
 }
 
 /// Helper extension trên BuildContext để truy xuất màu chủ đề hiện tại
 extension ZenThemeContext on BuildContext {
-  ZenThemeColorsExtension get zenColors =>
-      Theme.of(this).extension<ZenThemeColorsExtension>() ??
-      ZenThemeColorsExtension(
-        primary: AppColors.primary,
-        primaryDark: AppColors.primaryDark,
-        primaryLight: AppColors.primaryLight,
-        primaryAccent: AppColors.primaryAccent,
-        brandHero: AppColors.brandHero,
-        navPillGradient: AppColors.navPillGradient,
-        activeGlow: AppColors.primaryAccent,
-      );
+  ZenThemeColorsExtension get zenColors {
+    final ext = Theme.of(this).extension<ZenThemeColorsExtension>();
+    if (ext != null) return ext;
+    final defaultCfg = ThemePresetConfig.presets.first;
+    return ZenThemeColorsExtension(
+      primary: defaultCfg.primary,
+      primaryDark: defaultCfg.primaryDark,
+      primaryLight: defaultCfg.primaryLight,
+      primaryAccent: defaultCfg.primaryAccent,
+      brandHero: defaultCfg.brandHero,
+      navPillGradient: defaultCfg.navPillGradient,
+      activeGlow: defaultCfg.primaryAccent,
+      danger: defaultCfg.danger,
+      dangerLight: defaultCfg.dangerLight,
+      dangerGradient: defaultCfg.dangerGradient,
+      warning: defaultCfg.warning,
+      warningLight: defaultCfg.warningLight,
+      warningGradient: defaultCfg.warningGradient,
+      success: defaultCfg.success,
+      successLight: defaultCfg.successLight,
+      successGradient: defaultCfg.successGradient,
+      info: defaultCfg.info,
+      infoLight: defaultCfg.infoLight,
+      infoGradient: defaultCfg.infoGradient,
+      offline: defaultCfg.offline,
+    );
+  }
 }
 
 /// Bảng màu & Hệ thống thiết kế chuẩn Zen Luxury Minimalist Smart Home
@@ -367,6 +656,7 @@ class AppTheme {
         primary: cfg.primary,
         secondary: cfg.primaryLight,
         surface: AppColors.lightCard,
+        error: cfg.danger,
       ),
       fontFamily: 'Roboto',
       appBarTheme: const AppBarTheme(
@@ -430,6 +720,19 @@ class AppTheme {
           brandHero: cfg.brandHero,
           navPillGradient: cfg.navPillGradient,
           activeGlow: cfg.primaryAccent,
+          danger: cfg.danger,
+          dangerLight: cfg.dangerLight,
+          dangerGradient: cfg.dangerGradient,
+          warning: cfg.warning,
+          warningLight: cfg.warningLight,
+          warningGradient: cfg.warningGradient,
+          success: cfg.success,
+          successLight: cfg.successLight,
+          successGradient: cfg.successGradient,
+          info: cfg.info,
+          infoLight: cfg.infoLight,
+          infoGradient: cfg.infoGradient,
+          offline: cfg.offline,
         ),
       ],
     );
@@ -449,6 +752,7 @@ class AppTheme {
         primary: cfg.primaryLight,
         secondary: cfg.primaryAccent,
         surface: AppColors.darkCard,
+        error: cfg.danger,
       ),
       fontFamily: 'Roboto',
       appBarTheme: const AppBarTheme(
@@ -512,6 +816,19 @@ class AppTheme {
           brandHero: cfg.brandHero,
           navPillGradient: cfg.navPillGradient,
           activeGlow: cfg.primaryAccent,
+          danger: cfg.danger,
+          dangerLight: cfg.dangerLight,
+          dangerGradient: cfg.dangerGradient,
+          warning: cfg.warning,
+          warningLight: cfg.warningLight,
+          warningGradient: cfg.warningGradient,
+          success: cfg.success,
+          successLight: cfg.successLight,
+          successGradient: cfg.successGradient,
+          info: cfg.info,
+          infoLight: cfg.infoLight,
+          infoGradient: cfg.infoGradient,
+          offline: cfg.offline,
         ),
       ],
     );

@@ -185,14 +185,14 @@ class _VersionChangelogScreenState extends State<VersionChangelogScreen> {
     bool hasNewVersion,
   ) {
     final zen = context.zenColors;
-    final Color statusColor = hasNewVersion ? AppColors.amberGlow : AppColors.emeraldGlow;
+    final Color statusColor = hasNewVersion ? zen.warning : zen.success;
 
     return ZenGlassCard(
       width: double.infinity,
       blurSigma: 16,
       borderRadius: 26,
       isActive: true,
-      glowColor: hasNewVersion ? AppColors.amberGlow : zen.primary,
+      glowColor: hasNewVersion ? zen.warning : zen.primary,
       padding: const EdgeInsets.all(22),
       child: Column(
         children: [

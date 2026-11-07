@@ -23,7 +23,7 @@ Future<bool?> showPremiumConfirmDialog({
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final zen = context.zenColors;
   final Color accentColor = isDanger
-      ? AppColors.roseGlow
+      ? zen.danger
       : (isDark ? zen.primaryAccent : zen.primary);
 
   return showZenGlassDialog<bool>(

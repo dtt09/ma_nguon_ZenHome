@@ -315,7 +315,6 @@ class ReauthHelper {
     if (phoneNumber.isEmpty) return false;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final zen = context.zenColors;
     bool isSuccess = false;
     String verificationId = '';
     bool codeSent = false;
@@ -329,6 +328,7 @@ class ReauthHelper {
         final TextEditingController otpController = TextEditingController();
         return StatefulBuilder(
           builder: (context, setState) {
+            final zen = context.zenColors;
             if (!verifyRequested) {
               verifyRequested = true;
               FirebaseAuth.instance.verifyPhoneNumber(
@@ -366,15 +366,15 @@ class ReauthHelper {
                       height: 62,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppColors.emeraldGlow.withOpacity(0.16),
+                        color: zen.success.withOpacity(0.16),
                         border: Border.all(
-                          color: AppColors.emeraldGlow.withOpacity(0.4),
+                          color: zen.success.withOpacity(0.4),
                           width: 1.4,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.sms_rounded,
-                        color: AppColors.emeraldGlow,
+                        color: zen.success,
                         size: 30,
                       ),
                     ),
@@ -490,7 +490,6 @@ class ReauthHelper {
     String reason,
   ) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final zen = context.zenColors;
     bool isSuccess = false;
 
     await showZenGlassBottomSheet(
@@ -503,6 +502,7 @@ class ReauthHelper {
         bool obscurePassword = true;
         return StatefulBuilder(
           builder: (context, setState) {
+            final zen = context.zenColors;
             return SafeArea(
               top: false,
               child: SingleChildScrollView(

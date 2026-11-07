@@ -358,10 +358,9 @@ Future<bool> showZenHomeCautionDialog(
 }) async {
   HapticHelper.warning();
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final accentColor = isDanger ? AppColors.roseGlow : AppColors.amberGlow;
-  final gradient = isDanger
-      ? const LinearGradient(colors: [Color(0xFFE11D48), Color(0xFFF43F5E)])
-      : const LinearGradient(colors: [Color(0xFFD97706), Color(0xFFF59E0B)]);
+  final zen = context.zenColors;
+  final accentColor = isDanger ? zen.danger : zen.warning;
+  final gradient = isDanger ? zen.dangerGradient : zen.warningGradient;
 
   final result = await showZenGlassDialog<bool>(
     context: context,

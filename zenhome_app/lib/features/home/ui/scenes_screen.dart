@@ -43,16 +43,16 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
     Color statusColor;
     if (isUnlinked) {
       statusLabel = context.tr('unlinked') ?? 'Chưa l.kết';
-      statusColor = AppColors.amberGlow;
+      statusColor = zen.warning;
     } else if (isLocalAvailable) {
       statusLabel = 'Local ⚡';
-      statusColor = AppColors.emeraldGlow;
+      statusColor = zen.success;
     } else if (mqttState == 2 && isOnline) {
       statusLabel = 'Cloud';
-      statusColor = AppColors.cyanGlow;
+      statusColor = zen.info;
     } else {
       statusLabel = context.tr('offline') ?? 'Offline';
-      statusColor = AppColors.roseGlow;
+      statusColor = zen.danger;
     }
 
     return Scaffold(
@@ -287,7 +287,7 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                           borderRadius: 28,
                           blurSigma: 24,
                           rimWidth: 1.4,
-                          glowColor: isUnlinked ? AppColors.amberGlow : AppColors.roseGlow,
+                          glowColor: isUnlinked ? zen.warning : zen.danger,
                           surfaceColor: isDark
                               ? const Color(0xFF0C1426).withOpacity(0.78)
                               : Colors.white.withOpacity(0.84),
@@ -300,14 +300,14 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                                 height: 68,
                                 borderRadius: 34,
                                 blurSigma: 0,
-                                glowColor: isUnlinked ? AppColors.amberGlow : AppColors.roseGlow,
-                                surfaceColor: (isUnlinked ? AppColors.amberGlow : AppColors.roseGlow)
+                                glowColor: isUnlinked ? zen.warning : zen.danger,
+                                surfaceColor: (isUnlinked ? zen.warning : zen.danger)
                                     .withOpacity(isDark ? 0.18 : 0.12),
                                 alignment: Alignment.center,
                                 child: Icon(
                                   isUnlinked ? Icons.link_off_rounded : Icons.cloud_off_rounded,
                                   size: 34,
-                                  color: isUnlinked ? AppColors.amberGlow : AppColors.roseGlow,
+                                  color: isUnlinked ? zen.warning : zen.danger,
                                 ),
                               ),
                               const SizedBox(height: 18),
@@ -343,7 +343,7 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                                       : context.tr('btn_reconnect'),
                                   icon: isUnlinked ? Icons.settings_remote_rounded : Icons.refresh_rounded,
                                   isPrimary: true,
-                                  accentColor: isUnlinked ? AppColors.amberGlow : zen.primary,
+                                  accentColor: isUnlinked ? zen.warning : zen.primary,
                                   onPressed: () {
                                     if (isUnlinked) {
                                       Navigator.push(

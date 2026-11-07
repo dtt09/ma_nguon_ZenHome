@@ -57,8 +57,8 @@ class LoadingOverlay {
                   valueListenable: _statusNotifier,
                   builder: (context, status, child) {
                     final Color statusGlow = status == 'success'
-                        ? AppColors.emeraldGlow
-                        : (status == 'error' ? AppColors.roseGlow : baseColor);
+                        ? zen.success
+                        : (status == 'error' ? zen.danger : baseColor);
 
                     return ZenLiquidGlass(
                       borderRadius: 28,
@@ -78,18 +78,18 @@ class LoadingOverlay {
                           if (status == 'loading')
                             LogoLoadingIndicator(color: baseColor)
                           else if (status == 'success')
-                            const Icon(
+                            Icon(
                               Icons.check_circle_outline_rounded,
-                              color: AppColors.emeraldGlow,
+                              color: zen.success,
                               size: 60,
                             ).animate().scale(
                                   duration: 400.ms,
                                   curve: Curves.easeOutBack,
                                 )
                           else if (status == 'error')
-                            const Icon(
+                            Icon(
                               Icons.error_outline_rounded,
-                              color: AppColors.roseGlow,
+                              color: zen.danger,
                               size: 60,
                             ).animate().scale(
                                   duration: 400.ms,

@@ -158,15 +158,14 @@ class DeviceCard extends StatelessWidget {
                 ZenGlassPill(
                   blurSigma: 0,
                   isSelected: true,
-                  glowColor: AppColors.amberGlow,
+                  glowColor: context.zenColors.warning,
                   borderRadius: 12,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: Icon(
                     Icons.lock_rounded,
                     size: 14,
-                    color:
-                        isDark ? Colors.amber.shade300 : Colors.amber.shade800,
+                    color: context.zenColors.warning,
                   ),
                 )
               else if (isCooldown)

@@ -74,17 +74,18 @@ class _NotificationHistoryScreenState
   }
 
   Color _getColorForCategory(BuildContext context, String? category) {
+    final zen = context.zenColors;
     switch (category) {
       case 'update':
-        return context.zenColors.primary;
+        return zen.primary;
       case 'important':
-        return AppColors.roseGlow;
+        return zen.danger;
       case 'schedule':
-        return AppColors.emeraldGlow;
+        return zen.success;
       case 'timer':
-        return AppColors.amberGlow;
+        return zen.warning;
       case 'action':
-        return AppColors.cyanGlow;
+        return zen.info;
       default:
         return AppColors.purpleGlow;
     }
@@ -160,7 +161,7 @@ class _NotificationHistoryScreenState
               child: ZenGlassPill(
                 blurSigma: 0,
                 isSelected: true,
-                glowColor: AppColors.roseGlow,
+                glowColor: zen.danger,
                 borderRadius: 14,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
@@ -168,16 +169,16 @@ class _NotificationHistoryScreenState
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.delete_sweep_rounded,
-                      color: AppColors.roseGlow,
+                      color: zen.danger,
                       size: 17,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       context.tr('clear_all'),
-                      style: const TextStyle(
-                        color: AppColors.roseGlow,
+                      style: TextStyle(
+                        color: zen.danger,
                         fontWeight: FontWeight.w800,
                         fontSize: 12,
                       ),

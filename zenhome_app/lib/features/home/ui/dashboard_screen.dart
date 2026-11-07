@@ -283,6 +283,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
       context: context,
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final zen = ctx.zenColors;
         final localService = ref.read(localNetworkServiceProvider);
         final isLanAvailable = ref.watch(isLanAvailableProvider).value ?? localService.isLanAvailable;
         final localIp = ref.watch(localHubIpProvider).value ?? (isLanAvailable ? localService.cachedHubIp : null);
@@ -296,19 +297,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         String activeTitle = context.tr('hub_mode_offline');
         String activeDesc = context.tr('hub_desc_offline');
         String activeLatency = 'N/A';
-        List<Color> gradientColors = [const Color(0xFF7F1D1D), const Color(0xFF991B1B)];
+        List<Color> gradientColors = [zen.danger.withOpacity(0.85), zen.danger];
         IconData activeIcon = Icons.cloud_off_rounded;
 
         if (isUnlinked) {
           activeTitle = context.tr('hub_status_unlinked');
           activeDesc = context.tr('hub_status_unlinked_desc');
-          gradientColors = [const Color(0xFF475569), const Color(0xFF334155)];
+          gradientColors = [zen.warning.withOpacity(0.85), zen.warning];
           activeIcon = Icons.link_off_rounded;
         } else if (isLanConnected) {
           activeTitle = context.tr('hub_mode_lan');
           activeDesc = context.tr('hub_desc_lan');
           activeLatency = '~5ms';
-          gradientColors = [const Color(0xFF065F46), const Color(0xFF047857)];
+          gradientColors = [zen.success.withOpacity(0.85), zen.success];
           activeIcon = Icons.bolt_rounded;
         } else if (isBleConnected || isBleNearby) {
           final isBleAuth = BleLocalService().isAuthenticated;
@@ -327,9 +328,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
           activeTitle = context.tr('hub_mode_cloud');
           activeDesc = context.tr('hub_desc_cloud');
           activeLatency = '~200ms';
-          gradientColors = [const Color(0xFF075985), const Color(0xFF0284C7)];
+          gradientColors = [zen.info.withOpacity(0.85), zen.info];
           activeIcon = Icons.cloud_rounded;
         }
+
+        final Color statusColor = isLanConnected
+            ? zen.success
+            : (isBleConnected
+                ? const Color(0xFF6366F1)
+                : (isEspOnline
+                    ? zen.info
+                    : (isUnlinked ? zen.warning : zen.danger)));
 
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
@@ -343,24 +352,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isLanConnected
-                          ? const Color(0xFF10B981).withOpacity(0.15)
-                          : isBleConnected
-                              ? const Color(0xFF6366F1).withOpacity(0.15)
-                              : isEspOnline
-                                  ? const Color(0xFF0EA5E9).withOpacity(0.15)
-                                  : Colors.red.withOpacity(0.15),
+                      color: statusColor.withOpacity(0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       activeIcon,
-                      color: isLanConnected
-                          ? const Color(0xFF10B981)
-                          : isBleConnected
-                              ? const Color(0xFF6366F1)
-                              : isEspOnline
-                                  ? const Color(0xFF0EA5E9)
-                                  : Colors.red,
+                      color: statusColor,
                       size: 24,
                     ),
                   ),
@@ -866,6 +863,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                         // Cột Bên phải: Connection Capsule với hiệu ứng đèn thở quang học (Pulsing Glow)
                         Builder(
                           builder: (context) {
+                            final zen = context.zenColors;
                             final isLanAvailable = ref.watch(isLanAvailableProvider).value ?? ref.watch(localNetworkServiceProvider).isLanAvailable;
                             final isBleConnected = BleLocalService().isConnected;
                             final isBleNearby = BleLocalService().isHubNearby;
@@ -878,11 +876,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
 
                             if (isUnlinked) {
                               statusText = context.tr('unlinked') ?? 'Chưa liên kết';
-                              statusColor = const Color(0xFFF59E0B);
+                              statusColor = zen.warning;
                               statusIcon = Icons.link_off_rounded;
                             } else if (isLanAvailable) {
                               statusText = 'LAN ⚡';
-                              statusColor = const Color(0xFF10B981);
+                              statusColor = zen.success;
                               statusIcon = Icons.bolt_rounded;
                             } else if (isBleConnected || isBleNearby) {
                               statusText = isBleConnected ? 'BLE 🔐' : 'BLE 📱';
@@ -890,11 +888,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                               statusIcon = isBleConnected ? Icons.bluetooth_connected_rounded : Icons.bluetooth_searching_rounded;
                             } else if (isOnline) {
                               statusText = 'Cloud';
-                              statusColor = const Color(0xFF0EA5E9);
+                              statusColor = zen.info;
                               statusIcon = Icons.cloud_done_rounded;
                             } else {
                               statusText = 'Offline';
-                              statusColor = const Color(0xFFEF4444);
+                              statusColor = zen.danger;
                               statusIcon = Icons.cloud_off_rounded;
                             }
 
@@ -1099,7 +1097,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     final deviceTopic = '${activeConfig.mqttPrefix}/${dev.room}/${dev.id}';
     final targetAction = currentIsOn ? 'delay_off' : 'delay_on';
     final targetActionText = currentIsOn ? context.tr('action_turn_off') : context.tr('action_turn_on');
-    final targetColor = currentIsOn ? AppColors.roseGlow : context.zenColors.primary;
+    final targetColor = currentIsOn ? context.zenColors.danger : context.zenColors.primary;
 
     showZenGlassBottomSheet(
       context: context,
@@ -1398,7 +1396,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     String targetActionText,
   ) {
     final TextEditingController minutesCtrl = TextEditingController(text: '45');
-    final accent = targetAction == 'delay_off' ? AppColors.roseGlow : context.zenColors.primary;
+    final accent = targetAction == 'delay_off' ? context.zenColors.danger : context.zenColors.primary;
 
     showZenGlassDialog(
       context: context,

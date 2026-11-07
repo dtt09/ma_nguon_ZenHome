@@ -27,7 +27,7 @@ class NotificationBadge extends StatelessWidget {
           height: 44,
           borderRadius: 16,
           blurSigma: 16,
-          glowColor: hasUnread ? AppColors.roseGlow : zen.primary,
+          glowColor: hasUnread ? zen.danger : zen.primary,
           surfaceColor: isDark
               ? Colors.white.withOpacity(0.08)
               : Colors.white.withOpacity(0.70),
@@ -56,11 +56,7 @@ class NotificationBadge extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  gradient: zen.dangerGradient,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: isDark ? AppColors.darkBg : Colors.white,
@@ -68,7 +64,7 @@ class NotificationBadge extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.roseGlow.withOpacity(0.55),
+                      color: zen.danger.withOpacity(0.55),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),

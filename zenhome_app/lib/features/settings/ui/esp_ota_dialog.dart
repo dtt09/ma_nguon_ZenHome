@@ -779,9 +779,10 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
     final Color accentColor = _isFinished
-        ? (_isSuccess ? AppColors.emeraldGlow : AppColors.roseGlow)
-        : AppColors.cyanGlow;
+        ? (_isSuccess ? zen.success : zen.danger)
+        : zen.info;
 
     return PopScope(
       canPop: _isFinished,
@@ -1060,9 +1061,9 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
                 blurSigma: 0,
                 borderRadius: 18,
                 padding: const EdgeInsets.all(18),
-                glowColor: AppColors.roseGlow,
+                glowColor: zen.danger,
                 surfaceColor:
-                    AppColors.roseGlow.withOpacity(isDark ? 0.13 : 0.09),
+                    zen.danger.withOpacity(isDark ? 0.13 : 0.09),
                 child: Column(
                   children: [
                     Container(
@@ -1070,22 +1071,22 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
                       height: 56,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppColors.roseGlow.withOpacity(0.18),
+                        color: zen.danger.withOpacity(0.18),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.cancel_rounded,
-                        color: AppColors.roseGlow,
+                        color: zen.danger,
                         size: 32,
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       _errorMessage ?? 'Đã xảy ra lỗi không xác định.',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13.5,
                         height: 1.4,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.roseGlow,
+                        color: zen.danger,
                       ),
                       textAlign: TextAlign.center,
                     ),

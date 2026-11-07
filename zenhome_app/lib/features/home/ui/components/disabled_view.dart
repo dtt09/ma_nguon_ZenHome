@@ -17,6 +17,7 @@ class DisabledView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeConfig = ref.watch(homeConfigProvider).activeConfig;
     final isOwner = activeConfig.role == 'owner' || activeConfig.role == 'co_owner';
+    final zen = context.zenColors;
 
     return SafeArea(
       bottom: false,
@@ -27,7 +28,7 @@ class DisabledView extends ConsumerWidget {
             borderRadius: 28,
             blurSigma: 22,
             isActive: true,
-            glowColor: AppColors.amberGlow,
+            glowColor: zen.warning,
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -36,12 +37,12 @@ class DisabledView extends ConsumerWidget {
                   blurSigma: 0,
                   borderRadius: 34,
                   padding: const EdgeInsets.all(20),
-                  glowColor: AppColors.amberGlow,
-                  surfaceColor: AppColors.amberGlow.withOpacity(0.16),
-                  child: const Icon(
+                  glowColor: zen.warning,
+                  surfaceColor: zen.warning.withOpacity(0.16),
+                  child: Icon(
                     Icons.lock_person_rounded,
                     size: 52,
-                    color: AppColors.amberGlow,
+                    color: zen.warning,
                   ),
                 ),
                 const SizedBox(height: 18),

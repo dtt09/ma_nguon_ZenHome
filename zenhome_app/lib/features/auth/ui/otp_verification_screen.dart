@@ -418,7 +418,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                             isSelected: _secondsRemaining > 0,
                             glowColor: _secondsRemaining > 0
                                 ? primaryColor
-                                : AppColors.roseGlow,
+                                : zen.danger,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 14,
                               vertical: 7,
@@ -433,7 +433,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                                   size: 16,
                                   color: _secondsRemaining > 0
                                       ? primaryColor
-                                      : AppColors.roseGlow,
+                                      : zen.danger,
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
@@ -448,7 +448,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                                   style: TextStyle(
                                     color: _secondsRemaining > 0
                                         ? textColor
-                                        : AppColors.roseGlow,
+                                        : zen.danger,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13,
                                   ),

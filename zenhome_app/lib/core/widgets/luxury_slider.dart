@@ -186,7 +186,7 @@ class LuxurySlider extends StatelessWidget {
   final double max;
   final ValueChanged<double> onChanged;
   final ValueChanged<double>? onChangeEnd;
-  final List<Color> activeGradient;
+  final List<Color>? activeGradient;
   final Color? glowColor;
   final List<int>? milestoneValues;
   final String Function(int)? milestoneLabelBuilder;
@@ -198,7 +198,7 @@ class LuxurySlider extends StatelessWidget {
     this.max = 720.0,
     required this.onChanged,
     this.onChangeEnd,
-    this.activeGradient = const [Color(0xFFF59E0B), Color(0xFFEA580C)],
+    this.activeGradient,
     this.glowColor,
     this.milestoneValues,
     this.milestoneLabelBuilder,
@@ -207,7 +207,10 @@ class LuxurySlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color effectiveGlow = glowColor ?? activeGradient.first;
+    final zen = context.zenColors;
+    final List<Color> effectiveGradient =
+        activeGradient ?? zen.brandHero.colors;
+    final Color effectiveGlow = glowColor ?? effectiveGradient.first;
     final Color inactiveTrack = isDark
         ? Colors.white.withOpacity(0.09)
         : const Color(0xFF94A3B8).withOpacity(0.20);
@@ -222,7 +225,7 @@ class LuxurySlider extends StatelessWidget {
           data: SliderTheme.of(context).copyWith(
             trackHeight: 10,
             trackShape: LuxurySliderTrackShape(
-              activeGradient: activeGradient,
+              activeGradient: effectiveGradient,
               inactiveColor: inactiveTrack,
               borderColor: trackBorder,
               trackHeight: 10,
@@ -231,7 +234,7 @@ class LuxurySlider extends StatelessWidget {
             thumbShape: LuxurySliderThumbShape(
               enabledThumbRadius: 13,
               glowColor: effectiveGlow,
-              coreGradient: activeGradient,
+              coreGradient: effectiveGradient,
             ),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
             overlayColor: effectiveGlow.withOpacity(0.18),

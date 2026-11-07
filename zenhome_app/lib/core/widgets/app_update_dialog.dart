@@ -159,11 +159,12 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
   Future<void> _confirmCancel() async {
     final isVi = Localizations.localeOf(context).languageCode == 'vi';
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
 
     final shouldCancel = await showZenGlassDialog<bool>(
       context: context,
       barrierDismissible: false,
-      accentColor: AppColors.amberGlow,
+      accentColor: zen.warning,
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -172,12 +173,12 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.amberGlow.withOpacity(0.18),
+                  color: zen.warning.withOpacity(0.18),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.warning_amber_rounded,
-                  color: AppColors.amberGlow,
+                  color: zen.warning,
                   size: 24,
                 ),
               ),
@@ -238,6 +239,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
   Future<void> _showRetryDialog(String error) async {
     final isVi = Localizations.localeOf(context).languageCode == 'vi';
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
     final liveBase =
         await AppUpdateService.getLiveServerBaseUrl() ?? 'http://192.168.1.6:5000';
 
@@ -246,7 +248,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
     await showZenGlassDialog(
       context: context,
       barrierDismissible: true,
-      accentColor: AppColors.roseGlow,
+      accentColor: zen.danger,
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,12 +258,12 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.roseGlow.withOpacity(0.16),
+                  color: zen.danger.withOpacity(0.16),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.sync_problem_rounded,
-                  color: AppColors.roseGlow,
+                  color: zen.danger,
                   size: 24,
                 ),
               ),
@@ -459,7 +461,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
     final title = isVi ? updateInfo.titleVi : updateInfo.titleEn;
     final releaseNotes =
         isVi ? updateInfo.releaseNotesVi : updateInfo.releaseNotesEn;
-    final Color accentColor = isForce ? AppColors.roseGlow : zen.primary;
+    final Color accentColor = isForce ? zen.danger : zen.primary;
 
     return PopScope(
       canPop: !isForce && !_isDownloading,
@@ -841,30 +843,30 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                         ZenLiquidGlass(
                           blurSigma: 0,
                           borderRadius: 16,
-                          glowColor: AppColors.roseGlow,
+                          glowColor: zen.danger,
                           margin: const EdgeInsets.only(bottom: 14),
                           padding: const EdgeInsets.all(14),
-                          surfaceColor: AppColors.roseGlow
+                          surfaceColor: zen.danger
                               .withOpacity(isDark ? 0.14 : 0.08),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.warning_amber_rounded,
                                     size: 18,
-                                    color: AppColors.roseGlow,
+                                    color: zen.danger,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
                                     isVi
                                         ? 'Không thể tải file tự động'
                                         : 'Direct download failed',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.bold,
-                                      color: AppColors.roseGlow,
+                                      color: zen.danger,
                                     ),
                                   ),
                                 ],

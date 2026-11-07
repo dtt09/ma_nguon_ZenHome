@@ -2293,7 +2293,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     return ZenGlassCard(
       blurSigma: 18,
       isActive: true,
-      glowColor: _pairingFailed ? AppColors.roseGlow : zen.primary,
+      glowColor: _pairingFailed ? zen.danger : zen.primary,
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 30),
       child: Column(
         children: [
@@ -2381,20 +2381,20 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
               width: 84,
               height: 84,
               borderRadius: 42,
-              glowColor: AppColors.roseGlow,
-              surfaceColor: AppColors.roseGlow.withOpacity(0.14),
+              glowColor: zen.danger,
+              surfaceColor: zen.danger.withOpacity(0.14),
               alignment: Alignment.center,
-              child: const Icon(Icons.error_outline_rounded,
-                  color: AppColors.roseGlow, size: 46),
+              child: Icon(Icons.error_outline_rounded,
+                  color: zen.danger, size: 46),
             ),
             const SizedBox(height: 20),
             Text(
               context.tr('wifi_pairing_failed_title'),
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: AppColors.roseGlow,
+                color: zen.danger,
               ),
             ),
             const SizedBox(height: 12),

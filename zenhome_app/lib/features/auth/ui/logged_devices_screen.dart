@@ -68,9 +68,10 @@ class _LoggedDevicesScreenState extends State<LoggedDevicesScreen> {
     final String displayDevice =
         deviceName.isNotEmpty ? deviceName : context.tr('unknown_device');
 
+    final zen = context.zenColors;
     bool confirm = await showZenGlassDialog<bool>(
           context: context,
-          accentColor: AppColors.roseGlow,
+          accentColor: zen.danger,
           builder: (ctx) {
             final isDark = Theme.of(ctx).brightness == Brightness.dark;
             final mutedColor =
@@ -84,20 +85,20 @@ class _LoggedDevicesScreenState extends State<LoggedDevicesScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.roseGlow.withOpacity(0.14),
+                        color: zen.danger.withOpacity(0.14),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                            color: AppColors.roseGlow.withOpacity(0.32)),
+                            color: zen.danger.withOpacity(0.32)),
                       ),
-                      child: const Icon(Icons.phonelink_erase_rounded,
-                          color: AppColors.roseGlow, size: 24),
+                      child: Icon(Icons.phonelink_erase_rounded,
+                          color: zen.danger, size: 24),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         context.tr('logout_device_title'),
-                        style: const TextStyle(
-                          color: AppColors.roseGlow,
+                        style: TextStyle(
+                          color: zen.danger,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                         ),
@@ -377,13 +378,13 @@ class _LoggedDevicesScreenState extends State<LoggedDevicesScreen> {
                           ZenGlassPill(
                             blurSigma: 0,
                             isSelected: true,
-                            glowColor: AppColors.emeraldGlow,
+                            glowColor: zen.success,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 9, vertical: 3),
                             child: Text(
                               context.tr('this_device'),
-                              style: const TextStyle(
-                                color: AppColors.emeraldGlow,
+                              style: TextStyle(
+                                color: zen.success,
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -425,7 +426,7 @@ class _LoggedDevicesScreenState extends State<LoggedDevicesScreen> {
                 blurSigma: 0,
                 isSelected: effectivelyActive,
                 glowColor:
-                    effectivelyActive ? AppColors.emeraldGlow : AppColors.roseGlow,
+                    effectivelyActive ? zen.success : zen.danger,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                 child: Row(
@@ -437,12 +438,12 @@ class _LoggedDevicesScreenState extends State<LoggedDevicesScreen> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: effectivelyActive
-                            ? AppColors.emeraldGlow
+                            ? zen.success
                             : mutedColor,
                         boxShadow: effectivelyActive
                             ? [
                                 BoxShadow(
-                                  color: AppColors.emeraldGlow.withOpacity(0.65),
+                                  color: zen.success.withOpacity(0.65),
                                   blurRadius: 6,
                                 ),
                               ]
@@ -458,8 +459,8 @@ class _LoggedDevicesScreenState extends State<LoggedDevicesScreen> {
                         fontSize: 11.5,
                         fontWeight: FontWeight.bold,
                         color: effectivelyActive
-                            ? AppColors.emeraldGlow
-                            : AppColors.roseGlow,
+                            ? zen.success
+                            : zen.danger,
                       ),
                     ),
                   ],
@@ -473,20 +474,20 @@ class _LoggedDevicesScreenState extends State<LoggedDevicesScreen> {
                 ZenGlassPill(
                   blurSigma: 0,
                   isSelected: true,
-                  glowColor: AppColors.roseGlow,
+                  glowColor: zen.danger,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   onTap: () => _revokeSession(id, deviceName),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.logout_rounded,
-                          size: 14, color: AppColors.roseGlow),
+                      Icon(Icons.logout_rounded,
+                          size: 14, color: zen.danger),
                       const SizedBox(width: 5),
                       Text(
                         context.tr('btn_logout'),
-                        style: const TextStyle(
-                          color: AppColors.roseGlow,
+                        style: TextStyle(
+                          color: zen.danger,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -501,13 +502,13 @@ class _LoggedDevicesScreenState extends State<LoggedDevicesScreen> {
                     ? ZenGlassPill(
                         blurSigma: 0,
                         isSelected: true,
-                        glowColor: AppColors.amberGlow,
+                        glowColor: zen.warning,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 11, vertical: 6),
                         child: Text(
                           context.tr('btn_request_sent'),
-                          style: const TextStyle(
-                            color: AppColors.amberGlow,
+                          style: TextStyle(
+                            color: zen.warning,
                             fontWeight: FontWeight.bold,
                             fontSize: 11.5,
                           ),

@@ -848,14 +848,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }) {
     final zen = context.zenColors;
     final effectiveAccent = isDanger
-        ? AppColors.roseGlow
+        ? zen.danger
         : (accentColor ?? (isDark ? zen.primaryAccent : zen.primary));
 
     return ZenGlassCard(
       margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
       padding: const EdgeInsets.all(18),
       blurSigma: 16,
-      glowColor: isDanger ? AppColors.roseGlow : null,
+      glowColor: isDanger ? zen.danger : null,
       isActive: isDanger,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -879,7 +879,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: isDanger
-                        ? AppColors.roseGlow
+                        ? zen.danger
                         : (isDark ? AppColors.darkText : AppColors.lightText),
                   ),
                 ),
@@ -977,10 +977,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }) {
     final zen = context.zenColors;
     final accent = isDanger
-        ? AppColors.roseGlow
+        ? zen.danger
         : (isDark ? zen.primaryAccent : zen.primary);
     final textColor = isDanger
-        ? AppColors.roseGlow
+        ? zen.danger
         : (isDark ? AppColors.darkText : AppColors.lightText);
 
     return ZenLiquidGlass(
@@ -988,9 +988,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       borderRadius: 16,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       surfaceColor: isDanger
-          ? AppColors.roseGlow.withOpacity(isDark ? 0.10 : 0.06)
+          ? zen.danger.withOpacity(isDark ? 0.10 : 0.06)
           : (isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.58)),
-      glowColor: isDanger ? AppColors.roseGlow : null,
+      glowColor: isDanger ? zen.danger : null,
       onTap: onTap,
       child: Row(
         children: [
@@ -1016,7 +1016,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Icon(
             Icons.chevron_right_rounded,
             color: isDanger
-                ? AppColors.roseGlow
+                ? zen.danger
                 : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
           ),
         ],
@@ -1333,14 +1333,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ZenGlassPill(
                             blurSigma: 0,
                             isSelected: profileState.isGoogleLinked,
-                            glowColor: profileState.isGoogleLinked ? AppColors.emeraldGlow : Colors.grey,
+                            glowColor: profileState.isGoogleLinked ? zen.success : Colors.grey,
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             child: Text(
                               profileState.isGoogleLinked ? context.tr('linked') : context.tr('unlinked'),
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.bold,
-                                color: profileState.isGoogleLinked ? AppColors.emeraldGlow : mutedColor,
+                                color: profileState.isGoogleLinked ? zen.success : mutedColor,
                               ),
                             ),
                           ),
@@ -1348,7 +1348,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ZenGlassPill(
                             blurSigma: 0,
                             isSelected: true,
-                            glowColor: profileState.isGoogleLinked ? AppColors.roseGlow : zen.primary,
+                            glowColor: profileState.isGoogleLinked ? zen.danger : zen.primary,
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             onTap: _handleGoogleLinkToggle,
                             child: Text(
@@ -1357,7 +1357,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 fontWeight: FontWeight.bold,
                                 fontSize: 11.5,
                                 color: profileState.isGoogleLinked
-                                    ? AppColors.roseGlow
+                                    ? zen.danger
                                     : (isDark ? zen.primaryAccent : zen.primary),
                               ),
                             ),
@@ -1382,14 +1382,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ZenGlassPill(
                             blurSigma: 0,
                             isSelected: profileState.isPhoneLinked,
-                            glowColor: profileState.isPhoneLinked ? AppColors.emeraldGlow : Colors.grey,
+                            glowColor: profileState.isPhoneLinked ? zen.success : Colors.grey,
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             child: Text(
                               profileState.isPhoneLinked ? context.tr('linked') : context.tr('unlinked'),
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.bold,
-                                color: profileState.isPhoneLinked ? AppColors.emeraldGlow : mutedColor,
+                                color: profileState.isPhoneLinked ? zen.success : mutedColor,
                               ),
                             ),
                           ),
@@ -1418,7 +1418,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ZenGlassPill(
                             blurSigma: 0,
                             isSelected: true,
-                            glowColor: profileState.isPhoneLinked ? AppColors.roseGlow : zen.primary,
+                            glowColor: profileState.isPhoneLinked ? zen.danger : zen.primary,
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             onTap: _handlePhoneLinkToggle,
                             child: Text(
@@ -1427,7 +1427,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 fontWeight: FontWeight.bold,
                                 fontSize: 11.5,
                                 color: profileState.isPhoneLinked
-                                    ? AppColors.roseGlow
+                                    ? zen.danger
                                     : (isDark ? zen.primaryAccent : zen.primary),
                               ),
                             ),
