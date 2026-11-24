@@ -1,9 +1,9 @@
 {
-  "version": "1.8.20",
-  "build": 208,
-  "tag": "v1.8.20",
+  "version": "1.8.21",
+  "build": 209,
+  "tag": "v1.8.21",
   "sha256": "3F4931968996C3ABCCADC6B9AC21F61E96D989E0CEE8A286ACE3F4BF9BABB7A1",
-  "sig": "304502204552a71d84ad636a43d8a17a6a9a90742603dd46fea5f4d4d7834ebdfcc441b7022100f44c4cccdee3092ab7d8d6c1982e2929df3370adb6641622f83f9f05eaa4e68e",
+  "sig": "30450220061fab99861fc2cd62bfa9857e382e1f2e96634c0003f9e816bf1c8a3c2ae9b7022100d5f847b6f0a6684a11f17178e8ae897a8702ab4be745d7f1954cb0f1b2a9a5d9",
   "fileSizeBytes": 1391824,
-  "updatedAt": "2026-11-07T14:23:41.622Z"
+  "updatedAt": "2026-11-24T11:19:31.777Z"
 }
