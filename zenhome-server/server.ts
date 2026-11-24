@@ -15,6 +15,7 @@ import { apiRouter } from './server/routes/api';
 import { syncServerConfigToFirestore, startNetworkSyncWatcher } from './server/core/networkSync';
 import { client as mqttClient } from './server/core/mqtt';
 import { ADMIN_SECRET, safeCompare } from './server/middlewares/auth';
+import { apiLimiter } from './server/middlewares/rateLimiter';
 import { verifyAdminJwt } from './server/core/passkeyService';
 import { getAuth } from './server/core/firebase';
 
@@ -115,7 +116,7 @@ if (!fs.existsSync(downloadsPath)) {
   fs.mkdirSync(downloadsPath, { recursive: true });
 }
 // Tự động log và phục vụ APK với đầy đủ header (Content-Disposition, Accept-Ranges, Content-Type)
-app.get(['/public/downloads/:filename', '/downloads/:filename'], (req: Request, res: Response, next) => {
+app.get(['/public/downloads/:filename', '/downloads/:filename'], apiLimiter, (req: Request, res: Response, next) => {
   // ZH-CRIT-08 / Path Traversal Protection: Sanitize filename using path.basename
   const filename = path.basename(String(req.params.filename));
   console.log(`[DOWNLOAD] 📥 Nhận yêu cầu tải file APK (${filename}) từ IP: ${req.ip || req.socket.remoteAddress} (User-Agent: ${req.get('user-agent')})`);
@@ -134,7 +135,7 @@ const firmwareDir = path.join(publicPath, 'firmware', 'esp32');
 if (!fs.existsSync(firmwareDir)) {
   fs.mkdirSync(firmwareDir, { recursive: true });
 }
-app.get(['/public/firmware/esp32/:filename', '/firmware/esp32/:filename'], (req: Request, res: Response, next) => {
+app.get(['/public/firmware/esp32/:filename', '/firmware/esp32/:filename'], apiLimiter, (req: Request, res: Response, next) => {
   const filename = path.basename(String(req.params.filename));
   console.log(`[OTA-DOWNLOAD] 📦 ESP32 đang tải file firmware (${filename}) từ IP: ${req.ip || req.socket.remoteAddress}`);
   const targetFile = path.join(firmwareDir, filename);

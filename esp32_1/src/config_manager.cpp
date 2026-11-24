@@ -348,6 +348,10 @@ void backupRelayStatesToFlash() {
   lastBackupSignature = currentSig;
 
   if (!lockFlash()) return;
+  if (!lockRelays(pdMS_TO_TICKS(500))) {
+    unlockFlash();
+    return;
+  }
 
   StaticJsonDocument<512> doc;
   JsonArray arr = doc.createNestedArray("relays");
@@ -357,6 +361,7 @@ void backupRelayStatesToFlash() {
     obj["state"] = myRelays[i].state;
     obj["room"] = myRelays[i].room;
   }
+  unlockRelays();
   // Mở file chế độ "w" -> Xóa dữ liệu cũ, ghi đè toàn bộ trạng thái mới nhất
   File f = LittleFS.open("/offline_backup.json", "w");
   if (f) {

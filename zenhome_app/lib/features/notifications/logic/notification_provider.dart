@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zenhome_app/features/notifications/logic/notification_helper.dart';
 
@@ -8,18 +9,43 @@ final notificationProvider = StateNotifierProvider<NotificationNotifier, List<Ma
 });
 
 class NotificationNotifier extends StateNotifier<List<Map<String, dynamic>>> {
+  // SEC-FIX [ZH-MED-20]: Bảo mật lịch sử thông báo bằng Hardware Keystore
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
+
   NotificationNotifier() : super([]) {
     loadNotifications();
   }
 
   Future<void> loadNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> hist = prefs.getStringList('notification_history') ?? [];
-    
-    final parsed = hist.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
-    parsed.sort((a, b) => (b['timestamp'] as int).compareTo(a['timestamp'] as int));
-    
-    state = parsed;
+    try {
+      final secureData = await _storage.read(key: 'secure_notification_history');
+      if (secureData != null && secureData.isNotEmpty) {
+        final List<dynamic> decoded = jsonDecode(secureData);
+        final parsed = decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        parsed.sort((a, b) => (b['timestamp'] as int).compareTo(a['timestamp'] as int));
+        state = parsed;
+        return;
+      }
+    } catch (_) {}
+
+    // Migration fallback từ SharedPreferences cũ
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      List<String> hist = prefs.getStringList('notification_history') ?? [];
+      if (hist.isNotEmpty) {
+        final parsed = hist.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
+        parsed.sort((a, b) => (b['timestamp'] as int).compareTo(a['timestamp'] as int));
+        state = parsed;
+        await _saveToStorage(parsed);
+        await prefs.remove('notification_history');
+        return;
+      }
+    } catch (_) {}
+
+    state = [];
   }
 
   Future<void> addNotification(String title, String body, String category, [String homeId = '']) async {
@@ -69,13 +95,16 @@ class NotificationNotifier extends StateNotifier<List<Map<String, dynamic>>> {
 
   Future<void> clearAll() async {
     state = [];
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('notification_history');
+    await _storage.delete(key: 'secure_notification_history');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('notification_history');
+    } catch (_) {}
   }
 
   Future<void> _saveToStorage(List<Map<String, dynamic>> list) async {
-    final prefs = await SharedPreferences.getInstance();
-    final stringList = list.map((e) => jsonEncode(e)).toList();
-    await prefs.setStringList('notification_history', stringList);
+    try {
+      await _storage.write(key: 'secure_notification_history', value: jsonEncode(list));
+    } catch (_) {}
   }
 }

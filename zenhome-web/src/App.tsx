@@ -28,8 +28,8 @@ export const App: React.FC = () => {
     return Boolean(getAdminSecret());
   });
 
-  // ZH-HIGH-16: Thu hồi phiên ở phía máy chủ trước khi dọn dẹp client
-  const handleLogout = async () => {
+  // ZH-HIGH-16 & ZH-MED-19: Thu hồi phiên ở phía máy chủ và đồng bộ đa tab tức thì
+  const handleLogout = async (notifySiblings = true) => {
     const adminKey = getAdminSecret();
     if (adminKey) {
       try {
@@ -50,9 +50,57 @@ export const App: React.FC = () => {
       localStorage.removeItem('zenhome_admin_key');
       localStorage.removeItem('zenhome_auth_method');
       localStorage.removeItem('zenhome_passkey_name');
+      // Kích hoạt storage event cho các tab khác
+      localStorage.setItem('zenhome_logout_event', String(Date.now()));
     } catch (_) {}
+
+    // ZH-MED-19: Bắn tín hiệu qua BroadcastChannel cho các tab cùng origin
+    if (notifySiblings && typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const bc = new BroadcastChannel('zenhome_auth_channel');
+        bc.postMessage({ type: 'LOGOUT', timestamp: Date.now() });
+        bc.close();
+      } catch (_) {}
+    }
+
     setIsAuthenticated(false);
   };
+
+  // ZH-MED-19: Lắng nghe sự kiện Đăng xuất liên tab qua BroadcastChannel và Storage Event
+  useEffect(() => {
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        bc = new BroadcastChannel('zenhome_auth_channel');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'LOGOUT') {
+            sessionStorage.removeItem('zenhome_admin_key');
+            sessionStorage.removeItem('zenhome_auth_method');
+            sessionStorage.removeItem('zenhome_passkey_name');
+            setIsAuthenticated(false);
+            showToast('🔒 Phiên quản trị đã kết thúc từ một tab khác.');
+          }
+        };
+      } catch (_) {}
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'zenhome_logout_event' || (e.key === 'zenhome_admin_key' && !e.newValue)) {
+        sessionStorage.removeItem('zenhome_admin_key');
+        sessionStorage.removeItem('zenhome_auth_method');
+        sessionStorage.removeItem('zenhome_passkey_name');
+        setIsAuthenticated(false);
+        showToast('🔒 Phiên quản trị đã kết thúc từ một tab khác.');
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
 
   // Tự động khóa bảng điều khiển sau 15 phút không thao tác (Security Auto-Lock)
   useEffect(() => {

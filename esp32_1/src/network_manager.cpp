@@ -320,6 +320,42 @@ void setupStationWebServer() {
       return;
     }
 
+    // Bắt buộc xác thực adminPass hoặc chữ ký HMAC-SHA256 [ZH-CRIT-13]
+    bool isAuthorized = false;
+    if (newDoc.is<JsonObject>()) {
+      if (newDoc.containsKey("adminPass")) {
+        String sentPass = newDoc["adminPass"].as<String>();
+        if (admin_pass.length() > 0 && constantTimeCompare(sentPass, admin_pass)) {
+          isAuthorized = true;
+        }
+      } else if (newDoc.containsKey("admin_pass")) {
+        String sentPass = newDoc["admin_pass"].as<String>();
+        if (admin_pass.length() > 0 && constantTimeCompare(sentPass, admin_pass)) {
+          isAuthorized = true;
+        }
+      }
+    }
+    if (!isAuthorized && request->hasHeader("X-ZenHome-AdminPass")) {
+      String hPass = request->getHeader("X-ZenHome-AdminPass")->value();
+      if (admin_pass.length() > 0 && constantTimeCompare(hPass, admin_pass)) {
+        isAuthorized = true;
+      }
+    }
+    String sig = request->hasHeader("X-ZenHome-Signature") ? request->getHeader("X-ZenHome-Signature")->value() : "";
+    String ts = request->hasHeader("X-ZenHome-Timestamp") ? request->getHeader("X-ZenHome-Timestamp")->value() : "";
+    String nonce = request->hasHeader("X-ZenHome-Nonce") ? request->getHeader("X-ZenHome-Nonce")->value() : "";
+    if (!isAuthorized && sig.length() > 0 && currentLocalSecretKey.length() > 0) {
+      if (!isTimestampExpired(ts) && !isNonceReplayedOrInvalid(nonce)) {
+        if (verifyHmacSha256(currentLocalSecretKey, "devices:" + ts + ":" + nonce, sig)) {
+          isAuthorized = true;
+        }
+      }
+    }
+    if (!isAuthorized) {
+      request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED\",\"message\":\"Cần mật khẩu quản trị hoặc chữ ký số!\"}");
+      return;
+    }
+
     File file = LittleFS.open("/config.json", "r");
     if (!file) {
       request->send(500, "application/json", "{\"status\":\"error\",\"message\":\"Khong mo duoc /config.json\"}");
@@ -378,14 +414,17 @@ void setupStationWebServer() {
     }
 
     JsonArray devsArr = doc.createNestedArray("devices");
-    for (int i = 0; i < relayCount; i++) {
-      if (reqUser.length() > 0 && !isUserAuthorizedForDevice(reqUser, myRelays[i].id)) {
-        continue;
+    if (lockRelayMutex(pdMS_TO_TICKS(500))) {
+      for (int i = 0; i < relayCount; i++) {
+        if (reqUser.length() > 0 && !isUserAuthorizedForDevice(reqUser, myRelays[i].id)) {
+          continue;
+        }
+        JsonObject devObj = devsArr.createNestedObject();
+        devObj["id"] = myRelays[i].id;
+        devObj["pin"] = myRelays[i].pin;
+        devObj["state"] = myRelays[i].state;
       }
-      JsonObject devObj = devsArr.createNestedObject();
-      devObj["id"] = myRelays[i].id;
-      devObj["pin"] = myRelays[i].pin;
-      devObj["state"] = myRelays[i].state;
+      unlockRelayMutex();
     }
 
     String response;
@@ -637,12 +676,15 @@ void setupStationWebServer() {
       // Tìm xem thiết bị có tồn tại không
       String curState = "0";
       bool devExists = false;
-      for (int i = 0; i < relayCount; i++) {
-        if (myRelays[i].id == devId) {
-          devExists = true;
-          curState = myRelays[i].state;
-          break;
+      if (lockRelayMutex(pdMS_TO_TICKS(200))) {
+        for (int i = 0; i < relayCount; i++) {
+          if (myRelays[i].id == devId) {
+            devExists = true;
+            curState = myRelays[i].state;
+            break;
+          }
         }
+        unlockRelayMutex();
       }
       if (devExists) {
         // Thiết bị tồn tại nhưng bị chặn gạt quá nhanh (Relay Guard): Trả về 200 kèm trạng thái hiện tại
@@ -912,9 +954,22 @@ void setupStationWebServer() {
     static bool isAuthorizedUpload = false;
     if (!index) {
       isAuthorizedUpload = false;
-      String adminReq = request->hasParam("adminPass", true) ? request->getParam("adminPass", true)->value() : "";
+      String adminReq = request->hasParam("adminPass", true) ? request->getParam("adminPass", true)->value() : (request->hasParam("admin_pass", true) ? request->getParam("admin_pass", true)->value() : "");
       if (admin_pass.length() == 0 || !constantTimeCompare(adminReq, admin_pass)) {
         Serial.println("[WEB-OTA] ⛔ Từ chối nâng cấp firmware: Sai hoặc chưa cấu hình mật khẩu quản trị!");
+        Update.abort();
+        return;
+      }
+
+      // [ZH-HIGH-19] Anti-Rollback check trên Web OTA
+      int newBuild = -1;
+      if (request->hasParam("build", true)) {
+        newBuild = request->getParam("build", true)->value().toInt();
+      } else if (request->hasParam("newBuild", true)) {
+        newBuild = request->getParam("newBuild", true)->value().toInt();
+      }
+      if (newBuild > 0 && newBuild < FIRMWARE_BUILD_NUM) {
+        Serial.printf("[WEB-OTA] ⛔ ANTI-ROLLBACK: Từ chối nạp firmware hạ cấp! Hiện tại: %d, Nạp: %d\n", FIRMWARE_BUILD_NUM, newBuild);
         Update.abort();
         return;
       }
@@ -998,11 +1053,26 @@ void setupStationWebServer() {
       return;
     }
 
+    // [ZH-HIGH-19] Anti-Rollback firmware check: Bắt buộc build >= FIRMWARE_BUILD_NUM
+    int newBuild = -1;
+    if (doc.containsKey("build")) {
+      newBuild = doc["build"].as<int>();
+    } else if (doc.containsKey("newBuild")) {
+      newBuild = doc["newBuild"].as<int>();
+    } else if (doc.containsKey("buildNumber")) {
+      newBuild = doc["buildNumber"].as<int>();
+    }
+    if (newBuild > 0 && newBuild < FIRMWARE_BUILD_NUM) {
+      Serial.printf("[OTA] ⛔ ANTI-ROLLBACK: Từ chối hạ cấp firmware! Bản hiện tại: %d, bản yêu cầu: %d\n", FIRMWARE_BUILD_NUM, newBuild);
+      request->send(403, "application/json", "{\"status\":\"error\",\"code\":\"ANTI_ROLLBACK\",\"message\":\"Từ chối hạ cấp firmware về phiên bản cũ có lỗ hổng!\"}");
+      return;
+    }
+
     String fwUrl = doc["url"].as<String>();
     String expectedSha = doc.containsKey("sha256") ? doc["sha256"].as<String>() : "";
     String sigHex = doc.containsKey("sig") ? doc["sig"].as<String>() : "";
     request->send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Đã tiếp nhận yêu cầu OTA. Đang bắt đầu tải firmware...\"}");
-    performServerOtaUpdate(fwUrl, expectedSha, sigHex);
+    performServerOtaUpdate(fwUrl, expectedSha, sigHex, newBuild);
   });
 
   server.on("/api/rules", HTTP_GET, [](AsyncWebServerRequest *request) {

@@ -202,6 +202,17 @@ export async function initSqliteDatabase(): Promise<void> {
     isInitialized = true;
     console.log('[SQLITE] ✅ Cơ sở dữ liệu SQLite WAL Mode & Bảng Passkey đã sẵn sàng!');
 
+    // ZH-MED-21: Thiết lập interval định kỳ thực thi PRAGMA wal_checkpoint(PASSIVE) mỗi 15 phút chống phình to file WAL
+    setInterval(() => {
+      dbRun('PRAGMA wal_checkpoint(PASSIVE);')
+        .then(() => {
+          // Checkpoint định kỳ hoàn tất
+        })
+        .catch((err: any) => {
+          console.warn('[SQLITE WAL] ⚠️ Lỗi khi thực hiện định kỳ wal_checkpoint:', err.message);
+        });
+    }, 15 * 60 * 1000).unref();
+
     // 7. Tự động di chuyển dữ liệu từ file JSON cũ nếu bảng đang trống
     await migrateLegacyJsonData();
   } catch (err: any) {

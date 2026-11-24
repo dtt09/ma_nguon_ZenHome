@@ -822,31 +822,35 @@ hubRouter.post('/ota/publish', requireAdminAuth, async (req: Request, res: Respo
     let dispatchedCount = 0;
     if (triggerFleetOta && client && client.connected) {
       try {
-        let customersToNotify: { userId: string; macAddress: string }[] = [];
+        // ZH-MED-17: Truy vấn mật khẩu adminPass riêng biệt của từng gia chủ thay vì hardcode 'admin'
+        let customersToNotify: { userId: string; macAddress: string; adminPass: string }[] = [];
         if (db) {
           const snap = await db.collection('users').get();
           for (const doc of snap.docs) {
             const data = doc.data();
             if (data.macAddress && data.macAddress.trim() !== '') {
-              customersToNotify.push({ userId: doc.id, macAddress: data.macAddress.trim() });
+              customersToNotify.push({
+                userId: doc.id,
+                macAddress: data.macAddress.trim(),
+                adminPass: (data.adminPass || '').trim() || 'admin',
+              });
             }
           }
         }
 
-        const otaPayload = JSON.stringify({
-          action: 'ota_update',
-          url: finalDirectUrl,
-          version: finalVersion,
-          sha256: finalSha256,
-          size: finalSize,
-          admin_pass: 'admin',
-          server_authorized: true,
-          timestamp: nowIso,
-        });
-
         for (const item of customersToNotify) {
           const cleanMac = item.macAddress.replace(/[:\-]/g, '').toUpperCase();
           const formattedMac = cleanMac.match(/.{1,2}/g)?.join(':') || item.macAddress;
+          const otaPayload = JSON.stringify({
+            action: 'ota_update',
+            url: finalDirectUrl,
+            version: finalVersion,
+            sha256: finalSha256,
+            size: finalSize,
+            admin_pass: item.adminPass,
+            server_authorized: true,
+            timestamp: nowIso,
+          });
           const topics = [
             `${item.userId}/${cleanMac}/system/ota_update`,
             `${item.userId}/${formattedMac}/system/ota_update`,

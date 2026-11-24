@@ -13,6 +13,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zenhome_app/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -34,12 +35,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
   final notifTitle = message.notification?.title ?? message.data['title']?.toString();
   final notifBody = message.notification?.body ?? message.data['body']?.toString();
-  LoggerService.i("[CHẠY NGẦM] Nhận thông báo: $notifTitle");
+  LoggerService.i("[CHẠY NGẦM] Nhận thông báo mới từ hệ thống");
   
   if (notifTitle != null || message.notification != null || message.data.isNotEmpty) {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      List<String> hist = prefs.getStringList('notification_history') ?? [];
+      // SEC-FIX [ZH-MED-20]: Lưu trữ thông báo an ninh nhạy cảm vào Hardware Keystore mã hóa thay vì SharedPreferences XML plain text
+      const secureStorage = FlutterSecureStorage(
+        aOptions: AndroidOptions(encryptedSharedPreferences: true),
+        iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+      );
+      final histJson = await secureStorage.read(key: 'secure_notification_history');
+      List<dynamic> hist = histJson != null ? jsonDecode(histJson) : [];
       final newNotif = {
         'title': notifTitle ?? 'ZenHome Notification',
         'body': notifBody ?? '',
@@ -48,9 +54,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         'category': message.data['category'] ?? 'other',
         'homeId': message.data['homeId'] ?? '',
       };
-      hist.insert(0, jsonEncode(newNotif));
+      hist.insert(0, newNotif);
       if (hist.length > 100) hist = hist.sublist(0, 100);
-      await prefs.setStringList('notification_history', hist);
+      await secureStorage.write(key: 'secure_notification_history', value: jsonEncode(hist));
     } catch (e) {
       LoggerService.e('Lỗi lưu lịch sử thông báo background: $e');
     }

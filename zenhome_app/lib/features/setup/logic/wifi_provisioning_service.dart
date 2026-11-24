@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:wifi_scan/wifi_scan.dart';
 import 'package:wifi_iot/wifi_iot.dart';
+import 'package:zenhome_app/core/utils/masking_helper.dart';
 import 'package:zenhome_app/features/setup/logic/esp_api_service.dart';
 
 enum ScanCapability {
@@ -140,7 +141,7 @@ class WifiProvisioningService {
     try {
       // BƯỚC 1: Bắt sóng và gửi yêu cầu kết nối
       onProgress(EspConnectStep.requestingWifi);
-      debugPrint('[WIFI_CONNECT] Bắt đầu kết nối vào $ssid...');
+      debugPrint('[WIFI_CONNECT] Bắt đầu kết nối vào Access Point của Hub...');
 
       final connectRequested = await WiFiForIoTPlugin.connect(
         ssid,
@@ -166,7 +167,7 @@ class WifiProvisioningService {
         
         final mac = await EspApiService.pingESP();
         if (mac != null && mac.isNotEmpty) {
-          debugPrint('[WIFI_CONNECT] ✅ Bắt tay thành công với ESP32 tại 192.168.4.1! MAC: $mac');
+          debugPrint('[WIFI_CONNECT] ✅ Bắt tay thành công với ESP32 tại 192.168.4.1! MAC: ${MaskingHelper.maskMac(mac)}');
           onProgress(EspConnectStep.success, mac: mac);
           return true;
         }

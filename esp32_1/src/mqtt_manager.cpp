@@ -676,9 +676,27 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         return;
       }
 
+      // [ZH-HIGH-19] Anti-Rollback firmware check: Bắt buộc build >= FIRMWARE_BUILD_NUM
+      int newBuild = -1;
+      if (otaDoc.containsKey("build")) {
+        newBuild = otaDoc["build"].as<int>();
+      } else if (otaDoc.containsKey("newBuild")) {
+        newBuild = otaDoc["newBuild"].as<int>();
+      } else if (otaDoc.containsKey("buildNumber")) {
+        newBuild = otaDoc["buildNumber"].as<int>();
+      }
+      if (newBuild > 0 && newBuild < FIRMWARE_BUILD_NUM) {
+        Serial.printf("[OTA] ⛔ ANTI-ROLLBACK: Từ chối hạ cấp firmware! Bản hiện tại: %d, bản yêu cầu: %d\n", FIRMWARE_BUILD_NUM, newBuild);
+        if (mqttClient.connected()) {
+          String resTopic = mqtt_prefix + "/system/ota_result";
+          mqttClient.publish(resTopic.c_str(), "{\"status\":\"error\",\"code\":\"ANTI_ROLLBACK\",\"message\":\"Từ chối hạ cấp firmware về phiên bản cũ có lỗ hổng!\"}", false);
+        }
+        return;
+      }
+
       String fwUrl = otaDoc["url"].as<String>();
       String expectedSha = otaDoc.containsKey("sha256") ? otaDoc["sha256"].as<String>() : "";
-      performServerOtaUpdate(fwUrl, expectedSha, sigHex);
+      performServerOtaUpdate(fwUrl, expectedSha, sigHex, newBuild);
     } else {
       Serial.println("[OTA] ❌ Gói tin OTA thiếu trường URL hoặc JSON không hợp lệ!");
     }
@@ -941,8 +959,13 @@ void publishOtaMessage(const String& subTopic, const String& payload) {
   }
 }
 
-void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, const String& signatureHex) {
+void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, const String& signatureHex, int newBuild) {
   if (fwUrl.length() < 10) return;
+  if (newBuild > 0 && newBuild < FIRMWARE_BUILD_NUM) {
+    Serial.printf("[SERVER-OTA] ⛔ ANTI-ROLLBACK: Từ chối hạ cấp firmware! Bản hiện tại: %d, bản yêu cầu: %d\n", FIRMWARE_BUILD_NUM, newBuild);
+    publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"code\":\"ANTI_ROLLBACK\",\"message\":\"Từ chối hạ cấp firmware về bản cũ!\"}");
+    return;
+  }
   if (isOtaInProgress) {
     Serial.println("[SERVER-OTA] ⚠️ Đang có tiến trình nạp OTA chạy trong nền, bỏ qua yêu cầu trùng lặp!");
     return;

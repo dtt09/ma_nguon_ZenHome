@@ -289,7 +289,7 @@ systemRouter.post('/app-version', requireAdminAuth, async (req: Request, res: Re
  * @route   GET /api/v1/system/crash-logs
  * @desc    Lấy danh sách nhật ký sự cố runtime từ Firestore
  */
-systemRouter.get('/crash-logs', async (req: Request, res: Response) => {
+systemRouter.get('/crash-logs', authenticateToken, requireRole(['admin']), async (req: Request, res: Response) => {
   try {
     const limit = parseInt((req.query.limit as string) || '100', 10);
     if (!db) {
@@ -440,7 +440,7 @@ systemRouter.delete('/crash-logs/:id', requireAdminAuth, async (req: Request, re
  * @route   POST /api/v1/system/crash-logs/test
  * @desc    Tạo bản ghi sự cố mô phỏng kiểm tra luồng Crashlytics & Firestore Realtime
  */
-systemRouter.post('/crash-logs/test', async (req: Request, res: Response) => {
+systemRouter.post('/crash-logs/test', authenticateToken, requireRole(['admin']), async (req: Request, res: Response) => {
   try {
     const testCrash = {
       userId: 'admin_test',

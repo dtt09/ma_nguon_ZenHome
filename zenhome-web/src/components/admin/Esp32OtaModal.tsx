@@ -105,16 +105,31 @@ export const Esp32OtaModal: React.FC<Esp32OtaModalProps> = ({
   // Xử lý Phát hành phiên bản mới lên Cloud & Server
   const handlePublishFirmware = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPublishing(true);
     setError(null);
     setSuccessMsg(null);
+
+    // ZH-MED-22: Validator kiểm tra tính hợp lệ của hash SHA-256 và tiền tố giao thức an toàn https://
+    const trimmedUrl = directUrlInput.trim();
+    const trimmedSha256 = sha256Input.trim();
+
+    if (!trimmedUrl.startsWith('https://')) {
+      setError('Đường dẫn tải firmware trực tiếp bắt buộc phải sử dụng giao thức bảo mật HTTPS (https://...).');
+      return;
+    }
+
+    if (!/^[a-fA-F0-9]{64}$/.test(trimmedSha256)) {
+      setError('Mã băm toàn vẹn SHA-256 không hợp lệ. Chuỗi phải chứa đúng 64 ký tự thập lục phân (hex: 0-9, a-f).');
+      return;
+    }
+
+    setPublishing(true);
 
     try {
       const res = await publishEsp32Firmware({
         version: versionInput.trim(),
         buildNumber: Number(buildInput),
-        directUrl: directUrlInput.trim(),
-        sha256: sha256Input.trim(),
+        directUrl: trimmedUrl,
+        sha256: trimmedSha256,
         fileSizeBytes: Number(fileSizeInput),
         releaseNotesVi: releaseNotesVi.trim(),
         triggerFleetOta,

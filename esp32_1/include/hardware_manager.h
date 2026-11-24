@@ -70,6 +70,8 @@ extern SemaphoreHandle_t xRelayMutex;
 void initRelayMutex();
 bool lockRelays(TickType_t waitTicks = pdMS_TO_TICKS(1000));
 void unlockRelays();
+inline bool lockRelayMutex(TickType_t waitTicks = pdMS_TO_TICKS(1000)) { return lockRelays(waitTicks); }
+inline void unlockRelayMutex() { unlockRelays(); }
 
 // Functions
 void initHardwareMutex();

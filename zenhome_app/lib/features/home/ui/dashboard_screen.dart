@@ -38,7 +38,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> with AutomaticKeepAliveClientMixin {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   @override
   bool get wantKeepAlive => true;
 
@@ -49,6 +49,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     for (var sub in _subscriptions) {
       sub.cancel();
     }
@@ -59,8 +60,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // SEC-FIX [ZH-MED-18]: Khi app từ background quay lại foreground, chủ động kiểm tra socket MQTT và refresh nếu đứt ngầm
+      final mqttState = ref.read(mqttConnectionStateProvider);
+      if (mqttState != 2) {
+        final activeConfig = ref.read(homeConfigProvider).activeConfig;
+        final mqttRepo = ref.read(mqttRepositoryProvider);
+        mqttRepo.disconnect();
+        mqttRepo.connect(
+          userId: activeConfig.userId,
+          mqttServer: activeConfig.mqttServer,
+          mqttPrefix: activeConfig.mqttPrefix,
+          dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
+          mqttUser: activeConfig.mqttUser,
+          mqttPass: activeConfig.mqttPass,
+        );
+      }
+      ref.read(localNetworkServiceProvider).checkConnectivity();
+    }
+  }
+
+  @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
     List<String> availableRooms = activeConfig.devices.map((e) => e.room).toSet().toList();
     if (availableRooms.isNotEmpty) {
