@@ -816,6 +816,16 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     StaticJsonDocument<256> doc;
     DeserializationError err = deserializeJson(doc, message);
     if (!err) {
+      // SEC-FIX [ZH-HIGH-17]: Monotonic Sequence Version (ver) chống xung đột Race Condition
+      if (doc.containsKey("ver")) {
+        static std::map<String, uint64_t> lastRelayVer;
+        uint64_t cmdVer = doc["ver"].as<uint64_t>();
+        if (cmdVer > 0 && lastRelayVer.find(devId) != lastRelayVer.end() && cmdVer <= lastRelayVer[devId]) {
+          Serial.printf("[MQTT-CONFLICT] ⚠️ Bỏ qua lệnh cũ cho thiết bị '%s' (ver: %llu <= last_ver: %llu)\n", devId.c_str(), cmdVer, lastRelayVer[devId]);
+          return;
+        }
+        lastRelayVer[devId] = cmdVer;
+      }
       if (doc.containsKey("action")) {
         String act = doc["action"].as<String>();
         targetState = (act == "1" || act == "ON" || act == "on") ? "1" : "0";

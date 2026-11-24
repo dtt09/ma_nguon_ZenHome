@@ -14,7 +14,8 @@ import { initZenHomeWorker, sendCommandWithRetry } from './server/zenhomeWorker'
 import { apiRouter } from './server/routes/api';
 import { syncServerConfigToFirestore, startNetworkSyncWatcher } from './server/core/networkSync';
 import { client as mqttClient } from './server/core/mqtt';
-import { ADMIN_SECRET } from './server/middlewares/auth';
+import { ADMIN_SECRET, safeCompare } from './server/middlewares/auth';
+import { verifyAdminJwt } from './server/core/passkeyService';
 import { getAuth } from './server/core/firebase';
 
 
@@ -237,13 +238,20 @@ io.use(async (socket, next) => {
     return next(new Error('Unauthorized: Vui lòng cung cấp mã xác thực cho kết nối WebSocket.'));
   }
 
-  // 1. Chấp nhận nếu là Admin Secret
-  if (ADMIN_SECRET && token === ADMIN_SECRET) {
+  // 1. Chấp nhận nếu là Admin Session JWT (Cấp qua WebAuthn Passkey hoặc Admin Session)
+  const passkeyAdmin = verifyAdminJwt(token);
+  if (passkeyAdmin) {
+    socket.data.user = { uid: passkeyAdmin.sub, role: 'admin' };
+    return next();
+  }
+
+  // 2. Chấp nhận nếu là Admin Secret (So sánh hằng số thời gian safeCompare chống Timing Attack)
+  if (ADMIN_SECRET && safeCompare(token, ADMIN_SECRET)) {
     socket.data.user = { uid: 'admin', role: 'admin' };
     return next();
   }
 
-  // 2. Chấp nhận nếu là Firebase ID Token hợp lệ
+  // 3. Chấp nhận nếu là Firebase ID Token hợp lệ
   try {
     const auth = getAuth();
     if (auth) {

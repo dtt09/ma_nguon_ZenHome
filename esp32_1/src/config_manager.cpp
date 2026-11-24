@@ -95,27 +95,82 @@ bool saveConfig(const JsonDocument& doc) {
     Serial.println("[CONFIG] ❌ Lỗi mở /config.json.tmp để ghi!");
     return false;
   }
-  serializeJson(doc, tmp);
+  size_t bytesWritten = serializeJson(doc, tmp);
   tmp.flush();
   tmp.close();
 
+  if (bytesWritten < 10) {
+    Serial.println("[CONFIG] ❌ Lỗi: Dữ liệu ghi vào /config.json.tmp quá ngắn hoặc rỗng!");
+    LittleFS.remove("/config.json.tmp");
+    unlockFlash();
+    return false;
+  }
+
+  // Bước 1: Sao lưu /config.json hiện tại thành /config.json.bak (Bảo vệ Brownout cấp 2)
+  if (LittleFS.exists("/config.json")) {
+    if (LittleFS.exists("/config.json.bak")) {
+      LittleFS.remove("/config.json.bak");
+    }
+    File src = LittleFS.open("/config.json", "r");
+    File dst = LittleFS.open("/config.json.bak", "w");
+    if (src && dst) {
+      uint8_t copyBuf[256];
+      while (src.available()) {
+        size_t n = src.read(copyBuf, sizeof(copyBuf));
+        dst.write(copyBuf, n);
+      }
+      dst.flush();
+    }
+    if (src) src.close();
+    if (dst) dst.close();
+  }
+
+  // Bước 2: Hoán đổi nguyên tử /config.json.tmp thành /config.json
   if (LittleFS.exists("/config.json")) {
     LittleFS.remove("/config.json");
   }
   bool ok = LittleFS.rename("/config.json.tmp", "/config.json");
   unlockFlash();
   if (ok) {
-    Serial.println("[CONFIG] 💾 Đã lưu an toàn nguyên tử /config.json thành công!");
+    Serial.println("[CONFIG] 💾 Đã lưu an toàn nguyên tử /config.json thành công (Kèm bản sao /config.json.bak)!");
   } else {
     Serial.println("[CONFIG] ❌ Lỗi đổi tên /config.json.tmp sang /config.json!");
   }
   return ok;
 }
 
-bool loadConfig() {
-  if (!LittleFS.exists("/config.json") && LittleFS.exists("/config.json.tmp")) {
-    LittleFS.rename("/config.json.tmp", "/config.json");
+// Hàm trợ giúp kiểm tra tính hợp lệ của tệp JSON cấu hình
+static bool isValidConfigFile(const char* path) {
+  if (!LittleFS.exists(path)) return false;
+  File f = LittleFS.open(path, "r");
+  if (!f || f.size() < 10) {
+    if (f) f.close();
+    return false;
   }
+  DynamicJsonDocument testDoc(512);
+  DeserializationError err = deserializeJson(testDoc, f);
+  f.close();
+  return (err == DeserializationError::Ok);
+}
+
+bool loadConfig() {
+  // Cơ chế tự phục hồi 3 cấp (3-Tier Auto-Recovery) chống sụt áp / brownout giữa các bước ghi
+  bool mainValid = isValidConfigFile("/config.json");
+  if (!mainValid) {
+    Serial.println("[CONFIG] ⚠️ /config.json chính không tồn tại hoặc bị lỗi cấu trúc!");
+    if (isValidConfigFile("/config.json.tmp")) {
+      Serial.println("[CONFIG] 🛡️ Tự động khôi phục cấu hình từ /config.json.tmp...");
+      if (LittleFS.exists("/config.json")) LittleFS.remove("/config.json");
+      LittleFS.rename("/config.json.tmp", "/config.json");
+      mainValid = true;
+    } else if (isValidConfigFile("/config.json.bak")) {
+      Serial.println("[CONFIG] 🛡️ Tự động khôi phục cấu hình từ bản sao lưu /config.json.bak...");
+      if (LittleFS.exists("/config.json")) LittleFS.remove("/config.json");
+      LittleFS.rename("/config.json.bak", "/config.json");
+      mainValid = true;
+    }
+  }
+
   if (!LittleFS.exists("/config.json")) return false;
   File configFile = LittleFS.open("/config.json", "r");
   if (!configFile) return false;
@@ -350,6 +405,7 @@ void loadOfflineBackupFromFlash() {
 void resetToFactoryDefaults() {
   if (LittleFS.exists("/config.json")) LittleFS.remove("/config.json");
   if (LittleFS.exists("/config.json.tmp")) LittleFS.remove("/config.json.tmp");
+  if (LittleFS.exists("/config.json.bak")) LittleFS.remove("/config.json.bak");
   if (LittleFS.exists("/provisioned.txt")) LittleFS.remove("/provisioned.txt");
   if (LittleFS.exists("/setup_pending.txt")) LittleFS.remove("/setup_pending.txt");
   if (LittleFS.exists("/local_sec_key.dat")) LittleFS.remove("/local_sec_key.dat");
