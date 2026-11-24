@@ -182,6 +182,10 @@ export function signAdminJwt(payload: { credentialId: string; deviceName: string
 
 export function verifyAdminJwt(token: string): AdminTokenPayload | null {
   try {
+    if (isTokenRevoked(token)) {
+      console.warn('[AUTH] ⛔ Từ chối Admin JWT: Token đã nằm trong Revocation List.');
+      return null;
+    }
     const decoded = jwt.verify(token, getJwtSecret()) as any;
     if (decoded && decoded.role === 'admin') {
       return decoded as AdminTokenPayload;
@@ -227,4 +231,38 @@ export function getEffectiveOrigins(reqOrigin?: string): string[] {
     return [reqOrigin];
   }
   return Array.from(origins);
+}
+
+// ==========================================
+// CƠ CHẾ THU HỒI TOKEN & XOAY VÒNG API KEY (KEY ROTATION & REVOCATION LIST)
+// ==========================================
+const revokedTokensRegistry = new Set<string>();
+
+/**
+ * Thu hồi một Token JWT hoặc API Key (Đưa vào Revocation List)
+ */
+export function revokeToken(tokenOrId: string, reason: string = 'logout_or_rotation'): void {
+  if (!tokenOrId) return;
+  const clean = tokenOrId.trim();
+  const hash = crypto.createHash('sha256').update(clean).digest('hex');
+  revokedTokensRegistry.add(clean);
+  revokedTokensRegistry.add(hash);
+  console.log(`[AUTH REVOCATION] 🔒 Đã thu hồi token/key (Lý do: ${reason}, Hash: ${hash.slice(0, 12)}...)`);
+}
+
+/**
+ * Kiểm tra xem Token hoặc API Key đã bị thu hồi chưa
+ */
+export function isTokenRevoked(tokenOrId?: string): boolean {
+  if (!tokenOrId) return false;
+  const clean = tokenOrId.trim();
+  const hash = crypto.createHash('sha256').update(clean).digest('hex');
+  return revokedTokensRegistry.has(clean) || revokedTokensRegistry.has(hash);
+}
+
+/**
+ * Lấy số lượng token đã bị thu hồi trong RAM
+ */
+export function getRevokedTokensCount(): number {
+  return revokedTokensRegistry.size;
 }

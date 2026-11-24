@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:convert';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 import 'package:zenhome_app/core/services/logger_service.dart';
+import 'package:zenhome_app/core/services/ssl_pinning_service.dart';
 
 class MqttRepository {
   MqttServerClient? client;
@@ -64,7 +64,8 @@ class MqttRepository {
     client = MqttServerClient(mqttServer, clientId);
     client!.port = 8883; // HiveMQ Cloud yêu cầu bảo mật TLS
     client!.secure = true;
-    client!.securityContext = SecurityContext.defaultContext;
+    // SEC-FIX [Phase P2]: Áp dụng SecurityContext chuẩn bảo mật SSL/TLS Pinning cho HiveMQ Cloud
+    client!.securityContext = SslPinningService.getSecureSecurityContext();
     client!.useWebSocket = false;
     client!.logging(on: false);
     client!.keepAlivePeriod = 30; // Giảm xuống 30s để phát hiện mất kết nối nhanh hơn

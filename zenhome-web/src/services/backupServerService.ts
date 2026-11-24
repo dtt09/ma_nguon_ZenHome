@@ -421,6 +421,8 @@ export interface Esp32FirmwareInfo {
   fileName: string;
   fileSizeBytes: number;
   sha256: string;
+  signature?: string;
+  ecdsaSignature?: string;
   directUrl: string;
   releaseNotesVi?: string;
   lastDeployedAt: string;
@@ -432,6 +434,8 @@ export interface Esp32PublishPayload {
   buildNumber: number;
   directUrl: string;
   sha256?: string;
+  signature?: string;
+  ecdsaSignature?: string;
   fileSizeBytes?: number;
   releaseNotesVi?: string;
   triggerFleetOta?: boolean;

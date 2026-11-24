@@ -11,6 +11,7 @@ import type {
   AuthenticatorTransport,
 } from '@simplewebauthn/server';
 import {
+  revokeToken,
   storeChallenge,
   retrieveChallenge,
   getAllPasskeys,
@@ -337,4 +338,23 @@ authRouter.delete('/passkey/:id', requireAdminAuth, actionLimiter, async (req: R
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// ==========================================
+// 9. ĐĂNG XUẤT VÀ THU HỒI TOKEN (REVOCATION)
+// ==========================================
+authRouter.post('/logout', (req: Request, res: Response) => {
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '').trim() || 
+                (req.headers['x-api-key'] as string)?.trim() ||
+                (req.body?.token as string)?.trim();
+
+  if (token) {
+    revokeToken(token, 'user_logout');
+  }
+
+  res.json({
+    success: true,
+    message: 'Đăng xuất thành công, phiên làm việc đã được thu hồi an toàn.',
+    timestamp: new Date().toISOString(),
+  });
 });

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { getAuth } from '../core/firebase';
-import { verifyAdminJwt } from '../core/passkeyService';
+import { verifyAdminJwt, isTokenRevoked } from '../core/passkeyService';
 
 export function safeCompare(a: string, b: string): boolean {
   if (!a || !b) return false;
@@ -80,6 +80,11 @@ export const requireAdminAuth = async (req: Request, res: Response, next: NextFu
     return res.status(401).json({ success: false, error: 'Unauthorized: Bạn không có quyền quản trị viên (Admin).' });
   }
 
+  // Kiểm tra Revocation List (Key Rotation / Revoked Tokens)
+  if (isTokenRevoked(token)) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Token hoặc API Key đã bị thu hồi (Revoked).' });
+  }
+
   // 1. Chấp nhận nếu là Admin Secret đã cấu hình (So sánh an toàn thời gian thực - Timing Attack Safe)
   if (ADMIN_SECRET && safeCompare(token, ADMIN_SECRET)) {
     req.user = { uid: 'admin', role: 'admin' };
@@ -132,6 +137,11 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       success: false, 
       error: 'Unauthorized: Vui lòng cung cấp mã xác thực (Authorization Bearer Token hoặc Admin Secret).' 
     });
+  }
+
+  // Kiểm tra Revocation List
+  if (isTokenRevoked(token)) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Token hoặc API Key đã bị thu hồi (Revoked).' });
   }
 
   // 1. Chấp nhận nếu là Admin Secret (so sánh an toàn Timing-safe)

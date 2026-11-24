@@ -53,6 +53,10 @@ String decryptEnvelopeWithKeyHex(const String& envelope, const String& keyHex);
 void saveLocalSecretKey(const String& key);
 void loadLocalSecretKey();
 
+// Hardware Security Telemetry (Phase P2)
+void getHardwareSecurityInfo(bool& flashEnc, bool& secBoot);
+void secureZeroMemory(void* v, size_t n);
+
 // Security Guards (Anti-Replay, Token Bucket, Honey-Tokens)
 bool isNonceReplayedOrInvalid(const String& nonce);
 bool isTimestampExpired(const String& tsStr);

@@ -307,15 +307,26 @@ void connectMQTT() {
     String systemMembersTopic = mqtt_prefix + "/system/members";
     mqttClient.subscribe(systemMembersTopic.c_str());
 
-    // Phát Heartbeat ban đầu thông báo phiên bản Firmware ngay khi kết nối
+    // Phát Heartbeat ban đầu thông báo phiên bản Firmware & Trạng thái bảo mật phần cứng ngay khi kết nối
     {
       String heartbeatTopic = mqtt_prefix + "/heartbeat";
-      StaticJsonDocument<256> hbDoc;
+      StaticJsonDocument<384> hbDoc;
       hbDoc["online"] = true;
       hbDoc["uptime"] = millis() / 1000;
       hbDoc["heap"] = ESP.getFreeHeap();
       hbDoc["version"] = FIRMWARE_VERSION_STR;
       hbDoc["build"] = FIRMWARE_BUILD_NUM;
+
+      // Phase P2: Hardware Security Telemetry (Flash Encryption & Secure Boot)
+      bool flashEnc = false;
+      bool secBoot = false;
+      getHardwareSecurityInfo(flashEnc, secBoot);
+      JsonObject hwSec = hbDoc.createNestedObject("hw_sec");
+      hwSec["flash_enc"] = flashEnc;
+      hwSec["sec_boot"] = secBoot;
+      hwSec["flashEnc"] = flashEnc;
+      hwSec["secBoot"] = secBoot;
+
       String hbPayload;
       serializeJson(hbDoc, hbPayload);
       mqttClient.publish(heartbeatTopic.c_str(), hbPayload.c_str(), false);
@@ -408,12 +419,23 @@ void checkMqttConnection() {
       if (currentMillis - lastHeartbeatTime >= 15000) {
         lastHeartbeatTime = currentMillis;
         String heartbeatTopic = mqtt_prefix + "/heartbeat";
-        StaticJsonDocument<256> hbDoc;
+        StaticJsonDocument<384> hbDoc;
         hbDoc["online"] = true;
         hbDoc["uptime"] = millis() / 1000;
         hbDoc["heap"] = ESP.getFreeHeap();
         hbDoc["version"] = FIRMWARE_VERSION_STR;
         hbDoc["build"] = FIRMWARE_BUILD_NUM;
+
+        // Phase P2: Hardware Security Telemetry (Flash Encryption & Secure Boot)
+        bool flashEnc = false;
+        bool secBoot = false;
+        getHardwareSecurityInfo(flashEnc, secBoot);
+        JsonObject hwSec = hbDoc.createNestedObject("hw_sec");
+        hwSec["flash_enc"] = flashEnc;
+        hwSec["sec_boot"] = secBoot;
+        hwSec["flashEnc"] = flashEnc;
+        hwSec["secBoot"] = secBoot;
+
         String hbPayload;
         serializeJson(hbDoc, hbPayload);
         mqttClient.publish(heartbeatTopic.c_str(), hbPayload.c_str(), false);

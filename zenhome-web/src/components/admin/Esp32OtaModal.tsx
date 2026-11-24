@@ -56,6 +56,7 @@ export const Esp32OtaModal: React.FC<Esp32OtaModalProps> = ({
   const [buildInput, setBuildInput] = useState(201);
   const [directUrlInput, setDirectUrlInput] = useState('https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/firmware.bin');
   const [sha256Input, setSha256Input] = useState('04ED702ED910C47346753980E5A551AAE6CF871D36CFC39BE5934FB071D610C2');
+  const [ecdsaSignatureInput, setEcdsaSignatureInput] = useState('');
   const [fileSizeInput, setFileSizeInput] = useState(1381760);
   const [releaseNotesVi, setReleaseNotesVi] = useState(
     '• Tối ưu hóa luồng truyền nhận trạng thái MQTT thời gian thực\n• Tích hợp đường dẫn tải firmware GitHub Releases toàn cầu không phụ thuộc IP LAN\n• Nâng cấp cơ chế Dual-Boot A/B Safe Rollback chống brick bo mạch 100%\n• Đồng bộ xác thực bảo mật 2 chiều User & MAC với Cloud Firestore'
@@ -82,6 +83,9 @@ export const Esp32OtaModal: React.FC<Esp32OtaModalProps> = ({
         if (data.buildNumber) setBuildInput(data.buildNumber);
         if (data.directUrl) setDirectUrlInput(data.directUrl);
         if (data.sha256) setSha256Input(data.sha256);
+        if (data.ecdsaSignature || (data as any).signature) {
+          setEcdsaSignatureInput(data.ecdsaSignature || (data as any).signature || '');
+        }
         if (data.fileSizeBytes) setFileSizeInput(data.fileSizeBytes);
         if (data.releaseNotesVi) setReleaseNotesVi(data.releaseNotesVi);
       }
@@ -130,6 +134,7 @@ export const Esp32OtaModal: React.FC<Esp32OtaModalProps> = ({
         buildNumber: Number(buildInput),
         directUrl: trimmedUrl,
         sha256: trimmedSha256,
+        ecdsaSignature: ecdsaSignatureInput.trim() || undefined,
         fileSizeBytes: Number(fileSizeInput),
         releaseNotesVi: releaseNotesVi.trim(),
         triggerFleetOta,
@@ -211,6 +216,9 @@ export const Esp32OtaModal: React.FC<Esp32OtaModalProps> = ({
             version: versionInput,
             buildNumber: Number(buildInput),
           });
+          if ((res as any)?.data?.ecdsaSignature || (res as any)?.data?.signature) {
+            setEcdsaSignatureInput((res as any).data.ecdsaSignature || (res as any).data.signature);
+          }
           setSuccessMsg(res.message);
           setSelectedFile(null);
           await loadInfo();
@@ -348,7 +356,14 @@ export const Esp32OtaModal: React.FC<Esp32OtaModalProps> = ({
               </div>
 
               <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 col-span-2">
-                <span className="text-[10px] text-slate-400 block font-medium">Mã SHA-256 Checksum</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 block font-medium">Mã SHA-256 Checksum</span>
+                  {(info?.ecdsaSignature || (info as any)?.signature) && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                      <ShieldCheck className="w-3 h-3" /> ECDSA P-256 Signed
+                    </span>
+                  )}
+                </div>
                 <span className="font-mono text-[10px] truncate block text-violet-600 dark:text-violet-400 font-semibold" title={info?.sha256}>
                   {info?.sha256 || '3B4F069E0A74D34C6E38BF3037EB329F5DCAF32A0F90391F8722D0AE3D0E4F4D'}
                 </span>
@@ -485,6 +500,24 @@ export const Esp32OtaModal: React.FC<Esp32OtaModalProps> = ({
                     className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-500 font-mono"
                   />
                 </div>
+              </div>
+
+              {/* ZH-HW-02: Chữ Ký Số ECDSA P-256 cho Secure Boot v2 */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  Chữ Ký Số ECDSA P-256 (Firmware Digital Signature - Hardware Trust)
+                </label>
+                <input
+                  type="text"
+                  value={ecdsaSignatureInput}
+                  onChange={(e) => setEcdsaSignatureInput(e.target.value)}
+                  placeholder="Nhập chuỗi chữ ký số ECDSA P-256 (Base64 hoặc Hex format)..."
+                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-500 font-mono"
+                />
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
+                  Được ESP32 xác thực thông qua Secure Boot v2 / Khóa công khai ECDSA trước khi nạp vào Flash
+                </span>
               </div>
 
               {/* Release Notes */}

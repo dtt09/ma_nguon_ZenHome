@@ -7,7 +7,9 @@ import {
   RotateCcw, 
   Smartphone,
   ExternalLink,
-  UploadCloud 
+  UploadCloud,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react';
 import { RealCustomerUser } from '../../types/admin';
 import { Esp32OtaModal } from './Esp32OtaModal';
@@ -134,6 +136,41 @@ export const HardwareFleetView: React.FC<HardwareFleetViewProps> = ({
                   <span className="text-slate-800 dark:text-slate-200">{c.sessions[0]?.deviceName || 'Chưa mở session'}</span>
                 </div>
               </div>
+
+              {/* P2: Hardware Trust Security Badges (Flash Encryption & Secure Boot) */}
+              {(() => {
+                const hwSec = c.rawDoc?.hw_sec || c.rawDoc?.telemetry?.hw_sec || c.rawDoc?.esp_status?.hw_sec;
+                const isFlashEnc = Boolean(hwSec?.flashEnc);
+                const isSecBoot = Boolean(hwSec?.secBoot);
+
+                return (
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-1.5">
+                    {isFlashEnc ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800" title="ESP32 eFuse AES-256 Flash Encryption đã được kích hoạt">
+                        <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                        Flash Encrypted (AES-256)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800" title="Cảnh báo: Flash Encryption chưa bật trên eFuse. Khuyến nghị bật trong môi trường thương mại">
+                        <ShieldAlert className="w-3 h-3 text-amber-500" />
+                        Flash Unencrypted (Cảnh báo)
+                      </span>
+                    )}
+
+                    {isSecBoot ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800" title="ESP32 Secure Boot v2 (RSA/ECDSA Signature Verified)">
+                        <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                        Secure Boot v2 (Verified)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800" title="Cảnh báo: Secure Boot v2 chưa kích hoạt. Xem tài liệu kỹ thuật ESP-IDF để cấu hình">
+                        <ShieldAlert className="w-3 h-3 text-amber-500" />
+                        Secure Boot v2 (Chưa bật)
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="pt-2 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
                 <button

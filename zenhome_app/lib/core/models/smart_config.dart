@@ -129,4 +129,10 @@ class SmartConfig {
         isDisabled: json['isDisabled'] ?? false,
       );
   }
+
+  // SEC-FIX [Phase P2]: Bảo vệ bộ nhớ đệm, che giấu mật khẩu adminPass và mqttPass khi in log hoặc debug
+  @override
+  String toString() {
+    return 'SmartConfig(userId: $userId, mac: $macAddress, server: $mqttServer, role: $role, devices: ${devices.length})';
+  }
 }

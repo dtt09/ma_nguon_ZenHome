@@ -9,6 +9,8 @@
 #include <mbedtls/pk.h>
 #include "firmware_signer_pubkey.h"
 #include <WiFi.h>
+#include <esp_flash_encrypt.h>
+#include <esp_secure_boot.h>
 
 const char* DH_PRIME_1536 = 
   "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
@@ -181,6 +183,18 @@ bool verifyFirmwareEcdsaSignature(const uint8_t* sha256Bytes, const String& sigH
   return (ret == 0);
 }
 
+// Phase P2: Trích xuất trạng thái bảo mật phần cứng ESP-IDF
+void getHardwareSecurityInfo(bool& flashEnc, bool& secBoot) {
+  flashEnc = esp_flash_encryption_enabled();
+  secBoot = esp_secure_boot_enabled();
+}
+
+// Phase P2: Xóa an toàn vùng nhớ RAM chứa khóa và dữ liệu mật mã
+void secureZeroMemory(void* v, size_t n) {
+  volatile unsigned char* p = (volatile unsigned char*)v;
+  while (n--) *p++ = 0;
+}
+
 void getHardwareStorageKey(uint8_t outKey[32]) {
   uint8_t macBytes[6];
   WiFi.macAddress(macBytes);
@@ -195,6 +209,7 @@ void getHardwareStorageKey(uint8_t outKey[32]) {
   }
   const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
   mbedtls_md(md_info, (const unsigned char*)seed, strlen(seed), outKey);
+  secureZeroMemory(seed, sizeof(seed));
 }
 
 String encryptStorageString(const String& plaintext) {
@@ -210,7 +225,11 @@ String encryptStorageString(const String& plaintext) {
 
   size_t len = plaintext.length();
   uint8_t* cipherBuf = (uint8_t*)malloc(len);
-  if (!cipherBuf) return "";
+  if (!cipherBuf) {
+    secureZeroMemory(key, sizeof(key));
+    secureZeroMemory(iv, sizeof(iv));
+    return "";
+  }
 
   mbedtls_aes_context aes;
   mbedtls_aes_init(&aes);
@@ -230,6 +249,8 @@ String encryptStorageString(const String& plaintext) {
   char* cipherHex = (char*)malloc(len * 2 + 1);
   if (!cipherHex) {
     free(cipherBuf);
+    secureZeroMemory(key, sizeof(key));
+    secureZeroMemory(iv, sizeof(iv));
     return "";
   }
   bytesToHex(cipherBuf, len, cipherHex);
@@ -242,6 +263,13 @@ String encryptStorageString(const String& plaintext) {
   String payloadToAuth = String(ivHex) + ":" + String(cipherHex);
   String tag = computeHmacSha256(keyHex, payloadToAuth);
   String envelope = "ZHENC1:" + payloadToAuth + ":" + tag;
+
+  // Xóa sạch khóa AES và key buffer nhạy cảm khỏi RAM (Phase P2 Zeroization)
+  secureZeroMemory(key, sizeof(key));
+  secureZeroMemory(iv, sizeof(iv));
+  secureZeroMemory(nonce_counter, sizeof(nonce_counter));
+  secureZeroMemory(stream_block, sizeof(stream_block));
+  secureZeroMemory(keyHexBuf, sizeof(keyHexBuf));
 
   free(cipherHex);
   return envelope;
@@ -286,7 +314,11 @@ String decryptEnvelopeWithKeyHex(const String& envelope, const String& keyHex) {
 
   size_t cipherLen = cipherHex.length() / 2;
   uint8_t* cipherBytes = (uint8_t*)malloc(cipherLen);
-  if (!cipherBytes) return "";
+  if (!cipherBytes) {
+    secureZeroMemory(key, sizeof(key));
+    secureZeroMemory(iv, sizeof(iv));
+    return "";
+  }
   for (size_t i = 0; i < cipherLen; i++) {
     cipherBytes[i] = (hexNibble(cipherHex[i * 2]) << 4) | hexNibble(cipherHex[i * 2 + 1]);
   }
@@ -294,6 +326,8 @@ String decryptEnvelopeWithKeyHex(const String& envelope, const String& keyHex) {
   uint8_t* plainBytes = (uint8_t*)malloc(cipherLen + 1);
   if (!plainBytes) {
     free(cipherBytes);
+    secureZeroMemory(key, sizeof(key));
+    secureZeroMemory(iv, sizeof(iv));
     return "";
   }
 
@@ -310,6 +344,15 @@ String decryptEnvelopeWithKeyHex(const String& envelope, const String& keyHex) {
   plainBytes[cipherLen] = '\0';
 
   String plaintext((char*)plainBytes);
+
+  // [P2 ZEROIZATION] Xóa sạch các khóa phiên AES, IV, buffer nhạy cảm khỏi RAM
+  secureZeroMemory(key, sizeof(key));
+  secureZeroMemory(iv, sizeof(iv));
+  secureZeroMemory(nonce_counter, sizeof(nonce_counter));
+  secureZeroMemory(stream_block, sizeof(stream_block));
+  secureZeroMemory(plainBytes, cipherLen);
+  secureZeroMemory(cipherBytes, cipherLen);
+
   free(cipherBytes);
   free(plainBytes);
   return plaintext;
@@ -326,6 +369,11 @@ String decryptStorageString(const String& envelope) {
   bytesToHex(key, 32, keyHexBuf);
   String keyHex(keyHexBuf);
   String res = decryptEnvelopeWithKeyHex(envelope, keyHex);
+  
+  // Zeroize key from RAM
+  secureZeroMemory(key, sizeof(key));
+  secureZeroMemory(keyHexBuf, sizeof(keyHexBuf));
+
   if (res.length() > 0) return res;
 
   // Fallback sang legacy key (trước khi có admin_pass salt) nếu cần
@@ -340,7 +388,14 @@ String decryptStorageString(const String& envelope) {
     mbedtls_md(md_info, (const unsigned char*)legacySeed, strlen(legacySeed), legacyKey);
     char legacyKeyHexBuf[65];
     bytesToHex(legacyKey, 32, legacyKeyHexBuf);
-    return decryptEnvelopeWithKeyHex(envelope, String(legacyKeyHexBuf));
+    String legacyRes = decryptEnvelopeWithKeyHex(envelope, String(legacyKeyHexBuf));
+
+    // Zeroize legacy keys from RAM
+    secureZeroMemory(legacySeed, sizeof(legacySeed));
+    secureZeroMemory(legacyKey, sizeof(legacyKey));
+    secureZeroMemory(legacyKeyHexBuf, sizeof(legacyKeyHexBuf));
+
+    return legacyRes;
   }
   return "";
 }

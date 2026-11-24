@@ -1,3 +1,4 @@
+import { signFirmwareBinary } from '../../core/firmwareSigner';
 import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -675,7 +676,9 @@ hubRouter.post('/ota/upload', requireAdminAuth, async (req: Request, res: Respon
     const buffer = Buffer.from(base64Data, 'base64');
     fs.writeFileSync(firmwareFile, buffer);
 
-    const sha256 = crypto.createHash('sha256').update(buffer).digest('hex').toUpperCase();
+    const signResult = signFirmwareBinary(buffer);
+    const sha256 = signResult.sha256;
+    const signatureHex = signResult.sigHex;
     const config = getCurrentServerConfig();
     const directUrl = `${config.serverBaseUrl}/public/firmware/esp32/firmware.bin`;
 
@@ -685,6 +688,8 @@ hubRouter.post('/ota/upload', requireAdminAuth, async (req: Request, res: Respon
       fileName: 'firmware.bin',
       fileSizeBytes: buffer.length,
       sha256,
+      signatureHex,
+      signatureAlgorithm: signResult.algorithm,
       directUrl,
       lastDeployedAt: new Date().toISOString(),
     };
@@ -796,11 +801,24 @@ hubRouter.post('/ota/publish', requireAdminAuth, async (req: Request, res: Respo
     const finalNotes = (releaseNotesVi || '').trim();
     const nowIso = new Date().toISOString();
 
+    let calculatedSigHex = '';
+    if (localExists && fs.existsSync(firmwareFile)) {
+      try {
+        const buf = fs.readFileSync(firmwareFile);
+        const signResult = signFirmwareBinary(buf);
+        calculatedSigHex = signResult.sigHex;
+      } catch (e: any) {
+        console.warn('[OTA PUBLISH] Không thể tạo chữ ký số firmware:', e.message);
+      }
+    }
+    const finalSigHex = (req.body?.signatureHex || req.body?.signature || calculatedSigHex || '').trim();
+
     const meta = {
       version: finalVersion,
       buildNumber: finalBuildNumber,
       directUrl: finalDirectUrl,
       sha256: finalSha256,
+      signatureHex: finalSigHex,
       fileSizeBytes: finalSize,
       fileName: 'firmware.bin',
       releaseNotesVi: finalNotes,
@@ -846,6 +864,7 @@ hubRouter.post('/ota/publish', requireAdminAuth, async (req: Request, res: Respo
             url: finalDirectUrl,
             version: finalVersion,
             sha256: finalSha256,
+            signatureHex: finalSigHex,
             size: finalSize,
             admin_pass: item.adminPass,
             server_authorized: true,

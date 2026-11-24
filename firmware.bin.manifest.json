@@ -1,0 +1,9 @@
+{
+  "firmware": "firmware.bin",
+  "size": 1408336,
+  "sha256": "5F8C8EF61EEC556E1D50D7922F0CE0CA614D7AB132FDA78D2304B0F532F92608",
+  "sig": "304402206f984ae7ffa045e2e50cb2c8212bf90048244f76fae330b6f957873fee858b6202205b4a1a92debf7f20b7c1a0c0f3960988504ed3a23e0fba90f2770af651c2444b",
+  "algorithm": "ECDSA NIST P-256 (prime256v1)",
+  "hashAlgorithm": "SHA-256",
+  "format": "DER-encoded ASN.1 hex"
+}
