@@ -157,6 +157,20 @@ syncBackupsFromCloud().catch(() => {});
 type LogListener = (entry: LogEntry) => void;
 export const logListeners: Set<LogListener> = new Set();
 
+// Listeners for Real-Time System & Hardware Anomaly Alerts (Web Admin Broadcast)
+export type SystemAlertListener = (alert: any) => void;
+export const systemAlertListeners: Set<SystemAlertListener> = new Set();
+
+export function broadcastSystemAlert(alert: any) {
+  systemAlertListeners.forEach(listener => {
+    try {
+      listener(alert);
+    } catch (e) {
+      systemAlertListeners.delete(listener);
+    }
+  });
+}
+
 let logSaveTimeout: NodeJS.Timeout | null = null;
 
 // ==========================================

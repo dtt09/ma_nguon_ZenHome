@@ -38,6 +38,28 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
+/// SEC-FIX [Phase P3]: Model lưu trữ thông tin cảnh báo dị thường phần cứng ESP32
+class AnomalyAlert {
+  final int pin;
+  final String deviceName;
+  final String message;
+  final DateTime lockedUntil;
+  final String type;
+
+  const AnomalyAlert({
+    required this.pin,
+    required this.deviceName,
+    required this.message,
+    required this.lockedUntil,
+    required this.type,
+  });
+
+  int get remainingSeconds {
+    final diff = lockedUntil.difference(DateTime.now()).inSeconds;
+    return diff > 0 ? diff : 0;
+  }
+}
+
 class _DashboardScreenState extends ConsumerState<DashboardScreen> with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   @override
   bool get wantKeepAlive => true;
@@ -45,7 +67,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
   String _selectedRoomCode = '';
   final List<StreamSubscription> _subscriptions = [];
   final List<Timer> _timers = [];
-  
+  // SEC-FIX [Phase P3]: Quản lý danh sách các chân rơ-le đang bị khóa an toàn (30s)
+  final Map<int, AnomalyAlert> _activeAnomalies = {};
+  final Map<int, Timer> _anomalyTimers = {};
 
   @override
   void dispose() {
@@ -56,6 +80,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     for (var timer in _timers) {
       timer.cancel();
     }
+    for (var timer in _anomalyTimers.values) {
+      timer.cancel();
+    }
+    _anomalyTimers.clear();
     super.dispose();
   }
 
@@ -92,6 +120,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     }
     // Khởi chạy giám sát mạng cục bộ (Local LAN) và kích hoạt cầu nối đồng bộ kèm phân quyền
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _subscribeToAnomalyAlerts();
       ref.read(localSyncBridgeProvider);
       ref.read(localNetworkServiceProvider).startMonitoring(
         targetMac: activeConfig.macAddress,
@@ -102,6 +131,84 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         allowedDevices: activeConfig.allowedDevices,
       );
     });
+  }
+
+  /// SEC-FIX [Phase P3]: Đăng ký lắng nghe cảnh báo dị thường phần cứng từ ESP32 qua topic system/anomaly
+  void _subscribeToAnomalyAlerts() {
+    final sub = ref.read(mqttRepositoryProvider).anomalyStream.listen(
+      (event) {
+        if (!mounted) return;
+        try {
+          _handleHardwareAnomaly(event);
+        } catch (e, st) {
+          debugPrint('[ANOMALY] ⚠️ Lỗi xử lý cảnh báo dị thường: $e\n$st');
+        }
+      },
+      onError: (err) {
+        debugPrint('[ANOMALY] ⚠️ Lỗi luồng anomaly stream: $err');
+      },
+    );
+    _subscriptions.add(sub);
+  }
+
+  /// SEC-FIX [Phase P3]: Xử lý sự kiện Anomaly (RELAY_CHATTERING_ANOMALY / Overcurrent)
+  void _handleHardwareAnomaly(Map<String, dynamic> event) {
+    final type = event['type']?.toString() ?? 'RELAY_CHATTERING_ANOMALY';
+    final rawPin = event['pin'];
+    final int? pin = (rawPin is num) ? rawPin.toInt() : int.tryParse(rawPin?.toString() ?? '');
+    final action = event['action']?.toString() ?? 'LOCKED_OFF';
+    debugPrint('[ANOMALY] Nhận cảnh báo phần cứng pin: $pin, action: $action, type: $type');
+
+    if (pin == null) return;
+
+    final activeConfig = ref.read(homeConfigProvider).activeConfig;
+    DeviceConfig? matchedDevice;
+    try {
+      matchedDevice = activeConfig.devices.firstWhere((d) => d.pin == pin);
+    } catch (_) {}
+
+    // 1. Ngắt trạng thái thiết bị trên UI ngay lập tức
+    if (matchedDevice != null) {
+      ref.read(globalDeviceStatesProvider.notifier).updateState(matchedDevice.id, false);
+      ref.read(pendingDeviceOperationsProvider.notifier).setPending(matchedDevice.id, false);
+    }
+
+    final devDisplayName = matchedDevice?.name ?? 'GPIO $pin';
+    final lockedUntil = DateTime.now().add(const Duration(seconds: 30));
+    final alert = AnomalyAlert(
+      pin: pin,
+      deviceName: devDisplayName,
+      message: '⚠️ Cảnh báo an toàn: Rơ-le số $pin ($devDisplayName) bị ngắt khẩn cấp do phát hiện đóng/ngắt bất thường (Chattering/Chập tải). Đã khóa an toàn trong 30 giây.',
+      lockedUntil: lockedUntil,
+      type: type,
+    );
+
+    // Phản hồi xúc giác cảnh báo rung mạnh
+    HapticFeedback.heavyImpact();
+
+    // Hủy timer cũ nếu có
+    _anomalyTimers[pin]?.cancel();
+
+    setState(() {
+      _activeAnomalies[pin] = alert;
+    });
+
+    // 2. Thiết lập bộ đếm 30s tự động mở khóa bảo vệ an toàn
+    final timer = Timer(const Duration(seconds: 30), () {
+      if (mounted) {
+        setState(() {
+          _activeAnomalies.remove(pin);
+          _anomalyTimers.remove(pin);
+        });
+        showFloatingToast(
+          context,
+          'Mở Khóa An Toàn',
+          'Rơ-le số $pin ($devDisplayName) đã hết thời gian khóa 30s và sẵn sàng hoạt động.',
+        );
+      }
+    });
+    _anomalyTimers[pin] = timer;
+    _timers.add(timer);
   }
 
   String _getGreetingPrefix() {
@@ -121,25 +228,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
   }
 
   Future<void> _onRefresh() async {
-    // 1. Đồng bộ trực tiếp 100% dữ liệu tài khoản, thiết bị từ Cloud Firestore
-    await ref.read(homeConfigProvider).syncFromFirestore();
+    // SEC-FIX [Phase P3]: Bọc toàn bộ luồng refresh trong try-catch chống sập luồng mạng UI
+    try {
+      // 1. Đồng bộ trực tiếp 100% dữ liệu tài khoản, thiết bị từ Cloud Firestore
+      await ref.read(homeConfigProvider).syncFromFirestore();
 
-    // 2. Tái kết nối MQTT với danh sách topic thiết bị mới nhất
-    final activeConfig = ref.read(homeConfigProvider).activeConfig;
-    ref.read(mqttRepositoryProvider).disconnect();
-    await Future.delayed(const Duration(milliseconds: 300));
-    ref.read(mqttRepositoryProvider).connect(
-      userId: activeConfig.userId,
-      mqttServer: activeConfig.mqttServer,
-      mqttPrefix: activeConfig.mqttPrefix,
-      dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
-      mqttUser: activeConfig.mqttUser,
-      mqttPass: activeConfig.mqttPass,
-    );
+      // 2. Tái kết nối MQTT với danh sách topic thiết bị mới nhất
+      final activeConfig = ref.read(homeConfigProvider).activeConfig;
+      ref.read(mqttRepositoryProvider).disconnect();
+      await Future.delayed(const Duration(milliseconds: 300));
+      ref.read(mqttRepositoryProvider).connect(
+        userId: activeConfig.userId,
+        mqttServer: activeConfig.mqttServer,
+        mqttPrefix: activeConfig.mqttPrefix,
+        dynamicTopics: getDynamicDeviceTopicsList(activeConfig),
+        mqttUser: activeConfig.mqttUser,
+        mqttPass: activeConfig.mqttPass,
+      );
 
-    // 3. Kiểm tra lại kết nối mạng cục bộ LAN
-    ref.read(localNetworkServiceProvider).checkConnectivity();
-    await Future.delayed(const Duration(milliseconds: 500));
+      // 3. Kiểm tra lại kết nối mạng cục bộ LAN
+      ref.read(localNetworkServiceProvider).checkConnectivity();
+      await Future.delayed(const Duration(milliseconds: 500));
+    } catch (e, st) {
+      debugPrint('[REFRESH] ⚠️ Lỗi trong quá trình refresh dữ liệu: $e\n$st');
+    }
   }
 
   void _toggleDevice(String devId, String roomId, bool currentState) {
@@ -147,12 +259,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
 
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
 
+    // SEC-FIX [Phase P3]: Kiểm tra nếu thiết bị đang bị khóa khẩn cấp do Anomaly (Chattering / Chập tải)
+    final matchedDevice = activeConfig.devices.firstWhere(
+      (d) => d.id == devId,
+      orElse: () => DeviceConfig(id: '', pin: -999, room: '', name: '', icon: ''),
+    );
+    if (_activeAnomalies.containsKey(matchedDevice.pin)) {
+      final alert = _activeAnomalies[matchedDevice.pin]!;
+      HapticFeedback.vibrate();
+      showFloatingToast(
+        context,
+        '⚠️ Rơ-le đang khóa an toàn',
+        'Rơ-le số ${matchedDevice.pin} (${matchedDevice.name}) đang trong thời gian bảo vệ chống chập tải (còn ${alert.remainingSeconds}s). Vui lòng chờ!',
+        isError: true,
+      );
+      return;
+    }
+
     // Kiểm tra nếu tài khoản đang bị Chủ nhà tạm khóa quyền điều khiển
     if (activeConfig.isDisabled) {
       showFloatingToast(
         context,
         context.tr('error'),
-        context.tr('member_disabled_msg') ?? 'Tài khoản của bạn đã bị Chủ nhà tạm khóa quyền điều khiển!',
+        context.tr('member_disabled_msg'),
         isError: true,
       );
       return;
@@ -165,7 +294,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
       showFloatingToast(
         context,
         context.tr('error'),
-        context.tr('no_permission_device') ?? 'Bạn không có quyền điều khiển thiết bị này',
+        context.tr('no_permission_device'),
         isError: true,
       );
       return;
@@ -181,7 +310,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
       showFloatingToast(
         context,
         context.tr('error'),
-        context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...',
+        context.tr('toast_mqtt_wait'),
         isError: true,
       );
       return;
@@ -202,8 +331,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         if (mounted) {
           showFloatingToast(
             context,
-            context.tr('toast_error') ?? 'Lỗi',
-            context.tr('toast_mqtt_timeout') ?? 'Thiết bị không phản hồi, vui lòng kiểm tra kết nối!',
+            context.tr('toast_error'),
+            context.tr('toast_mqtt_timeout'),
             isError: true,
           );
         }
@@ -271,6 +400,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
           // Dự phòng tuần tự: Nếu LAN không nhận lệnh, chuyển sang Cloud MQTT
           sendCloudMqtt();
         }
+      }).catchError((e) {
+        debugPrint('[LAN] ⚠️ Lỗi ngoại lệ sendLocalControl: $e -> Fallback Cloud MQTT');
+        sendCloudMqtt();
       });
     } else {
       // Kênh 2: Phát qua MQTT Cloud khi ở ngoài nhà
@@ -707,6 +839,118 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     );
   }
 
+  /// SEC-FIX [Phase P3]: Banner cảnh báo khẩn cấp khi phát hiện rơ-le bị chattering / chập tải
+  Widget _buildAnomalyEmergencyBanner(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final alerts = _activeAnomalies.values.toList();
+    if (alerts.isEmpty) return const SizedBox.shrink();
+
+    final firstAlert = alerts.first;
+    final remaining = firstAlert.remainingSeconds;
+
+    return ZenLiquidGlass(
+      borderRadius: 20,
+      blurSigma: 0,
+      glowColor: const Color(0xFFEF4444),
+      customBorder: Border.all(
+        color: const Color(0xFFEF4444).withOpacity(isDark ? 0.65 : 0.5),
+        width: 1.2,
+      ),
+      surfaceColor: isDark
+          ? const Color(0xFF7F1D1D).withOpacity(0.35)
+          : const Color(0xFFFEE2E2).withOpacity(0.92),
+      customGradient: LinearGradient(
+        colors: [
+          const Color(0xFFEF4444).withOpacity(isDark ? 0.35 : 0.22),
+          const Color(0xFFF97316).withOpacity(isDark ? 0.30 : 0.18),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Color(0xFFEF4444),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'CẢNH BÁO AN TOÀN PHẦN CỨNG',
+                          style: TextStyle(
+                            color: Color(0xFFDC2626),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const Spacer(),
+                        ZenGlassPill(
+                          blurSigma: 0,
+                          borderRadius: 8,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          isSelected: true,
+                          glowColor: const Color(0xFFEF4444),
+                          child: Text(
+                            'Khóa ${remaining}s',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      firstAlert.message,
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (alerts.length > 1) ...[
+            const SizedBox(height: 8),
+            Text(
+              '+ ${alerts.length - 1} rơ-le khác cũng đang được khóa an toàn',
+              style: TextStyle(
+                color: isDark ? Colors.white60 : Colors.black54,
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    ).animate().shake(duration: 400.ms, hz: 4).fade(duration: 250.ms);
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -935,7 +1179,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                             IconData statusIcon;
 
                             if (isUnlinked) {
-                              statusText = context.tr('unlinked') ?? 'Chưa liên kết';
+                              statusText = context.tr('unlinked');
                               statusColor = zen.warning;
                               statusIcon = Icons.link_off_rounded;
                             } else if (isLanAvailable) {
@@ -1004,6 +1248,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
               ).animate().slideY(begin: -0.15, end: 0, curve: Curves.easeOutCubic),
               const SizedBox(height: 18),
               
+              // SEC-FIX [Phase P3]: Hiển thị Banner cảnh báo khẩn cấp rơ-le bị ngắt do dị thường (Chattering/Chập tải)
+              if (_activeAnomalies.isNotEmpty) ...[
+                _buildAnomalyEmergencyBanner(context),
+                const SizedBox(height: 18),
+              ],
+
               AnimatedOpacity(
                 opacity: isConnected ? 1.0 : 0.5,
                 duration: const Duration(milliseconds: 300),
@@ -1057,10 +1307,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
 
                   List<Widget> activeDevices = sortedDevices.map((dev) {
                         bool isOn = states[dev.id] ?? false;
-                        bool isCooldown = pendingDevices.contains(dev.id); 
-                        bool isRestricted = activeConfig.role == 'member' &&
+                        // SEC-FIX [Phase P3]: Khóa an toàn nếu rơ-le đang nằm trong danh sách Anomaly
+                        bool isAnomalyLocked = _activeAnomalies.containsKey(dev.pin);
+                        bool isCooldown = pendingDevices.contains(dev.id) || isAnomalyLocked; 
+                        bool isRestricted = (activeConfig.role == 'member' &&
                             activeConfig.allowedDevices != null &&
-                            !activeConfig.allowedDevices!.contains(dev.id);
+                            !activeConfig.allowedDevices!.contains(dev.id)) || isAnomalyLocked;
 
                         return DeviceCard(
                           key: ValueKey('dev_${dev.id}_$_selectedRoomCode'),
@@ -1071,7 +1323,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                           isCooldown: isCooldown, 
                           isRestricted: isRestricted,
                           onTap: () => _toggleDevice(dev.id, dev.room, isOn),
-                          onLongPress: isRestricted ? null : () => _showQuickAutomationModal(dev, isOn),
+                          onLongPress: (isRestricted || isAnomalyLocked) ? null : () => _showQuickAutomationModal(dev, isOn),
                         );
                       }).toList();
 
@@ -1247,7 +1499,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${context.tr('timer_quick_title') ?? 'Hẹn giờ'} $targetActionText ${context.tr('timer_quick_after') ?? 'nhanh sau:'}',
+                        '${context.tr('timer_quick_title')} $targetActionText ${context.tr('timer_quick_after')}',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -1407,7 +1659,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     final mqttState = ref.read(mqttConnectionStateProvider);
     final isOnline = ref.read(espOnlineStateProvider);
     if (mqttState != 2 || !isOnline) {
-      showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
+      showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait'), isError: true);
       return;
     }
 
@@ -1426,7 +1678,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     Map<String, dynamic> newTimer = {
       'id': timerId,
       'topic': deviceTopic,
-      'action': targetAction == 'delay_off' ? (context.tr('timer_action_off') ?? 'Tắt sau') : (context.tr('timer_action_on') ?? 'Bật sau'),
+      'action': targetAction == 'delay_off' ? context.tr('timer_action_off') : context.tr('timer_action_on'),
       'minutes': mins,
       'timeStr': '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}',
       'status': 'active', 

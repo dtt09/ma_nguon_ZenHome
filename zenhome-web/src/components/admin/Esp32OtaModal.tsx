@@ -97,11 +97,38 @@ export const Esp32OtaModal: React.FC<Esp32OtaModalProps> = ({
   };
 
   useEffect(() => {
+    let active = true;
     if (isOpen) {
-      loadInfo();
       setError(null);
       setSuccessMsg(null);
+      setLoading(true);
+      fetchEsp32OtaInfo()
+        .then(data => {
+          if (!active) return;
+          if (data) {
+            setInfo(data);
+            if (data.version) setVersionInput(data.version);
+            if (data.buildNumber) setBuildInput(data.buildNumber);
+            if (data.directUrl) setDirectUrlInput(data.directUrl);
+            if (data.sha256) setSha256Input(data.sha256);
+            if (data.ecdsaSignature || (data as any).signature) {
+              setEcdsaSignatureInput(data.ecdsaSignature || (data as any).signature || '');
+            }
+            if (data.fileSizeBytes) setFileSizeInput(data.fileSizeBytes);
+            if (data.releaseNotesVi) setReleaseNotesVi(data.releaseNotesVi);
+          }
+        })
+        .catch(e => {
+          if (!active) return;
+          setError(e.message || 'Lỗi tải thông tin firmware');
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
     }
+    return () => {
+      active = false;
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;

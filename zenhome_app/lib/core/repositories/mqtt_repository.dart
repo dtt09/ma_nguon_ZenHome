@@ -20,6 +20,7 @@ class MqttRepository {
   final _otaProgressController = StreamController<Map<String, dynamic>>.broadcast();
   final _otaResultController = StreamController<Map<String, dynamic>>.broadcast();
   final _setupMessageController = StreamController<Map<String, String>>.broadcast();
+  final _anomalyController = StreamController<Map<String, dynamic>>.broadcast();
   
   StreamSubscription? _updatesSubscription;
 
@@ -31,6 +32,7 @@ class MqttRepository {
   Stream<Map<String, dynamic>> get otaProgressStream => _otaProgressController.stream;
   Stream<Map<String, dynamic>> get otaResultStream => _otaResultController.stream;
   Stream<Map<String, String>> get setupMessageStream => _setupMessageController.stream;
+  Stream<Map<String, dynamic>> get anomalyStream => _anomalyController.stream;
 
   bool _isHardDisconnected = false;
   bool get isHardDisconnected => _isHardDisconnected;
@@ -158,6 +160,11 @@ class MqttRepository {
         client!.subscribe('$cleanPrefix/setup/handshake', MqttQos.atLeastOnce);
         client!.subscribe('$cleanPrefix/setup/complete', MqttQos.atLeastOnce);
       }
+      // SEC-FIX [Phase P3]: Tiếp nhận cảnh báo dị thường phần cứng từ ESP32 (Chattering/Chập tải/Safe Lock)
+      client!.subscribe('$mqttPrefix/system/anomaly', MqttQos.atLeastOnce);
+      if (cleanPrefix != mqttPrefix) {
+        client!.subscribe('$cleanPrefix/system/anomaly', MqttQos.atLeastOnce);
+      }
     } catch (e) {
       LoggerService.w('[MQTT] ⚠️ Lỗi subscribe topics: $e');
     }
@@ -238,6 +245,15 @@ class MqttRepository {
             }
             _otaResultController.add(json);
           } catch (_) {}
+        } else if (cleanCurrent.endsWith('/system/anomaly') && 
+                   (cleanCurrent.startsWith(cleanPrefix) || cleanCurrent.startsWith(cleanPrefixNoColon))) {
+          // SEC-FIX [Phase P3]: Tiếp nhận sự kiện Anomaly từ ESP32 và đẩy lên stream
+          try {
+            final json = jsonDecode(payload) as Map<String, dynamic>;
+            _anomalyController.add(json);
+          } catch (e) {
+            LoggerService.w('[MQTT] ⚠️ Lỗi giải mã JSON cảnh báo dị thường: $e');
+          }
         } else if (cleanCurrent.endsWith('/state')) {
           // BẢO VỆ CHỐNG NHẢY CHÉO CÔNG TẮC: Chỉ nhận nếu topic thuộc về chính Hub này
           if (cleanCurrent.startsWith(cleanPrefix) || cleanCurrent.startsWith(cleanPrefixNoColon)) {
@@ -390,5 +406,6 @@ class MqttRepository {
     _otaProgressController.close();
     _otaResultController.close();
     _setupMessageController.close();
+    _anomalyController.close();
   }
 }

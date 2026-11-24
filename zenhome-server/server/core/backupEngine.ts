@@ -197,7 +197,12 @@ export async function restoreDatabaseFromBackup(backupId: string): Promise<{
   }
 
   const raw = fs.readFileSync(filePath, 'utf-8');
-  const backupJson = JSON.parse(raw);
+  let backupJson: any;
+  try {
+    backupJson = JSON.parse(raw);
+  } catch (parseErr: any) {
+    throw new Error(`Tệp sao lưu bị hỏng hoặc định dạng JSON không hợp lệ: ${parseErr.message}`);
+  }
   const data = backupJson.data || {};
   let restoredCount = 0;
 

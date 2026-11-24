@@ -199,6 +199,34 @@ void connectMQTT() {
   espClient.setHandshakeTimeout(15);
   espClient.setCACert(HIVEMQ_ROOT_CA); // [ZH-CRIT-03] Xác thực chứng chỉ X.509 Root CA chống MitM
 
+  // [Phase P3: Software Mutual TLS - mTLS] Kiểm tra nếu có certificate và private key trong LittleFS
+  static String clientCertPem = "";
+  static String clientKeyPem = "";
+  static bool mtlsChecked = false;
+  if (!mtlsChecked) {
+    mtlsChecked = true;
+    if (LittleFS.exists("/client_cert.pem") && LittleFS.exists("/client_key.pem")) {
+      File certFile = LittleFS.open("/client_cert.pem", "r");
+      if (certFile) {
+        clientCertPem = certFile.readString();
+        certFile.close();
+      }
+      File keyFile = LittleFS.open("/client_key.pem", "r");
+      if (keyFile) {
+        clientKeyPem = keyFile.readString();
+        keyFile.close();
+      }
+      if (clientCertPem.length() > 0 && clientKeyPem.length() > 0) {
+        Serial.println("[MQTT] 🔐 KÍCH HOẠT mTLS 2 CHIỀU (Mutual TLS): Sử dụng Client Certificate & Private Key từ Flash LittleFS!");
+      }
+    }
+  }
+
+  if (clientCertPem.length() > 0 && clientKeyPem.length() > 0) {
+    espClient.setCertificate(clientCertPem.c_str());
+    espClient.setPrivateKey(clientKeyPem.c_str());
+  }
+
   bool connected = false;
   if (mqtt_user != "" && mqtt_pass != "") {
     connected = mqttClient.connect(clientId.c_str(), mqtt_user.c_str(), mqtt_pass.c_str(), statusTopic.c_str(), 1, true, "offline");

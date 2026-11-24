@@ -9,7 +9,7 @@ import { createServer } from 'http';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { Server } from 'socket.io';
-import { serverLogs, logListeners, addLog, state } from './server/zenhomeState';
+import { serverLogs, logListeners, addLog, state, systemAlertListeners } from './server/zenhomeState';
 import { initZenHomeWorker, sendCommandWithRetry } from './server/zenhomeWorker';
 import { apiRouter } from './server/routes/api';
 import { syncServerConfigToFirestore, startNetworkSyncWatcher } from './server/core/networkSync';
@@ -342,6 +342,12 @@ const broadcastNewLog = (entry: any) => {
   io.to('admin_room').emit('new_log', entry);
 };
 logListeners.add(broadcastNewLog);
+
+// Broadcast system alert mới theo thời gian thực (CHỈ gửi cho các client trong admin_room)
+const broadcastNewAlert = (alert: any) => {
+  io.to('admin_room').emit('system_alert', alert);
+};
+systemAlertListeners.add(broadcastNewAlert);
 
 // Broadcast telemetry định kỳ CHỈ KHI có client đang kết nối trong admin_room (Demand-Driven Telemetry)
 // Tiết kiệm 100% CPU/RAM thu thập telemetry khi không có người theo dõi dashboard

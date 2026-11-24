@@ -9,6 +9,7 @@
 #include "ble_manager.h"
 #include "network_manager.h"
 #include "mqtt_manager.h"
+#include "anomaly_detector.h"
 
 // Trạng thái nút bấm cứng
 static unsigned long buttonPressTime = 0;
@@ -37,6 +38,7 @@ void setup() {
 
   // Khởi tạo phần cứng (Pins, PCF8574, DHT11)
   initHardware();
+  initAnomalyDetector();
 
   // Khởi tạo Hardware Watchdog Timer chống treo vi điều khiển (30s)
   #if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5

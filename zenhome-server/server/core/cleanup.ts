@@ -48,9 +48,15 @@ export async function cleanJunkAccounts() {
         // Ân hạn 24 giờ cho tài khoản mới tạo: Tránh xóa nhầm người dùng vừa đăng ký Google/SĐT đang chọn username
         const creationTime = userRecord.metadata?.creationTime;
         if (creationTime) {
-          const ageHours = (Date.now() - new Date(creationTime).getTime()) / (1000 * 60 * 60);
-          if (ageHours < 24) {
-            continue; // Bỏ qua, đang trong thời gian ân hạn 24h
+          const creationMs = new Date(creationTime).getTime();
+          if (!isNaN(creationMs)) {
+            const ageHours = (Date.now() - creationMs) / (1000 * 60 * 60);
+            if (ageHours < 24) {
+              continue; // Bỏ qua, đang trong thời gian ân hạn 24h
+            }
+          } else {
+            // Không thể phân tích ngày tạo -> Bỏ qua an toàn để không xóa nhầm tài khoản
+            continue;
           }
         }
 
@@ -82,7 +88,9 @@ export function startJunkAccountCleanupCron() {
   // Chạy vào lúc 03:00 sáng mỗi ngày theo múi giờ Việt Nam
   cron.schedule('0 3 * * *', () => {
     console.log('[CRON] ⏰ Khởi chạy tác vụ dọn dẹp tài khoản rác định kỳ...');
-    cleanJunkAccounts();
+    cleanJunkAccounts().catch((cronErr: any) => {
+      console.error('[CRON] ❌ Lỗi cleanJunkAccounts:', cronErr?.message || cronErr);
+    });
   }, {
     timezone: 'Asia/Ho_Chi_Minh'
   });

@@ -48,13 +48,24 @@ export function useFirebaseRealtimeData(enabled: boolean = true) {
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const snapshotDebounceTimerRef = useRef<any>(null);
+  const isMountedRef = useRef<boolean>(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Core full-sync function: Reads all users, sessions, crash logs, and bug reports
   const performFullSync = useCallback(async (isForced = false) => {
     // 0. Khử xung đột: Nếu tính năng chưa bật hoặc chưa đăng nhập, hủy ngay tránh lỗi 401
     const adminKey = getAdminSecret();
-    if (!enabled || !adminKey) {
-      setIsLoading(false);
+    if (!enabled || !adminKey || !isMountedRef.current) {
+      if (isMountedRef.current) setIsLoading(false);
       return;
     }
 
@@ -113,6 +124,7 @@ export function useFirebaseRealtimeData(enabled: boolean = true) {
             updatedAt: formatFirestoreTimestamp(d.updatedAt),
           }));
 
+          if (!isMountedRef.current) return;
           setCustomers(sanitizedCustomers);
           setCrashLogs(sanitizedCrashLogs);
           setBugReports(sanitizedBugReports);
@@ -353,6 +365,7 @@ export function useFirebaseRealtimeData(enabled: boolean = true) {
         }
       } catch (_) {}
 
+      if (!isMountedRef.current) return;
       setCustomers(fetchedCustomers);
       setCrashLogs(allCrashes);
       setBugReports(allReports);
@@ -377,6 +390,7 @@ export function useFirebaseRealtimeData(enabled: boolean = true) {
       setIsLoading(false);
       setError(null);
     } catch (err: any) {
+      if (!isMountedRef.current) return;
       console.warn('Lỗi khi đồng bộ Firestore:', err);
       setError(`Lỗi kết nối Firestore: ${err.message}`);
       setIsLoading(false);

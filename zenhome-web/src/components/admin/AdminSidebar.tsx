@@ -25,6 +25,7 @@ interface AdminSidebarProps {
   totalCrashes: number;
   totalReports?: number;
   totalDocs: number;
+  anomaliesCount?: number;
   onLogout?: () => void;
 }
 
@@ -35,6 +36,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   totalCrashes,
   totalReports = 0,
   totalDocs,
+  anomaliesCount = 0,
   onLogout
 }) => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -90,7 +92,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       id: 'fleet' as AdminTab,
       label: 'Phần cứng & Thiết bị ESP32',
       icon: <Cpu className="w-4 h-4 shrink-0" />,
-      badge: null,
+      badge: anomaliesCount > 0 ? `${anomaliesCount} dị thường` : null,
+      badgeColor: 'bg-rose-500 text-white animate-pulse',
     },
     {
       id: 'backup_server' as AdminTab,

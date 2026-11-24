@@ -2,6 +2,7 @@
 #include "config_manager.h"
 #include "ble_manager.h"
 #include "mqtt_manager.h"
+#include "anomaly_detector.h"
 #include <WiFi.h>
 
 Adafruit_PCF8574 pcf;
@@ -303,6 +304,14 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
   for (int i = 0; i < relayCount; i++) {
     if (myRelays[i].id == devId) {
       found = true;
+      unsigned long remainMs = 0;
+      if (isRelayLockedByAnomaly(devId, &remainMs)) {
+        Serial.printf("[ANOMALY-GUARD] ⛔ Rơ-le %s đang bị KHÓA AN TOÀN do dị thường Chattering! (%lu giây còn lại). Từ chối lệnh.\n",
+                      devId.c_str(), remainMs / 1000);
+        unlockRelays();
+        return false;
+      }
+
       bool stateActuallyChanged = (myRelays[i].state != targetState);
 
       // 1. TÔN TRỌNG THAO TÁC THỦ CÔNG: Nếu lệnh phát từ Rule Engine (Priority 4), kiểm tra Holdoff
@@ -334,6 +343,12 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
       }
 
       if (stateActuallyChanged) {
+        // [Phase P3: Edge Anomaly Detection] Chống Relay Chattering & Chập Tải (>6 lần / 2s)
+        if (checkAndRecordRelayToggle(devId, myRelays[i].pin)) {
+          unlockRelays();
+          return false;
+        }
+
         myRelays[i].state = targetState;
         myRelays[i].lastToggleTime = now;
         myRelays[i].version++;

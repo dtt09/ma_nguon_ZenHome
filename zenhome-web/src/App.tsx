@@ -19,6 +19,7 @@ import { RealCustomerUser } from './types/admin';
 import { AdminLoginView } from './components/admin/AdminLoginView';
 import { getTabFromPath, getPathForTab, navigateToTab } from './utils/routes';
 import { getAdminSecret, DEFAULT_SERVER_URL } from './services/backupServerService';
+import { useSystemAlerts } from './hooks/useSystemAlerts';
 import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -245,6 +246,15 @@ export const App: React.FC = () => {
     showToast(`Đã hoàn tất quy trình xóa tài khoản ${customerId}! ${auditLog}`);
   };
 
+  // P3: Real-Time Hardware Anomaly Ingestion & WebSocket Alert Stream
+  const {
+    alerts,
+    activeAnomaliesCount,
+    isSocketConnected,
+    dismissAlert,
+    clearAllAlerts,
+  } = useSystemAlerts(isAuthenticated);
+
   // Cổng bảo vệ xác thực: Nếu chưa đăng nhập, hiển thị màn hình Đăng nhập
   if (!isAuthenticated) {
     return (
@@ -268,6 +278,7 @@ export const App: React.FC = () => {
         totalCrashes={crashLogs.length}
         totalReports={bugReports.length}
         totalDocs={databaseDocs.length}
+        anomaliesCount={activeAnomaliesCount}
         onLogout={handleLogout}
       />
 
@@ -339,6 +350,11 @@ export const App: React.FC = () => {
                 onOpenVersionModal={() => setShowVersionModal(true)}
                 onOpenEsp32Modal={() => setShowEsp32OtaModal(true)}
                 onNavigateToBackupServer={() => handleTabSelect('backup_server')}
+                alerts={alerts}
+                onDismissAlert={dismissAlert}
+                onClearAllAlerts={clearAllAlerts}
+                isSocketConnected={isSocketConnected}
+                onNavigateToFleet={() => handleTabSelect('fleet')}
               />
             )}
 
@@ -384,6 +400,8 @@ export const App: React.FC = () => {
               <HardwareFleetView
                 customers={customers}
                 onSelectCustomer={(c) => setSelectedCustomer(c)}
+                alerts={alerts}
+                onDismissAlert={dismissAlert}
               />
             )}
 

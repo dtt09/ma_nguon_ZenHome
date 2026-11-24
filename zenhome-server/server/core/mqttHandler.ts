@@ -6,7 +6,7 @@ import { handleEspPowerRestored, handleEspNetworkRestored, sendCommandWithRetry 
 import { saveScheduleToFirebase, deleteScheduleFromFirebase } from './schedules';
 import { setTimer } from './timers';
 import { recordDeviceState, recordEspOffline } from './deviceStateBackup';
-import { addLog } from '../zenhomeState';
+import { addLog, broadcastSystemAlert } from '../zenhomeState';
 
 export function setupMqttHandlers() {
     client.on('connect', () => {
@@ -14,7 +14,7 @@ export function setupMqttHandlers() {
         state.mqttStatus.connected = true;
         state.mqttStatus.lastConnectedAt = new Date().toISOString();
         console.log(`🔌 Background Worker NodeJS đã kết nối thành công vào MQTT Broker!`);
-        client.subscribe(['+/+/+/#', '+/+/#', '+']);
+        client.subscribe(['+/+/+/#', '+/+/#', '+', '+/+/system/anomaly', '+/+/+/system/anomaly']);
     });
 
     client.on('error', (err: any) => {
@@ -69,6 +69,74 @@ export function setupMqttHandlers() {
                 );
             } catch (err: any) {
                 console.error('[SECURITY ALERT] ❌ Lỗi xử lý cảnh báo an ninh:', err.message);
+            }
+            return;
+        }
+
+        // 0.2 BẮT CẢNH BÁO DỊ THƯỜNG PHẦN CỨNG ESP32 (HARDWARE ANOMALY INGESTION - RELAY CHATTERING, BROWNOUT, OVERCURRENT)
+        if (topic.endsWith('/system/anomaly')) {
+            let alertData: any = {};
+            try {
+                alertData = JSON.parse(payload);
+            } catch (err: any) {
+                alertData = { raw: payload, error: 'JSON_PARSE_ERROR' };
+            }
+
+            const isZenHomePrefix = topicParts[0] === 'zenhome';
+            const homeId = isZenHomePrefix ? (topicParts[1] || 'default_home') : topicParts[0];
+            const macAddress = isZenHomePrefix ? (topicParts[2] || 'unknown') : (topicParts.length > 2 ? topicParts[1] : 'unknown');
+            const anomalyType = alertData.type || 'HARDWARE_ANOMALY';
+            const pin = alertData.pin !== undefined ? alertData.pin : 'N/A';
+            const action = alertData.action || 'LOCKED_OFF';
+
+            const alertTitle = anomalyType === 'RELAY_CHATTERING_ANOMALY'
+                ? `🚨 RƠ-LE CHÂN ${pin} ĐÓNG NGẮT BẤT THƯỜNG (CHATTERING/CHẬP TẢI)`
+                : `🚨 CẢNH BÁO DỊ THƯỜNG PHẦN CỨNG: ${anomalyType}`;
+
+            const alertDesc = anomalyType === 'RELAY_CHATTERING_ANOMALY'
+                ? `Phát hiện rơ-le chân ${pin} tại Hub ${macAddress} dao động > 6 lần/2s. Hệ thống đã tự động ngắt an toàn và khóa chân pin 30 giây.`
+                : `Cảnh báo dị thường từ Hub ${macAddress}: ${JSON.stringify(alertData)}`;
+
+            console.warn(`[HARDWARE ANOMALY] 🚨 ${alertTitle} - Hub: ${macAddress}, Home: ${homeId}, Action: ${action}`);
+            addLog('NGUY HIỂM', `⚠️ [HARDWARE ANOMALY] ${alertTitle} tại Hub ${macAddress}! Hành động: ${action}`, 'error');
+
+            const alertRecord = {
+                id: `alert_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                timestamp: new Date().toISOString(),
+                createdAt: Date.now(),
+                level: 'CRITICAL',
+                topic,
+                homeId,
+                macAddress,
+                type: anomalyType,
+                pin,
+                action,
+                title: alertTitle,
+                message: alertDesc,
+                rawPayload: payload,
+            };
+
+            // 1. Ghi tức thì vào Firestore collection 'system_alerts' (Level: CRITICAL)
+            db.collection('system_alerts').doc(alertRecord.id).set(alertRecord).catch((dbErr: any) => {
+                console.error('[HARDWARE ANOMALY] ❌ Lỗi ghi Firestore system_alerts:', dbErr.message);
+            });
+
+            // 2. Phát sóng thời gian thực qua WebSocket event 'system_alert' tới Web Admin
+            broadcastSystemAlert(alertRecord);
+
+            // 3. Bắn push notification khẩn cấp tới gia chủ (homeId/userId)
+            if (homeId && homeId !== 'unknown') {
+                sendPushToUserTokens(
+                    homeId,
+                    {
+                        title: alertTitle,
+                        body: alertDesc,
+                    },
+                    {
+                        title: `🚨 HARDWARE ANOMALY DETECTED`,
+                        body: `Relay pin ${pin} chattering detected on device ${macAddress}. Emergency safe locked.`,
+                    }
+                );
             }
             return;
         }

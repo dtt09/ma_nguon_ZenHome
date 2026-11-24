@@ -51,8 +51,8 @@ export function initZenHomeWorker() {
     try {
         setupMqttHandlers();
         initDeviceStateBackup();
-        loadSchedulesFromFirebase();
-        loadTimersFromFirebase();
+        loadSchedulesFromFirebase().catch(e => console.error('[WORKER] Error loading schedules:', e));
+        loadTimersFromFirebase().catch(e => console.error('[WORKER] Error loading timers:', e));
         startCronJob(realSendCommandWithRetry);
         startListeningToAlerts();
         startListeningToDeleteRequests();

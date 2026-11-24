@@ -94,3 +94,18 @@ export interface RealBugReport {
   raw?: Record<string, any>;
 }
 
+
+
+export interface SystemAlert {
+  id: string;
+  type: 'RELAY_CHATTERING_ANOMALY' | 'BROWNOUT' | 'OVERCURRENT' | string;
+  level: 'CRITICAL' | 'WARN' | 'INFO';
+  title?: string;
+  message?: string;
+  mac?: string;
+  pin?: number;
+  userId?: string;
+  action?: string;
+  timestamp: string | number;
+  acknowledged?: boolean;
+}

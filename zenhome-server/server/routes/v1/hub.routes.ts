@@ -1,4 +1,5 @@
 import { signFirmwareBinary } from '../../core/firmwareSigner';
+import { generateHubClientCert, verifyHubClientCertificate, getOrCreateRootCa } from '../../core/clientCertManager';
 import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -894,6 +895,81 @@ hubRouter.post('/ota/publish', requireAdminAuth, async (req: Request, res: Respo
       data: meta,
       dispatchedCount,
     });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * @route   POST /api/v1/hub/provision/client-cert
+ * @desc    Cấp phát cặp chứng chỉ mTLS X.509 (/client_cert.pem và /client_key.pem) cho Hub ESP32
+ */
+hubRouter.post('/provision/client-cert', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { macAddress, homeId, keyType, validityDays } = req.body;
+    if (!macAddress) {
+      return res.status(400).json({ success: false, error: 'Thiếu tham số macAddress.' });
+    }
+    const cleanMac = macAddress.replace(/[:\-]/g, '').toUpperCase();
+    const effectiveHomeId = (homeId || req.user?.uid || 'default_home').trim();
+
+    // Kiểm tra quyền hạn của user đối với homeId
+    if (req.user && req.user.role !== 'admin' && req.user.uid !== effectiveHomeId) {
+      return res.status(403).json({ success: false, error: 'Không có quyền cấp chứng chỉ cho thiết bị này.' });
+    }
+
+    const certPackage = generateHubClientCert(cleanMac, effectiveHomeId, {
+      keyType: keyType === 'rsa' ? 'rsa' : 'ec',
+      validityDays: Number(validityDays) || 365,
+    });
+
+    addLog('[mTLS]', `🔒 Đã cấp phát chứng chỉ số mTLS X.509 mới cho Hub ${cleanMac} (Home: ${effectiveHomeId})`, 'success');
+
+    res.json({
+      success: true,
+      data: certPackage,
+      instructions: {
+        certPath: '/client_cert.pem',
+        keyPath: '/client_key.pem',
+        caPath: '/ca.pem',
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * @route   POST /api/v1/hub/verify/client-cert
+ * @desc    Xác thực chữ ký và tính hợp lệ của chứng chỉ X.509 do Hub gửi lên
+ */
+hubRouter.post('/verify/client-cert', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { clientCertPem } = req.body;
+    if (!clientCertPem) {
+      return res.status(400).json({ success: false, error: 'Thiếu clientCertPem.' });
+    }
+
+    const isValid = verifyHubClientCertificate(clientCertPem);
+    res.json({
+      success: true,
+      valid: isValid,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * @route   GET /api/v1/hub/ca-cert
+ * @desc    Tải chứng chỉ ZenHome IoT Root CA công khai để ESP32 lưu vào /ca.pem
+ */
+hubRouter.get('/ca-cert', (req: Request, res: Response) => {
+  try {
+    const { caCertPem } = getOrCreateRootCa();
+    res.setHeader('Content-Type', 'application/x-pem-file');
+    res.setHeader('Content-Disposition', 'attachment; filename="ca.pem"');
+    res.send(caCertPem);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

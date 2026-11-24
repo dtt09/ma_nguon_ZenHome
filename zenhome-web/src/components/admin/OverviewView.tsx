@@ -20,8 +20,9 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { CountingNumber } from '@animate-ui/react/primitives/texts/counting-number';
-import { RealCustomerUser, RealCrashLog, RealSystemStats } from '../../types/admin';
+import { RealCustomerUser, RealCrashLog, RealSystemStats, SystemAlert } from '../../types/admin';
 import { maskPhone, maskEmail } from '../../utils/masking';
+import { HardwareAnomalyBanner } from './HardwareAnomalyBanner';
 
 interface OverviewViewProps {
   stats: RealSystemStats;
@@ -33,6 +34,11 @@ interface OverviewViewProps {
   onOpenVersionModal?: () => void;
   onOpenEsp32Modal?: () => void;
   onNavigateToBackupServer?: () => void;
+  alerts?: SystemAlert[];
+  onDismissAlert?: (id: string) => void;
+  onClearAllAlerts?: () => void;
+  isSocketConnected?: boolean;
+  onNavigateToFleet?: () => void;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
@@ -44,7 +50,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onNavigateToCrashes,
   onOpenVersionModal,
   onOpenEsp32Modal,
-  onNavigateToBackupServer
+  onNavigateToBackupServer,
+  alerts = [],
+  onDismissAlert,
+  onClearAllAlerts,
+  isSocketConnected = true,
+  onNavigateToFleet
 }) => {
   return (
     <div className="space-y-6">
@@ -98,6 +109,15 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
         </div>
       </motion.div>
+
+      {/* P3: Real-Time Hardware Anomaly Monitor */}
+      <HardwareAnomalyBanner
+        alerts={alerts}
+        onDismissAlert={onDismissAlert || (() => {})}
+        onClearAll={onClearAllAlerts}
+        onNavigateToFleet={onNavigateToFleet}
+        isSocketConnected={isSocketConnected}
+      />
 
       {/* 2. BENTO METRIC CARDS: 5 Key Indicators with Animate UI CountingNumber & Spring Lift */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">

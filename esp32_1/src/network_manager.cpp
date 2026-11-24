@@ -4,6 +4,7 @@
 #include "hardware_manager.h"
 #include "mqtt_manager.h"
 #include "ble_manager.h"
+#include "anomaly_detector.h"
 
 #include <esp_task_wdt.h>
 #include <Update.h>
@@ -385,7 +386,7 @@ void setupStationWebServer() {
 
   // Endpoint 2: Lấy toàn diện trạng thái thiết bị & cảm biến mạng LAN
   server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-    StaticJsonDocument<1024> doc;
+    DynamicJsonDocument doc(1024);
     doc["status"] = "ok";
     doc["service"] = "zenhome_hub";
     doc["unlinked"] = false;
@@ -423,6 +424,7 @@ void setupStationWebServer() {
         devObj["id"] = myRelays[i].id;
         devObj["pin"] = myRelays[i].pin;
         devObj["state"] = myRelays[i].state;
+        devObj["anomalyLocked"] = isRelayLockedByAnomaly(myRelays[i].id);
       }
       unlockRelayMutex();
     }
@@ -663,6 +665,13 @@ void setupStationWebServer() {
     bool isOwnerUser = isAdminAuthorized || (user.length() > 0 && (user.equalsIgnoreCase("owner") || (cachedOwner.length() > 0 && user.equalsIgnoreCase(cachedOwner))));
     if (!isOwnerUser && user.length() > 0 && !isUserAuthorizedForDevice(user, devId)) {
       request->send(403, "application/json", "{\"status\":\"error\",\"code\":\"FORBIDDEN\",\"message\":\"Không có quyền điều khiển thiết bị này!\"}");
+      return;
+    }
+
+    unsigned long remainMs = 0;
+    if (isRelayLockedByAnomaly(devId, &remainMs)) {
+      String res = "{\"status\":\"anomaly_locked\",\"id\":\"" + devId + "\",\"remainSec\":" + String(remainMs / 1000) + ",\"message\":\"Rơ-le đang bị khóa an toàn do chattering/chập tải!\"}";
+      request->send(423, "application/json", res);
       return;
     }
 
