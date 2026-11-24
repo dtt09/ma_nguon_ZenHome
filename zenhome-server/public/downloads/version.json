@@ -1,16 +1,16 @@
 {
-  "version": "1.8.21",
-  "buildNumber": 209,
+  "version": "1.9.0",
+  "buildNumber": 210,
   "minVersion": "1.8.0",
   "minBuildNumber": 180,
-  "titleVi": "Bản Cập Nhật ZenHome v1.8.21 (Liquid Glass UI/UX & Tối Ưu Hiệu Năng 60/120 FPS)",
-  "titleEn": "ZenHome Update v1.8.21 (Liquid Glass Optical UI/UX & 60/120 FPS Optimization)",
-  "releaseNotesVi": "• Nâng cấp giao diện Kính Lỏng (Liquid Glass) sang trọng: Viền bắt sáng Specular Border 0.9px siêu mảnh, loại bỏ neon glow và nền đục nhão.\n• Tối ưu hiệu năng 60/120 FPS với kiến trúc Hybrid Glass: Sử dụng Lightweight Glass và RepaintBoundary cho thẻ thiết bị, loại bỏ BackdropFilter lồng nhau khi cuộn.\n• Thẻ thời tiết Light Mode tăng cường tương phản cao (WCAG AAA), icon thời tiết rực rỡ và sắc nét.\n• Khắc phục triệt để lỗi tràn chữ: Tái cấu trúc header lời chào (\"Chào buổi chiều\"), sửa lỗi cắt cụt chữ \"Titanium\" ở bảng màu chủ đề.\n• Sửa lỗi hiển thị \"{count} ngôi nhà\" trong cài đặt và bổ sung khoảng đệm đáy an toàn (bottom padding 130px) chống che khuất bởi thanh điều hướng đáy.",
-  "releaseNotesEn": "• Premium Liquid Glass Optical Polish: 0.9px Specular Border with refractive gradient, elimination of neon glow and muddy backgrounds.\n• 60/120 FPS Performance with Hybrid Glass Architecture: Lightweight Glass and RepaintBoundary on device cards, zero nested BackdropFilters in scroll views.\n• Weather Card Light Mode contrast upgrade (WCAG AAA) with vivid weather icons.\n• Complete text truncation & overflow fixes: Tiered header greeting layout, resolved horizontal theme preset clipping for \"Titanium\".\n• Fixed \"{count} homes\" formatting bug in settings and added 130px bottom clearance to prevent floating navbar underlap.",
+  "titleVi": "Bản Cập Nhật ZenHome v1.9.0 (Enterprise Security, SPKI Pinning & Edge Anomaly Watchdog)",
+  "titleEn": "ZenHome Update v1.9.0 (Enterprise Security, SPKI Pinning & Edge Anomaly Watchdog)",
+  "releaseNotesVi": "• Bảo mật cấp Doanh nghiệp: Tích hợp SPKI Certificate Pinning chống nghe lén MITM trên cổng MQTTS 8883.\n• Mobile RASP: Giám sát toàn vẹn thiết bị theo thời gian thực (phát hiện Root, Jailbreak, Emulator, Debug mode).\n• Trí tuệ Cạnh: Tiếp nhận cảnh báo khẩn cấp Dị thường tiếp điểm rơ-le (Relay Chattering) và tự động khóa an toàn UI.\n• Tối ưu hóa bộ nhớ: Triệt tiêu rò rỉ bộ nhớ đa tab, bảo vệ mật khẩu/token in-memory và nâng cấp mã hóa AES-256 an toàn.",
+  "releaseNotesEn": "• Enterprise-Grade Security: Integrated SPKI Certificate Pinning against MITM on MQTTS Port 8883.\n• Mobile RASP: Real-time device integrity monitoring (Root, Jailbreak, Emulator, Debug mode detection).\n• Edge Intelligence: Instant emergency alerts for Relay Chattering anomalies with protective UI lockout.\n• Memory Optimization: Multi-tab memory leak mitigation, masked in-memory credentials, and hardened AES-256 encryption.",
   "downloadUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "directApkUrl": "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   "isForceUpdate": false,
-  "fileSizeBytes": 72243735,
-  "sha256": "00A434B6124E19737E8E9347DDDC7C72BFAB9BC1998FED88B0B35519AC1BFFA1",
-  "publishedAt": "2026-11-24T11:20:01.360Z"
+  "fileSizeBytes": 72260111,
+  "sha256": "079606E5BB6B5E95F33FEE4E1AE39360E180D8B28A010D9C818437CF44B4EA9D",
+  "publishedAt": "2026-11-24T14:01:40.000Z"
 }

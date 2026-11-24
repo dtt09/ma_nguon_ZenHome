@@ -195,15 +195,15 @@ systemRouter.post('/action', requireAdminAuth, async (req: Request, res: Respons
 // QUẢN LÝ CẬP NHẬT PHIÊN BẢN ỨNG DỤNG DI ĐỘNG (APP VERSION OTA)
 // ==========================================
 let appVersionData = {
-  latestVersion: "1.8.11",
-  latestBuildNumber: 197,
+  latestVersion: "1.9.0",
+  latestBuildNumber: 210,
   minVersion: "1.8.0",
   minBuildNumber: 180,
-  titleVi: "Bản Cập Nhật ZenHome v1.8.11 (Global Sync)",
-  titleEn: "ZenHome Update v1.8.11 (Global Sync)",
-  releaseNotesVi: "• Đồng bộ tải trực tiếp toàn cầu qua GitHub Releases CDN\n• Tối ưu hóa OTA Hub ESP32 không phụ thuộc IP máy chủ\n• Phản hồi công tắc tức thời 0ms & triệt tiêu hoàn toàn log thừa",
-  releaseNotesEn: "• Global direct download via GitHub Releases CDN\n• Autonomous ESP32 OTA without local server\n• 0ms instant switch reaction & zero log spam",
-  downloadUrl: "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest",
+  titleVi: "Bản Cập Nhật ZenHome v1.9.0 (Enterprise Security, SPKI Pinning & Edge Anomaly Watchdog)",
+  titleEn: "ZenHome Update v1.9.0 (Enterprise Security, SPKI Pinning & Edge Anomaly Watchdog)",
+  releaseNotesVi: "• Bảo mật cấp Doanh nghiệp: Tích hợp SPKI Certificate Pinning chống nghe lén MITM trên cổng MQTTS 8883.\n• Mobile RASP: Giám sát toàn vẹn thiết bị theo thời gian thực (phát hiện Root, Jailbreak, Emulator, Debug mode).\n• Trí tuệ Cạnh: Tiếp nhận cảnh báo khẩn cấp Dị thường tiếp điểm rơ-le (Relay Chattering) và tự động khóa an toàn UI.\n• Tối ưu hóa bộ nhớ: Triệt tiêu rò rỉ bộ nhớ đa tab, bảo vệ mật khẩu/token in-memory và nâng cấp mã hóa AES-256 an toàn.",
+  releaseNotesEn: "• Enterprise-Grade Security: Integrated SPKI Certificate Pinning against MITM on MQTTS Port 8883.\n• Mobile RASP: Real-time device integrity monitoring (Root, Jailbreak, Emulator, Debug mode detection).\n• Edge Intelligence: Instant emergency alerts for Relay Chattering anomalies with protective UI lockout.\n• Memory Optimization: Multi-tab memory leak mitigation, masked in-memory credentials, and hardened AES-256 encryption.",
+  downloadUrl: "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   directApkUrl: "https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk",
   isForceUpdate: false,
   publishedAt: new Date().toISOString(),
