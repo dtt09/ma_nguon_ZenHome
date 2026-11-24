@@ -15,8 +15,19 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 // Khóa bảo vệ dữ liệu tĩnh cấp trường (Field-Level Storage Encryption AES-256-GCM)
-const BACKUP_ENCRYPTION_SECRET = process.env.BACKUP_ENCRYPTION_KEY?.trim() || 'ZenHome_Master_Vault_Key_2026_SecureSalt';
-const ENCRYPTION_KEY_BUFFER = crypto.createHash('sha256').update(BACKUP_ENCRYPTION_SECRET).digest();
+// ZH-CRIT-07: Loại bỏ hoàn toàn fallback tĩnh cố định trong source code
+let backupEncryptionKeyBuffer: Buffer | null = null;
+export function getEncryptionKeyBuffer(): Buffer {
+  if (backupEncryptionKeyBuffer) return backupEncryptionKeyBuffer;
+  const secret = process.env.BACKUP_ENCRYPTION_KEY?.trim() || process.env.ADMIN_API_SECRET?.trim();
+  if (secret && secret.length >= 16) {
+    backupEncryptionKeyBuffer = crypto.createHash('sha256').update(secret).digest();
+  } else {
+    console.warn('[SECURITY WARNING] ⚠️ BACKUP_ENCRYPTION_KEY chưa được cấu hình. Tự động sinh khóa ngẫu nhiên an toàn (256-bit CSPRNG).');
+    backupEncryptionKeyBuffer = crypto.randomBytes(32);
+  }
+  return backupEncryptionKeyBuffer;
+}
 
 /**
  * Mã hóa payload bằng AES-256-GCM bảo vệ dữ liệu sao lưu tĩnh (Storage at Rest)
@@ -24,7 +35,7 @@ const ENCRYPTION_KEY_BUFFER = crypto.createHash('sha256').update(BACKUP_ENCRYPTI
 export function encryptPayload(plaintext: string): string {
   if (!plaintext) return '';
   const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', ENCRYPTION_KEY_BUFFER, iv);
+  const cipher = crypto.createCipheriv('aes-256-gcm', getEncryptionKeyBuffer(), iv);
   let encrypted = cipher.update(plaintext, 'utf8', 'hex');
   encrypted += cipher.final('hex');
   const tag = cipher.getAuthTag().toString('hex');
@@ -45,7 +56,7 @@ export function decryptPayload(ciphertextEnvelope: string): string {
   try {
     const iv = Buffer.from(ivHex, 'hex');
     const authTag = Buffer.from(tagHex, 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', ENCRYPTION_KEY_BUFFER, iv);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', getEncryptionKeyBuffer(), iv);
     decipher.setAuthTag(authTag);
     let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
     decrypted += decipher.final('utf8');

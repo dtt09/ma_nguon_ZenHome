@@ -19,9 +19,10 @@ void setup() {
   delay(1000);
   Serial.println("\n--- KHỞI ĐỘNG HỆ THỐNG SMART HOME ZENHOME ---");
 
-  // Khởi tạo Mutex đa luồng Flash, Phần cứng I2C và MQTT Client
+  // Khởi tạo Mutex đa luồng Flash, Phần cứng I2C, Trạng thái Rơ-le và MQTT Client
   initFlashMutex();
   initHardwareMutex();
+  initRelayMutex();
   initMqttMutex();
 
   // Phát hiện nguyên nhân khởi động (Mất điện vs Khởi động lại phần mềm)

@@ -630,9 +630,14 @@ class BleLocalService {
         'nonce': nonce,
       };
 
-      final jsonBytes = utf8.encode(jsonEncode(payloadMap));
+      // SEC-FIX [ZH-CRIT-06]: Mã hóa phong bì AES-256 (Authenticated Encryption) bảo vệ toàn bộ Wi-Fi và Admin Pass qua sóng BLE
+      final rawJson = jsonEncode(payloadMap);
+      final encEnvelope = ZenHomeCrypto.encryptPayload(plaintext: rawJson, keyHex: key);
+      final finalPayload = {'enc': encEnvelope};
+
+      final jsonBytes = utf8.encode(jsonEncode(finalPayload));
       await _controlChar!.write(jsonBytes, withoutResponse: false);
-      LoggerService.i('[BLE-RECONFIG] 📡 Đã gửi bản tin cấu hình Wi-Fi mới qua BLE!');
+      LoggerService.i('[BLE-RECONFIG] 📡 Đã mã hóa AES-256 và gửi bản tin cấu hình Wi-Fi mới qua BLE!');
       return true;
     } catch (e) {
       LoggerService.w('[BLE-RECONFIG] Bắn bản tin reconfig qua BLE thất bại: $e');

@@ -13,8 +13,18 @@ import type {
 } from '@simplewebauthn/server';
 import { dbAll, dbGet, dbRun } from './database';
 
+let ephemeralJwtSecret: string | null = null;
 function getJwtSecret(): string {
-  return process.env.JWT_ADMIN_SECRET || process.env.ADMIN_API_SECRET || 'zenhome_secure_fallback_salt_2026_jwt_passkey';
+  const secret = process.env.JWT_ADMIN_SECRET?.trim() || process.env.ADMIN_API_SECRET?.trim();
+  if (secret && secret.length >= 32) {
+    return secret;
+  }
+  // ZH-CRIT-07: Loại bỏ hoàn toàn fallback tĩnh cố định trong code
+  if (!ephemeralJwtSecret) {
+    console.warn('[SECURITY WARNING] ⚠️ Không tìm thấy JWT_ADMIN_SECRET hoặc ADMIN_API_SECRET an toàn (>= 32 ký tự) trong .env! Tự động sinh khóa ngẫu nhiên tạm thời (256-bit CSPRNG).');
+    ephemeralJwtSecret = crypto.randomBytes(32).toString('hex');
+  }
+  return ephemeralJwtSecret;
 }
 
 export interface AdminPasskeyRecord {
@@ -70,17 +80,14 @@ export function storeChallenge(challenge: string, type: 'registration' | 'authen
 
 export function retrieveChallenge(challengeId?: string, type?: 'registration' | 'authentication'): string | null {
   cleanupChallenges();
-  if (challengeId && challenges.has(challengeId)) {
+  // ZH-CRIT-08: Bắt buộc truyền challengeId chính xác, cấm lấy tùy tiện challenge bất kỳ từ RAM
+  if (!challengeId || typeof challengeId !== 'string') {
+    return null;
+  }
+  if (challenges.has(challengeId)) {
     const item = challenges.get(challengeId)!;
     challenges.delete(challengeId);
     if (!type || item.type === type) {
-      return item.challenge;
-    }
-  }
-  // Dự phòng: Lấy challenge hợp lệ gần nhất nếu frontend không truyền challengeId
-  for (const [id, item] of challenges.entries()) {
-    if (!type || item.type === type) {
-      challenges.delete(id);
       return item.challenge;
     }
   }
@@ -196,17 +203,28 @@ export function getEffectiveRpID(hostHeader?: string): string {
   return hostname;
 }
 
+// ZH-CRIT-08: Danh sách Whitelist cứng và từ cấu hình môi trường, cấm tự động phản chiếu reqOrigin
+const ALLOWED_WEBAUTHN_ORIGINS = new Set<string>([
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5000',
+  'https://localhost:3000',
+  'https://localhost:5000',
+]);
+
 export function getEffectiveOrigins(reqOrigin?: string): string[] {
-  const origins = new Set<string>([
-    'http://localhost:3000',
-    'http://localhost:5000',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5000',
-    'https://localhost:3000',
-    'https://localhost:5000',
-  ]);
-  if (reqOrigin) {
-    origins.add(reqOrigin);
+  const origins = new Set<string>(ALLOWED_WEBAUTHN_ORIGINS);
+  const appOrigin = process.env.APP_ORIGIN?.trim() || process.env.CORS_ORIGIN?.trim();
+  if (appOrigin && appOrigin !== '*') {
+    appOrigin.split(',').forEach(o => {
+      const clean = o.trim();
+      if (clean) origins.add(clean);
+    });
+  }
+  // Chỉ chấp nhận reqOrigin nếu nó nằm trong danh sách whitelist
+  if (reqOrigin && origins.has(reqOrigin)) {
+    return [reqOrigin];
   }
   return Array.from(origins);
 }

@@ -4,10 +4,58 @@ import { cleanJunkAccounts, sendCommandWithRetry } from '../../zenhomeWorker';
 import { getCurrentServerConfig, syncServerConfigToFirestore } from '../../core/networkSync';
 import { db, FieldValue } from '../../core/firebase';
 import { sendAppVersionUpdateFCM } from '../../core/notifications';
-import { requireAdminAuth, requireAuth } from '../../middlewares/auth';
+import { requireAdminAuth, requireAuth, authenticateToken, requireRole } from '../../middlewares/auth';
 import { diagnoseCrashWithAi } from '../../core/aiDiagnostics';
 
 export const systemRouter = Router();
+
+// ==========================================
+// ZH-CRIT-01: DANH SÁCH BẢO VỆ CÁC BẢNG DỌN DẸP HỆ THỐNG AN TOÀN
+// ==========================================
+const ALLOWED_CLEANUP_COLLECTIONS = ['system_telemetry', 'temporary_logs'];
+
+/**
+ * @route   POST /api/v1/system/maintenance/cleanup
+ * @desc    Dọn dẹp các collection hệ thống an toàn (ZH-CRIT-01)
+ *          Bắt buộc xác thực authenticateToken và vai trò Quản trị viên/Chủ nhà
+ */
+systemRouter.post('/maintenance/cleanup', authenticateToken, requireRole(['owner', 'admin']), async (req: Request, res: Response) => {
+  try {
+    const { collectionName, olderThanDays = 30 } = req.body;
+    if (!collectionName || !ALLOWED_CLEANUP_COLLECTIONS.includes(collectionName)) {
+      return res.status(400).json({
+        success: false,
+        error: `Chỉ cho phép dọn dẹp các collection an toàn: ${ALLOWED_CLEANUP_COLLECTIONS.join(', ')}`,
+      });
+    }
+
+    if (!db) {
+      return res.status(503).json({ success: false, error: 'Cơ sở dữ liệu Firestore chưa kết nối.' });
+    }
+
+    const cutoffDate = new Date(Date.now() - Number(olderThanDays) * 24 * 60 * 60 * 1000);
+    const snap = await db.collection(collectionName).where('timestamp', '<', cutoffDate).limit(200).get();
+    let deletedCount = 0;
+    if (!snap.empty) {
+      const batch = db.batch();
+      snap.docs.forEach(d => {
+        batch.delete(d.ref);
+        deletedCount++;
+      });
+      await batch.commit();
+    }
+
+    addLog('[CLEANUP]', `Đã dọn dẹp ${deletedCount} bản ghi cũ trong collection an toàn '${collectionName}'`, 'info');
+    res.json({
+      success: true,
+      message: `Đã dọn dẹp ${deletedCount} bản ghi cũ trong '${collectionName}'.`,
+      deletedCount,
+      collection: collectionName,
+    });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
 
 /**
  * @route   GET /api/v1/system/server-config
@@ -338,19 +386,24 @@ systemRouter.post('/crash-logs', async (req: Request, res: Response) => {
 
 /**
  * @route   PATCH /api/v1/system/crash-logs/:id/resolve
- * @desc    Cập nhật trạng thái giải quyết của crash log
+ * @desc    Cập nhật trạng thái giải quyết của crash log (Bắt buộc Admin Auth - ZH-CRIT-01)
  */
-systemRouter.patch('/crash-logs/:id/resolve', async (req: Request, res: Response) => {
+systemRouter.patch('/crash-logs/:id/resolve', requireAdminAuth, async (req: Request, res: Response) => {
   try {
-    const id = req.params.id as string;
-    const { isResolved = true, path: customPath } = req.body;
+    const id = String(req.params.id).replace(/[^a-zA-Z0-9_-]/g, '');
+    const { isResolved = true } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'Mã định danh sự cố không hợp lệ.' });
+    }
 
     if (db) {
-      if (customPath) {
-        await db.doc(customPath).update({ isResolved: Boolean(isResolved) });
-      } else {
-        await db.collection('crash_logs').doc(id).update({ isResolved: Boolean(isResolved) });
-      }
+      // ZH-CRIT-01: Tuyệt đối không cho phép truyền customPath tùy tiện, chỉ update trong collection crash_logs
+      await db.collection('crash_logs').doc(id).update({
+        isResolved: Boolean(isResolved),
+        resolvedAt: new Date().toISOString(),
+        resolvedBy: req.user?.uid || 'admin',
+      });
     }
 
     addLog('[CRASH-RESOLVE]', `Đã cập nhật trạng thái lỗi ${id} -> ${isResolved ? 'ĐÃ KHẮC PHỤC' : 'CHƯA XỬ LÝ'}`, 'info');
@@ -362,19 +415,18 @@ systemRouter.patch('/crash-logs/:id/resolve', async (req: Request, res: Response
 
 /**
  * @route   DELETE /api/v1/system/crash-logs/:id
- * @desc    Xóa bản ghi crash log khỏi Firestore
+ * @desc    Xóa bản ghi crash log khỏi Firestore (Bắt buộc Admin Auth - ZH-CRIT-01)
  */
-systemRouter.delete('/crash-logs/:id', async (req: Request, res: Response) => {
+systemRouter.delete('/crash-logs/:id', requireAdminAuth, async (req: Request, res: Response) => {
   try {
-    const id = req.params.id as string;
-    const { path: customPath } = req.body || {};
+    const id = String(req.params.id).replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'Mã định danh sự cố không hợp lệ.' });
+    }
 
     if (db) {
-      if (customPath) {
-        await db.doc(customPath).delete();
-      } else {
-        await db.collection('crash_logs').doc(id).delete();
-      }
+      // ZH-CRIT-01: Tuyệt đối không cho phép truyền customPath tùy tiện, chỉ xóa trong collection crash_logs
+      await db.collection('crash_logs').doc(id).delete();
     }
 
     addLog('[CRASH-DELETE]', `Đã xóa bản ghi lỗi ${id}`, 'info');

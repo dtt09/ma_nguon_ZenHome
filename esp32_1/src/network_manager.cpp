@@ -7,6 +7,7 @@
 
 #include <esp_task_wdt.h>
 #include <Update.h>
+#include <mbedtls/md.h>
 
 AsyncWebServer server(80);
 WiFiUDP udpDiscovery;
@@ -255,14 +256,56 @@ void setupStationWebServer() {
     request->send(200, "application/json", resp);
   });
 
-  // Endpoint 1.6: Kích test trực tiếp chân Relay (PCF8574 P0-P7 hoặc GPIO) qua LAN
-  server.on("/api/relay-direct", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!request->hasParam("pin")) {
-      request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Thieu tham so pin (0-7 cho PCF8574 P0-P7)\"}");
+  // [ZH-CRIT-04] XÓA BỎ HOÀN TOÀN backdoor /api/relay-direct không xác thực.
+  // Thay thế bằng endpoint /api/relay-secure bắt buộc chữ ký HMAC-SHA256 hoặc mật khẩu quản trị adminPass.
+  server.on("/api/relay-secure", HTTP_POST, [](AsyncWebServerRequest *request){}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+    uint32_t clientIp = (uint32_t)request->client()->remoteIP();
+    if (isClientRateLimited(clientIp)) {
+      request->send(429, "application/json", "{\"status\":\"error\",\"code\":\"TOO_MANY_REQUESTS\",\"message\":\"Too many requests\"}");
       return;
     }
-    int pin = request->getParam("pin")->value().toInt();
-    int level = request->hasParam("level") ? request->getParam("level")->value().toInt() : 0; // Mac dinh 0 = BAT (Active-Low)
+
+    String payload((char*)data, len);
+    StaticJsonDocument<384> doc;
+    DeserializationError err = deserializeJson(doc, payload);
+    if (err || !doc.containsKey("pin") || !doc.containsKey("level")) {
+      request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Missing pin or level\"}");
+      return;
+    }
+
+    int pin = doc["pin"].as<int>();
+    int level = doc["level"].as<int>();
+    if (level != 0 && level != 1) {
+      request->send(400, "application/json", "{\"status\":\"error\",\"message\":\"Invalid level (0 or 1)\"}");
+      return;
+    }
+
+    bool isAuthorized = false;
+    if (doc.containsKey("adminPass")) {
+      String sentPass = doc["adminPass"].as<String>();
+      if (admin_pass.length() > 0 && constantTimeCompare(sentPass, admin_pass)) {
+        isAuthorized = true;
+      }
+    }
+
+    String sig = request->hasHeader("X-ZenHome-Signature") ? request->getHeader("X-ZenHome-Signature")->value() : (doc.containsKey("sig") ? doc["sig"].as<String>() : "");
+    String ts = request->hasHeader("X-ZenHome-Timestamp") ? request->getHeader("X-ZenHome-Timestamp")->value() : (doc.containsKey("ts") ? doc["ts"].as<String>() : "");
+    String nonce = request->hasHeader("X-ZenHome-Nonce") ? request->getHeader("X-ZenHome-Nonce")->value() : (doc.containsKey("nonce") ? doc["nonce"].as<String>() : "");
+
+    if (!isAuthorized && sig.length() > 0 && currentLocalSecretKey.length() > 0) {
+      if (!isTimestampExpired(ts) && !isNonceReplayedOrInvalid(nonce)) {
+        String signPayload = "relay-secure:" + String(pin) + ":" + String(level) + ":" + ts + ":" + nonce;
+        if (verifyHmacSha256(currentLocalSecretKey, signPayload, sig)) {
+          isAuthorized = true;
+        }
+      }
+    }
+
+    if (!isAuthorized) {
+      request->send(401, "application/json", "{\"status\":\"error\",\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication required\"}");
+      return;
+    }
+
     safeSetRelayPin(pin, level);
     request->send(200, "application/json", "{\"status\":\"ok\",\"pin\":" + String(pin) + ",\"level\":" + String(level) + ",\"action\":\"" + (level == 0 ? "BAT (LOW)" : "TAT (HIGH)") + "\"}");
   });
@@ -830,14 +873,15 @@ void setupStationWebServer() {
       "<h1>ZenHome Hub OTA</h1><p>Nâng cấp trực tiếp Firmware ESP32 qua mạng cục bộ</p>"
       "<form id='f' enctype='multipart/form-data'>"
       "<div class='input-group'><label>Mật Khẩu Quản Trị (Admin Pass)</label><input type='password' id='p' placeholder='Nhập mật khẩu quản trị...' required></div>"
+      "<div class='input-group'><label>Chữ Ký Số ECDSA (Signature Hex)</label><input type='text' id='s' placeholder='Nhập chuỗi signature ECDSA P-256...' required></div>"
       "<div class='input-group'><label>File Firmware (.bin)</label><input type='file' id='file' accept='.bin' required></div>"
       "<button type='submit' class='btn' id='b'>Bắt Đầu Nâng Cấp</button>"
       "<div class='progress-bar' id='pb'><div class='progress-fill' id='pf'></div></div>"
       "<div id='status'></div></form></div>"
       "<script>"
       "document.getElementById('f').onsubmit=function(e){e.preventDefault();"
-      "var f=document.getElementById('file').files[0];var p=document.getElementById('p').value;"
-      "if(!f)return;var fd=new FormData();fd.append('update',f);fd.append('adminPass',p);"
+      "var f=document.getElementById('file').files[0];var p=document.getElementById('p').value;var s=document.getElementById('s').value;"
+      "if(!f)return;var fd=new FormData();fd.append('update',f);fd.append('adminPass',p);fd.append('signatureHex',s);"
       "var x=new XMLHttpRequest();x.open('POST','/update',true);"
       "document.getElementById('pb').style.display='block';document.getElementById('b').disabled=true;"
       "document.getElementById('status').innerText='Đang tải lên và nạp Flash...';"
@@ -852,12 +896,15 @@ void setupStationWebServer() {
     request->send(200, "text/html", otaHtml);
   });
 
+  static mbedtls_md_context_t webOtaShaCtx;
+  static bool isWebOtaShaCtxInit = false;
+
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
     bool shouldRestart = !Update.hasError() && Update.isFinished();
     int resCode = shouldRestart ? 200 : 401;
     AsyncWebServerResponse *response = request->beginResponse(resCode, "application/json", 
       shouldRestart ? "{\"status\":\"ok\",\"message\":\"Nâng cấp OTA thành công! ESP32 đang khởi động lại...\"}" 
-                    : "{\"status\":\"error\",\"message\":\"Nâng cấp OTA thất bại hoặc chưa được ủy quyền!\"}");
+                    : "{\"status\":\"error\",\"message\":\"Nâng cấp OTA thất bại hoặc chữ ký số không hợp lệ!\"}");
     response->addHeader("Connection", "close");
     request->send(response);
     if (shouldRestart) {
@@ -876,6 +923,16 @@ void setupStationWebServer() {
       }
       isAuthorizedUpload = true;
 
+      // Khởi tạo tính toán băm SHA-256 để xác thực chữ ký số ECDSA P-256 [ZH-CRIT-11]
+      if (isWebOtaShaCtxInit) {
+        mbedtls_md_free(&webOtaShaCtx);
+        isWebOtaShaCtxInit = false;
+      }
+      mbedtls_md_init(&webOtaShaCtx);
+      mbedtls_md_setup(&webOtaShaCtx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0);
+      mbedtls_md_starts(&webOtaShaCtx);
+      isWebOtaShaCtxInit = true;
+
       Serial.printf("[WEB-OTA] 🚀 Bắt đầu tiếp nhận file Firmware: %s\n", filename.c_str());
       if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
         Update.printError(Serial);
@@ -887,12 +944,36 @@ void setupStationWebServer() {
     }
 
     if (!Update.hasError()) {
+      if (isWebOtaShaCtxInit) {
+        mbedtls_md_update(&webOtaShaCtx, data, len);
+      }
       if (Update.write(data, len) != len) {
         Update.printError(Serial);
+      }
+    } else {
+      if (isWebOtaShaCtxInit) {
+        mbedtls_md_free(&webOtaShaCtx);
+        isWebOtaShaCtxInit = false;
       }
     }
 
     if (final) {
+      if (isAuthorizedUpload && isWebOtaShaCtxInit) {
+        uint8_t calculatedShaBytes[32];
+        mbedtls_md_finish(&webOtaShaCtx, calculatedShaBytes);
+        mbedtls_md_free(&webOtaShaCtx);
+        isWebOtaShaCtxInit = false;
+
+        String sigHex = request->hasParam("signatureHex", true) ? request->getParam("signatureHex", true)->value() : (request->hasParam("sig", true) ? request->getParam("sig", true)->value() : "");
+        if (sigHex.length() < 64 || !verifyFirmwareEcdsaSignature(calculatedShaBytes, sigHex)) {
+          Serial.println("[WEB-OTA] ⛔ BẢO MẬT TỐI CAO: Chữ ký số ECDSA P-256 không hợp lệ hoặc thiếu! Từ chối nạp firmware.");
+          Update.abort();
+          isAuthorizedUpload = false;
+          return;
+        }
+        Serial.println("[WEB-OTA] 🔐 XÁC THỰC THÀNH CÔNG: Chữ ký số ECDSA P-256 nhà phát triển hợp lệ 100%!");
+      }
+
       if (Update.end(true)) {
         Serial.printf("[WEB-OTA] ✅ Nạp thành công: %u bytes! Khởi động lại ESP32...\n", index + len);
       } else {

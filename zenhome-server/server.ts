@@ -77,10 +77,11 @@ if (!fs.existsSync(downloadsPath)) {
 }
 // Tự động log và phục vụ APK với đầy đủ header (Content-Disposition, Accept-Ranges, Content-Type)
 app.get(['/public/downloads/:filename', '/downloads/:filename'], (req: Request, res: Response, next) => {
-  const filename = String(req.params.filename);
+  // ZH-CRIT-08 / Path Traversal Protection: Sanitize filename using path.basename
+  const filename = path.basename(String(req.params.filename));
   console.log(`[DOWNLOAD] 📥 Nhận yêu cầu tải file APK (${filename}) từ IP: ${req.ip || req.socket.remoteAddress} (User-Agent: ${req.get('user-agent')})`);
-  const targetFile = path.join(downloadsPath, filename);
-  if (fs.existsSync(targetFile)) {
+  const targetFile = path.resolve(downloadsPath, filename);
+  if (targetFile.startsWith(downloadsPath) && fs.existsSync(targetFile)) {
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Accept-Ranges', 'bytes');

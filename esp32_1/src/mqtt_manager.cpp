@@ -47,7 +47,7 @@ bool safeMqttPublish(const char* topic, const char* payload, bool retained) {
 
 void initMqttClient() {
   initMqttMutex();
-  espClient.setInsecure(); // Sử dụng TLS Encryption (Port 8883) tương thích HiveMQ Cloud cross-signed chain
+  espClient.setCACert(HIVEMQ_ROOT_CA); // [ZH-CRIT-03] Xác thực chứng chỉ X.509 Root CA cho HiveMQ Cloud TLS Port 8883
   espClient.setTimeout(15); // 15 giây timeout cho phiên bắt tay TLS
   mqttClient.setServer(mqtt_server.c_str(), 8883);
   mqttClient.setCallback(mqttCallback);
@@ -196,7 +196,7 @@ void connectMQTT() {
   espClient.stop();
   delay(30);
   espClient.setHandshakeTimeout(15);
-  espClient.setInsecure(); // Bỏ qua kiểm tra độ sâu chuỗi chứng chỉ trung gian YR1 nhưng vẫn mã hóa TLS AES-256
+  espClient.setCACert(HIVEMQ_ROOT_CA); // [ZH-CRIT-03] Xác thực chứng chỉ X.509 Root CA chống MitM
 
   bool connected = false;
   if (mqtt_user != "" && mqtt_pass != "") {
@@ -948,7 +948,7 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, c
   WiFiClient plainClient;
   WiFiClientSecure secureClient;
   if (isHttps) {
-    secureClient.setInsecure(); // Bỏ qua kiểm tra CA root cert để tương thích GitHub Releases / Cloud CDN
+    secureClient.setCACert(HIVEMQ_ROOT_CA); // [ZH-CRIT-03] Xác thực chứng chỉ X.509 Root CA cho HTTPS OTA downloads
   }
 
   HTTPClient http;

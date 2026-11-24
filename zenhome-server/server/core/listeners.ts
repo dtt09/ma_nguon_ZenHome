@@ -237,8 +237,10 @@ export function startListeningToDeleteRequests() {
                             server_authorized: true,
                             timestamp: Date.now()
                         });
-                        client.publish(resetTopic, resetPayload, { qos: 1, retain: true });
-                        console.log(`[BACKEND] ✅ Đã gửi lệnh Factory Reset bảo mật tới ESP32 do Owner xóa tài khoản: ${resetTopic}`);
+                        // ZH-CRIT-10: Cấm retain: true cho factory_reset chống bootloop vĩnh viễn
+                        client.publish(resetTopic, resetPayload, { qos: 1, retain: false });
+                        client.publish(resetTopic, "", { qos: 1, retain: true });
+                        console.log(`[BACKEND] ✅ Đã gửi lệnh Factory Reset bảo mật (retain: false) tới ESP32 do Owner xóa tài khoản: ${resetTopic}`);
                     }
 
                     // 2. Xóa Firebase Auth User

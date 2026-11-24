@@ -65,6 +65,12 @@ extern int localRuleCount;
 extern PhysicalSwitch physicalSwitches[];
 extern const int physicalSwitchCount;
 
+// FreeRTOS Mutex bảo vệ trạng thái rơ-le đa luồng (Core 0 vs Core 1)
+extern SemaphoreHandle_t xRelayMutex;
+void initRelayMutex();
+bool lockRelays(TickType_t waitTicks = pdMS_TO_TICKS(1000));
+void unlockRelays();
+
 // Functions
 void initHardwareMutex();
 bool lockI2C(TickType_t waitTicks = pdMS_TO_TICKS(500));

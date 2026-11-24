@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 import { addLog, state } from '../../zenhomeState';
 import { findUser } from '../../utils/firestoreHelper';
 import { client } from '../../core/mqtt';
-import { requireAuth, requireAdminAuth, checkUserPermission, checkOwnerOrAdminPermission, safeCompare } from '../../middlewares/auth';
+import { requireAuth, requireAdminAuth, checkUserPermission, checkOwnerOrAdminPermission, safeCompare, authenticateToken } from '../../middlewares/auth';
 import { validateMacAddress } from '../../middlewares/validation';
 import { getCurrentServerConfig } from '../../core/networkSync';
 import { db, FieldValue } from '../../core/firebase';
@@ -77,7 +77,7 @@ hubRouter.get('/ota/info', async (req: Request, res: Response) => {
  * @desc    Xác thực đồng nhất User & MAC giữa phần cứng ESP32 và cơ sở dữ liệu Firestore
  *          (Công khai cho vi điều khiển ESP32 gọi khi boot / kết nối Wi-Fi)
  */
-hubRouter.get('/verify-binding', async (req: Request, res: Response) => {
+hubRouter.get('/verify-binding', authenticateToken, async (req: Request, res: Response) => {
   try {
     const userId = (req.query.userId as string || '').trim();
     const macAddress = (req.query.macAddress as string || req.query.mac as string || '').trim();
@@ -107,14 +107,38 @@ hubRouter.get('/verify-binding', async (req: Request, res: Response) => {
       });
     }
 
+    // ZH-CRIT-09: Bắt buộc xác thực quyền sở hữu tài khoản (Chống chiếm quyền Hub nặc danh)
+    const callerUid = req.user?.uid;
+    const isAdmin = req.user?.role === 'admin';
+    const isOwner = callerUid === user.id || callerUid === user.data?.uid;
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        valid: false,
+        reason: 'FORBIDDEN',
+        message: 'Bạn không có quyền xác thực hoặc liên kết Hub cho tài khoản của người dùng khác.',
+      });
+    }
+
     const dbMacRaw = (user.data?.macAddress || '').trim();
     const dbMac = dbMacRaw.replace(/[:\-]/g, '').toUpperCase();
     const isDbUnlinked = (!dbMac || dbMac.length === 0 || dbMac === 'UNKNOWN' || dbMac === 'UNKNOWN_MAC');
 
     // Trường hợp 1: Database đang ở trạng thái CHƯA LIÊN KẾT (hoặc vừa hủy liên kết)
     if (isDbUnlinked) {
-      const expectedPass = (user.data?.adminPass || 'admin').trim();
-      // Bắt buộc xác thực mật khẩu quản trị (mặc định 'admin' nếu chưa đổi, chống tấn công auto-bind ZH-06)
+      const expectedPass = (user.data?.adminPass || '').trim();
+
+      // ZH-CRIT-09: Nghiêm cấm dùng mật khẩu mặc định 'admin' hoặc rỗng để liên kết Hub
+      if (!expectedPass || expectedPass === 'admin') {
+        return res.status(403).json({
+          success: false,
+          valid: false,
+          reason: 'DEFAULT_PASSWORD_FORBIDDEN',
+          message: 'Mật khẩu quản trị mặc định (admin) bị cấm sử dụng để liên kết Hub. Vui lòng đổi mật khẩu an toàn trong ứng dụng.',
+        });
+      }
+
+      // Bắt buộc xác thực mật khẩu quản trị bảo mật (Timing attack safe)
       if (!reqAdminPass || !safeCompare(expectedPass, reqAdminPass)) {
         return res.json({
           success: true,
@@ -457,8 +481,10 @@ hubRouter.post('/reset', async (req: Request, res: Response) => {
         server_authorized: true,
         timestamp: Date.now(),
       });
-      client.publish(resetTopic, resetPayload);
-      addLog('[RESET]', `Gửi tín hiệu Factory Reset bảo mật xuống ESP32 qua topic: ${resetTopic} bởi ${req.user?.uid || 'Admin'}`, 'warn');
+      // ZH-CRIT-10: Cấm retain: true cho factory_reset chống bootloop vĩnh viễn
+      client.publish(resetTopic, resetPayload, { qos: 1, retain: false });
+      client.publish(resetTopic, "", { qos: 1, retain: true });
+      addLog('[RESET]', `Gửi tín hiệu Factory Reset bảo mật (retain: false) xuống ESP32 qua topic: ${resetTopic} bởi ${req.user?.uid || 'Admin'}`, 'warn');
     } else {
       return res.status(503).json({ success: false, error: 'Máy chủ hiện chưa kết nối được tới MQTT Broker để phát lệnh reset.' });
     }

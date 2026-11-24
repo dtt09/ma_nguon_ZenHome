@@ -124,7 +124,8 @@ export const requireAdminAuth = async (req: Request, res: Response, next: NextFu
  */
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '').trim() || 
-                (req.headers['x-api-key'] as string)?.trim();
+                (req.headers['x-api-key'] as string)?.trim() ||
+                (req.query?.token as string)?.trim();
 
   if (!token) {
     return res.status(401).json({ 
@@ -169,4 +170,27 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     success: false, 
     error: 'Unauthorized: Dịch vụ xác thực chưa sẵn sàng.' 
   });
+};
+
+/**
+ * Bí danh authenticateToken tương thích chuẩn JWT Middleware
+ */
+export const authenticateToken = requireAuth;
+
+/**
+ * Middleware kiểm tra vai trò người dùng (RBAC Role-Based Access Control)
+ */
+export const requireRole = (allowedRoles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Chưa xác thực danh tính.' });
+    }
+    if (req.user.role === 'admin') {
+      return next();
+    }
+    if (allowedRoles.includes(req.user.role)) {
+      return next();
+    }
+    return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền thực hiện hành động này.' });
+  };
 };

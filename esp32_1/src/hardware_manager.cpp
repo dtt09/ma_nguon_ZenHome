@@ -27,6 +27,24 @@ const unsigned long SWITCH_DEBOUNCE_MS = 200;
 const unsigned long SWITCH_MIN_TOGGLE_INTERVAL = 1500;
 
 static SemaphoreHandle_t i2cMutex = NULL;
+SemaphoreHandle_t xRelayMutex = NULL;
+
+void initRelayMutex() {
+  if (xRelayMutex == NULL) {
+    xRelayMutex = xSemaphoreCreateMutex();
+  }
+}
+
+bool lockRelays(TickType_t waitTicks) {
+  if (xRelayMutex == NULL) return true;
+  return xSemaphoreTake(xRelayMutex, waitTicks) == pdTRUE;
+}
+
+void unlockRelays() {
+  if (xRelayMutex != NULL) {
+    xSemaphoreGive(xRelayMutex);
+  }
+}
 
 static LedStatusPattern currentLedPattern = LED_PATTERN_AP_MODE;
 static unsigned long ledBlipUntil = 0;
@@ -178,6 +196,7 @@ static uint8_t scanAndDetectI2CDevice() {
 
 void initHardware() {
   initHardwareMutex();
+  initRelayMutex();
   pinMode(RESET_BTN_PIN, INPUT_PULLUP);
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, LOW);
@@ -274,6 +293,10 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
     Serial.println("[SECURITY] ⛔ ESP32 chưa liên kết tài khoản ZenHome! Từ chối điều khiển relay.");
     return false;
   }
+  if (!lockRelays(pdMS_TO_TICKS(1000))) {
+    Serial.println("[RELAY-MUTEX] ⚠️ Hết thời gian chờ Mutex xRelayMutex!");
+    return false;
+  }
   bool found = false;
   unsigned long now = millis();
 
@@ -287,6 +310,7 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
         if (now < myRelays[i].manualOverrideUntil) {
           Serial.printf("[RULE-ENGINE] ⏳ %s đang trong thời gian can thiệp thủ công (%lus còn lại). Tôn trọng lệnh người dùng!\n",
                         devId.c_str(), (myRelays[i].manualOverrideUntil - now) / 1000);
+          unlockRelays();
           return false;
         }
       }
@@ -305,6 +329,7 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
           String stateTopic = mqtt_prefix + "/" + rName + "/" + devId + "/state";
           safeMqttPublish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
         }
+        unlockRelays();
         return false;
       }
 
@@ -357,6 +382,7 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
       break;
     }
   }
+  unlockRelays();
   return found;
 }
 

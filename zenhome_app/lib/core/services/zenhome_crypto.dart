@@ -4,6 +4,15 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as enc;
 
+/// Ngoại lệ ném ra khi phong bì mã hóa không đúng định dạng an toàn hoặc bị giả mạo
+class SecurityException implements Exception {
+  final String message;
+  SecurityException(this.message);
+
+  @override
+  String toString() => 'SecurityException: $message';
+}
+
 /// Bộ tiện ích mã hóa AES-256 đối xứng có xác thực toàn vẹn (Authenticated Encryption)
 /// Thiết lập đường hầm bảo mật thông tin (Confidentiality & Integrity) cho các kênh LAN & BLE
 /// Tương thích 100% với hàm decryptStorageString trên vi điều khiển ESP32
@@ -34,7 +43,11 @@ class ZenHomeCrypto {
 
   /// Giải mã phong bì an toàn: `ZHENC1:<ivHex>:<cipherHex>:<hmacTag>`
   static String? decryptPayload({required String envelope, required String keyHex}) {
-    if (!envelope.startsWith('ZHENC1:')) return envelope; // Fallback plaintext
+    if (envelope.isEmpty || keyHex.isEmpty) return null;
+    // SEC-FIX [ZH-CRIT-05]: Xóa bỏ hoàn toàn fallback plaintext. Bắt buộc ném SecurityException nếu thiếu tiền tố ZHENC1:
+    if (!envelope.startsWith('ZHENC1:')) {
+      throw SecurityException('Invalid encrypted payload format: Missing ZHENC1 prefix');
+    }
     final parts = envelope.split(':');
     if (parts.length != 4) return null;
 
@@ -46,8 +59,8 @@ class ZenHomeCrypto {
     final payloadToAuth = '$ivHex:$cipherHex';
     final expectedTag = Hmac(sha256, keyBytes).convert(utf8.encode(payloadToAuth)).toString();
 
-    // So khớp chữ ký xác thực
-    if (receivedTag.toLowerCase() != expectedTag.toLowerCase()) {
+    // SEC-FIX [ZH-CRIT-05]: So khớp chữ ký xác thực bằng thuật toán Constant-Time chống Side-Channel Timing Attack
+    if (!constantTimeEquals(receivedTag.toLowerCase(), expectedTag.toLowerCase())) {
       return null; // Giả mạo hoặc sai khóa
     }
 
@@ -57,6 +70,16 @@ class ZenHomeCrypto {
 
     final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.ctr, padding: null));
     return encrypter.decrypt(enc.Encrypted(cipherBytes), iv: iv);
+  }
+
+  /// So sánh hai chuỗi ký tự với thời gian hằng số (Constant-Time Equality) chống tấn công Timing Attack
+  static bool constantTimeEquals(String a, String b) {
+    if (a.length != b.length) return false;
+    int result = 0;
+    for (int i = 0; i < a.length; i++) {
+      result |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
+    }
+    return result == 0;
   }
 
   static Uint8List _hexToBytes(String hex) {
