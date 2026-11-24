@@ -71,6 +71,7 @@ void initFlashMutex();
 
 // Configuration & State Functions
 bool loadConfig();
+bool saveConfig(const JsonDocument& doc);
 void backupRelayStatesToFlash();
 void loadOfflineBackupFromFlash();
 void resetToFactoryDefaults();

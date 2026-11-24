@@ -101,6 +101,7 @@ bool verifyBindingWithDatabase() {
 
   for (int i = 0; i < candidateCount; i++) {
     esp_task_wdt_reset();
+    vTaskDelay(pdMS_TO_TICKS(15)); // [ZH-MED-04] Nhường CPU cho FreeRTOS Task WDT
     String verifyUrl = candidates[i] + "/api/v1/hub/verify-binding?userId=" + linkedUser + 
                        "&macAddress=" + cleanHwMac + 
                        "&setup=" + (isSetupPending ? "1" : "0") + 
@@ -780,16 +781,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             return;
           }
           
-          File outFile = LittleFS.open("/config.json", "w");
-          if (outFile) {
-            serializeJson(doc, outFile);
-            outFile.close();
-            Serial.println("Đã lưu cấu hình mới vào /config.json thành công!");
+          if (saveConfig(doc)) {
+            Serial.println("Đã lưu an toàn nguyên tử cấu hình mới vào /config.json thành công!");
             Serial.println("ESP32 sẽ tự khởi động lại sau 1 giây để áp dụng...");
             rebootScheduledAt = millis();
             shouldReboot = true;
           } else {
-            Serial.println("Lỗi mở /config.json để ghi!");
+            Serial.println("Lỗi lưu /config.json!");
           }
         }
       }

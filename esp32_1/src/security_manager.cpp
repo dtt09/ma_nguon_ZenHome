@@ -25,6 +25,7 @@ String pendingSecretKeyToSave = "";
 std::vector<MemberRule> cachedMembers;
 String cachedOwner = "";
 
+// [ZH-MED-01] Nonce RingBuffer sức chứa 64 phần tử chống tràn nonce replay attack
 static uint32_t recentNonceHashCache[NONCE_CACHE_SIZE] = {0};
 static int nonceCacheIndex = 0;
 static ClientTokenBucket clientRateLimits[RATE_LIMIT_CLIENTS] = {0};

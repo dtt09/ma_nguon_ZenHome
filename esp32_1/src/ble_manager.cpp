@@ -541,7 +541,11 @@ void setupBLE() {
 
   NimBLEDevice::init(devName.c_str());
   NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Công suất phát +9dBm
-  NimBLEDevice::setSecurityAuth(false, false, false);
+  // [ZH-HIGH-04] Cấu hình BLE Security: Secure Connections, Bonding, MITM Protection
+  NimBLEDevice::setSecurityAuth(true, true, true);
+  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+  NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+  NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
   NimBLEDevice::setMTU(512);
 
   pBleServer = NimBLEDevice::createServer();
@@ -551,13 +555,13 @@ void setupBLE() {
 
   pBleControlChar = pService->createCharacteristic(
     ZENHOME_BLE_CHAR_CONTROL_UUID,
-    NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR
+    NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR | NIMBLE_PROPERTY::WRITE_ENC | NIMBLE_PROPERTY::WRITE_AUTHEN
   );
   pBleControlChar->setCallbacks(new BleControlCallbacks());
 
   pBleStatusChar = pService->createCharacteristic(
     ZENHOME_BLE_CHAR_STATUS_UUID,
-    NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
+    NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ_ENC | NIMBLE_PROPERTY::READ_AUTHEN
   );
 
   pService->start();

@@ -326,7 +326,10 @@ class MqttRepository {
     if (client?.connectionStatus?.state != MqttConnectionState.connected) {
       if (!_isHardDisconnected) {
         final now = DateTime.now().millisecondsSinceEpoch;
-        // Chỉ lưu lệnh cuối cùng cho mỗi topic kèm timestamp để quản lý TTL chống xung đột
+        // SEC-FIX [ZH-MED-09]: Tự động dọn dẹp các lệnh đã quá hạn 15s trong queue
+        _cmdQueue.removeWhere((cmd) => (now - (cmd['timestamp'] as int? ?? 0)) > 15000);
+
+        // SEC-FIX [ZH-MED-09]: Coalescing / Debounce: Ghi đè lệnh cũ cho cùng 1 topic/pin
         final existingIndex = _cmdQueue.indexWhere((cmd) => cmd['topic'] == topic);
         if (existingIndex >= 0) {
           _cmdQueue[existingIndex] = {

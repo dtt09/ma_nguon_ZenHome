@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { state, addLog } from '../../zenhomeState';
 import { setTimer } from '../../core/timers';
-import { requireAuth } from '../../middlewares/auth';
+import { requireAuth, checkUserPermission } from '../../middlewares/auth';
+import { findUser } from '../../utils/firestoreHelper';
 
 export const timersRouter = Router();
 
@@ -10,31 +11,68 @@ timersRouter.use(requireAuth);
 
 /**
  * @route   GET /api/v1/timers
- * @desc    Lấy danh sách tất cả hẹn giờ đếm ngược đang kích hoạt
+ * @desc    Lấy danh sách tất cả hẹn giờ đếm ngược đang kích hoạt của một ngôi nhà (ZH-HIGH-07: Chống IDOR)
  */
-timersRouter.get('/', (req: Request, res: Response) => {
-  const list = Object.entries(state.activeTimers).map(([key, timer]) => ({
-    timerKey: key,
-    baseTopic: (timer as any)?.baseTopic || key.replace(/_(on|off)$/, ''),
-    action: key.endsWith('_on') ? '1' : '0',
-    type: key.endsWith('_on') ? 'BẬT' : 'TẮT',
-  }));
+timersRouter.get('/', async (req: Request, res: Response) => {
+  try {
+    const homeId = (req.query.home_id as string || req.query.homeId as string || req.query.userId as string || (req.user?.role === 'user' ? req.user.uid : undefined))?.trim();
 
-  res.json({
-    success: true,
-    totalTimers: list.length,
-    timers: list,
-    timestamp: new Date().toISOString(),
-  });
+    if (!homeId && req.user?.role !== 'admin') {
+      return res.status(400).json({
+        success: false,
+        error: "Bắt buộc cung cấp tham số 'home_id' để truy vấn danh sách hẹn giờ của ngôi nhà.",
+      });
+    }
+
+    let user: any = null;
+    if (homeId) {
+      user = await findUser(homeId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: `Không tìm thấy ngôi nhà/người dùng '${homeId}' trong cơ sở dữ liệu.`,
+        });
+      }
+      if (!checkUserPermission(req, user)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden: Bạn không có quyền truy cập bộ hẹn giờ của ngôi nhà này.',
+        });
+      }
+    }
+
+    const allTimers = Object.entries(state.activeTimers).map(([key, timer]) => ({
+      timerKey: key,
+      baseTopic: (timer as any)?.baseTopic || key.replace(/_(on|off)$/, ''),
+      action: key.endsWith('_on') ? '1' : '0',
+      type: key.endsWith('_on') ? 'BẬT' : 'TẮT',
+    }));
+
+    const list = user
+      ? allTimers.filter(t => {
+          const topicPrefix = t.baseTopic?.split('/')[0];
+          return topicPrefix === user.id || topicPrefix === user.data?.uid || (user.data?.macAddress && t.baseTopic?.includes(user.data.macAddress));
+        })
+      : allTimers;
+
+    res.json({
+      success: true,
+      totalTimers: list.length,
+      timers: list,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 /**
  * @route   POST /api/v1/timers
- * @desc    Tạo hẹn giờ đếm ngược tự động Bật/Tắt thiết bị (Ví dụ: Tắt quạt sau 30 phút)
+ * @desc    Tạo hẹn giờ đếm ngược tự động Bật/Tắt thiết bị (ZH-HIGH-07: Xác thực quyền chủ nhà)
  */
-timersRouter.post('/', (req: Request, res: Response) => {
+timersRouter.post('/', async (req: Request, res: Response) => {
   try {
-    const { baseTopic, action = '0', minutes } = req.body;
+    const { baseTopic, action = '0', minutes, home_id, homeId, userId } = req.body;
 
     if (!baseTopic) {
       return res.status(400).json({ success: false, error: "Thiếu trường 'baseTopic' (Ví dụ: Dtthuat/ESP32_MAC/phong_khach/quat_tran)" });
@@ -45,9 +83,26 @@ timersRouter.post('/', (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: "Trường 'minutes' phải là số nguyên dương lớn hơn 0." });
     }
 
+    const targetHome = (home_id || homeId || userId || baseTopic.split('/')[0])?.trim();
+    const user = await findUser(targetHome);
+    if (!user) {
+      return res.status(404).json({ success: false, error: `Không tìm thấy tài khoản/ngôi nhà '${targetHome}' trong cơ sở dữ liệu.` });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền đặt hẹn giờ cho ngôi nhà này.' });
+    }
+
+    const topicPrefix = baseTopic.split('/')[0];
+    if (topicPrefix !== user.id && topicPrefix !== user.data?.uid && req.user?.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: `Forbidden: 'baseTopic' (${baseTopic}) không khớp với tài khoản sở hữu (${user.id}).`,
+      });
+    }
+
     const actionStr = (action === '1' || action === true) ? '1' : '0';
 
-    // Gọi hàm setTimer của module core timers.cjs
     setTimer(baseTopic, actionStr, minsNum);
 
     addLog('[TIMER]', `API tạo hẹn giờ: ${actionStr === '1' ? 'BẬT' : 'TẮT'} ${baseTopic} sau ${minsNum} phút`, 'info');
@@ -70,15 +125,26 @@ timersRouter.post('/', (req: Request, res: Response) => {
 
 /**
  * @route   DELETE /api/v1/timers/:timerKey
- * @desc    Hủy một hẹn giờ đếm ngược
+ * @desc    Hủy một hẹn giờ đếm ngược (ZH-HIGH-07: Xác thực quyền chủ nhà)
  */
-timersRouter.delete('/:timerKey', (req: Request, res: Response) => {
+timersRouter.delete('/:timerKey', async (req: Request, res: Response) => {
   try {
     const timerKey = String(req.params.timerKey);
     const baseTopic = timerKey.replace(/_(on|off)$/, '');
     const action = timerKey.endsWith('_on') ? '1' : '0';
 
-    // mins = 0 để hủy timer trong core timers.cjs
+    const topicOwner = baseTopic.split('/')[0];
+    const targetHome = (req.query.home_id as string || req.query.homeId as string || req.query.userId as string || topicOwner)?.trim();
+
+    const user = await findUser(targetHome);
+    if (!user) {
+      return res.status(404).json({ success: false, error: `Không tìm thấy tài khoản/ngôi nhà '${targetHome}' liên quan đến bộ hẹn giờ này.` });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Bạn không có quyền hủy hẹn giờ của ngôi nhà này.' });
+    }
+
     setTimer(baseTopic, action, 0);
 
     addLog('[TIMER]', `API hủy hẹn giờ: ${timerKey}`, 'info');

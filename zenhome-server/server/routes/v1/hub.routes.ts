@@ -602,6 +602,16 @@ hubRouter.post('/ota/trigger', async (req: Request, res: Response) => {
     }
     const directUrl = req.body.url || firestoreFwMeta?.directUrl || 'https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/firmware.bin';
 
+    // ZH-HIGH-08: Kiểm tra tham số url trong route kích hoạt OTA bằng regex domain whitelist
+    const ALLOWED_OTA_URL_REGEX = /^(https:\/\/github\.com\/dtt09\/ma_nguon_ZenHome\/releases\/(download|latest\/download)\/.*\.bin|http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?\/.*\.bin)$/i;
+
+    if (req.body.url && !ALLOWED_OTA_URL_REGEX.test(req.body.url)) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL firmware OTA không nằm trong danh mục cho phép. Chỉ chấp nhận GitHub chính thức (github.com/dtt09/ma_nguon_ZenHome) hoặc máy chủ nội bộ LAN hợp lệ.',
+      });
+    }
+
     const adminPass = req.body.adminPass || user.data?.adminPass || 'admin';
     const otaPayload = {
       action: 'ota_update',

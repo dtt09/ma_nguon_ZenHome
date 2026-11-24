@@ -2,7 +2,8 @@
 import path from 'path';
 import { storedBackups, BackupRecord } from '../../zenhomeState';
 import { executeDeleteAccountRequest } from '../../zenhomeWorker';
-import { requireAdminAuth, requireAuth } from '../../middlewares/auth';
+import { requireAdminAuth, requireAuth, checkUserPermission } from '../../middlewares/auth';
+import { findUser } from '../../utils/firestoreHelper';
 import { createRealDatabaseBackup, getBackupFilePath, restoreDatabaseFromBackup } from '../../core/backupEngine';
 
 export const backupRouter = Router();
@@ -204,6 +205,23 @@ backupRouter.post('/device-states/save', requireAuth, async (req: Request, res: 
     if (!baseTopic || (state !== '0' && state !== '1')) {
       return res.status(400).json({ success: false, error: 'Cần baseTopic và state (0 hoặc 1)' });
     }
+    // ZH-HIGH-10: Kiểm tra quyền sở hữu hoặc tư cách thành viên đối với baseTopic trước khi ghi đè trạng thái
+    const targetUserId = String(baseTopic).split('/')[0];
+    const user = await findUser(targetUserId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: `Không tìm thấy tài khoản/ngôi nhà '${targetUserId}' liên quan đến baseTopic này.`,
+      });
+    }
+
+    if (!checkUserPermission(req, user)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Bạn không có quyền lưu trạng thái thiết bị của tài khoản khác.',
+      });
+    }
+
     const { recordDeviceState } = await import('../../core/deviceStateBackup');
     await recordDeviceState(String(baseTopic), state, source || 'manual_api');
     res.json({

@@ -16,11 +16,13 @@ bool isUdpStarted = false;
 unsigned long lastWiFiRetry = 0;
 
 void setupAPMode() {
-  String mac = WiFi.macAddress();
+  String rawMac = WiFi.macAddress();
+  // [ZH-HIGH-05] Mật khẩu an toàn theo phần cứng MAC thay thế mật khẩu tĩnh "12345678"
+  String apPass = "ZenHome_" + rawMac.substring(9, 11) + rawMac.substring(12, 14) + rawMac.substring(15, 17);
+  String mac = rawMac;
   mac.replace(":", "");
   mac.toUpperCase();
   String apName = "ZenHome_Setup_" + mac.substring(6);
-  String apPass = "12345678"; 
 
   WiFi.mode(WIFI_AP);
   WiFi.softAP(apName.c_str(), apPass.c_str()); 
@@ -51,11 +53,7 @@ void setupAPMode() {
         }
 
         if (uid.length() > 0 && uid != "guest" && uid != "undefined" && uid != "null") {
-          File file = LittleFS.open("/config.json", "w");
-          if (file) {
-            serializeJson(doc, file);
-            file.close();
-          }
+          saveConfig(doc);
           
           // Đảm bảo xóa cờ provisioned cũ nếu có để chờ App xác thực hoàn tất
           if (LittleFS.exists("/provisioned.txt")) {
@@ -117,6 +115,7 @@ void connectToWiFi() {
   int retries = 0;
   while (WiFi.status() != WL_CONNECTED && retries < 25) {
     esp_task_wdt_reset();
+    vTaskDelay(pdMS_TO_TICKS(15)); // [ZH-MED-04] Nhường CPU cho FreeRTOS Task WDT
     delay(500);
     Serial.print(".");
     retries++;
@@ -144,6 +143,7 @@ void syncTime() {
   int retries = 0;
   while (now < 100000 && retries < 15) {
     esp_task_wdt_reset();
+    vTaskDelay(pdMS_TO_TICKS(15)); // [ZH-MED-04] Nhường CPU cho FreeRTOS Task WDT
     delay(400);
     Serial.print(".");
     now = time(nullptr);
@@ -338,10 +338,7 @@ void setupStationWebServer() {
       return;
     }
 
-    File outFile = LittleFS.open("/config.json", "w");
-    if (outFile) {
-      serializeJson(doc, outFile);
-      outFile.close();
+    if (saveConfig(doc)) {
       loadConfig(); // Nạp lại ngay vào RAM myRelays và khởi tạo lại pin PCF8574
       Serial.println("[CONFIG] ✅ Đã cập nhật danh sách thiết bị và chân pin mới vào Flash và RAM!");
       request->send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Da cap nhat devices thanh cong!\"}");
@@ -1110,12 +1107,18 @@ void setupStationWebServer() {
       if (localRuleCount >= MAX_LOCAL_RULES) break;
       LocalRule& r = localRules[localRuleCount];
       r.enabled = obj["enabled"] | true;
+      // [ZH-MED-02] Bổ sung kết thúc chuỗi \0 tường minh chống tràn bộ đệm
       strncpy(r.id, obj["id"] | "", sizeof(r.id) - 1);
+      r.id[sizeof(r.id) - 1] = '\0';
       strncpy(r.type, obj["type"] | "temp_auto", sizeof(r.type) - 1);
+      r.type[sizeof(r.type) - 1] = '\0';
       strncpy(r.targetDevId, obj["targetDevId"] | "", sizeof(r.targetDevId) - 1);
+      r.targetDevId[sizeof(r.targetDevId) - 1] = '\0';
       r.triggerTemp = obj["triggerTemp"] | 0.0f;
       strncpy(r.tempCond, obj["tempCond"] | ">=", sizeof(r.tempCond) - 1);
+      r.tempCond[sizeof(r.tempCond) - 1] = '\0';
       strncpy(r.actionState, obj["actionState"] | "1", sizeof(r.actionState) - 1);
+      r.actionState[sizeof(r.actionState) - 1] = '\0';
       r.autoOffSec = obj["autoOffSec"] | 0;
       r.turnOnTime = 0;
       r.isCountingDown = false;

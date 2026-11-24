@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Router, Request, Response } from 'express';
 import { sendCommandWithRetry } from '../../zenhomeWorker';
 import { state, addLog } from '../../zenhomeState';
@@ -362,7 +363,29 @@ devicesRouter.delete('/:id', async (req: Request, res: Response) => {
 devicesRouter.post('/:id/control', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { state: targetState, userId, source = 'api_client' } = req.body;
+    const { state: targetState, userId, source = 'api_client', ts, timestamp, nonce } = req.body;
+
+    // ZH-MED-05: Kiểm tra thời gian sống lệnh điều khiển (TTL <= 15s) chống Replay Attacks
+    const commandTs = Number(ts || timestamp);
+    if (commandTs) {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const cmdSec = commandTs > 10000000000 ? Math.floor(commandTs / 1000) : commandTs;
+      if (Math.abs(nowSec - cmdSec) > 15) {
+        return res.status(400).json({
+          success: false,
+          error: `Lệnh điều khiển đã quá hạn hiệu lực (TTL 15s). Chênh lệch: ${Math.abs(nowSec - cmdSec)} giây.`,
+        });
+      }
+    }
+
+    // ZH-MED-05 & ZH-MED-06: Sinh / xác thực nonce và làm sạch (sanitize) trường source
+    const commandNonce = (nonce && typeof nonce === 'string' && nonce.trim() !== '')
+      ? nonce.trim().substring(0, 64)
+      : crypto.randomBytes(8).toString('base64');
+
+    const cleanSource = String(source || 'api_client')
+      .replace(/[^a-zA-Z0-9_\-\.]/g, '')
+      .substring(0, 32) || 'api_client';
 
     if (targetState !== '1' && targetState !== '0' && targetState !== true && targetState !== false) {
       return res.status(400).json({
@@ -424,9 +447,9 @@ devicesRouter.post('/:id/control', async (req: Request, res: Response) => {
     const baseTopic = `${user.id}/${macAddress}/${device.room}/${device.id}`;
 
     // Kích hoạt hàm điều khiển có Retry Engine của ZenHome
-    sendCommandWithRetry(baseTopic, stateStr, source);
+    sendCommandWithRetry(baseTopic, stateStr, cleanSource);
 
-    addLog('[SEND]', `API gửi lệnh: ${device.name} (${baseTopic}) -> ${stateStr === '1' ? 'BẬT' : 'TẮT'} (Nguồn: ${source})`, 'info');
+    addLog('[SEND]', `API gửi lệnh: ${device.name} (${baseTopic}) -> ${stateStr === '1' ? 'BẬT' : 'TẮT'} (Nguồn: ${cleanSource})`, 'info');
 
     res.json({
       success: true,
@@ -438,7 +461,9 @@ devicesRouter.post('/:id/control', async (req: Request, res: Response) => {
         ...(req.user?.role === 'admin' ? { pin: device.pin } : {}),
         baseTopic,
         targetState: stateStr,
-        source,
+        source: cleanSource,
+        nonce: commandNonce,
+        ts: commandTs || Math.floor(Date.now() / 1000),
         retryScheduled: true,
       },
       timestamp: new Date().toISOString(),
@@ -454,7 +479,29 @@ devicesRouter.post('/:id/control', async (req: Request, res: Response) => {
  */
 devicesRouter.post('/bulk', async (req: Request, res: Response) => {
   try {
-    const { action, room, userId, source = 'api_bulk' } = req.body;
+    const { action, room, userId, source = 'api_bulk', ts, timestamp, nonce } = req.body;
+
+    // ZH-MED-05: Kiểm tra thời gian sống lệnh hàng loạt (TTL <= 15s) chống Replay Attacks
+    const bulkTs = Number(ts || timestamp);
+    if (bulkTs) {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const cmdSec = bulkTs > 10000000000 ? Math.floor(bulkTs / 1000) : bulkTs;
+      if (Math.abs(nowSec - cmdSec) > 15) {
+        return res.status(400).json({
+          success: false,
+          error: `Lệnh điều khiển hàng loạt đã quá hạn hiệu lực (TTL 15s). Chênh lệch: ${Math.abs(nowSec - cmdSec)} giây.`,
+        });
+      }
+    }
+
+    // ZH-MED-05 & ZH-MED-06: Sinh / xác thực nonce và làm sạch (sanitize) trường source
+    const bulkNonce = (nonce && typeof nonce === 'string' && nonce.trim() !== '')
+      ? nonce.trim().substring(0, 64)
+      : crypto.randomBytes(8).toString('base64');
+
+    const cleanBulkSource = String(source || 'api_bulk')
+      .replace(/[^a-zA-Z0-9_\-\.]/g, '')
+      .substring(0, 32) || 'api_bulk';
 
     if (!['all_on', 'all_off', 'room_on', 'room_off'].includes(action)) {
       return res.status(400).json({
@@ -523,7 +570,7 @@ devicesRouter.post('/bulk', async (req: Request, res: Response) => {
     // Gửi lệnh điều khiển thực tế cho từng thiết bị
     for (const dev of targetDevices) {
       const baseTopic = `${user.id}/${macAddress}/${dev.room}/${dev.id}`;
-      sendCommandWithRetry(baseTopic, targetState, source);
+      sendCommandWithRetry(baseTopic, targetState, cleanBulkSource);
     }
 
     addLog('[SEND]', `API Điều khiển hàng loạt (${action}): Gửi lệnh tới ${targetDevices.length} thiết bị thực tế của user ${user.id}`, 'info');

@@ -151,8 +151,13 @@ export const DEFAULT_SERVER_URL = getServerBaseUrl();
 
 export function getAdminSecret(): string {
   try {
-    const saved = sessionStorage.getItem('zenhome_admin_key') || localStorage.getItem('zenhome_admin_key');
+    // ZH-HIGH-15: Chỉ lưu trữ và truy xuất từ sessionStorage / In-memory, loại bỏ hoàn toàn localStorage
+    const saved = sessionStorage.getItem('zenhome_admin_key');
     if (saved && saved.trim()) return saved.trim();
+    // Tự động dọn dẹp khóa cũ trong localStorage nếu còn tồn tại
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('zenhome_admin_key')) {
+      localStorage.removeItem('zenhome_admin_key');
+    }
   } catch (e) {}
   return '';
 }

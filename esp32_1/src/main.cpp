@@ -146,15 +146,12 @@ void loop() {
         if (pendingReconfig.mqttServer.length() > 0) cfgDoc["mqtt_server"] = pendingReconfig.mqttServer;
         if (pendingReconfig.adminPass.length() > 0) cfgDoc["admin_pass"] = pendingReconfig.adminPass;
 
-        File outFile = LittleFS.open("/config.json", "w");
-        if (outFile) {
-          serializeJson(cfgDoc, outFile);
-          outFile.close();
+        if (saveConfig(cfgDoc)) {
           Serial.println("[RECONFIG] 💾 Đã lưu cấu hình Wi-Fi mới vào Flash thành công! Khởi động lại sau 1.5s...");
           rebootScheduledAt = millis();
           shouldReboot = true;
         } else {
-          Serial.println("[RECONFIG] ❌ Lỗi mở /config.json để ghi!");
+          Serial.println("[RECONFIG] ❌ Lỗi lưu an toàn nguyên tử /config.json!");
         }
       }
     }
@@ -292,5 +289,6 @@ void loop() {
   }
   updateLedIndicator();
 
+  vTaskDelay(pdMS_TO_TICKS(15)); // [ZH-MED-04] Nhường CPU cho FreeRTOS Task WDT
   delay(5);
 }

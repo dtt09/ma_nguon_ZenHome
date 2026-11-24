@@ -32,7 +32,10 @@ class LocalNetworkService {
     radix: 16,
   );
   static final BigInt _dhGenerator = BigInt.from(2);
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
   String? _inMemoryLocalKey;
 
   String? _cachedHubIp;
@@ -513,10 +516,15 @@ class LocalNetworkService {
         final user = _currentUserId ?? 'owner';
         // Bảo vệ RBAC: Chỉ Chủ nhà (owner / co_owner) mới được gửi adminPass để tránh thành viên qua mặt phân quyền
         final effectiveAdmin = (_currentUserRole == 'owner' || _currentUserRole == 'co_owner') ? (_cachedAdminPass ?? 'admin') : '';
+        // SEC-FIX [ZH-MED-05]: Bổ sung Unix timestamp giây (ts) và Nonce ngẫu nhiên 8-byte vào body điều khiển LAN HTTP
+        final tsSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        final nonceBase64 = base64Url.encode(List<int>.generate(8, (_) => Random.secure().nextInt(256)));
         final body = jsonEncode({
           'id': devId,
           'cmd': cmd,
           'user': user,
+          'ts': tsSec,
+          'nonce': nonceBase64,
           if (effectiveAdmin.isNotEmpty) 'adminPass': effectiveAdmin,
         });
 

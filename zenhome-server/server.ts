@@ -35,18 +35,56 @@ app.use((req, res, next) => {
   next();
 });
 
-// Enable CORS for frontend website (port 3000 / 5173 / all origins)
+// Enable CORS with strict whitelist (ZH-HIGH-12: Loại bỏ hoàn toàn origin: '*')
+const defaultAllowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:5000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://zenhome.local',
+];
+
+const envOrigins = (process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(o => o && o !== '*');
+
+const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envOrigins]));
+
+const corsOriginValidator = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+  // Cho phép Mobile Apps (Flutter) hoặc Server-to-Server requests không gửi header Origin
+  if (!origin) {
+    return callback(null, true);
+  }
+  if (allowedOrigins.includes(origin)) {
+    return callback(null, true);
+  }
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    return callback(null, true);
+  }
+  return callback(new Error(`CORS policy violation: Origin '${origin}' is not allowed.`));
+};
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: corsOriginValidator,
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
 }));
 
-// Tạo HTTP server và Socket.io instance
+// Tạo HTTP server và Socket.io instance với CORS bảo mật
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`WebSocket CORS policy violation: Origin '${origin}' is not allowed.`));
+    },
+    credentials: true,
   }
 });
 

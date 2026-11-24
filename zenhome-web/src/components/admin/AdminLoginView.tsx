@@ -136,13 +136,12 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess }
       if (isValid) {
         setFailedAttempts(0);
         setLockedUntil(null);
-        if (rememberMe) {
-          localStorage.setItem('zenhome_admin_key', trimmed);
-          localStorage.setItem('zenhome_auth_method', 'secret');
-        } else {
-          sessionStorage.setItem('zenhome_admin_key', trimmed);
-          sessionStorage.setItem('zenhome_auth_method', 'secret');
-        }
+        // ZH-HIGH-15: Lưu trữ an toàn trong sessionStorage, loại bỏ việc lưu Master Secret vào localStorage
+        sessionStorage.setItem('zenhome_admin_key', trimmed);
+        sessionStorage.setItem('zenhome_auth_method', 'secret');
+        try {
+          localStorage.removeItem('zenhome_admin_key');
+        } catch (_) {}
         onLoginSuccess(trimmed);
       } else {
         const nextAttempts = failedAttempts + 1;

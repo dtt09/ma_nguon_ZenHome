@@ -43,7 +43,10 @@ class BleLocalService {
   final Guid _serviceUuid = Guid(serviceUuidStr);
   final Guid _controlCharUuid = Guid(controlCharUuidStr);
   final Guid _statusCharUuid = Guid(statusCharUuidStr);
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
 
   BluetoothDevice? _connectedDevice;
   BluetoothDevice? _cachedDiscoveredDevice;

@@ -1,6 +1,7 @@
 import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
 import 'dart:async';
 import 'dart:convert'; 
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -213,9 +214,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         final mqttPrefix = activeConfig.mqttPrefix;
         final topicCmd1 = '$mqttPrefix/$roomId/$devId/cmd';
         final senderUser = FirebaseAuth.instance.currentUser?.email?.split('@')[0] ?? (activeConfig.role == 'owner' ? activeConfig.userId : 'member');
+        // SEC-FIX [ZH-MED-05]: Bổ sung Unix timestamp giây (ts) và Nonce ngẫu nhiên 8-byte chống Replay Attack
+        final ts = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        final nonce = base64Url.encode(List<int>.generate(8, (_) => Random.secure().nextInt(256)));
         final payload = jsonEncode({
           'action': cmd,
           'user': senderUser,
+          'ts': ts,
+          'nonce': nonce,
         });
         ref.read(mqttRepositoryProvider).publishCmd(topicCmd1, payload);
 

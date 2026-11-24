@@ -461,12 +461,18 @@ void loadLocalRulesFromFlash() {
     if (localRuleCount >= MAX_LOCAL_RULES) break;
     LocalRule& r = localRules[localRuleCount];
     r.enabled = obj["enabled"] | true;
+    // [ZH-MED-02] Bổ sung kết thúc chuỗi \0 tường minh chống tràn bộ đệm
     strncpy(r.id, obj["id"] | "", sizeof(r.id) - 1);
+    r.id[sizeof(r.id) - 1] = '\0';
     strncpy(r.type, obj["type"] | "temp_auto", sizeof(r.type) - 1);
+    r.type[sizeof(r.type) - 1] = '\0';
     strncpy(r.targetDevId, obj["targetDevId"] | "", sizeof(r.targetDevId) - 1);
+    r.targetDevId[sizeof(r.targetDevId) - 1] = '\0';
     r.triggerTemp = obj["triggerTemp"] | 0.0f;
     strncpy(r.tempCond, obj["tempCond"] | ">=", sizeof(r.tempCond) - 1);
+    r.tempCond[sizeof(r.tempCond) - 1] = '\0';
     strncpy(r.actionState, obj["actionState"] | "1", sizeof(r.actionState) - 1);
+    r.actionState[sizeof(r.actionState) - 1] = '\0';
     r.autoOffSec = obj["autoOffSec"] | 0;
     r.turnOnTime = 0;
     r.isCountingDown = false;

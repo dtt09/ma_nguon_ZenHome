@@ -60,6 +60,63 @@ interface LiveLogEntry {
   level: 'info' | 'warn' | 'error' | 'success';
 }
 
+// ZH-MED-13: Biên dịch Regex một lần duy nhất ngoài Render Loop
+const LOG_HIGHLIGHT_REGEX = /(Dtthuat\/[^\s]+|[0-9A-F]{2}(?::[0-9A-F]{2}){5}|\b\d+\b)/g;
+
+// ZH-MED-13: Memoized Row Component ngăn render lặp lại và rò rỉ bộ nhớ trên 300 phần tử
+const TerminalLogItem = React.memo(({ item }: { item: LiveLogEntry }) => {
+  const isCron = item.tag === '[CRON]' || item.tag === '[CRON-QA]';
+  const isFirebase = item.tag === '[FIREBASE]';
+  const isEsp = item.tag === '[ESP]';
+  const isSend = item.tag === '[SEND]';
+  const isRetry = item.tag === '[RETRY]' || item.tag === '[TIMEOUT]';
+  const isBackend = item.tag === '[BACKEND]' || item.tag === '[CLEANUP]';
+
+  const formattedTime = (() => {
+    if (!item.timestamp) return '';
+    const parts = item.timestamp.split(' ');
+    if (parts[0] && parts[0].includes(':')) return parts[0];
+    if (parts[1] && parts[1].includes(':')) return parts[1];
+    return item.timestamp;
+  })();
+
+  return (
+    <div className="flex items-start gap-3 hover:bg-white dark:bg-slate-900/5 p-0.5 rounded-sm transition-colors group">
+      <span className="text-slate-500 dark:text-slate-400 select-none shrink-0 border-r border-slate-700 pr-3 font-mono">
+        {formattedTime}
+      </span>
+      
+      <span className={`font-bold shrink-0 w-24 ${
+        isCron ? 'text-fuchsia-400' :
+        isFirebase ? 'text-amber-400' :
+        isEsp ? 'text-cyan-400' :
+        isSend ? 'text-blue-400' :
+        isRetry ? 'text-rose-400' :
+        isBackend ? 'text-indigo-400' :
+        'text-slate-400'
+      }`}>
+        {item.tag}
+      </span>
+
+      <span className={`flex-1 break-words ${
+        item.level === 'error' ? 'text-rose-400' :
+        item.level === 'warn' ? 'text-amber-300' :
+        item.level === 'success' ? 'text-emerald-400' :
+        'text-slate-300'
+      }`}>
+        {item.level === 'error' || item.level === 'warn' ? item.message : (
+          item.message.split(LOG_HIGHLIGHT_REGEX).map((part, i) => {
+            if (part.startsWith('Dtthuat/')) return <span key={i} className="text-teal-400 font-bold">{part}</span>;
+            if (/^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$/.test(part)) return <span key={i} className="text-purple-400 font-bold">{part}</span>;
+            if (/^\d+$/.test(part) && part.length < 8) return <span key={i} className="text-blue-300 font-bold">{part}</span>;
+            return <span key={i}>{part}</span>;
+          })
+        )}
+      </span>
+    </div>
+  );
+});
+
 interface ServerRamState {
   uptime: number;
   uptimeFormatted?: string;
@@ -221,7 +278,8 @@ export const BackupServerView: React.FC<BackupServerViewProps> = ({ customers = 
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.logs)) {
-          setLogs(data.logs);
+          // ZH-MED-13: Khóa cứng tối đa 300 phần tử chống memory leak
+          setLogs(data.logs.slice(-300));
         }
       }
     } catch (e) {
@@ -275,15 +333,18 @@ export const BackupServerView: React.FC<BackupServerViewProps> = ({ customers = 
 
     socket.on('init_logs', (initialLogs: LiveLogEntry[]) => {
       if (Array.isArray(initialLogs)) {
-        setLogs(initialLogs);
+        // ZH-MED-13: Khóa cứng tối đa 300 phần tử khởi tạo
+        setLogs(initialLogs.slice(-300));
       }
     });
 
     socket.on('new_log', (logEntry: LiveLogEntry) => {
       if (logEntry) {
         setLogs((prev) => {
+          if (prev.length > 0 && prev[prev.length - 1].id === logEntry.id) return prev;
           if (prev.some(l => l.id === logEntry.id)) return prev;
-          return [...prev.slice(-1500), logEntry];
+          // ZH-MED-13: Khóa cứng tối đa 300 phần tử
+          return [...prev.slice(-299), logEntry];
         });
       }
     });
@@ -1071,56 +1132,9 @@ export const BackupServerView: React.FC<BackupServerViewProps> = ({ customers = 
               <p className="italic">Đang chờ tín hiệu từ Worker Engine...</p>
             </div>
           ) : (
-            filteredLogs.map((item) => {
-              const isCron = item.tag === '[CRON]' || item.tag === '[CRON-QA]';
-              const isFirebase = item.tag === '[FIREBASE]';
-              const isEsp = item.tag === '[ESP]';
-              const isSend = item.tag === '[SEND]';
-              const isRetry = item.tag === '[RETRY]' || item.tag === '[TIMEOUT]';
-              const isBackend = item.tag === '[BACKEND]' || item.tag === '[CLEANUP]';
-
-              return (
-                <div key={item.id} className="flex items-start gap-3 hover:bg-white dark:bg-slate-900/5 p-0.5 rounded-sm transition-colors group">
-                  <span className="text-slate-500 dark:text-slate-400 select-none shrink-0 border-r border-slate-700 pr-3 font-mono">
-                    {(() => {
-                      if (!item.timestamp) return '';
-                      const parts = item.timestamp.split(' ');
-                      if (parts[0] && parts[0].includes(':')) return parts[0];
-                      if (parts[1] && parts[1].includes(':')) return parts[1];
-                      return item.timestamp;
-                    })()}
-                  </span>
-                  
-                  <span className={`font-bold shrink-0 w-24 ${
-                    isCron ? 'text-fuchsia-400' :
-                    isFirebase ? 'text-amber-400' :
-                    isEsp ? 'text-cyan-400' :
-                    isSend ? 'text-blue-400' :
-                    isRetry ? 'text-rose-400' :
-                    isBackend ? 'text-indigo-400' :
-                    'text-slate-400'
-                  }`}>
-                    {item.tag}
-                  </span>
-
-                  <span className={`flex-1 break-words ${
-                    item.level === 'error' ? 'text-rose-400' :
-                    item.level === 'warn' ? 'text-amber-300' :
-                    item.level === 'success' ? 'text-emerald-400' :
-                    'text-slate-300'
-                  }`}>
-                    {item.level === 'error' || item.level === 'warn' ? item.message : (
-                      item.message.split(/(Dtthuat\/[^\s]+|[0-9A-F]{2}(?::[0-9A-F]{2}){5}|\b\d+\b)/g).map((part, i) => {
-                        if (part.startsWith('Dtthuat/')) return <span key={i} className="text-teal-400 font-bold">{part}</span>;
-                        if (/^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$/.test(part)) return <span key={i} className="text-purple-400 font-bold">{part}</span>;
-                        if (/^\d+$/.test(part) && part.length < 8) return <span key={i} className="text-blue-300 font-bold">{part}</span>;
-                        return <span key={i}>{part}</span>;
-                      })
-                    )}
-                  </span>
-                </div>
-              );
-            })
+            filteredLogs.map((item) => (
+              <TerminalLogItem key={item.id} item={item} />
+            ))
           )}
         </div>
 

@@ -19,7 +19,10 @@ class HomeConfigNotifier extends ChangeNotifier {
   );
   List<SmartConfig> _availableHomes = [];
   
-  final _secureStorage = const FlutterSecureStorage();
+  final _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
 
   SmartConfig get activeConfig => _activeConfig;
   List<SmartConfig> get availableHomes => _availableHomes;

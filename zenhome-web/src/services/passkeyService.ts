@@ -98,12 +98,15 @@ export async function loginWithPasskey(): Promise<{
       throw new Error(verifyData.error || 'Xác thực chữ ký Passkey thất bại.');
     }
 
-    // 4. Lưu token đăng nhập vào bộ nhớ duyệt web
+    // 4. Lưu token đăng nhập vào bộ nhớ duyệt web an toàn (ZH-HIGH-15: sessionStorage only)
     const token = verifyData.token;
     if (token) {
-      localStorage.setItem('zenhome_admin_key', token);
-      localStorage.setItem('zenhome_auth_method', 'passkey');
-      localStorage.setItem('zenhome_passkey_name', verifyData.admin?.deviceName || 'Passkey');
+      sessionStorage.setItem('zenhome_admin_key', token);
+      sessionStorage.setItem('zenhome_auth_method', 'passkey');
+      sessionStorage.setItem('zenhome_passkey_name', verifyData.admin?.deviceName || 'Passkey');
+      try {
+        localStorage.removeItem('zenhome_admin_key');
+      } catch (_) {}
     }
 
     return {

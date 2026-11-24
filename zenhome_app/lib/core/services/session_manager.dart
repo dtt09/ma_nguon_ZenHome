@@ -15,7 +15,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 class SessionManager {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static const _storage = FlutterSecureStorage();
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
 
   static String _generateSecureId(String prefix) {
     final rand = Random.secure();

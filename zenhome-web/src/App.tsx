@@ -18,7 +18,7 @@ import { PasskeyManagerModal } from './components/admin/PasskeyManagerModal';
 import { RealCustomerUser } from './types/admin';
 import { AdminLoginView } from './components/admin/AdminLoginView';
 import { getTabFromPath, getPathForTab, navigateToTab } from './utils/routes';
-import { getAdminSecret } from './services/backupServerService';
+import { getAdminSecret, DEFAULT_SERVER_URL } from './services/backupServerService';
 import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -28,9 +28,29 @@ export const App: React.FC = () => {
     return Boolean(getAdminSecret());
   });
 
-  const handleLogout = () => {
+  // ZH-HIGH-16: Thu hồi phiên ở phía máy chủ trước khi dọn dẹp client
+  const handleLogout = async () => {
+    const adminKey = getAdminSecret();
+    if (adminKey) {
+      try {
+        await fetch(`${DEFAULT_SERVER_URL}/api/v1/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${adminKey}`,
+            'x-api-key': adminKey,
+          },
+        }).catch(() => {});
+      } catch (_) {}
+    }
     sessionStorage.removeItem('zenhome_admin_key');
-    localStorage.removeItem('zenhome_admin_key');
+    sessionStorage.removeItem('zenhome_auth_method');
+    sessionStorage.removeItem('zenhome_passkey_name');
+    try {
+      localStorage.removeItem('zenhome_admin_key');
+      localStorage.removeItem('zenhome_auth_method');
+      localStorage.removeItem('zenhome_passkey_name');
+    } catch (_) {}
     setIsAuthenticated(false);
   };
 
