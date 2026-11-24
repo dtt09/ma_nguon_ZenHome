@@ -129,345 +129,424 @@ class _WeatherCardState extends ConsumerState<WeatherCard> {
           )
         : LinearGradient(
             colors: [
-              zen.primary.withOpacity(0.86),
-              Color.lerp(zen.primary, const Color(0xFF0284C7), 0.55)!
-                  .withOpacity(0.84),
-              zen.primaryLight.withOpacity(0.82),
+              Colors.white.withOpacity(0.88),
+              Colors.white.withOpacity(0.74),
+              Color.lerp(Colors.white, zen.primaryLight, 0.15)!.withOpacity(0.78),
             ],
             stops: const [0.0, 0.52, 1.0],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           );
 
-    return ZenLiquidGlass(
-      borderRadius: 28,
-      blurSigma: 22.0,
-      rimWidth: 1.35,
-      glowColor: isDark ? zen.primaryAccent : zen.primary,
-      customGradient: cardGradient,
-      customShadows: [
-        BoxShadow(
-          color: zen.primary.withOpacity(isDark ? 0.24 : 0.28),
-          blurRadius: 26,
-          spreadRadius: 0,
-          offset: const Offset(0, 10),
-        ),
-      ],
-      child: Stack(
-        children: [
-          Positioned(
-            right: -30,
-            top: -30,
-            child: Container(
-              width: 155,
-              height: 155,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    zen.primaryAccent.withOpacity(0.32),
-                    zen.primaryAccent.withOpacity(0.0),
-                  ],
+    return RepaintBoundary(
+      child: ZenLiquidGlass(
+        borderRadius: 28,
+        blurSigma: 0.0,
+        rimWidth: 1.2,
+        glowColor: isDark ? zen.primaryAccent : zen.primary,
+        customGradient: cardGradient,
+        customShadows: [
+          BoxShadow(
+            color: isDark
+                ? zen.primary.withOpacity(0.24)
+                : Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            spreadRadius: 0,
+            offset: const Offset(0, 8),
+          ),
+          if (!isDark)
+            BoxShadow(
+              color: zen.primary.withOpacity(0.08),
+              blurRadius: 24,
+              spreadRadius: 0,
+              offset: const Offset(0, 10),
+            ),
+        ],
+        child: Stack(
+          children: [
+            if (isDark)
+              Positioned(
+                right: -30,
+                top: -30,
+                child: Container(
+                  width: 155,
+                  height: 155,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        zen.primaryAccent.withOpacity(0.28),
+                        zen.primaryAccent.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                )
+                    .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                    .scale(
+                      begin: const Offset(0.92, 0.92),
+                      end: const Offset(1.14, 1.14),
+                      duration: 3200.ms,
+                      curve: Curves.easeInOut,
+                    ),
+              )
+            else
+              Positioned(
+                right: -25,
+                top: -25,
+                child: Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        zen.primaryLight.withOpacity(0.18),
+                        zen.primaryLight.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            )
-                .animate(onPlay: (controller) => controller.repeat(reverse: true))
-                .scale(
-                  begin: const Offset(0.92, 0.92),
-                  end: const Offset(1.14, 1.14),
-                  duration: 3200.ms,
-                  curve: Curves.easeInOut,
-                ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: ZenLiquidGlass(
-                        blurSigma: 0,
-                        borderRadius: 20,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        surfaceColor: Colors.white.withOpacity(0.16),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.location_on_rounded,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                _currentCity,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.3,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 20,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          surfaceColor: isDark
+                              ? Colors.white.withOpacity(0.12)
+                              : Colors.white.withOpacity(0.85),
+                          customBorder: isDark
+                              ? null
+                              : Border.all(
+                                  color: const Color(0xFFCBD5E1).withOpacity(0.6),
+                                  width: 0.9,
+                                ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.location_on_rounded,
+                                color: isDark ? zen.primaryAccent : zen.primary,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  _currentCity,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.3,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    ZenLiquidGlass(
-                      blurSigma: 0,
-                      width: 34,
-                      height: 34,
-                      borderRadius: 17,
-                      alignment: Alignment.center,
-                      surfaceColor: Colors.white.withOpacity(0.16),
-                      onTap: _getWeatherFromGPS,
-                      child: const Icon(
-                        Icons.refresh_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      )
-                          .animate(target: _isLoading ? 1 : 0)
-                          .rotate(duration: 800.ms),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    // Nhiệt độ trong nhà
-                    Expanded(
-                      child: ZenLiquidGlass(
+                      ZenLiquidGlass(
                         blurSigma: 0,
-                        borderRadius: 20,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        surfaceColor: Colors.white.withOpacity(0.12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.home_rounded,
-                                  color: Colors.white70,
-                                  size: 15,
-                                ),
-                                const SizedBox(width: 5),
-                                Flexible(
-                                  child: Text(
-                                    context.tr('temp_indoor'),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Builder(
-                              builder: (context) {
-                                final String tempStr =
-                                    ref.watch(mqttIndoorTempProvider);
-                                final double? tempVal =
-                                    double.tryParse(tempStr);
-                                final bool isDanger =
-                                    tempVal != null && tempVal >= 50.0;
-
-                                return FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerLeft,
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.baseline,
-                                    textBaseline: TextBaseline.alphabetic,
-                                    children: [
-                                      if (tempVal != null)
-                                        AnimatedCountingNumber(
-                                          number: tempVal,
-                                          fractionDigits:
-                                              tempStr.contains('.') ? 1 : 0,
-                                          style: TextStyle(
-                                            color: isDanger
-                                                ? const Color(0xFFF87171)
-                                                : Colors.white,
-                                            fontSize: 34,
-                                            fontWeight: FontWeight.w300,
-                                            letterSpacing: -1,
-                                            height: 1.0,
-                                          ),
-                                        )
-                                      else
-                                        Text(
-                                          tempStr,
-                                          style: TextStyle(
-                                            color: isDanger
-                                                ? const Color(0xFFF87171)
-                                                : Colors.white,
-                                            fontSize: 34,
-                                            fontWeight: FontWeight.w300,
-                                            letterSpacing: -1,
-                                            height: 1.0,
-                                          ),
-                                        ),
-                                      const Text(
-                                        '°C',
-                                        style: TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                      if (isDanger) ...[
-                                        const SizedBox(width: 6),
-                                        const Icon(
-                                          Icons.warning_amber_rounded,
-                                          color: Color(0xFFF87171),
-                                          size: 20,
-                                        )
-                                            .animate(
-                                              onPlay: (controller) =>
-                                                  controller.repeat(
-                                                reverse: true,
-                                              ),
-                                            )
-                                            .scale(
-                                              begin: const Offset(0.9, 0.9),
-                                              end: const Offset(1.2, 1.2),
-                                              duration: 600.ms,
-                                            ),
-                                      ],
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
+                        width: 34,
+                        height: 34,
+                        borderRadius: 17,
+                        alignment: Alignment.center,
+                        surfaceColor: isDark
+                            ? Colors.white.withOpacity(0.12)
+                            : Colors.white.withOpacity(0.85),
+                        customBorder: isDark
+                            ? null
+                            : Border.all(
+                                color: const Color(0xFFCBD5E1).withOpacity(0.6),
+                                width: 0.9,
+                              ),
+                        onTap: _getWeatherFromGPS,
+                        child: Icon(
+                          Icons.refresh_rounded,
+                          color: isDark ? Colors.white : const Color(0xFF334155),
+                          size: 18,
+                        )
+                            .animate(target: _isLoading ? 1 : 0)
+                            .rotate(duration: 800.ms),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-
-                    // Nhiệt độ ngoài trời
-                    Expanded(
-                      child: ZenLiquidGlass(
-                        blurSigma: 0,
-                        borderRadius: 20,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        surfaceColor: Colors.white.withOpacity(0.12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.cloud_rounded,
-                                  color: Colors.white70,
-                                  size: 15,
-                                )
-                                    .animate(
-                                      onPlay: (controller) =>
-                                          controller.repeat(reverse: true),
-                                    )
-                                    .moveY(
-                                      begin: -1.5,
-                                      end: 1.5,
-                                      duration: 2200.ms,
-                                      curve: Curves.easeInOut,
-                                    ),
-                                const SizedBox(width: 5),
-                                Flexible(
-                                  child: Text(
-                                    context.tr('temp_outdoor'),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      // Nhiệt độ trong nhà
+                      Expanded(
+                        child: ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 20,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          surfaceColor: isDark
+                              ? Colors.white.withOpacity(0.10)
+                              : Colors.white.withOpacity(0.72),
+                          customBorder: isDark
+                              ? null
+                              : Border.all(
+                                  color: const Color(0xFFE2E8F0).withOpacity(0.85),
+                                  width: 0.9,
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.baseline,
-                                textBaseline: TextBaseline.alphabetic,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
-                                  Builder(
-                                    builder: (context) {
-                                      final double? outVal =
-                                          double.tryParse(_outdoorTemp);
-                                      if (outVal != null) {
-                                        return AnimatedCountingNumber(
-                                          number: outVal,
-                                          fractionDigits:
-                                              _outdoorTemp.contains('.')
-                                                  ? 1
-                                                  : 0,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 34,
-                                            fontWeight: FontWeight.w300,
-                                            letterSpacing: -1,
-                                            height: 1.0,
-                                          ),
-                                        );
-                                      }
-                                      return Text(
-                                        _outdoorTemp,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 34,
-                                          fontWeight: FontWeight.w300,
-                                          letterSpacing: -1,
-                                          height: 1.0,
-                                        ),
-                                      );
-                                    },
+                                  const Icon(
+                                    Icons.home_rounded,
+                                    color: Color(0xFFF59E0B),
+                                    size: 16,
                                   ),
-                                  const Text(
-                                    '°C',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w400,
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      context.tr('temp_indoor'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? const Color(0xFFCBD5E1)
+                                            : const Color(0xFF475569),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 6),
+                              Builder(
+                                builder: (context) {
+                                  final String tempStr =
+                                      ref.watch(mqttIndoorTempProvider);
+                                  final double? tempVal =
+                                      double.tryParse(tempStr);
+                                  final bool isDanger =
+                                      tempVal != null && tempVal >= 50.0;
+                                  final Color dangerColor = isDark
+                                      ? const Color(0xFFF87171)
+                                      : const Color(0xFFDC2626);
+                                  final Color normalNumberColor = isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A);
+                                  final Color tempColor =
+                                      isDanger ? dangerColor : normalNumberColor;
+
+                                  return FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.baseline,
+                                      textBaseline: TextBaseline.alphabetic,
+                                      children: [
+                                        if (tempVal != null)
+                                          AnimatedCountingNumber(
+                                            number: tempVal,
+                                            fractionDigits:
+                                                tempStr.contains('.') ? 1 : 0,
+                                            style: TextStyle(
+                                              color: tempColor,
+                                              fontSize: 34,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: -1,
+                                              height: 1.0,
+                                            ),
+                                          )
+                                        else
+                                          Text(
+                                            tempStr,
+                                            style: TextStyle(
+                                              color: tempColor,
+                                              fontSize: 34,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: -1,
+                                              height: 1.0,
+                                            ),
+                                          ),
+                                        Text(
+                                          '°C',
+                                          style: TextStyle(
+                                            color: isDark
+                                                ? const Color(0xFF94A3B8)
+                                                : const Color(0xFF64748B),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        if (isDanger) ...[
+                                          const SizedBox(width: 6),
+                                          Icon(
+                                            Icons.warning_amber_rounded,
+                                            color: dangerColor,
+                                            size: 20,
+                                          )
+                                              .animate(
+                                                onPlay: (controller) =>
+                                                    controller.repeat(
+                                                  reverse: true,
+                                                ),
+                                              )
+                                              .scale(
+                                                begin: const Offset(0.9, 0.9),
+                                                end: const Offset(1.2, 1.2),
+                                                duration: 600.ms,
+                                              ),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 12),
+
+                      // Nhiệt độ ngoài trời
+                      Expanded(
+                        child: ZenLiquidGlass(
+                          blurSigma: 0,
+                          borderRadius: 20,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          surfaceColor: isDark
+                              ? Colors.white.withOpacity(0.10)
+                              : Colors.white.withOpacity(0.72),
+                          customBorder: isDark
+                              ? null
+                              : Border.all(
+                                  color: const Color(0xFFE2E8F0).withOpacity(0.85),
+                                  width: 0.9,
+                                ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.cloud_rounded,
+                                    color: Color(0xFF0EA5E9),
+                                    size: 16,
+                                  )
+                                      .animate(
+                                        onPlay: (controller) =>
+                                            controller.repeat(reverse: true),
+                                      )
+                                      .moveY(
+                                        begin: -1.5,
+                                        end: 1.5,
+                                        duration: 2200.ms,
+                                        curve: Curves.easeInOut,
+                                      ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      context.tr('temp_outdoor'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? const Color(0xFFCBD5E1)
+                                            : const Color(0xFF475569),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Builder(
+                                      builder: (context) {
+                                        final double? outVal =
+                                            double.tryParse(_outdoorTemp);
+                                        final Color outdoorNumberColor = isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A);
+
+                                        if (outVal != null) {
+                                          return AnimatedCountingNumber(
+                                            number: outVal,
+                                            fractionDigits:
+                                                _outdoorTemp.contains('.')
+                                                    ? 1
+                                                    : 0,
+                                            style: TextStyle(
+                                              color: outdoorNumberColor,
+                                              fontSize: 34,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: -1,
+                                              height: 1.0,
+                                            ),
+                                          );
+                                        }
+                                        return Text(
+                                          _outdoorTemp,
+                                          style: TextStyle(
+                                            color: outdoorNumberColor,
+                                            fontSize: 34,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: -1,
+                                            height: 1.0,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    Text(
+                                      '°C',
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

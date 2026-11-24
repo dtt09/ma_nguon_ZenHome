@@ -15,7 +15,7 @@ import '../theme/app_theme.dart';
 /// 5. Đồng bộ 100% với 6 Chủ Đề Zen Luxury (Dynamic ZenThemeColorsExtension)
 /// ============================================================================
 
-/// Painter vẽ viền kính vát 3D phản xạ ánh sáng theo góc nghiêng quang học
+/// Painter vẽ viền kính vát quang học sắc nét, mô phỏng ánh sáng phản xạ góc nghiêng
 class _ZenSpecularRimPainter extends CustomPainter {
   final double borderRadius;
   final double strokeWidth;
@@ -35,33 +35,35 @@ class _ZenSpecularRimPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
 
+    // Chuẩn viền quang học sắc nét (0.8px - 1.0px)
+    final effectiveStroke = strokeWidth.clamp(0.8, 1.0);
     final rect = Offset.zero & size;
     final rrect = RRect.fromRectAndRadius(
-      rect.deflate(strokeWidth / 2),
-      Radius.circular(math.max(0, borderRadius - strokeWidth / 2)),
+      rect.deflate(effectiveStroke / 2),
+      Radius.circular(math.max(0, borderRadius - effectiveStroke / 2)),
     );
 
     if (drawFullRim) {
+      // LinearGradient từ góc trên-trái (độ mờ 0.25 - 0.35) xuống góc dưới-phải (0.03 - 0.05)
+      // Loại bỏ hoàn toàn hiệu ứng neon chói lọi, mô phỏng khúc xạ viền kính tự nhiên
       final Color topLeftHighlight = glowColor != null
-          ? Color.lerp(Colors.white, glowColor!, isDark ? 0.35 : 0.22)!
-              .withOpacity(isDark ? 0.72 : 0.92)
-          : Colors.white.withOpacity(isDark ? 0.36 : 0.92);
+          ? Color.lerp(Colors.white, glowColor!, isDark ? 0.15 : 0.10)!
+              .withOpacity(isDark ? 0.28 : 0.34)
+          : Colors.white.withOpacity(isDark ? 0.28 : 0.34);
 
       final Color midEdge = glowColor != null
-          ? glowColor!.withOpacity(isDark ? 0.22 : 0.18)
-          : (isDark
-              ? Colors.white.withOpacity(0.07)
-              : const Color(0xFFCBD5E1).withOpacity(0.42));
+          ? Color.lerp(Colors.white, glowColor!, 0.08)!
+              .withOpacity(isDark ? 0.10 : 0.12)
+          : Colors.white.withOpacity(isDark ? 0.09 : 0.12);
 
       final Color bottomRightCaustic = glowColor != null
-          ? glowColor!.withOpacity(isDark ? 0.55 : 0.42)
-          : (isDark
-              ? Colors.white.withOpacity(0.16)
-              : const Color(0xFF94A3B8).withOpacity(0.45));
+          ? Color.lerp(Colors.white, glowColor!, 0.04)!
+              .withOpacity(isDark ? 0.03 : 0.05)
+          : Colors.white.withOpacity(isDark ? 0.03 : 0.04);
 
       final rimPaint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
+        ..strokeWidth = effectiveStroke
         ..shader = LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -76,18 +78,18 @@ class _ZenSpecularRimPainter extends CustomPainter {
       canvas.drawRRect(rrect, rimPaint);
     }
 
-    // Vệt sáng khúc xạ mép trên (Top Inner Prismatic Sheen)
+    // Vệt sáng khúc xạ mép trên (Top Inner Prismatic Sheen) - tinh tế, mảnh và sắc nét
     if (size.width > 28 && size.height > 20) {
-      final sheenInset = strokeWidth + 0.6;
+      final sheenInset = effectiveStroke + 0.5;
       final sheenWidth = (size.width - borderRadius * 1.4).clamp(12.0, size.width);
       final sheenLeft = (size.width - sheenWidth) / 2;
-      final sheenRect = Rect.fromLTWH(sheenLeft, sheenInset, sheenWidth, 1.2);
+      final sheenRect = Rect.fromLTWH(sheenLeft, sheenInset, sheenWidth, 1.0);
 
       final sheenPaint = Paint()
         ..shader = LinearGradient(
           colors: [
             Colors.white.withOpacity(0.0),
-            Colors.white.withOpacity(isDark ? 0.26 : 0.75),
+            Colors.white.withOpacity(isDark ? 0.18 : 0.32),
             Colors.white.withOpacity(0.0),
           ],
         ).createShader(sheenRect);
@@ -222,16 +224,16 @@ class _ZenAuroraMeshPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
 
-    // 1. Nền cơ sở chuẩn Sáng / Tối
+    // 1. Nền cơ sở chuẩn Sáng / Tối (Neutral obsidian slate, zero purple tint)
     final bgRect = Offset.zero & size;
     _reusableBasePaint.shader = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: isDark
           ? const [
-              Color(0xFF060913),
-              Color(0xFF0A1020),
-              Color(0xFF070B16),
+              Color(0xFF060911),
+              Color(0xFF0B101E),
+              Color(0xFF080D18),
             ]
           : const [
               Color(0xFFF4F7FB),
@@ -244,7 +246,7 @@ class _ZenAuroraMeshPainter extends CustomPainter {
     final double shortest = size.shortestSide;
     final double phase = progress * math.pi;
 
-    // 2. Quầng sáng Chủ đề Chính (Top-Left Aurora Orb)
+    // 2. Quầng sáng Chủ đề Chính (Top-Left Aurora Orb) - Dịu nhẹ & Tinh tế
     final Offset orb1Center = Offset(
       size.width * (0.16 + 0.12 * math.sin(phase)),
       size.height * (0.12 + 0.06 * math.cos(phase)),
@@ -254,12 +256,12 @@ class _ZenAuroraMeshPainter extends CustomPainter {
       center: orb1Center,
       radius: shortest * 0.78,
       color: primary,
-      opacity: (isDark ? 0.24 : 0.16) * intensity,
+      opacity: (isDark ? 0.12 : 0.08) * intensity,
     );
 
-    // 3. Quầng sáng Tương phản Phụ (Middle-Right Crystal Cyan/Violet Orb)
+    // 3. Quầng sáng Tương phản Phụ (Middle-Right Orb) - Khử bỏ ánh tím đục, dùng tông Cyan/Sky khúc xạ trong vắt
     final Color secondaryHue =
-        Color.lerp(accent, const Color(0xFF6366F1), isDark ? 0.42 : 0.30)!;
+        Color.lerp(accent, const Color(0xFF0EA5E9), isDark ? 0.35 : 0.25)!;
     final Offset orb2Center = Offset(
       size.width * (0.88 - 0.10 * math.cos(phase)),
       size.height * (0.42 + 0.08 * math.sin(phase * 0.8)),
@@ -269,12 +271,12 @@ class _ZenAuroraMeshPainter extends CustomPainter {
       center: orb2Center,
       radius: shortest * 0.72,
       color: secondaryHue,
-      opacity: (isDark ? 0.18 : 0.13) * intensity,
+      opacity: (isDark ? 0.09 : 0.06) * intensity,
     );
 
-    // 4. Quầng sáng Đáy Ấm/Dịu (Bottom-Left Ambient Glow)
+    // 4. Quầng sáng Đáy (Bottom-Left Ambient Glow) - Tinh tế, mềm mại
     final Color tertiaryHue =
-        Color.lerp(accent, const Color(0xFF0EA5E9), 0.45)!;
+        Color.lerp(accent, const Color(0xFF0284C7), 0.35)!;
     final Offset orb3Center = Offset(
       size.width * (0.25 + 0.14 * math.cos(phase * 0.7)),
       size.height * (0.84 - 0.06 * math.sin(phase)),
@@ -284,7 +286,7 @@ class _ZenAuroraMeshPainter extends CustomPainter {
       center: orb3Center,
       radius: shortest * 0.76,
       color: tertiaryHue,
-      opacity: (isDark ? 0.17 : 0.12) * intensity,
+      opacity: (isDark ? 0.08 : 0.05) * intensity,
     );
   }
 
@@ -319,6 +321,7 @@ class _ZenAuroraMeshPainter extends CustomPainter {
 }
 
 /// 1. Widget Kính Lỏng Cốt Lõi (Core Frosted Glass 2.0 Component)
+/// Hỗ trợ Hybrid Architecture: Chế độ Lightweight (blurSigma: 0) chạy 60/120 FPS không tốn BackdropFilter
 class ZenLiquidGlass extends StatelessWidget {
   final Widget child;
   final double borderRadius;
@@ -337,6 +340,7 @@ class ZenLiquidGlass extends StatelessWidget {
   final VoidCallback? onLongPress;
   final bool enableSpecularRim;
   final double rimWidth;
+  final bool isLightweight;
 
   const ZenLiquidGlass({
     super.key,
@@ -349,43 +353,91 @@ class ZenLiquidGlass extends StatelessWidget {
     this.alignment,
     this.surfaceColor,
     this.glowColor,
-    this.blurSigma = 18.0,
+    this.blurSigma = 14.0,
     this.customBorder,
     this.customGradient,
     this.customShadows,
     this.onTap,
     this.onLongPress,
     this.enableSpecularRim = true,
-    this.rimWidth = 1.2,
+    this.rimWidth = 0.9,
+    this.isLightweight = false,
   });
+
+  /// Chế độ kính siêu nhẹ (Lightweight) chuyên dụng cho danh sách cuộn 60/120 FPS
+  const ZenLiquidGlass.lightweight({
+    super.key,
+    required this.child,
+    this.borderRadius = 24.0,
+    this.padding,
+    this.margin,
+    this.width,
+    this.height,
+    this.alignment,
+    this.surfaceColor,
+    this.glowColor,
+    this.customBorder,
+    this.customGradient,
+    this.customShadows,
+    this.onTap,
+    this.onLongPress,
+    this.enableSpecularRim = true,
+    this.rimWidth = 0.9,
+  })  : isLightweight = true,
+        blurSigma = 0.0;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool effectiveLightweight = isLightweight || blurSigma <= 0;
 
-    // Nước kính lỏng quang học trong trẻo, cho phép ánh sáng cực quang xuyên qua
+    // Nước kính lỏng quang học trong trẻo:
+    // Dark Mode: Translucent slate/grey sạch (độ mờ 0.15 - 0.25), loại bỏ hoàn toàn sắc tím đục
+    // Light Mode: Translucent white sạch (độ mờ 0.55 - 0.70) tương phản cao
     final effectiveSurface = surfaceColor ??
         (isDark
-            ? const Color(0xFF0E1628).withOpacity(0.56)
-            : Colors.white.withOpacity(0.68));
+            ? (effectiveLightweight
+                ? const Color(0xFF0F172A).withOpacity(0.24)
+                : const Color(0xFF0F172A).withOpacity(0.18))
+            : (effectiveLightweight
+                ? Colors.white.withOpacity(0.68)
+                : Colors.white.withOpacity(0.62)));
 
-    // Bóng đổ quang học đa tầng (Multi-tier Ambient & Caustic Shadows)
+    // Bóng đổ quang học thanh lịch, loại bỏ hoàn toàn viền neon thô
     final effectiveShadows = customShadows ??
         [
           if (glowColor != null)
             BoxShadow(
-              color: glowColor!.withOpacity(isDark ? 0.25 : 0.15),
-              blurRadius: 24,
+              color: glowColor!.withOpacity(isDark ? 0.12 : 0.06),
+              blurRadius: 14,
               spreadRadius: 0,
-              offset: const Offset(0, 6),
+              offset: const Offset(0, 4),
             ),
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.34 : 0.06),
-            blurRadius: 24,
+            color: Colors.black.withOpacity(isDark ? 0.20 : 0.04),
+            blurRadius: 16,
             spreadRadius: 0,
-            offset: const Offset(0, 8),
+            offset: const Offset(0, 4),
           ),
         ];
+
+    final effectiveGradient = customGradient ??
+        LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          stops: const [0.0, 0.45, 1.0],
+          colors: isDark
+              ? [
+                  Colors.white.withOpacity(0.08),
+                  Colors.white.withOpacity(0.02),
+                  (glowColor ?? Colors.white).withOpacity(0.02),
+                ]
+              : [
+                  Colors.white.withOpacity(0.35),
+                  Colors.white.withOpacity(0.12),
+                  (glowColor ?? Colors.white).withOpacity(0.06),
+                ],
+        );
 
     Widget body = Container(
       width: width,
@@ -396,23 +448,7 @@ class ZenLiquidGlass extends StatelessWidget {
         color: effectiveSurface,
         borderRadius: BorderRadius.circular(borderRadius),
         border: customBorder,
-        gradient: customGradient ??
-            LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              stops: const [0.0, 0.45, 1.0],
-              colors: isDark
-                  ? [
-                      Colors.white.withOpacity(0.12),
-                      Colors.white.withOpacity(0.03),
-                      (glowColor ?? Colors.white).withOpacity(0.04),
-                    ]
-                  : [
-                      Colors.white.withOpacity(0.78),
-                      Colors.white.withOpacity(0.38),
-                      (glowColor ?? Colors.white).withOpacity(0.24),
-                    ],
-            ),
+        gradient: effectiveGradient,
       ),
       child: child,
     );
@@ -430,8 +466,9 @@ class ZenLiquidGlass extends StatelessWidget {
       );
     }
 
-    // Tối ưu hóa GPU: Chỉ gắn BackdropFilter khi blurSigma > 0
-    if (blurSigma > 0) {
+    // Hybrid Architecture for 60/120fps:
+    // Tuyệt đối không cấp phát BackdropFilter khi blurSigma <= 0 hoặc ở chế độ lightweight
+    if (!effectiveLightweight && blurSigma > 0) {
       body = BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
         child: body,
@@ -456,8 +493,8 @@ class ZenLiquidGlass extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(borderRadius),
           splashColor: (glowColor ?? context.zenColors.primary)
-              .withOpacity(isDark ? 0.16 : 0.10),
-          highlightColor: Colors.white.withOpacity(isDark ? 0.05 : 0.15),
+              .withOpacity(isDark ? 0.14 : 0.08),
+          highlightColor: Colors.white.withOpacity(isDark ? 0.04 : 0.12),
           onTap: onTap,
           onLongPress: onLongPress,
           child: glassContainer,
@@ -471,6 +508,7 @@ class ZenLiquidGlass extends StatelessWidget {
 
 /// 2. Thẻ Kính Chuyên Dụng (Zen Glass Card 2.0)
 /// Dành cho Thẻ Thiết Bị, Thẻ Ngữ Cảnh, Thẻ Cài Đặt, Thẻ Thông Báo
+/// Tích hợp Hybrid Architecture: Hỗ trợ isLightweight hoặc blurSigma = 0 để đạt 120 FPS trong danh sách cuộn
 class ZenGlassCard extends StatelessWidget {
   final Widget child;
   final double borderRadius;
@@ -484,6 +522,7 @@ class ZenGlassCard extends StatelessWidget {
   final BoxBorder? border;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final bool isLightweight;
 
   const ZenGlassCard({
     super.key,
@@ -495,27 +534,47 @@ class ZenGlassCard extends StatelessWidget {
     this.height,
     this.glowColor,
     this.isActive = false,
-    this.blurSigma = 16.0,
+    this.blurSigma = 14.0,
     this.border,
     this.onTap,
     this.onLongPress,
+    this.isLightweight = false,
   });
+
+  /// Constructor Lightweight tối ưu hóa tuyệt đối cho ListView / GridView cuộn nhanh 60/120 FPS
+  const ZenGlassCard.lightweight({
+    super.key,
+    required this.child,
+    this.borderRadius = 24.0,
+    this.padding = const EdgeInsets.all(16.0),
+    this.margin,
+    this.width,
+    this.height,
+    this.glowColor,
+    this.isActive = false,
+    this.border,
+    this.onTap,
+    this.onLongPress,
+  })  : isLightweight = true,
+        blurSigma = 0.0;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final zen = context.zenColors;
+    final bool effectiveLightweight = isLightweight || blurSigma <= 0;
 
     final Color effectiveGlow =
         glowColor ?? (isDark ? zen.primaryAccent : zen.primary);
 
+    // Bề mặt kính quang học tinh khiết: 0.15 - 0.25 (Dark Mode), 0.55 - 0.70 (Light Mode)
     final Color surface = isActive
         ? (isDark
-            ? const Color(0xFF0F172A).withOpacity(0.62)
-            : Colors.white.withOpacity(0.78))
+            ? const Color(0xFF0F172A).withOpacity(effectiveLightweight ? 0.24 : 0.20)
+            : Colors.white.withOpacity(effectiveLightweight ? 0.70 : 0.65))
         : (isDark
-            ? const Color(0xFF0E1628).withOpacity(0.48)
-            : Colors.white.withOpacity(0.64));
+            ? const Color(0xFF0F172A).withOpacity(effectiveLightweight ? 0.20 : 0.16)
+            : Colors.white.withOpacity(effectiveLightweight ? 0.64 : 0.58));
 
     final Gradient gradient = LinearGradient(
       begin: Alignment.topLeft,
@@ -523,41 +582,41 @@ class ZenGlassCard extends StatelessWidget {
       colors: isActive
           ? (isDark
               ? [
-                  effectiveGlow.withOpacity(0.24),
-                  effectiveGlow.withOpacity(0.07),
-                  const Color(0xFF0F172A).withOpacity(0.45),
+                  effectiveGlow.withOpacity(0.12),
+                  effectiveGlow.withOpacity(0.04),
+                  Colors.white.withOpacity(0.02),
                 ]
               : [
-                  effectiveGlow.withOpacity(0.16),
-                  Colors.white.withOpacity(0.84),
-                  Colors.white.withOpacity(0.66),
+                  effectiveGlow.withOpacity(0.08),
+                  Colors.white.withOpacity(0.40),
+                  Colors.white.withOpacity(0.15),
                 ])
           : (isDark
               ? [
-                  Colors.white.withOpacity(0.10),
-                  Colors.white.withOpacity(0.03),
-                  Colors.white.withOpacity(0.01),
+                  Colors.white.withOpacity(0.07),
+                  Colors.white.withOpacity(0.02),
+                  Colors.transparent,
                 ]
               : [
-                  Colors.white.withOpacity(0.76),
-                  Colors.white.withOpacity(0.45),
-                  Colors.white.withOpacity(0.30),
+                  Colors.white.withOpacity(0.35),
+                  Colors.white.withOpacity(0.14),
+                  Colors.white.withOpacity(0.05),
                 ]),
     );
 
     final List<BoxShadow> shadows = [
       if (isActive)
         BoxShadow(
-          color: effectiveGlow.withOpacity(isDark ? 0.28 : 0.16),
-          blurRadius: 20,
+          color: effectiveGlow.withOpacity(isDark ? 0.14 : 0.08),
+          blurRadius: 14,
           spreadRadius: 0,
-          offset: const Offset(0, 6),
+          offset: const Offset(0, 4),
         ),
       BoxShadow(
-        color: Colors.black.withOpacity(isDark ? 0.28 : 0.05),
-        blurRadius: 18,
+        color: Colors.black.withOpacity(isDark ? 0.18 : 0.04),
+        blurRadius: 12,
         spreadRadius: 0,
-        offset: const Offset(0, 6),
+        offset: const Offset(0, 3),
       ),
     ];
 
@@ -569,9 +628,10 @@ class ZenGlassCard extends StatelessWidget {
       height: height,
       surfaceColor: surface,
       glowColor: isActive ? effectiveGlow : null,
-      blurSigma: blurSigma,
+      blurSigma: effectiveLightweight ? 0.0 : blurSigma,
+      isLightweight: effectiveLightweight,
       customBorder: border,
-      rimWidth: isActive ? 1.45 : 1.15,
+      rimWidth: isActive ? 1.0 : 0.85,
       customGradient: gradient,
       customShadows: shadows,
       onTap: onTap,
@@ -594,6 +654,7 @@ class ZenGlassPill extends StatelessWidget {
   final double blurSigma;
   final Gradient? customGradient;
   final VoidCallback? onTap;
+  final bool isLightweight;
 
   const ZenGlassPill({
     super.key,
@@ -607,31 +668,48 @@ class ZenGlassPill extends StatelessWidget {
     this.blurSigma = 14.0,
     this.customGradient,
     this.onTap,
+    this.isLightweight = false,
   });
+
+  /// Chế độ siêu nhẹ cho filter chips cuộn nhanh
+  const ZenGlassPill.lightweight({
+    super.key,
+    required this.child,
+    this.borderRadius = 22.0,
+    this.padding = const EdgeInsets.symmetric(horizontal: 14.0, vertical: 7.0),
+    this.margin,
+    this.color,
+    this.glowColor,
+    this.isSelected = false,
+    this.customGradient,
+    this.onTap,
+  })  : isLightweight = true,
+        blurSigma = 0.0;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final zen = context.zenColors;
     final Color activeColor = glowColor ?? color ?? zen.primary;
+    final bool effectiveLightweight = isLightweight || blurSigma <= 0;
 
     final Color surface = isSelected
-        ? activeColor.withOpacity(isDark ? 0.28 : 0.18)
+        ? activeColor.withOpacity(isDark ? 0.22 : 0.16)
         : (isDark
-            ? Colors.white.withOpacity(0.07)
-            : Colors.white.withOpacity(0.62));
+            ? const Color(0xFF0F172A).withOpacity(effectiveLightweight ? 0.24 : 0.18)
+            : Colors.white.withOpacity(effectiveLightweight ? 0.68 : 0.60));
 
     final List<BoxShadow> shadows = [
       if (isSelected)
         BoxShadow(
-          color: activeColor.withOpacity(isDark ? 0.32 : 0.20),
-          blurRadius: 12,
+          color: activeColor.withOpacity(isDark ? 0.20 : 0.12),
+          blurRadius: 10,
           spreadRadius: 0,
-          offset: const Offset(0, 3),
+          offset: const Offset(0, 2),
         ),
       BoxShadow(
-        color: Colors.black.withOpacity(isDark ? 0.16 : 0.04),
-        blurRadius: 8,
+        color: Colors.black.withOpacity(isDark ? 0.14 : 0.03),
+        blurRadius: 6,
         spreadRadius: 0,
         offset: const Offset(0, 2),
       ),
@@ -644,8 +722,9 @@ class ZenGlassPill extends StatelessWidget {
       surfaceColor: customGradient != null && isSelected ? null : surface,
       customGradient: customGradient,
       glowColor: isSelected ? activeColor : null,
-      blurSigma: blurSigma,
-      rimWidth: isSelected ? 1.35 : 1.05,
+      blurSigma: effectiveLightweight ? 0.0 : blurSigma,
+      isLightweight: effectiveLightweight,
+      rimWidth: isSelected ? 1.0 : 0.85,
       customShadows: shadows,
       onTap: onTap,
       child: child,
@@ -662,6 +741,7 @@ class ZenGlassContainer extends StatelessWidget {
   final EdgeInsetsGeometry margin;
   final Color? glowColor;
   final double blurSigma;
+  final bool isLightweight;
 
   const ZenGlassContainer({
     super.key,
@@ -670,30 +750,42 @@ class ZenGlassContainer extends StatelessWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
     this.margin = const EdgeInsets.symmetric(horizontal: 18.0, vertical: 16.0),
     this.glowColor,
-    this.blurSigma = 26.0,
+    this.blurSigma = 16.0,
+    this.isLightweight = false,
   });
+
+  const ZenGlassContainer.lightweight({
+    super.key,
+    required this.child,
+    this.borderRadius = 32.0,
+    this.padding = const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+    this.margin = const EdgeInsets.symmetric(horizontal: 18.0, vertical: 16.0),
+    this.glowColor,
+  })  : isLightweight = true,
+        blurSigma = 0.0;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool effectiveLightweight = isLightweight || blurSigma <= 0;
 
     final Color surface = isDark
-        ? const Color(0xFF0B1222).withOpacity(0.68)
-        : Colors.white.withOpacity(0.76);
+        ? const Color(0xFF0F172A).withOpacity(effectiveLightweight ? 0.28 : 0.22)
+        : Colors.white.withOpacity(effectiveLightweight ? 0.72 : 0.65);
 
     final List<BoxShadow> shadows = [
       if (glowColor != null)
         BoxShadow(
-          color: glowColor!.withOpacity(isDark ? 0.24 : 0.14),
-          blurRadius: 26,
+          color: glowColor!.withOpacity(isDark ? 0.14 : 0.08),
+          blurRadius: 18,
           spreadRadius: 0,
-          offset: const Offset(0, 6),
+          offset: const Offset(0, 4),
         ),
       BoxShadow(
-        color: Colors.black.withOpacity(isDark ? 0.45 : 0.09),
-        blurRadius: 30,
+        color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
+        blurRadius: 20,
         spreadRadius: 0,
-        offset: const Offset(0, 10),
+        offset: const Offset(0, 6),
       ),
     ];
 
@@ -703,8 +795,9 @@ class ZenGlassContainer extends StatelessWidget {
       margin: margin,
       surfaceColor: surface,
       glowColor: glowColor,
-      blurSigma: blurSigma,
-      rimWidth: 1.3,
+      blurSigma: effectiveLightweight ? 0.0 : blurSigma,
+      isLightweight: effectiveLightweight,
+      rimWidth: 0.95,
       customShadows: shadows,
       child: child,
     );
@@ -757,7 +850,7 @@ class ZenGlassSegmentedBar<T> extends StatelessWidget {
     this.borderRadius = 28.0,
     this.margin = const EdgeInsets.symmetric(horizontal: 0.0, vertical: 6.0),
     this.padding = const EdgeInsets.all(4.0),
-    this.blurSigma = 18.0,
+    this.blurSigma = 14.0,
     this.glowColor,
     this.activeGradient,
   });
@@ -814,15 +907,15 @@ class ZenGlassSegmentedBar<T> extends StatelessWidget {
                             math.max(12.0, borderRadius - 6.0),
                           ),
                           border: Border.all(
-                            color: Colors.white.withOpacity(isDark ? 0.42 : 0.65),
-                            width: 1.2,
+                            color: Colors.white.withOpacity(isDark ? 0.35 : 0.60),
+                            width: 1.0,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: effectiveGlow.withOpacity(isDark ? 0.38 : 0.22),
-                              blurRadius: 14,
+                              color: effectiveGlow.withOpacity(isDark ? 0.22 : 0.14),
+                              blurRadius: 10,
                               spreadRadius: 0,
-                              offset: const Offset(0, 3),
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
@@ -951,7 +1044,7 @@ class ZenGlassScrollableFilterBar<T> extends StatelessWidget {
     this.height = 46.0,
     this.padding = const EdgeInsets.symmetric(horizontal: 16.0),
     this.borderRadius = 22.0,
-    this.blurSigma = 18.0,
+    this.blurSigma = 14.0,
     this.showOuterContainer = false,
   });
 
@@ -993,6 +1086,7 @@ class ZenGlassScrollableFilterBar<T> extends StatelessWidget {
                 isSelected: isSelected,
                 glowColor: itemColor,
                 blurSigma: 0, // Tối ưu GPU: 0 blur trên từng chip để đạt 120 FPS khi cuộn!
+                isLightweight: true,
                 customGradient: isSelected ? activeGradient : null,
                 borderRadius: borderRadius,
                 padding: const EdgeInsets.symmetric(
@@ -1101,6 +1195,7 @@ class ZenGlassIconButton extends StatelessWidget {
   final Color? glowColor;
   final String? tooltip;
   final double blurSigma;
+  final bool isLightweight;
 
   const ZenGlassIconButton({
     super.key,
@@ -1113,28 +1208,45 @@ class ZenGlassIconButton extends StatelessWidget {
     this.glowColor,
     this.tooltip,
     this.blurSigma = 14.0,
+    this.isLightweight = false,
   });
+
+  const ZenGlassIconButton.lightweight({
+    super.key,
+    required this.icon,
+    this.onTap,
+    this.size = 40.0,
+    this.iconSize = 20.0,
+    this.borderRadius = 14.0,
+    this.iconColor,
+    this.glowColor,
+    this.tooltip,
+  })  : isLightweight = true,
+        blurSigma = 0.0;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final effectiveIconColor =
         iconColor ?? (isDark ? AppColors.darkText : AppColors.lightText);
+    final bool effectiveLightweight = isLightweight || blurSigma <= 0;
 
     Widget btn = ZenLiquidGlass(
       width: size,
       height: size,
       borderRadius: borderRadius,
-      blurSigma: blurSigma,
+      blurSigma: effectiveLightweight ? 0.0 : blurSigma,
+      isLightweight: effectiveLightweight,
       glowColor: glowColor,
+      rimWidth: 0.85,
       surfaceColor: isDark
-          ? Colors.white.withOpacity(0.08)
-          : Colors.white.withOpacity(0.68),
+          ? const Color(0xFF0F172A).withOpacity(effectiveLightweight ? 0.22 : 0.18)
+          : Colors.white.withOpacity(effectiveLightweight ? 0.68 : 0.62),
       customShadows: [
         BoxShadow(
-          color: Colors.black.withOpacity(isDark ? 0.22 : 0.05),
-          blurRadius: 10,
-          offset: const Offset(0, 3),
+          color: Colors.black.withOpacity(isDark ? 0.16 : 0.03),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
         ),
       ],
       onTap: onTap != null
@@ -1178,7 +1290,7 @@ class ZenGlassAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onBack,
     this.bottom,
     this.toolbarHeight = 60.0,
-    this.blurSigma = 22.0,
+    this.blurSigma = 16.0,
   });
 
   @override
@@ -1226,14 +1338,14 @@ class ZenGlassAppBar extends StatelessWidget implements PreferredSizeWidget {
         child: Container(
           decoration: BoxDecoration(
             color: isDark
-                ? const Color(0xFF080D1A).withOpacity(0.56)
-                : Colors.white.withOpacity(0.66),
+                ? const Color(0xFF0B101E).withOpacity(0.45)
+                : Colors.white.withOpacity(0.68),
             border: Border(
               bottom: BorderSide(
                 color: isDark
-                    ? Colors.white.withOpacity(0.10)
-                    : const Color(0xFFCBD5E1).withOpacity(0.65),
-                width: 1.0,
+                    ? Colors.white.withOpacity(0.12)
+                    : const Color(0xFFCBD5E1).withOpacity(0.55),
+                width: 0.9,
               ),
             ),
           ),
@@ -1310,6 +1422,7 @@ class ZenGlassScaffold extends StatelessWidget {
 }
 
 /// 8. Nút Bấm Kính Lỏng & Phát Quang (Zen Glass Button)
+/// Cung cấp first-class support cho lightweight rendering
 class ZenGlassButton extends StatelessWidget {
   final String label;
   final IconData? icon;
@@ -1322,6 +1435,7 @@ class ZenGlassButton extends StatelessWidget {
   final Color? accentColor;
   final double? width;
   final double? height;
+  final bool isLightweight;
 
   const ZenGlassButton({
     super.key,
@@ -1336,7 +1450,23 @@ class ZenGlassButton extends StatelessWidget {
     this.accentColor,
     this.width,
     this.height,
+    this.isLightweight = true,
   });
+
+  const ZenGlassButton.lightweight({
+    super.key,
+    required this.label,
+    this.icon,
+    this.onPressed,
+    this.isPrimary = true,
+    this.isDanger = false,
+    this.isLoading = false,
+    this.borderRadius = 16.0,
+    this.padding = const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+    this.accentColor,
+    this.width,
+    this.height,
+  }) : isLightweight = true;
 
   @override
   Widget build(BuildContext context) {
@@ -1374,28 +1504,29 @@ class ZenGlassButton extends StatelessWidget {
         height: height,
         borderRadius: borderRadius,
         padding: padding,
-        blurSigma: 0,
+        blurSigma: isLightweight ? 0 : 12.0,
+        isLightweight: isLightweight,
         glowColor: isPrimary ? baseColor : null,
         surfaceColor: isPrimary
             ? baseColor.withOpacity(0.90)
             : (isDark
-                ? Colors.white.withOpacity(0.08)
-                : Colors.white.withOpacity(0.72)),
+                ? const Color(0xFF0F172A).withOpacity(0.22)
+                : Colors.white.withOpacity(0.68)),
         customGradient: gradient,
-        rimWidth: isPrimary ? 1.3 : 1.1,
+        rimWidth: isPrimary ? 1.0 : 0.85,
         customShadows: isPrimary
             ? [
                 BoxShadow(
-                  color: baseColor.withOpacity(isDark ? 0.36 : 0.24),
-                  blurRadius: 16,
-                  offset: const Offset(0, 5),
+                  color: baseColor.withOpacity(isDark ? 0.22 : 0.14),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ]
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.18 : 0.04),
+                  color: Colors.black.withOpacity(isDark ? 0.15 : 0.03),
                   blurRadius: 8,
-                  offset: const Offset(0, 3),
+                  offset: const Offset(0, 2),
                 ),
               ],
         onTap: isLoading ? null : onPressed,
@@ -1467,10 +1598,11 @@ InputDecoration zenGlassInputDecoration(
     labelStyle: TextStyle(
       color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
       fontSize: 14,
+      fontWeight: FontWeight.w500,
     ),
     hintStyle: TextStyle(
       color: (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted)
-          .withOpacity(0.75),
+          .withOpacity(0.85),
       fontSize: 14,
     ),
     prefixIcon: prefixIcon != null
@@ -1483,7 +1615,7 @@ InputDecoration zenGlassInputDecoration(
     suffixIcon: suffixIcon,
     filled: true,
     fillColor: isDark
-        ? Colors.white.withOpacity(0.06)
+        ? const Color(0xFF0F172A).withOpacity(0.20)
         : Colors.white.withOpacity(0.68),
     contentPadding: contentPadding ??
         const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
@@ -1492,8 +1624,8 @@ InputDecoration zenGlassInputDecoration(
       borderSide: BorderSide(
         color: isDark
             ? Colors.white.withOpacity(0.14)
-            : const Color(0xFFCBD5E1).withOpacity(0.75),
-        width: 1.1,
+            : const Color(0xFFCBD5E1).withOpacity(0.80),
+        width: 1.0,
       ),
     ),
     focusedBorder: OutlineInputBorder(
@@ -1556,22 +1688,22 @@ class ZenGlassDialogSurface extends StatelessWidget {
       constraints: BoxConstraints(maxWidth: maxWidth),
       child: ZenLiquidGlass(
         borderRadius: borderRadius,
-        blurSigma: 24.0,
+        blurSigma: 16.0,
         glowColor: glow,
-        rimWidth: 1.35,
+        rimWidth: 1.0,
         surfaceColor: isDark
-            ? const Color(0xFF0C1426).withOpacity(0.74)
-            : Colors.white.withOpacity(0.82),
+            ? const Color(0xFF0B101E).withOpacity(0.45)
+            : Colors.white.withOpacity(0.75),
         customShadows: [
           BoxShadow(
-            color: glow.withOpacity(isDark ? 0.22 : 0.14),
-            blurRadius: 32,
-            offset: const Offset(0, 10),
+            color: glow.withOpacity(isDark ? 0.14 : 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.55 : 0.14),
-            blurRadius: 36,
-            offset: const Offset(0, 14),
+            color: Colors.black.withOpacity(isDark ? 0.35 : 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
         ],
         child: Stack(
@@ -1588,7 +1720,7 @@ class ZenGlassDialogSurface extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        glow.withOpacity(isDark ? 0.26 : 0.18),
+                        glow.withOpacity(isDark ? 0.18 : 0.12),
                         glow.withOpacity(0.0),
                       ],
                     ),
@@ -1823,17 +1955,17 @@ class _ZenGlassPopupRoute<T> extends PopupRoute<T> {
                 color: Colors.transparent,
                 child: ZenLiquidGlass(
                   borderRadius: 20,
-                  blurSigma: 24,
-                  rimWidth: 1.3,
+                  blurSigma: 16,
+                  rimWidth: 0.95,
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   surfaceColor: isDark
-                      ? const Color(0xFF0D1528).withOpacity(0.78)
-                      : Colors.white.withOpacity(0.84),
+                      ? const Color(0xFF0B101E).withOpacity(0.48)
+                      : Colors.white.withOpacity(0.80),
                   customShadows: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.48 : 0.14),
-                      blurRadius: 28,
-                      offset: const Offset(0, 10),
+                      color: Colors.black.withOpacity(isDark ? 0.28 : 0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                   child: Column(
@@ -1958,13 +2090,13 @@ Future<T?> showZenGlassBottomSheet<T>({
     elevation: 0,
     builder: (ctx) {
       final Color sheetSurface = isDark
-          ? const Color(0xFF0C1426).withOpacity(0.78)
-          : Colors.white.withOpacity(0.84);
+          ? const Color(0xFF0B101E).withOpacity(0.48)
+          : Colors.white.withOpacity(0.80);
 
       Widget sheet = ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(ctx).size.height * maxHeightFactor,
@@ -1978,44 +2110,44 @@ Future<T?> showZenGlassBottomSheet<T>({
                 end: Alignment.bottomCenter,
                 colors: isDark
                     ? [
-                        glow.withOpacity(0.10),
-                        const Color(0xFF0C1426).withOpacity(0.78),
+                        glow.withOpacity(0.06),
+                        const Color(0xFF0B101E).withOpacity(0.48),
                       ]
                     : [
-                        Colors.white.withOpacity(0.90),
-                        Colors.white.withOpacity(0.80),
+                        Colors.white.withOpacity(0.88),
+                        Colors.white.withOpacity(0.78),
                       ],
               ),
               border: Border(
                 top: BorderSide(
                   color: isDark
-                      ? Colors.white.withOpacity(0.24)
-                      : Colors.white.withOpacity(0.95),
-                  width: 1.4,
+                      ? Colors.white.withOpacity(0.28)
+                      : Colors.white.withOpacity(0.90),
+                  width: 1.0,
                 ),
                 left: BorderSide(
                   color: isDark
                       ? Colors.white.withOpacity(0.08)
                       : const Color(0xFFE2E8F0),
-                  width: 1.0,
+                  width: 0.8,
                 ),
                 right: BorderSide(
                   color: isDark
                       ? Colors.white.withOpacity(0.08)
                       : const Color(0xFFE2E8F0),
-                  width: 1.0,
+                  width: 0.8,
                 ),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: glow.withOpacity(isDark ? 0.16 : 0.08),
-                  blurRadius: 30,
-                  offset: const Offset(0, -6),
+                  color: glow.withOpacity(isDark ? 0.10 : 0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, -4),
                 ),
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.55 : 0.16),
-                  blurRadius: 36,
-                  offset: const Offset(0, -8),
+                  color: Colors.black.withOpacity(isDark ? 0.35 : 0.08),
+                  blurRadius: 24,
+                  offset: const Offset(0, -6),
                 ),
               ],
             ),

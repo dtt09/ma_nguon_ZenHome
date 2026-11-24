@@ -576,17 +576,17 @@ class AppColors {
   static const Color lightBg = Color(0xFFF6F8FC);          // Warm Alabaster Silk
   static const Color lightCard = Color(0xFFFFFFFF);        // Pure Crisp White
   static const Color lightCardElevated = Color(0xFFF1F5F9);// Subtle Layer Card
-  static const Color lightCardBorder = Color(0xFFE2E8F0);  // Sharp Defined Border
-  static const Color lightText = Color(0xFF0B132B);        // Deep Slate Black
-  static const Color lightTextMuted = Color(0xFF64748B);   // Readable Slate Muted
+  static const Color lightCardBorder = Color(0xFFCBD5E1);  // High-Contrast Sharp Defined Border (Slate 300)
+  static const Color lightText = Color(0xFF0F172A);        // Slate 900 - High-Contrast Deep Black
+  static const Color lightTextMuted = Color(0xFF475569);   // Slate 600 - WCAG AAA Compliant Readable Muted Text
 
-  // Dark Mode Surfaces (Deep Obsidian Titanium - True Zero Haze)
+  // Dark Mode Surfaces (Deep Obsidian Titanium - Clean Slate Grey, Zero Purple Haze)
   static const Color darkBg = Color(0xFF070A12);          // Deep Obsidian Night
   static const Color darkCard = Color(0xFF0F1626);        // Titanium Surface
   static const Color darkCardElevated = Color(0xFF162035);// Higher Layer Floating Card
-  static const Color darkCardBorder = Color(0x2E38BDF8);   // Micro-Reflective Tech Border
-  static const Color darkText = Color(0xFFF8FAFC);        // Crisp High-Readability Text
-  static const Color darkTextMuted = Color(0xFF94A3B8);   // Soft Silver Muted
+  static const Color darkCardBorder = Color(0x33FFFFFF);   // Clean Crisp Refractive Specular Tech Border
+  static const Color darkText = Color(0xFFF8FAFC);        // Slate 50 - Crisp High-Readability Text
+  static const Color darkTextMuted = Color(0xFF94A3B8);   // Slate 400 - Clear Readable Silver Muted Text
 
   // Luxury Ambient Gradients
   static const LinearGradient brandHero = LinearGradient(
@@ -654,11 +654,45 @@ class AppTheme {
         seedColor: cfg.primary,
         brightness: Brightness.light,
         primary: cfg.primary,
+        onPrimary: Colors.white,
+        primaryContainer: cfg.primaryLight.withOpacity(0.16),
+        onPrimaryContainer: cfg.primaryDark,
         secondary: cfg.primaryLight,
+        onSecondary: Colors.white,
         surface: AppColors.lightCard,
+        onSurface: AppColors.lightText,
+        onSurfaceVariant: AppColors.lightTextMuted,
+        outline: AppColors.lightCardBorder,
+        outlineVariant: const Color(0xFFE2E8F0),
         error: cfg.danger,
+        onError: Colors.white,
       ),
       fontFamily: 'Roboto',
+      iconTheme: const IconThemeData(
+        color: AppColors.lightText,
+        size: 24,
+      ),
+      primaryIconTheme: const IconThemeData(
+        color: AppColors.lightText,
+        size: 24,
+      ),
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.bold),
+        displayMedium: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.bold),
+        displaySmall: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.bold),
+        headlineLarge: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.w700),
+        headlineMedium: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.w700),
+        headlineSmall: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.w600),
+        titleLarge: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.w600),
+        titleMedium: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.w600),
+        titleSmall: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.w500),
+        bodyLarge: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.normal),
+        bodyMedium: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.normal),
+        bodySmall: TextStyle(color: AppColors.lightTextMuted, fontWeight: FontWeight.normal),
+        labelLarge: TextStyle(color: AppColors.lightText, fontWeight: FontWeight.w600),
+        labelMedium: TextStyle(color: AppColors.lightTextMuted, fontWeight: FontWeight.w500),
+        labelSmall: TextStyle(color: AppColors.lightTextMuted, fontWeight: FontWeight.w500),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -676,7 +710,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: const BorderSide(color: AppColors.lightCardBorder, width: 1.2),
+          side: const BorderSide(color: AppColors.lightCardBorder, width: 1.0),
         ),
       ),
       dividerTheme: const DividerThemeData(
@@ -684,18 +718,27 @@ class AppTheme {
         thickness: 1,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: Colors.white.withOpacity(0.88),
+        backgroundColor: Colors.white.withOpacity(0.92),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        titleTextStyle: const TextStyle(
+          color: AppColors.lightText,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+        contentTextStyle: const TextStyle(
+          color: AppColors.lightText,
+          fontSize: 14,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
-          side: BorderSide(color: Colors.white.withOpacity(0.9), width: 1.2),
+          side: BorderSide(color: Colors.white.withOpacity(0.9), width: 1.0),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: Colors.white.withOpacity(0.90),
+        color: Colors.white.withOpacity(0.92),
         surfaceTintColor: Colors.transparent,
-        elevation: 10,
+        elevation: 8,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: AppColors.lightCardBorder, width: 1.0),
@@ -708,7 +751,8 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF0F172A).withOpacity(0.86),
+        backgroundColor: const Color(0xFF0F172A).withOpacity(0.92),
+        contentTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
       extensions: [
@@ -750,11 +794,45 @@ class AppTheme {
         seedColor: cfg.primaryLight,
         brightness: Brightness.dark,
         primary: cfg.primaryLight,
+        onPrimary: const Color(0xFF070A12),
+        primaryContainer: cfg.primaryDark.withOpacity(0.40),
+        onPrimaryContainer: cfg.primaryAccent,
         secondary: cfg.primaryAccent,
+        onSecondary: const Color(0xFF070A12),
         surface: AppColors.darkCard,
+        onSurface: AppColors.darkText,
+        onSurfaceVariant: AppColors.darkTextMuted,
+        outline: AppColors.darkCardBorder,
+        outlineVariant: const Color(0x1FFFFFFF),
         error: cfg.danger,
+        onError: Colors.white,
       ),
       fontFamily: 'Roboto',
+      iconTheme: const IconThemeData(
+        color: AppColors.darkText,
+        size: 24,
+      ),
+      primaryIconTheme: const IconThemeData(
+        color: AppColors.darkText,
+        size: 24,
+      ),
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold),
+        displayMedium: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold),
+        displaySmall: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold),
+        headlineLarge: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w700),
+        headlineMedium: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w700),
+        headlineSmall: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w600),
+        titleLarge: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w600),
+        titleMedium: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w600),
+        titleSmall: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w500),
+        bodyLarge: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.normal),
+        bodyMedium: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.normal),
+        bodySmall: TextStyle(color: AppColors.darkTextMuted, fontWeight: FontWeight.normal),
+        labelLarge: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w600),
+        labelMedium: TextStyle(color: AppColors.darkTextMuted, fontWeight: FontWeight.w500),
+        labelSmall: TextStyle(color: AppColors.darkTextMuted, fontWeight: FontWeight.w500),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -772,7 +850,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: const BorderSide(color: AppColors.darkCardBorder, width: 1.2),
+          side: const BorderSide(color: Color(0x26FFFFFF), width: 1.0),
         ),
       ),
       dividerTheme: const DividerThemeData(
@@ -780,18 +858,27 @@ class AppTheme {
         thickness: 1,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: const Color(0xFF0D1528).withOpacity(0.86),
+        backgroundColor: const Color(0xFF0B101E).withOpacity(0.88),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        titleTextStyle: const TextStyle(
+          color: AppColors.darkText,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+        contentTextStyle: const TextStyle(
+          color: AppColors.darkText,
+          fontSize: 14,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
-          side: BorderSide(color: Colors.white.withOpacity(0.16), width: 1.2),
+          side: BorderSide(color: Colors.white.withOpacity(0.14), width: 1.0),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: const Color(0xFF0E172A).withOpacity(0.90),
+        color: const Color(0xFF0E172A).withOpacity(0.92),
         surfaceTintColor: Colors.transparent,
-        elevation: 12,
+        elevation: 10,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: Colors.white.withOpacity(0.14), width: 1.0),
@@ -804,7 +891,8 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF0F172A).withOpacity(0.88),
+        backgroundColor: const Color(0xFF1E293B).withOpacity(0.92),
+        contentTextStyle: const TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w500),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
       extensions: [

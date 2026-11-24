@@ -290,7 +290,7 @@ class SettingsScreen extends ConsumerWidget {
                       // --- GROUP 1: TÀI KHOẢN (PROFILE HERO GLASS CARD 2.0) ---
                       ZenGlassCard(
                         borderRadius: 26,
-                        blurSigma: 14,
+                        blurSigma: 0,
                         isActive: true,
                         glowColor: zen.primary,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -415,7 +415,7 @@ class SettingsScreen extends ConsumerWidget {
                       const SizedBox(height: 10),
                       ZenGlassCard(
                         borderRadius: 24,
-                        blurSigma: 14,
+                        blurSigma: 0,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Column(
                           children: [
@@ -434,11 +434,11 @@ class SettingsScreen extends ConsumerWidget {
                                 ),
                               ),
                               title: Text(
-                                context.tr('manage_homes') ?? 'Quản lý ngôi nhà',
+                                context.tr('manage_homes'),
                                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                               ),
                               subtitle: Text(
-                                '${activeConfig.homeName} • ${ref.watch(homeConfigProvider).availableHomes.length} ${context.tr('homes_count') ?? 'ngôi nhà'}',
+                                '${activeConfig.homeName} • ${context.l10n.homes_count(ref.watch(homeConfigProvider).availableHomes.length)}',
                                 style: TextStyle(fontSize: 12.5, color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                               ),
                               trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
@@ -556,7 +556,7 @@ class SettingsScreen extends ConsumerWidget {
                                                   size: 18,
                                                   color: currentThemeMode == ThemeMode.light
                                                       ? Colors.white
-                                                      : (isDark ? Colors.white60 : Colors.black54),
+                                                      : (isDark ? Colors.white70 : const Color(0xFF475569)),
                                                 ),
                                               ),
                                             ),
@@ -584,7 +584,7 @@ class SettingsScreen extends ConsumerWidget {
                                                   size: 18,
                                                   color: currentThemeMode == ThemeMode.system
                                                       ? Colors.white
-                                                      : (isDark ? Colors.white60 : Colors.black54),
+                                                      : (isDark ? Colors.white70 : const Color(0xFF475569)),
                                                 ),
                                               ),
                                             ),
@@ -612,7 +612,7 @@ class SettingsScreen extends ConsumerWidget {
                                                   size: 18,
                                                   color: currentThemeMode == ThemeMode.dark
                                                       ? Colors.white
-                                                      : (isDark ? Colors.white60 : Colors.black54),
+                                                      : (isDark ? Colors.white70 : const Color(0xFF475569)),
                                                 ),
                                               ),
                                             ),
@@ -711,7 +711,7 @@ class SettingsScreen extends ConsumerWidget {
                                                         fontWeight: !isEng ? FontWeight.w800 : FontWeight.w600,
                                                         color: !isEng
                                                             ? Colors.white
-                                                            : (isDark ? Colors.white60 : Colors.black54),
+                                                            : (isDark ? Colors.white70 : const Color(0xFF475569)),
                                                       ),
                                                     ),
                                                   ],
@@ -745,7 +745,7 @@ class SettingsScreen extends ConsumerWidget {
                                                         fontWeight: isEng ? FontWeight.w800 : FontWeight.w600,
                                                         color: isEng
                                                             ? Colors.white
-                                                            : (isDark ? Colors.white60 : Colors.black54),
+                                                            : (isDark ? Colors.white70 : const Color(0xFF475569)),
                                                       ),
                                                     ),
                                                   ],
@@ -765,55 +765,60 @@ class SettingsScreen extends ConsumerWidget {
                             
                             // --- CÁ NHÂN HÓA BẢNG MÀU CHỦ ĐỀ (THEME PRESETS) ---
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(9),
-                                        decoration: BoxDecoration(
-                                          gradient: currentPresetConfig.brandHero,
-                                          borderRadius: BorderRadius.circular(14),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: currentPresetConfig.primary.withOpacity(0.35),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Icon(currentPresetConfig.icon, color: Colors.white, size: 22),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              context.tr('theme_preset_title'),
-                                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              isEng ? currentPresetConfig.titleEn : currentPresetConfig.titleVi,
-                                              style: TextStyle(
-                                                fontSize: 12.5,
-                                                fontWeight: FontWeight.w500,
-                                                color: currentPresetConfig.primaryLight,
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(9),
+                                          decoration: BoxDecoration(
+                                            gradient: currentPresetConfig.brandHero,
+                                            borderRadius: BorderRadius.circular(14),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: currentPresetConfig.primary.withOpacity(0.35),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
+                                          child: Icon(currentPresetConfig.icon, color: Colors.white, size: 22),
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                context.tr('theme_preset_title'),
+                                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                isEng ? currentPresetConfig.titleEn : currentPresetConfig.titleVi,
+                                                style: TextStyle(
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: currentPresetConfig.primaryLight,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                   const SizedBox(height: 14),
                                   // Danh sách các viên ngọc màu Liquid Glass Chủ đề
                                   SingleChildScrollView(
                                     scrollDirection: Axis.horizontal,
                                     physics: const BouncingScrollPhysics(),
+                                    padding: const EdgeInsets.only(left: 16, right: 24, top: 4, bottom: 6),
+                                    clipBehavior: Clip.none,
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.start,
                                       children: ThemePresetConfig.presets.map((cfg) {
@@ -826,8 +831,10 @@ class SettingsScreen extends ConsumerWidget {
                                             ref.read(themePresetNotifierProvider.notifier).setThemePreset(cfg.preset);
                                           },
                                           child: Container(
-                                            margin: const EdgeInsets.only(right: 12),
+                                            width: 58,
+                                            margin: const EdgeInsets.only(right: 10),
                                             child: Column(
+                                              mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 AnimatedContainer(
                                                   duration: const Duration(milliseconds: 250),
@@ -866,12 +873,15 @@ class SettingsScreen extends ConsumerWidget {
                                                 const SizedBox(height: 6),
                                                 Text(
                                                   isEng ? cfg.titleEn.split(' ').first : cfg.titleVi.split(' ').first,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.visible,
+                                                  textAlign: TextAlign.center,
                                                   style: TextStyle(
                                                     fontSize: 11,
                                                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                                                     color: isSelected
-                                                        ? (isDark ? Colors.white : Colors.black87)
-                                                        : (isDark ? Colors.white54 : Colors.black45),
+                                                        ? (isDark ? Colors.white : AppColors.lightText)
+                                                        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
                                                   ),
                                                 ),
                                               ],
@@ -903,7 +913,7 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 10),
                     ZenGlassCard(
                       borderRadius: 24,
-                      blurSigma: 14,
+                      blurSigma: 0,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Column(
                             children: [
@@ -1200,7 +1210,7 @@ class SettingsScreen extends ConsumerWidget {
                                   context.tr('restart_hub_desc'),
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                                   ),
                                 ),
                                 trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
@@ -1284,7 +1294,7 @@ class SettingsScreen extends ConsumerWidget {
                                   context.tr('hub_ota_desc'),
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                                   ),
                                 ),
                                 trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
@@ -1331,7 +1341,7 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 10),
                     ZenGlassCard(
                       borderRadius: 24,
-                      blurSigma: 14,
+                      blurSigma: 0,
                       isActive: true,
                       glowColor: zen.danger,
                       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1369,7 +1379,7 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 10),
                     ZenGlassCard(
                       borderRadius: 24,
-                      blurSigma: 14,
+                      blurSigma: 0,
                       isActive: true,
                       glowColor: zen.danger,
                       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1410,7 +1420,7 @@ class SettingsScreen extends ConsumerWidget {
                   const SizedBox(height: 10),
                   ZenGlassCard(
                     borderRadius: 24,
-                    blurSigma: 14,
+                    blurSigma: 0,
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Column(
                           children: [
@@ -1602,7 +1612,7 @@ class SettingsScreen extends ConsumerWidget {
                   // --- ĐĂNG XUẤT ---
                   ZenGlassCard(
                     borderRadius: 22,
-                    blurSigma: 12,
+                    blurSigma: 0,
                     isActive: true,
                     glowColor: zen.danger,
                     height: 56,
@@ -1626,7 +1636,7 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
                   ).animate(delay: 500.ms).fade(duration: 400.ms).scaleXY(begin: 0.9, end: 1, duration: 400.ms, curve: Curves.easeOutBack),
-                  const SizedBox(height: 110),
+                  const SizedBox(height: 130),
                     ],
                   ),
                 ),

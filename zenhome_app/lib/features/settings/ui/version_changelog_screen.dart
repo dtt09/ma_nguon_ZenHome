@@ -570,11 +570,18 @@ class _VersionChangelogScreenState extends State<VersionChangelogScreen> {
     final zen = context.zenColors;
     final history = [
       {
+        'version': '1.8.21',
+        'build': '209',
+        'date': '24/11/2026',
+        'notes': 'Nâng cấp toàn diện Liquid Glass trong suốt sắc nét: viền bắt sáng Specular Border 0.9px, loại bỏ neon glow/nền đục. Kiến trúc Hybrid Glass & RepaintBoundary cho thẻ thiết bị đạt 60/120 FPS mượt mà. Sửa lỗi chuỗi {count} ngôi nhà, lỗi cắt chữ Titanium, lỗi tràn header lời chào và bổ sung đệm đáy 130px chống che khuất.',
+        'isLatest': true,
+      },
+      {
         'version': '1.8.20',
         'build': '208',
         'date': '07/11/2026',
         'notes': 'Đột phá hệ thống màu chủ đạo toàn diện & Bảng màu chống xung đột (Anti-Collision Dynamic Semantic Palette): tách biệt hoàn toàn màu cảnh báo/nguy hiểm khỏi 6 bộ Preset Zen Luxury. Tối ưu 120 FPS chuyển tab/menu và sửa lỗi nút Thêm thiết bị khu vực kỹ thuật.',
-        'isLatest': true,
+        'isLatest': false,
       },
       {
         'version': '1.8.19',

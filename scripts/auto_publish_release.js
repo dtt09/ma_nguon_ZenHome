@@ -24,8 +24,8 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const REPO_OWNER = 'dtt09';
 const REPO_NAME = 'ma_nguon_ZenHome';
 
-// Đảm bảo git trong mingit luôn có trong PATH khi chạy các tiến trình Flutter/Gradle
-process.env.PATH = 'C:\\Users\\dinht\\AppData\\Local\\Programs\\flutter\\bin\\mingit\\cmd;' + (process.env.PATH || '');
+// Đảm bảo flutter và git trong mingit luôn có trong PATH khi chạy các tiến trình Flutter/Gradle
+process.env.PATH = 'C:\\Users\\dinht\\AppData\\Local\\Programs\\flutter\\bin;C:\\Users\\dinht\\AppData\\Local\\Programs\\flutter\\bin\\mingit\\cmd;' + (process.env.PATH || '');
 
 // Đọc token từ .env nếu có, hoặc lấy từ Windows Credential Helper
 function loadEnvToken() {
@@ -238,28 +238,24 @@ async function main() {
     tagVersion = await ask('Phiên bản tag Release phát hành', `v${pubspecVersion}`);
   }
 
-  const releaseTitle = `ZenHome ${tagVersion} - Bảng Màu Chống Xung Đột (Anti-Collision) & Tối Ưu Hóa Toàn Diện`;
+  const releaseTitle = `ZenHome ${tagVersion} - Liquid Glass UI/UX & Tối Ưu Hiệu Năng 60/120 FPS`;
   const releaseNotes = `## 🌟 Điểm nổi bật trong bản phát hành ${tagVersion} (App Build ${pubspecBuild} / ESP32 v${espVersion} Build ${espBuild})
 
-### 🎨 Hệ Thống Chủ Đề Toàn Diện & Bảng Màu Chống Xung Đột (Anti-Collision Dynamic Semantic Palette):
-- 🛡️ **Triệt Tiêu Hoàn Toàn Trùng Màu Cảnh Báo (Chromatic Anti-Collision)**:
-  - Tự động dịch chuyển bước sóng quang học của các token ngữ nghĩa (\`danger\`, \`warning\`, \`success\`, \`info\`) tương ứng với từng Preset để không bao giờ bị chìm vào màu chủ đề:
-    - **Ruby Coral**: Nguy hiểm chuyển sang *Safety Hazard Flame Red (\`#FF3D00\`)* và Cảnh báo chuyển sang *Cyber Gold (\`#FFAB00\`)* — loại bỏ hoàn toàn việc nút Xóa/Rời nhà trông giống nút hành động chính!
-    - **Champagne Gold**: Cảnh báo chuyển sang *Electric Persimmon Sunset Orange (\`#FF5722\`)* — tách biệt rõ rệt khỏi sắc vàng Imperial Gold.
-    - **Emerald Zen**: Thành công chuyển sang *Vivid Matrix Lime (\`#00E676\`)* — không bị lẫn vào tone Deep Teal.
-    - **Midnight Sapphire**: Thông tin chuyển sang *Glacier Cyan (\`#00E5FF\`)* — nổi bật trên nền Sapphire Blue.
-- 🌐 **Lan Tỏa Màu Chủ Đạo Động (Dynamic Brand Propagation)**:
-  - Đồng bộ 100% màu thương hiệu trên toàn bộ màn hình, thanh điều hướng đáy, tab danh mục thông báo, thanh trượt \`LuxurySlider\`, hộp thoại, xác thực SMS OTP, quản lý thành viên và thiết lập Wi-Fi.
+### 💎 Nâng Cấp Giao Diện Kính Lỏng Siêu Thực (Liquid Glass Optical Upgrade):
+- ✨ **Viền Bắt Sáng Quang Học (Specular Border)**: Viền siêu mảnh 0.9px với LinearGradient vát sáng tự nhiên (góc trên-trái bắt sáng 0.28-0.34, mờ dần về góc dưới-phải 0.03-0.05), mô phỏng khúc xạ ánh sáng chân thực.
+- 🚫 **Loại Bỏ Hoàn Toàn Neon Glow & Nền Đục**: Triệt tiêu các hiệu ứng phát sáng chói lắt và nền bệt tím; chuyển sang bề mặt kính đen đá phiến bán trong suốt sạch sẽ ở Dark Mode và trắng sáng tinh khiết ở Light Mode.
+- ☀️ **Thẻ Thời Tiết Tương Phản Vượt Trội**: Nâng cấp màu sắc đạt chuẩn WCAG AAA trên nền sáng, kết hợp icon thời tiết rực rỡ và sắc nét.
 
-### ⚡ Tối Ưu Hóa Trải Nghiệm & Sửa Lỗi Giao Diện:
-- 🚀 **Tối Ưu Hóa 120 FPS**:
-  - Tăng tốc mượt mà hiệu ứng chuyển tab, menu phân loại và bộ lọc danh mục kính mờ.
-- 🔧 **Khắc Phục Lỗi Khu Vực Kỹ Thuật (\`DeviceMappingScreen\`)**:
-  - Chuẩn hóa \`ZenGlassButton\` tự co giãn (shrink-wrap) trong ràng buộc lỏng của Scaffold FAB, sửa lỗi nút "Thêm thiết bị" phình to chiếm trọn màn hình.
+### ⚡ Kiến Trúc Kính Lai (Hybrid Glass) & Đột Phá Hiệu Năng 60/120 FPS:
+- 🚀 **Lightweight Glass Cho Danh Sách Cuộn**: Thẻ thiết bị và thẻ cài đặt không lồng \`BackdropFilter\`, giảm tải triệt để cho GPU khi cuộn trang.
+- 🛡️ **Cô Lập Vẽ Lại (\`RepaintBoundary\`)**: Bọc riêng biệt cho từng thẻ thiết bị, ngăn chặn render lan tỏa khi điều khiển công tắc hoặc quạt.
+- 🎛️ **Kính Mờ Quang Học Chỉ Cho Thành Phần Nổi**: Duy trì \`BackdropFilter\` (sigma 14.0) cho thanh điều hướng đáy kính nổi và các dialog/sheet.
 
-### 🔮 Kế Thừa Trọn Vẹn Zen Liquid Glass 2.0 & Hardened Security:
-- 🌌 Nền cực quang khúc xạ đa sắc \`ZenAmbientMeshBackground\` & viền vát quang học 3D \`_ZenSpecularRimPainter\`.
-- 🔒 Bảo mật vững chắc: Firestore Rules đóng kín, chữ ký số ECDSA P-256 cho OTA Firmware ESP32 v${espVersion} (Build ${espBuild}).
+### 🛠️ Khắc Phục Triệt Để Lỗi Tràn Khung & Bug Hiển Thị:
+- 📱 **Sửa Lỗi Header Lời Chào**: Tái cấu trúc thành 2 tầng phân cấp hiển thị đầy đủ tên người dùng và vai trò, không còn bị cắt cụt dấu ba chấm.
+- 🏷️ **Sửa Lỗi Chuỗi {count} Ngôi Nhà**: Hiển thị chính xác số lượng thực tế ("Nhà của Tôi • 1 ngôi nhà") theo đúng ngữ cảnh ngôn ngữ.
+- 🎨 **Sửa Lỗi Cắt Cụt Chữ "Titanium"**: Căn chỉnh lề cuộn ngang rộng rãi và loại bỏ clipping ở danh mục chủ đề màu sắc.
+- 📐 **Đệm Đáy An Toàn (130px)**: Toàn bộ danh sách cuộn được bổ sung khoảng trống lớn, không bao giờ bị thanh điều hướng đáy che khuất.
 
 ---
 *Phát hành chính thức bởi ZenHome Automation Release Engine*`;

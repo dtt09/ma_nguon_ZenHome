@@ -79,22 +79,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     });
   }
 
-  String _getDynamicGreeting() {
+  String _getGreetingPrefix() {
     final hour = DateTime.now().hour;
-    String greeting = '';
-
     if (hour >= 5 && hour < 12) {
-      greeting = context.tr('greeting_morning');
+      return context.tr('greeting_morning');
     } else if (hour >= 12 && hour < 18) {
-      greeting = context.tr('greeting_afternoon');
+      return context.tr('greeting_afternoon');
     } else {
-      greeting = context.tr('greeting_evening');
+      return context.tr('greeting_evening');
     }
+  }
 
+  String _getUserName() {
     final user = FirebaseAuth.instance.currentUser;
-    String name = user?.displayName ?? (user?.email?.split('@')[0] ?? 'User');
-    
-    return '$greeting, $name';
+    return user?.displayName ?? (user?.email?.split('@')[0] ?? 'User');
   }
 
   Future<void> _onRefresh() async {
@@ -699,7 +697,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         color: context.zenColors.primary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+          padding: const EdgeInsets.fromLTRB(20.0, 20.0, 20.0, 130.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -714,63 +712,92 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Cụm Lời chào + Vai trò
+                      // Cụm Logo + Lời chào & Tên & Vai trò (Cấu trúc phân tầng linh hoạt, không cắt chữ)
                       Expanded(
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             ZenLiquidGlass(
-                              blurSigma: 12,
-                              borderRadius: 16,
-                              padding: const EdgeInsets.all(2.5),
+                              blurSigma: 0,
+                              borderRadius: 14,
+                              padding: const EdgeInsets.all(3),
                               child: ClipOval(
-                                child: Image.asset('public/zenhome_logo_padded.png', width: 22, height: 22, fit: BoxFit.contain),
+                                child: Image.asset('public/zenhome_logo_padded.png', width: 34, height: 34, fit: BoxFit.contain),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                _getDynamicGreeting(),
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? const Color(0xFFCBD5E1)
-                                      : const Color(0xFF475569),
-                                  letterSpacing: 0.3,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Builder(
-                              builder: (context) {
-                                String roleName = activeConfig.role == 'owner'
-                                    ? (context.tr('owner_role') ?? 'Chủ nhà')
-                                    : (activeConfig.role == 'co_owner'
-                                        ? (context.tr('co_owner') ?? 'Phó chủ nhà')
-                                        : (context.tr('member_role') ?? 'Thành viên'));
-                                Color roleColor = activeConfig.role == 'owner'
-                                    ? const Color(0xFF8B5CF6)
-                                    : (activeConfig.role == 'co_owner'
-                                        ? const Color(0xFF3B82F6)
-                                        : const Color(0xFF10B981));
-                                return ZenGlassPill(
-                                  blurSigma: 10,
-                                  borderRadius: 10,
-                                  padding: const EdgeInsets.symmetric(horizontal: 7.5, vertical: 2.5),
-                                  isSelected: true,
-                                  glowColor: roleColor,
-                                  child: Text(
-                                    roleName,
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: roleColor),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          _getGreetingPrefix(),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: Theme.of(context).brightness == Brightness.dark
+                                                ? const Color(0xFF94A3B8)
+                                                : const Color(0xFF64748B),
+                                            letterSpacing: 0.2,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Builder(
+                                        builder: (context) {
+                                          String roleName = activeConfig.role == 'owner'
+                                              ? context.tr('owner_role')
+                                              : (activeConfig.role == 'co_owner'
+                                                  ? context.tr('co_owner')
+                                                  : context.tr('member_role'));
+                                          Color roleColor = activeConfig.role == 'owner'
+                                              ? const Color(0xFF8B5CF6)
+                                              : (activeConfig.role == 'co_owner'
+                                                  ? const Color(0xFF3B82F6)
+                                                  : const Color(0xFF10B981));
+                                          return ZenGlassPill(
+                                            blurSigma: 0,
+                                            borderRadius: 9,
+                                            padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
+                                            isSelected: true,
+                                            glowColor: roleColor,
+                                            child: Text(
+                                              roleName,
+                                              style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: roleColor),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
                                   ),
-                                );
-                              },
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _getUserName(),
+                                    style: TextStyle(
+                                      fontSize: 16.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? const Color(0xFFF8FAFC)
+                                          : const Color(0xFF0F172A),
+                                      letterSpacing: -0.3,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       // Nút Thông báo & Avatar góc phải
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -798,7 +825,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                   // Thiết kế độc quyền: Không gian tên nhà rộng mở 100%, chip kết nối phát quang tinh tế, tuyệt đối không bao giờ đè lấn nhau
                   ZenLiquidGlass(
                     borderRadius: 22,
-                    blurSigma: 20,
+                    blurSigma: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -1021,7 +1048,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                       child: ZenGlassCard(
                         width: double.infinity,
                         borderRadius: 24,
-                        blurSigma: 18,
+                        blurSigma: 0,
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 34),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,

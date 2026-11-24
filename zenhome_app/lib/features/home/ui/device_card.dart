@@ -85,7 +85,7 @@ class DeviceCard extends StatelessWidget {
       borderRadius: 26,
       isActive: isOn,
       glowColor: glowColor,
-      blurSigma: 15.0,
+      blurSigma: 0.0,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,16 +309,18 @@ class DeviceCard extends StatelessWidget {
       ),
     );
 
-    return BouncingButton(
-      onTap: isCooldown
-          ? null
-          : () {
-              HapticFeedback.mediumImpact();
-              onTap();
-            },
-      onLongPress: isCooldown ? null : onLongPress,
-      scaleFactor: 0.96,
-      child: card,
+    return RepaintBoundary(
+      child: BouncingButton(
+        onTap: isCooldown
+            ? null
+            : () {
+                HapticFeedback.mediumImpact();
+                onTap();
+              },
+        onLongPress: isCooldown ? null : onLongPress,
+        scaleFactor: 0.96,
+        child: card,
+      ),
     );
   }
 }

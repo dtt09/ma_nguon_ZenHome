@@ -175,7 +175,7 @@ class _MainLayoutState extends ConsumerState<MainLayout>
                         vertical: 6,
                       ),
                       glowColor: isDark ? zen.primaryLight : zen.primary,
-                      blurSigma: 28,
+                      blurSigma: 14.0,
                       child: GestureDetector(
                         onHorizontalDragStart: (_) {
                           setState(() {
@@ -340,7 +340,7 @@ class _MainLayoutState extends ConsumerState<MainLayout>
                     margin: const EdgeInsets.symmetric(horizontal: 28),
                     padding: const EdgeInsets.all(26),
                     borderRadius: 28,
-                    blurSigma: 24,
+                    blurSigma: 14.0,
                     isActive: true,
                     glowColor: zen.danger,
                     child: Column(
