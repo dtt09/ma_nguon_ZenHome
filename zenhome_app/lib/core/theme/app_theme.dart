@@ -584,7 +584,7 @@ class AppColors {
   static const Color darkBg = Color(0xFF070A12);          // Deep Obsidian Night
   static const Color darkCard = Color(0xFF0F1626);        // Titanium Surface
   static const Color darkCardElevated = Color(0xFF162035);// Higher Layer Floating Card
-  static const Color darkCardBorder = Color(0x33FFFFFF);   // Clean Crisp Refractive Specular Tech Border
+  static const Color darkCardBorder = Color(0x1FFFFFFF);   // Muted 12% Hairline Border
   static const Color darkText = Color(0xFFF8FAFC);        // Slate 50 - Crisp High-Readability Text
   static const Color darkTextMuted = Color(0xFF94A3B8);   // Slate 400 - Clear Readable Silver Muted Text
 
@@ -655,7 +655,7 @@ class AppTheme {
         brightness: Brightness.light,
         primary: cfg.primary,
         onPrimary: Colors.white,
-        primaryContainer: cfg.primaryLight.withOpacity(0.16),
+        primaryContainer: cfg.primaryLight.withValues(alpha: 0.16),
         onPrimaryContainer: cfg.primaryDark,
         secondary: cfg.primaryLight,
         onSecondary: Colors.white,
@@ -710,7 +710,10 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: const BorderSide(color: AppColors.lightCardBorder, width: 1.0),
+          side: BorderSide(
+            color: AppColors.lightCardBorder.withValues(alpha: 0.55),
+            width: 1.0,
+          ),
         ),
       ),
       dividerTheme: const DividerThemeData(
@@ -718,7 +721,7 @@ class AppTheme {
         thickness: 1,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: Colors.white.withOpacity(0.92),
+        backgroundColor: Colors.white.withValues(alpha: 0.78),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleTextStyle: const TextStyle(
@@ -732,16 +735,22 @@ class AppTheme {
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
-          side: BorderSide(color: Colors.white.withOpacity(0.9), width: 1.0),
+          side: BorderSide(
+            color: const Color(0xFF94A3B8).withValues(alpha: 0.22),
+            width: 1.0,
+          ),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: Colors.white.withOpacity(0.92),
+        color: Colors.white.withValues(alpha: 0.86),
         surfaceTintColor: Colors.transparent,
-        elevation: 8,
+        elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppColors.lightCardBorder, width: 1.0),
+          side: BorderSide(
+            color: const Color(0xFF94A3B8).withValues(alpha: 0.22),
+            width: 1.0,
+          ),
         ),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
@@ -751,7 +760,7 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF0F172A).withOpacity(0.92),
+        backgroundColor: const Color(0xFF0F172A).withValues(alpha: 0.90),
         contentTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
@@ -795,7 +804,7 @@ class AppTheme {
         brightness: Brightness.dark,
         primary: cfg.primaryLight,
         onPrimary: const Color(0xFF070A12),
-        primaryContainer: cfg.primaryDark.withOpacity(0.40),
+        primaryContainer: cfg.primaryDark.withValues(alpha: 0.40),
         onPrimaryContainer: cfg.primaryAccent,
         secondary: cfg.primaryAccent,
         onSecondary: const Color(0xFF070A12),
@@ -850,7 +859,10 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: const BorderSide(color: Color(0x26FFFFFF), width: 1.0),
+          side: BorderSide(
+            color: Colors.white.withValues(alpha: 0.10),
+            width: 1.0,
+          ),
         ),
       ),
       dividerTheme: const DividerThemeData(
@@ -858,7 +870,7 @@ class AppTheme {
         thickness: 1,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: const Color(0xFF0B101E).withOpacity(0.88),
+        backgroundColor: const Color(0xFF0D1424).withValues(alpha: 0.76),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleTextStyle: const TextStyle(
@@ -872,16 +884,16 @@ class AppTheme {
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
-          side: BorderSide(color: Colors.white.withOpacity(0.14), width: 1.0),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.12), width: 1.0),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: const Color(0xFF0E172A).withOpacity(0.92),
+        color: const Color(0xFF0E172A).withValues(alpha: 0.88),
         surfaceTintColor: Colors.transparent,
-        elevation: 10,
+        elevation: 6,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: Colors.white.withOpacity(0.14), width: 1.0),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.12), width: 1.0),
         ),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
@@ -891,7 +903,7 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF1E293B).withOpacity(0.92),
+        backgroundColor: const Color(0xFF1E293B).withValues(alpha: 0.90),
         contentTextStyle: const TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w500),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),

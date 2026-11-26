@@ -32,12 +32,12 @@ android {
     val keystorePropertiesFile = rootProject.file("key.properties")
     val keystoreProperties = Properties()
     if (keystorePropertiesFile.exists()) {
-        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+        FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
     }
 
     signingConfigs {
         create("release") {
-            val keyPath = keystoreProperties.getProperty("storeFile")
+            val keyPath = System.getenv("ANDROID_RELEASE_STORE_FILE") ?: keystoreProperties.getProperty("storeFile")
             val resolvedFile = when {
                 keyPath.isNullOrEmpty() -> null
                 file(keyPath).exists() -> file(keyPath)
@@ -46,10 +46,10 @@ android {
                 else -> null
             }
             if (resolvedFile != null && resolvedFile.exists()) {
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
+                keyAlias = System.getenv("ANDROID_RELEASE_ALIAS") ?: keystoreProperties.getProperty("keyAlias")
+                keyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD") ?: keystoreProperties.getProperty("keyPassword")
                 storeFile = resolvedFile
-                storePassword = keystoreProperties.getProperty("storePassword")
+                storePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD") ?: keystoreProperties.getProperty("storePassword")
             }
         }
     }
@@ -57,11 +57,7 @@ android {
     buildTypes {
         release {
             val releaseConfig = signingConfigs.getByName("release")
-            if (releaseConfig.storeFile != null && releaseConfig.storeFile!!.exists()) {
-                signingConfig = releaseConfig
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
-            }
+            signingConfig = releaseConfig
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

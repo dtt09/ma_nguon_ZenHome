@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
+import '../../../core/widgets/animations/zen_page_route.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
@@ -18,6 +19,8 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
+  Timer? _navTimer;
+
   @override
   void initState() {
     super.initState();
@@ -33,8 +36,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       }
     });
 
-    // Reduce splash time to 2.5s for a snappier, modern feel
-    Timer(const Duration(milliseconds: 2500), () async {
+    // Snappy 1.3s splash entrance
+    _navTimer = Timer(const Duration(milliseconds: 1300), () async {
       final prefs = await SharedPreferences.getInstance();
       bool isFirstRun = prefs.getBool('isFirstRun') ?? true;
 
@@ -50,33 +53,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
-            transitionDuration: const Duration(milliseconds: 700),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              final curvedAnimation = CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutQuart,
-              );
-
-              return FadeTransition(
-                opacity: curvedAnimation,
-                child: ScaleTransition(
-                  scale: Tween<double>(begin: 0.94, end: 1.0).animate(curvedAnimation),
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0.0, 0.03),
-                      end: Offset.zero,
-                    ).animate(curvedAnimation),
-                    child: child,
-                  ),
-                ),
-              );
-            },
-          ),
+          ZenPageRoute(builder: (context) => nextScreen),
         );
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _navTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -98,7 +84,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   width: 118,
                   height: 118,
                   borderRadius: 34,
-                  blurSigma: 22,
+                  blurSigma: 12,
                   glowColor: zen.primary,
                   alignment: Alignment.center,
                   child: Image.asset(
@@ -158,8 +144,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             left: 0,
             right: 0,
             child: Center(
-              child: ZenGlassPill(
-                blurSigma: 16,
+              child: ZenGlassPill.lightweight(
                 borderRadius: 20,
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                 child: Column(
@@ -175,17 +160,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    ShaderMask(
-                      blendMode: BlendMode.srcIn,
-                      shaderCallback: (bounds) => zen.brandHero.createShader(bounds),
-                      child: const Text(
-                        'STEM 2026',
-                        style: TextStyle(
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                          color: Colors.white,
-                        ),
+                    Text(
+                      'STEM 2026',
+                      style: TextStyle(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: isDark ? zen.primaryAccent : zen.primary,
                       ),
                     ),
                   ],

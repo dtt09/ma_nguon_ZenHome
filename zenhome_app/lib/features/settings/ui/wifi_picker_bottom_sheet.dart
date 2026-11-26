@@ -34,10 +34,10 @@ class WifiPickerBottomSheet extends StatelessWidget {
     );
   }
 
-  Color _signalColor(int rssi) {
-    if (rssi >= -60) return AppColors.emeraldGlow;
-    if (rssi >= -72) return AppColors.cyanGlow;
-    return AppColors.amberGlow;
+  Color _signalColor(ZenThemeColorsExtension zen, int rssi) {
+    if (rssi >= -60) return zen.success;
+    if (rssi >= -72) return zen.info;
+    return zen.warning;
   }
 
   IconData _signalIcon(int rssi) {
@@ -50,6 +50,8 @@ class WifiPickerBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final zen = context.zenColors;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
     return SafeArea(
       top: false,
@@ -68,13 +70,17 @@ class WifiPickerBottomSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: zen.primary.withOpacity(0.32),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
+                        color: zen.primary.withValues(alpha: 0.16),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.wifi_rounded, color: Colors.white, size: 20),
+                  child: const Icon(
+                    Icons.wifi_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -83,6 +89,8 @@ class WifiPickerBottomSheet extends StatelessWidget {
                     children: [
                       Text(
                         context.tr('wifi_select_home_wifi_title'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 16.5,
@@ -91,20 +99,24 @@ class WifiPickerBottomSheet extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Băng tần hỗ trợ: 2.4GHz (${wifiList.length} mạng khả dụng)',
+                        context.l10n.wifi_band_24_available(
+                          wifiList.length.toString(),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                          color: mutedColor,
                         ),
                       ),
                     ],
                   ),
                 ),
-                ZenGlassIconButton(
+                const SizedBox(width: 8),
+                ZenGlassIconButton.lightweight(
                   icon: Icons.close_rounded,
                   size: 34,
                   iconSize: 18,
-                  blurSigma: 0,
                   onTap: () => Navigator.pop(context),
                 ),
               ],
@@ -115,83 +127,101 @@ class WifiPickerBottomSheet extends StatelessWidget {
                 shrinkWrap: true,
                 physics: const BouncingScrollPhysics(),
                 itemCount: wifiList.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 10),
                 itemBuilder: (context, i) {
                   final ap = wifiList[i];
-                  final Color sigColor = _signalColor(ap.level);
+                  final Color sigColor = _signalColor(zen, ap.level);
                   final IconData sigIcon = _signalIcon(ap.level);
 
-                  return ZenLiquidGlass(
-                    blurSigma: 0,
-                    borderRadius: 18,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    surfaceColor: isDark
-                        ? Colors.white.withOpacity(0.06)
-                        : Colors.white.withOpacity(0.66),
-                    glowColor: ap.level >= -60 ? sigColor : null,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      onWifiSelected(ap.ssid);
-                      Navigator.pop(context);
-                    },
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: sigColor.withOpacity(isDark ? 0.18 : 0.12),
-                            borderRadius: BorderRadius.circular(13),
-                          ),
-                          child: Icon(sigIcon, color: sigColor, size: 21),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                ap.ssid,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14.5,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                  return RepaintBoundary(
+                    child: ZenLiquidGlass.lightweight(
+                      borderRadius: 18,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      surfaceColor: isDark
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.white.withValues(alpha: 0.62),
+                      glowColor: ap.level >= -60 ? sigColor : null,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        onWifiSelected(ap.ssid);
+                        Navigator.pop(context);
+                      },
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: sigColor.withValues(
+                                alpha: isDark ? 0.18 : 0.12,
                               ),
-                              const SizedBox(height: 3),
-                              Text(
-                                WifiProvisioningService.getSignalQuality(ap.level),
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                                ),
-                              ),
-                            ],
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            child: Icon(sigIcon, color: sigColor, size: 21),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        ZenGlassPill(
-                          blurSigma: 0,
-                          isSelected: true,
-                          glowColor: sigColor,
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                          child: Text(
-                            '${ap.level} dBm',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: sigColor,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  ap.ssid,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14.5,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  WifiProvisioningService.getSignalQuality(
+                                    ap.level,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: mutedColor,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 13,
-                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          Flexible(
+                            flex: 0,
+                            child: ZenGlassPill.lightweight(
+                              isSelected: true,
+                              glowColor: sigColor,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                                vertical: 4,
+                              ),
+                              child: Text(
+                                '${ap.level} dBm',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: sigColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 13,
+                            color: mutedColor,
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },

@@ -75,13 +75,13 @@ bool isPinLockedByAnomaly(int pin, unsigned long* remainingMs) {
 
 void triggerEmergencySafeOff(const String& devId, int pin) {
   // 1. Lập tức cưỡng bức ngắt rơ-le về SAFE OFF (Active-Low HIGH)
-  safeSetRelayPin(pin, HIGH);
+  const bool offConfirmed = safeSetRelayPin(pin, HIGH);
 
   // 2. Cập nhật trạng thái an toàn trong bộ nhớ myRelays
   String roomName = "living_room";
   for (int i = 0; i < relayCount; i++) {
     if (myRelays[i].id == devId) {
-      myRelays[i].state = "0";
+      if (offConfirmed) myRelays[i].state = "0";
       myRelays[i].lastToggleTime = millis();
       if (myRelays[i].room.length() > 0) roomName = myRelays[i].room;
       break;
@@ -98,9 +98,9 @@ void triggerEmergencySafeOff(const String& devId, int pin) {
     doc["type"] = "RELAY_CHATTERING_ANOMALY";
     doc["devId"] = devId;
     doc["pin"] = pin;
-    doc["action"] = "LOCKED_OFF";
+    doc["action"] = offConfirmed ? "LOCKED_OFF" : "OFF_WRITE_FAILED";
     doc["lockoutSec"] = 30;
-    doc["message"] = "Phát hiện đóng ngắt bất thường liên tục (>6 lần/2s), đã ngắt khẩn cấp và khóa an toàn 30 giây!";
+    doc["message"] = offConfirmed ? "Phát hiện đóng ngắt bất thường liên tục (>6 lần/2s), đã ngắt khẩn cấp và khóa an toàn 30 giây!" : "Relay write failed; physical state unknown";
 
     String payload;
     serializeJson(doc, payload);
@@ -108,7 +108,7 @@ void triggerEmergencySafeOff(const String& devId, int pin) {
 
     // Đồng bộ lại trạng thái tắt về topic state của thiết bị
     String stateTopic = mqtt_prefix + "/" + roomName + "/" + devId + "/state";
-    safeMqttPublish(stateTopic.c_str(), "0", true);
+    if (offConfirmed) publishRelayState(stateTopic, "0");
   }
 
   Serial.printf("\n[ANOMALY-DETECTOR] 🚨 NGUY HIỂM: Phát hiện rơ-le %s (Pin %d) đóng ngắt bất thường liên tục (>6 lần/2s)! Đã ngắt khẩn cấp về SAFE OFF và khóa an toàn 30 giây.\n",

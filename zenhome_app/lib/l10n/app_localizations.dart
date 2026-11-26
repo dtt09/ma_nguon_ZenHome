@@ -236,6 +236,18 @@ abstract class AppLocalizations {
   /// **'Home'**
   String get tab_home;
 
+  /// No description provided for @show_password.
+  ///
+  /// In en, this message translates to:
+  /// **'Show password'**
+  String get show_password;
+
+  /// No description provided for @hide_password.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide password'**
+  String get hide_password;
+
   /// No description provided for @tab_scene.
   ///
   /// In en, this message translates to:
@@ -1439,7 +1451,7 @@ abstract class AppLocalizations {
   /// No description provided for @mqtt_user.
   ///
   /// In en, this message translates to:
-  /// **'MQTT Username (Optional)'**
+  /// **'Home MQTT username'**
   String get mqtt_user;
 
   /// No description provided for @mqtt_user_hint.
@@ -1451,7 +1463,7 @@ abstract class AppLocalizations {
   /// No description provided for @mqtt_pass.
   ///
   /// In en, this message translates to:
-  /// **'MQTT Password (Optional)'**
+  /// **'Home MQTT password'**
   String get mqtt_pass;
 
   /// No description provided for @mqtt_pass_hint.
@@ -4187,7 +4199,7 @@ abstract class AppLocalizations {
   /// No description provided for @wifi_connect_esp_subtitle.
   ///
   /// In en, this message translates to:
-  /// **'Enter the ESP32 AP password (leave empty if open network without password):'**
+  /// **'Enter the hub setup code displayed over USB.'**
   String get wifi_connect_esp_subtitle;
 
   /// No description provided for @wifi_esp_pass_label.
@@ -4199,7 +4211,7 @@ abstract class AppLocalizations {
   /// No description provided for @wifi_esp_pass_hint.
   ///
   /// In en, this message translates to:
-  /// **'Leave blank if open, or enter AP password'**
+  /// **'Hub setup code'**
   String get wifi_esp_pass_hint;
 
   /// No description provided for @wifi_btn_connect_now.
@@ -5587,6 +5599,1824 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Titanium Slate'**
   String get theme_preset_cyber;
+
+  /// No description provided for @room_all.
+  ///
+  /// In en, this message translates to:
+  /// **'All Rooms'**
+  String get room_all;
+
+  /// No description provided for @automation_hub_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Automation Hub'**
+  String get automation_hub_title;
+
+  /// No description provided for @quick_scenes.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Scenes'**
+  String get quick_scenes;
+
+  /// No description provided for @see_all.
+  ///
+  /// In en, this message translates to:
+  /// **'See all'**
+  String get see_all;
+
+  /// No description provided for @custom_duration.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get custom_duration;
+
+  /// No description provided for @ui_error_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface Error'**
+  String get ui_error_title;
+
+  /// No description provided for @ui_error_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'A component encountered a temporary issue. Please restart the app.'**
+  String get ui_error_desc;
+
+  /// No description provided for @anomaly_banner_title.
+  ///
+  /// In en, this message translates to:
+  /// **'HARDWARE SAFETY ALERT'**
+  String get anomaly_banner_title;
+
+  /// No description provided for @anomaly_locked_pill.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked {seconds}s'**
+  String anomaly_locked_pill(String seconds);
+
+  /// No description provided for @anomaly_tripped_msg.
+  ///
+  /// In en, this message translates to:
+  /// **'Safety alert: Relay {pin} ({name}) emergency tripped due to chattering/short circuit. Safety locked for 30s.'**
+  String anomaly_tripped_msg(String pin, String name);
+
+  /// No description provided for @anomaly_unlocked_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Safety Lock Released'**
+  String get anomaly_unlocked_title;
+
+  /// No description provided for @anomaly_unlocked_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay {pin} ({name}) completed 30s safety lock and is ready.'**
+  String anomaly_unlocked_desc(String pin, String name);
+
+  /// No description provided for @anomaly_relay_locked_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay safety locked'**
+  String get anomaly_relay_locked_title;
+
+  /// No description provided for @anomaly_relay_locked_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay {pin} ({name}) is in overload protection ({seconds}s left). Please wait!'**
+  String anomaly_relay_locked_desc(String pin, String name, String seconds);
+
+  /// No description provided for @anomaly_more_locked.
+  ///
+  /// In en, this message translates to:
+  /// **'+ {count} more relay(s) are also safety locked'**
+  String anomaly_more_locked(String count);
+
+  /// No description provided for @hub_latency_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Latency: {latency}'**
+  String hub_latency_label(String latency);
+
+  /// No description provided for @hub_lan_no_ip.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub IP not detected'**
+  String get hub_lan_no_ip;
+
+  /// No description provided for @hub_ble_secured_suffix.
+  ///
+  /// In en, this message translates to:
+  /// **'{info} (Key Secured)'**
+  String hub_ble_secured_suffix(String info);
+
+  /// No description provided for @hub_ble_ready_ondemand.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready (Connect-on-Demand & auto-yield)'**
+  String get hub_ble_ready_ondemand;
+
+  /// No description provided for @hub_ble_ready_simple.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready (Connect-on-Demand)'**
+  String get hub_ble_ready_simple;
+
+  /// No description provided for @hub_ble_backup_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Background backup when Wi-Fi router loses power'**
+  String get hub_ble_backup_desc;
+
+  /// No description provided for @hub_ble_ready_short.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready ⚡'**
+  String get hub_ble_ready_short;
+
+  /// No description provided for @hub_broker_unconfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Broker not configured'**
+  String get hub_broker_unconfigured;
+
+  /// No description provided for @quick_timer_set_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Timer set to {action} {name} in {minutes} min'**
+  String quick_timer_set_success(String action, String name, String minutes);
+
+  /// No description provided for @hours_short.
+  ///
+  /// In en, this message translates to:
+  /// **'h'**
+  String get hours_short;
+
+  /// No description provided for @minutes_short.
+  ///
+  /// In en, this message translates to:
+  /// **'m'**
+  String get minutes_short;
+
+  /// No description provided for @disabled_desc_detailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account is temporarily disabled or devices in this home are offline.'**
+  String get disabled_desc_detailed;
+
+  /// No description provided for @btn_switch_other_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to another home'**
+  String get btn_switch_other_home;
+
+  /// No description provided for @btn_manage_members_perms.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Members & Permissions'**
+  String get btn_manage_members_perms;
+
+  /// No description provided for @btn_reconfig_hub_wifi.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconfigure Hub Wi-Fi'**
+  String get btn_reconfig_hub_wifi;
+
+  /// No description provided for @err_no_automation_perm.
+  ///
+  /// In en, this message translates to:
+  /// **'You have not been granted automation management permission.'**
+  String get err_no_automation_perm;
+
+  /// No description provided for @err_no_device_perm_scene.
+  ///
+  /// In en, this message translates to:
+  /// **'You do not have permission to control devices in this scene!'**
+  String get err_no_device_perm_scene;
+
+  /// No description provided for @err_no_device_to_create_scene.
+  ///
+  /// In en, this message translates to:
+  /// **'You have no controllable devices to create a scene.'**
+  String get err_no_device_to_create_scene;
+
+  /// No description provided for @err_no_device_to_create_schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'You have no controllable devices to create a schedule.'**
+  String get err_no_device_to_create_schedule;
+
+  /// No description provided for @scene_subtitle_one_tap.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart synced scenario in just 1 tap'**
+  String get scene_subtitle_one_tap;
+
+  /// No description provided for @scene_name_example_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'E.g. Leave Home, Evening Relax...'**
+  String get scene_name_example_hint;
+
+  /// No description provided for @icon_count_label.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Icons'**
+  String icon_count_label(String count);
+
+  /// No description provided for @selected_devices_ratio.
+  ///
+  /// In en, this message translates to:
+  /// **'{selected}/{total} devices'**
+  String selected_devices_ratio(String selected, String total);
+
+  /// No description provided for @scene_share_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'All household members can trigger this scene'**
+  String get scene_share_hint;
+
+  /// No description provided for @scene_run_now_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate Scene Now'**
+  String get scene_run_now_title;
+
+  /// No description provided for @scene_run_now_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Execute {count} device actions immediately'**
+  String scene_run_now_desc(String count);
+
+  /// No description provided for @scene_edit_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize icon, color and devices'**
+  String get scene_edit_desc;
+
+  /// No description provided for @scene_delete_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently remove this scene'**
+  String get scene_delete_desc;
+
+  /// No description provided for @scene_created_by_readonly.
+  ///
+  /// In en, this message translates to:
+  /// **'Created by {author}. You can activate it but cannot edit or delete.'**
+  String scene_created_by_readonly(String author);
+
+  /// No description provided for @scene_shared_readonly.
+  ///
+  /// In en, this message translates to:
+  /// **'You can activate this shared scene but cannot edit or delete it.'**
+  String get scene_shared_readonly;
+
+  /// No description provided for @timer_err_gt_zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter duration greater than 0'**
+  String get timer_err_gt_zero;
+
+  /// No description provided for @timer_err_max_24h.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum duration is 24 hours (1440 minutes)'**
+  String get timer_err_max_24h;
+
+  /// No description provided for @timer_pick_devices_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Timer Devices'**
+  String get timer_pick_devices_title;
+
+  /// No description provided for @timer_auto_off_tag.
+  ///
+  /// In en, this message translates to:
+  /// **'→ Auto: Timer OFF'**
+  String get timer_auto_off_tag;
+
+  /// No description provided for @timer_auto_on_tag.
+  ///
+  /// In en, this message translates to:
+  /// **'→ Auto: Timer ON'**
+  String get timer_auto_on_tag;
+
+  /// No description provided for @btn_confirm_devices_count.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm ({count} devices)'**
+  String btn_confirm_devices_count(String count);
+
+  /// No description provided for @timer_set_multi_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Timer set for {count} devices ({minutes} min)'**
+  String timer_set_multi_success(String count, String minutes);
+
+  /// No description provided for @err_no_cancel_timer_perm.
+  ///
+  /// In en, this message translates to:
+  /// **'You do not have permission to cancel this timer (set by Owner or another member).'**
+  String get err_no_cancel_timer_perm;
+
+  /// No description provided for @schedule_created_by_you.
+  ///
+  /// In en, this message translates to:
+  /// **'Created by you'**
+  String get schedule_created_by_you;
+
+  /// No description provided for @home_rules_active_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} rules active'**
+  String home_rules_active_count(String count);
+
+  /// No description provided for @home_rules_activated_ratio.
+  ///
+  /// In en, this message translates to:
+  /// **'{active}/{total} active'**
+  String home_rules_activated_ratio(String active, String total);
+
+  /// No description provided for @home_name_example_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'E.g. Lakeside Condo, Villa...'**
+  String get home_name_example_hint;
+
+  /// No description provided for @badge_recommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get badge_recommended;
+
+  /// No description provided for @home_switcher_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage & Switch Homes'**
+  String get home_switcher_title;
+
+  /// No description provided for @home_switcher_empty_other.
+  ///
+  /// In en, this message translates to:
+  /// **'No other homes available'**
+  String get home_switcher_empty_other;
+
+  /// No description provided for @home_switcher_tip.
+  ///
+  /// In en, this message translates to:
+  /// **'You can own multiple homes and switch instantly without logging out.'**
+  String get home_switcher_tip;
+
+  /// No description provided for @home_esp_unlinked_badge.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 not set up'**
+  String get home_esp_unlinked_badge;
+
+  /// No description provided for @home_smart_rules_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} smart rules'**
+  String home_smart_rules_count(String count);
+
+  /// No description provided for @home_menu_properties.
+  ///
+  /// In en, this message translates to:
+  /// **'Properties & Rules'**
+  String get home_menu_properties;
+
+  /// No description provided for @home_menu_delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this home'**
+  String get home_menu_delete;
+
+  /// No description provided for @home_switched_toast.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched to {name}!'**
+  String home_switched_toast(String name);
+
+  /// No description provided for @home_new_name_label.
+  ///
+  /// In en, this message translates to:
+  /// **'New home name:'**
+  String get home_new_name_label;
+
+  /// No description provided for @home_new_name_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'E.g. Garden House, Apt 2, Villa...'**
+  String get home_new_name_hint;
+
+  /// No description provided for @btn_delete_forever.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Permanently'**
+  String get btn_delete_forever;
+
+  /// No description provided for @home_icon_eco.
+  ///
+  /// In en, this message translates to:
+  /// **'Eco Home'**
+  String get home_icon_eco;
+
+  /// No description provided for @home_icon_beach.
+  ///
+  /// In en, this message translates to:
+  /// **'Beach House'**
+  String get home_icon_beach;
+
+  /// No description provided for @home_icon_castle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mansion'**
+  String get home_icon_castle;
+
+  /// No description provided for @home_icon_warehouse.
+  ///
+  /// In en, this message translates to:
+  /// **'Warehouse'**
+  String get home_icon_warehouse;
+
+  /// No description provided for @home_color_zen.
+  ///
+  /// In en, this message translates to:
+  /// **'Zen Jade'**
+  String get home_color_zen;
+
+  /// No description provided for @home_color_royal.
+  ///
+  /// In en, this message translates to:
+  /// **'Royal Blue'**
+  String get home_color_royal;
+
+  /// No description provided for @home_color_purple.
+  ///
+  /// In en, this message translates to:
+  /// **'Modern Purple'**
+  String get home_color_purple;
+
+  /// No description provided for @home_color_orange.
+  ///
+  /// In en, this message translates to:
+  /// **'Energy Orange'**
+  String get home_color_orange;
+
+  /// No description provided for @home_color_emerald.
+  ///
+  /// In en, this message translates to:
+  /// **'Emerald'**
+  String get home_color_emerald;
+
+  /// No description provided for @home_color_ruby.
+  ///
+  /// In en, this message translates to:
+  /// **'Ruby Red'**
+  String get home_color_ruby;
+
+  /// No description provided for @home_color_amber.
+  ///
+  /// In en, this message translates to:
+  /// **'Amber'**
+  String get home_color_amber;
+
+  /// No description provided for @home_color_slate.
+  ///
+  /// In en, this message translates to:
+  /// **'Marble Slate'**
+  String get home_color_slate;
+
+  /// No description provided for @greeting_user.
+  ///
+  /// In en, this message translates to:
+  /// **'Hello, {name}'**
+  String greeting_user(String name);
+
+  /// No description provided for @to_phone_label.
+  ///
+  /// In en, this message translates to:
+  /// **'To: {phone}'**
+  String to_phone_label(String phone);
+
+  /// No description provided for @err_otp_send_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send OTP'**
+  String get err_otp_send_title;
+
+  /// No description provided for @err_link_account_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Linking Error'**
+  String get err_link_account_title;
+
+  /// No description provided for @err_verification_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification Error'**
+  String get err_verification_title;
+
+  /// No description provided for @msg_data_synced.
+  ///
+  /// In en, this message translates to:
+  /// **'Data synced!'**
+  String get msg_data_synced;
+
+  /// No description provided for @google_sign_in_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with Google'**
+  String get google_sign_in_label;
+
+  /// No description provided for @member_perm_dialog_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Device control permissions'**
+  String get member_perm_dialog_subtitle;
+
+  /// No description provided for @member_all_devices.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Access (All devices)'**
+  String get member_all_devices;
+
+  /// No description provided for @member_selected_devices_only.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected devices only'**
+  String get member_selected_devices_only;
+
+  /// No description provided for @member_select_devices_count.
+  ///
+  /// In en, this message translates to:
+  /// **'Select controllable devices ({selected}/{total}):'**
+  String member_select_devices_count(String selected, String total);
+
+  /// No description provided for @msg_device_perms_updated.
+  ///
+  /// In en, this message translates to:
+  /// **'Device permissions updated'**
+  String get msg_device_perms_updated;
+
+  /// No description provided for @err_update_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Update failed'**
+  String get err_update_failed;
+
+  /// No description provided for @sent_invites_header.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent Invitations ({count}):'**
+  String sent_invites_header(String count);
+
+  /// No description provided for @err_invalid_username_input.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid Username'**
+  String get err_invalid_username_input;
+
+  /// No description provided for @msg_invite_sent_to.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation sent to {username}'**
+  String msg_invite_sent_to(String username);
+
+  /// No description provided for @msg_invite_revoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoked invitation to {username}'**
+  String msg_invite_revoked(String username);
+
+  /// No description provided for @msg_invite_declined.
+  ///
+  /// In en, this message translates to:
+  /// **'Declined invitation from {username}'**
+  String msg_invite_declined(String username);
+
+  /// No description provided for @msg_member_removed.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed access for {username}'**
+  String msg_member_removed(String username);
+
+  /// No description provided for @msg_member_perms_updated_for.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated device permissions for {username}'**
+  String msg_member_perms_updated_for(String username);
+
+  /// No description provided for @msg_member_disabled_user.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled {username}'**
+  String msg_member_disabled_user(String username);
+
+  /// No description provided for @msg_member_enabled_user.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored {username}'**
+  String msg_member_enabled_user(String username);
+
+  /// No description provided for @msg_auto_granted_user.
+  ///
+  /// In en, this message translates to:
+  /// **'Granted automation edit to {username}'**
+  String msg_auto_granted_user(String username);
+
+  /// No description provided for @msg_auto_revoked_user.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoked automation edit from {username}'**
+  String msg_auto_revoked_user(String username);
+
+  /// No description provided for @msg_role_updated_user.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated role for {username}'**
+  String msg_role_updated_user(String username);
+
+  /// No description provided for @settings_hub_linked_mac.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked (MAC: {mac})'**
+  String settings_hub_linked_mac(String mac);
+
+  /// No description provided for @settings_hub_linked_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure Wi-Fi network and Hub link'**
+  String get settings_hub_linked_desc;
+
+  /// No description provided for @settings_hub_linked_prompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Hub is securely linked. Do you want to reconfigure Wi-Fi or unlink & Factory Reset the Hub remotely?'**
+  String get settings_hub_linked_prompt;
+
+  /// No description provided for @settings_hub_offline_unlink_title.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub is offline!'**
+  String get settings_hub_offline_unlink_title;
+
+  /// No description provided for @settings_hub_offline_unlink_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'If the device is lost or damaged, unlinking removes it from your cloud account while the board retains old config until manually reset.'**
+  String get settings_hub_offline_unlink_desc;
+
+  /// No description provided for @btn_unlink_anyway_offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlink Anyway (Hub offline)'**
+  String get btn_unlink_anyway_offline;
+
+  /// No description provided for @btn_check_again_short.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get btn_check_again_short;
+
+  /// No description provided for @admin_pass_hub_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub Admin Password'**
+  String get admin_pass_hub_title;
+
+  /// No description provided for @admin_pass_unlink_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter ESP32 Hub admin password to authorize remote unlink & wipe.'**
+  String get admin_pass_unlink_desc;
+
+  /// No description provided for @admin_pass_reconfig_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter ESP32 Hub admin password to change Wi-Fi & MQTT settings.'**
+  String get admin_pass_reconfig_desc;
+
+  /// No description provided for @admin_pass_ota_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter ESP32 Hub admin password to authorize firmware upgrade.'**
+  String get admin_pass_ota_desc;
+
+  /// No description provided for @security_action_canceled.
+  ///
+  /// In en, this message translates to:
+  /// **'Security Action Canceled'**
+  String get security_action_canceled;
+
+  /// No description provided for @security_admin_pass_missing_unlink.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin password not verified. ESP32 Hub remains protected.'**
+  String get security_admin_pass_missing_unlink;
+
+  /// No description provided for @security_identity_missing_unlink.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity verification incomplete. ESP32 Hub remains intact.'**
+  String get security_identity_missing_unlink;
+
+  /// No description provided for @security_admin_pass_missing_reconfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin password not verified. ESP32 Hub config kept safe.'**
+  String get security_admin_pass_missing_reconfig;
+
+  /// No description provided for @security_identity_missing_ota.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity not verified. Firmware upgrade safely canceled.'**
+  String get security_identity_missing_ota;
+
+  /// No description provided for @security_admin_pass_missing_ota.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin password not verified. ESP32 Hub stays on current version.'**
+  String get security_admin_pass_missing_ota;
+
+  /// No description provided for @reason_unlink_hub.
+  ///
+  /// In en, this message translates to:
+  /// **'confirm unlinking and remotely wiping ESP32 Hub configuration'**
+  String get reason_unlink_hub;
+
+  /// No description provided for @reason_ota_hub.
+  ///
+  /// In en, this message translates to:
+  /// **'confirm ESP32 Hub firmware upgrade'**
+  String get reason_ota_hub;
+
+  /// No description provided for @unlink_hub_final_mac_note.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub MAC: {mac} • ESP32 will immediately wipe /config.json, turn off all relays, and reboot into AP Setup.'**
+  String unlink_hub_final_mac_note(String mac);
+
+  /// No description provided for @btn_reset_and_unlink.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Reset & Unlink'**
+  String get btn_reset_and_unlink;
+
+  /// No description provided for @btn_keep_linked.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Linked'**
+  String get btn_keep_linked;
+
+  /// No description provided for @unlink_hub_cloud_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Successfully unlinked ESP32 Hub from your Cloud account.'**
+  String get unlink_hub_cloud_success;
+
+  /// No description provided for @detail_action_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Action'**
+  String get detail_action_label;
+
+  /// No description provided for @detail_mac_label.
+  ///
+  /// In en, this message translates to:
+  /// **'MAC Address'**
+  String get detail_mac_label;
+
+  /// No description provided for @detail_esp_signal_label.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Signal'**
+  String get detail_esp_signal_label;
+
+  /// No description provided for @detail_time_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get detail_time_label;
+
+  /// No description provided for @detail_reset_sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure Reset command sent'**
+  String get detail_reset_sent;
+
+  /// No description provided for @detail_hub_offline_removed.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub Offline (Removed from Cloud)'**
+  String get detail_hub_offline_removed;
+
+  /// No description provided for @detail_factory_reset_unlink.
+  ///
+  /// In en, this message translates to:
+  /// **'Factory Reset & Unlink Hub'**
+  String get detail_factory_reset_unlink;
+
+  /// No description provided for @hub_unlinked_short.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub Not Linked'**
+  String get hub_unlinked_short;
+
+  /// No description provided for @hub_unlinked_setup_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'No ESP32 Hub is linked to this account. Please set up Hub Wi-Fi first.'**
+  String get hub_unlinked_setup_desc;
+
+  /// No description provided for @hub_offline_title.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub Offline'**
+  String get hub_offline_title;
+
+  /// No description provided for @hub_offline_troubleshoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Please check device power supply and Wi-Fi connection.'**
+  String get hub_offline_troubleshoot;
+
+  /// No description provided for @label_hub_id.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub ID'**
+  String get label_hub_id;
+
+  /// No description provided for @label_status.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get label_status;
+
+  /// No description provided for @label_troubleshoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Troubleshoot'**
+  String get label_troubleshoot;
+
+  /// No description provided for @restart_hub_tls_note.
+  ///
+  /// In en, this message translates to:
+  /// **'MAC: {mac} • Command sent over encrypted MQTT TLS.'**
+  String restart_hub_tls_note(String mac);
+
+  /// No description provided for @btn_restart_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart Now'**
+  String get btn_restart_now;
+
+  /// No description provided for @detail_remote_reboot.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote Hub Reboot'**
+  String get detail_remote_reboot;
+
+  /// No description provided for @detail_device_mac.
+  ///
+  /// In en, this message translates to:
+  /// **'Device MAC'**
+  String get detail_device_mac;
+
+  /// No description provided for @detail_control_channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Control Channel'**
+  String get detail_control_channel;
+
+  /// No description provided for @detail_tls_channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted TLS Channel'**
+  String get detail_tls_channel;
+
+  /// No description provided for @err_send_cmd_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Command Failed'**
+  String get err_send_cmd_title;
+
+  /// No description provided for @err_send_reboot_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not send reboot command: {err}'**
+  String err_send_reboot_failed(String err);
+
+  /// No description provided for @delete_sub_home_confirm_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'This action cannot be undone. The app will automatically switch back to your primary home.'**
+  String get delete_sub_home_confirm_desc;
+
+  /// No description provided for @msg_deleted_sub_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted home and returned to primary home!'**
+  String get msg_deleted_sub_home;
+
+  /// No description provided for @delete_sub_home_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently delete {name} and return to primary home'**
+  String delete_sub_home_subtitle(String name);
+
+  /// No description provided for @hub_reconfig_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub Wi-Fi & MQTT Config'**
+  String get hub_reconfig_title;
+
+  /// No description provided for @hub_reconfig_online.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub Online'**
+  String get hub_reconfig_online;
+
+  /// No description provided for @hub_reconfig_offline.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub Offline'**
+  String get hub_reconfig_offline;
+
+  /// No description provided for @hub_reconfig_online_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub is online on MQTT. You can push new Wi-Fi and Broker settings directly via OTA without replugging!'**
+  String get hub_reconfig_online_desc;
+
+  /// No description provided for @hub_reconfig_offline_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub is offline. Save config to Cloud or use the button below to provision directly via Hub Wi-Fi AP (192.168.4.1).'**
+  String get hub_reconfig_offline_desc;
+
+  /// No description provided for @hub_wifi_section.
+  ///
+  /// In en, this message translates to:
+  /// **'Wi-Fi Network'**
+  String get hub_wifi_section;
+
+  /// No description provided for @hub_wifi_ssid_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Wi-Fi Name (SSID)'**
+  String get hub_wifi_ssid_label;
+
+  /// No description provided for @hub_wifi_ssid_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter 2.4GHz Wi-Fi name'**
+  String get hub_wifi_ssid_hint;
+
+  /// No description provided for @hub_scan_wifi_tooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan nearby Wi-Fi'**
+  String get hub_scan_wifi_tooltip;
+
+  /// No description provided for @hub_no_wifi_found.
+  ///
+  /// In en, this message translates to:
+  /// **'No available Wi-Fi networks found'**
+  String get hub_no_wifi_found;
+
+  /// No description provided for @hub_err_empty_ssid.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter or select a Wi-Fi Name (SSID)'**
+  String get hub_err_empty_ssid;
+
+  /// No description provided for @hub_mqtt_section.
+  ///
+  /// In en, this message translates to:
+  /// **'MQTT Broker Configuration'**
+  String get hub_mqtt_section;
+
+  /// No description provided for @hub_mqtt_host_label.
+  ///
+  /// In en, this message translates to:
+  /// **'MQTT Server (Broker Host)'**
+  String get hub_mqtt_host_label;
+
+  /// No description provided for @hub_err_empty_mqtt.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter MQTT server address'**
+  String get hub_err_empty_mqtt;
+
+  /// No description provided for @hub_comm_channel_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel: Internal Encrypted'**
+  String get hub_comm_channel_title;
+
+  /// No description provided for @hub_comm_channel_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Dedicated secure routing bound to User ID and Hub MAC.'**
+  String get hub_comm_channel_desc;
+
+  /// No description provided for @hub_admin_security_section.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Security & Sync'**
+  String get hub_admin_security_section;
+
+  /// No description provided for @hub_admin_pass_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub Admin Password (Protects permissions, pin mapping, unlinking)'**
+  String get hub_admin_pass_desc;
+
+  /// No description provided for @hub_err_empty_admin_pass.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin password cannot be empty'**
+  String get hub_err_empty_admin_pass;
+
+  /// No description provided for @hub_btn_apply_ota.
+  ///
+  /// In en, this message translates to:
+  /// **'Save & Push OTA to Hub'**
+  String get hub_btn_apply_ota;
+
+  /// No description provided for @hub_btn_save_cloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Config to Cloud'**
+  String get hub_btn_save_cloud;
+
+  /// No description provided for @hub_btn_softap.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure via Hub Wi-Fi AP (192.168.4.1)'**
+  String get hub_btn_softap;
+
+  /// No description provided for @hub_reconfig_confirm_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Wi-Fi & MQTT Change'**
+  String get hub_reconfig_confirm_title;
+
+  /// No description provided for @hub_reconfig_confirm_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub will save the new configuration and reboot to join the new Wi-Fi and MQTT Broker.'**
+  String get hub_reconfig_confirm_desc;
+
+  /// No description provided for @hub_reconfig_summary.
+  ///
+  /// In en, this message translates to:
+  /// **'New Wi-Fi: {ssid}\nMQTT Broker: {broker}\nHub MAC: {mac}'**
+  String hub_reconfig_summary(String ssid, String broker, String mac);
+
+  /// No description provided for @hub_btn_push_ota_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Push OTA Config Now'**
+  String get hub_btn_push_ota_now;
+
+  /// No description provided for @btn_review.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get btn_review;
+
+  /// No description provided for @hub_reconfig_success_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration Updated'**
+  String get hub_reconfig_success_title;
+
+  /// No description provided for @hub_reconfig_ota_success_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Pushed new Wi-Fi & MQTT config to ESP32 Hub via OTA! The board is rebooting into the new network.'**
+  String get hub_reconfig_ota_success_desc;
+
+  /// No description provided for @hub_reconfig_cloud_success_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved new configuration to Cloud. Since Hub is offline, provision via AP or wait for Hub reconnect.'**
+  String get hub_reconfig_cloud_success_desc;
+
+  /// No description provided for @btn_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get btn_done;
+
+  /// No description provided for @hub_reconfig_err_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to Apply Config'**
+  String get hub_reconfig_err_title;
+
+  /// No description provided for @hub_reconfig_err_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to update configuration'**
+  String get hub_reconfig_err_desc;
+
+  /// No description provided for @hub_reconfig_method_cloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to Cloud (Hub Offline)'**
+  String get hub_reconfig_method_cloud;
+
+  /// No description provided for @hub_reconfig_method_ota.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud OTA Command (Success)'**
+  String get hub_reconfig_method_ota;
+
+  /// No description provided for @hub_reconfig_method_local.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct LAN/BLE Zero-Touch (Success)'**
+  String get hub_reconfig_method_local;
+
+  /// No description provided for @detail_new_wifi.
+  ///
+  /// In en, this message translates to:
+  /// **'New Wi-Fi'**
+  String get detail_new_wifi;
+
+  /// No description provided for @detail_method.
+  ///
+  /// In en, this message translates to:
+  /// **'Method'**
+  String get detail_method;
+
+  /// No description provided for @err_wifi_scan_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Wi-Fi scan error: {err}'**
+  String err_wifi_scan_failed(String err);
+
+  /// No description provided for @wifi_band_24_available.
+  ///
+  /// In en, this message translates to:
+  /// **'Supported band: 2.4GHz ({count} networks available)'**
+  String wifi_band_24_available(String count);
+
+  /// No description provided for @wifi_no_internet_prompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Network has no Internet, continue?'**
+  String get wifi_no_internet_prompt;
+
+  /// No description provided for @wifi_hub_not_connected_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Not Connected to ESP32 Hub'**
+  String get wifi_hub_not_connected_title;
+
+  /// No description provided for @wifi_hub_not_connected_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'To configure Wi-Fi and link your account, your phone must connect to the Wi-Fi AP emitted by the ESP32 Hub first.'**
+  String get wifi_hub_not_connected_desc;
+
+  /// No description provided for @wifi_troubleshoot_checklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Check ESP32 Board:\n• Ensure ESP32 is powered on (red LED lit).\n• Blue LED (GPIO 2) blinks rapidly (AP setup mode).\n• If solid or off: Hold BOOT button for 5s to reset.\n• Ensure Phone Location (GPS) and Wi-Fi are enabled.'**
+  String get wifi_troubleshoot_checklist;
+
+  /// No description provided for @wifi_connected_continue.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected ({mac}) • Continue'**
+  String wifi_connected_continue(String mac);
+
+  /// No description provided for @wifi_check_hub_continue.
+  ///
+  /// In en, this message translates to:
+  /// **'Check Hub Connection & Continue'**
+  String get wifi_check_hub_continue;
+
+  /// No description provided for @wifi_setting_up_for.
+  ///
+  /// In en, this message translates to:
+  /// **'Setting up for: '**
+  String get wifi_setting_up_for;
+
+  /// No description provided for @wifi_exclusive_hub_note.
+  ///
+  /// In en, this message translates to:
+  /// **'{type} • ESP32 Hub will link exclusively to this home'**
+  String wifi_exclusive_hub_note(String type);
+
+  /// No description provided for @wifi_wizard_checking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking connection to ESP32 Hub...'**
+  String get wifi_wizard_checking;
+
+  /// No description provided for @wifi_wizard_handshaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Handshaking with ESP32 Hub...'**
+  String get wifi_wizard_handshaking;
+
+  /// No description provided for @wifi_wizard_not_found.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 device not found (192.168.4.1). Please connect to Hub Wi-Fi.'**
+  String get wifi_wizard_not_found;
+
+  /// No description provided for @wifi_wizard_sending_cfg.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending Wi-Fi & MQTT credentials to Hub...'**
+  String get wifi_wizard_sending_cfg;
+
+  /// No description provided for @wifi_wizard_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 rejected configuration. Please check Admin Password.'**
+  String get wifi_wizard_rejected;
+
+  /// No description provided for @wifi_wizard_waiting_cloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for Hub to connect Wi-Fi & MQTT Cloud...'**
+  String get wifi_wizard_waiting_cloud;
+
+  /// No description provided for @wifi_wizard_signal_ack.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub signal detected! Sending activation confirmation...'**
+  String get wifi_wizard_signal_ack;
+
+  /// No description provided for @wifi_wizard_waiting_loop.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for initial Hub signal ({sec}s / 3 min)...'**
+  String wifi_wizard_waiting_loop(String sec);
+
+  /// No description provided for @wifi_wizard_completed_nav.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup complete! Features unlocked. Opening Device Mapping...'**
+  String get wifi_wizard_completed_nav;
+
+  /// No description provided for @ota_denied_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Access Denied'**
+  String get ota_denied_title;
+
+  /// No description provided for @ota_owner_only_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the Home Owner can upgrade ESP32 microcontroller firmware.'**
+  String get ota_owner_only_desc;
+
+  /// No description provided for @ota_offline_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub is offline (power or Wi-Fi lost). Please check device before upgrading firmware.'**
+  String get ota_offline_desc;
+
+  /// No description provided for @ota_require_online.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub must be online to receive OTA command'**
+  String get ota_require_online;
+
+  /// No description provided for @ota_no_update_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No New Firmware'**
+  String get ota_no_update_title;
+
+  /// No description provided for @ota_no_update_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'No firmware binary (.bin) is currently ready on server for ESP32 Hub OTA.'**
+  String get ota_no_update_desc;
+
+  /// No description provided for @ota_server_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Server'**
+  String get ota_server_label;
+
+  /// No description provided for @ota_binary_not_found.
+  ///
+  /// In en, this message translates to:
+  /// **'firmware.bin not found'**
+  String get ota_binary_not_found;
+
+  /// No description provided for @ota_up_to_date_title.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub Up to Date'**
+  String get ota_up_to_date_title;
+
+  /// No description provided for @ota_up_to_date_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ESP32 Hub is running the latest firmware. System is performing optimally!'**
+  String get ota_up_to_date_desc;
+
+  /// No description provided for @ota_hub_version_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Hub Version'**
+  String get ota_hub_version_label;
+
+  /// No description provided for @ota_latest_server_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest on Server'**
+  String get ota_latest_server_label;
+
+  /// No description provided for @ota_optimal_status.
+  ///
+  /// In en, this message translates to:
+  /// **'Running optimally'**
+  String get ota_optimal_status;
+
+  /// No description provided for @ota_reflash_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only re-flash if you want to cleanly wipe Flash partitions or recover firmware.'**
+  String get ota_reflash_hint;
+
+  /// No description provided for @ota_btn_reflash.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-flash'**
+  String get ota_btn_reflash;
+
+  /// No description provided for @ota_new_found_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'New firmware version is ready to flash to ESP32 Hub.'**
+  String get ota_new_found_desc;
+
+  /// No description provided for @ota_new_version_label.
+  ///
+  /// In en, this message translates to:
+  /// **'New Version'**
+  String get ota_new_version_label;
+
+  /// No description provided for @ota_size_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get ota_size_label;
+
+  /// No description provided for @ota_security_verify_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Security'**
+  String get ota_security_verify_label;
+
+  /// No description provided for @ota_ecdsa_signed.
+  ///
+  /// In en, this message translates to:
+  /// **'ECDSA Digital Signature (Verified)'**
+  String get ota_ecdsa_signed;
+
+  /// No description provided for @ota_target_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Target'**
+  String get ota_target_label;
+
+  /// No description provided for @ota_flash_caution.
+  ///
+  /// In en, this message translates to:
+  /// **'Note: Flashing takes 30–60 seconds. Do NOT disconnect power or Wi-Fi.'**
+  String get ota_flash_caution;
+
+  /// No description provided for @ota_sending_cmd.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending secure OTA command to ESP32 Hub...'**
+  String get ota_sending_cmd;
+
+  /// No description provided for @ota_flashing_progress.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading & flashing MCU: {progress}%'**
+  String ota_flashing_progress(String progress);
+
+  /// No description provided for @ota_flash_rebooting.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade complete! ESP32 Hub is rebooting...'**
+  String get ota_flash_rebooting;
+
+  /// No description provided for @ota_flash_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Error during firmware flash!'**
+  String get ota_flash_error;
+
+  /// No description provided for @ota_flash_back_online.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade complete! ESP32 Hub is back online.'**
+  String get ota_flash_back_online;
+
+  /// No description provided for @ota_timeout_90s.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub response timed out (90s). Please check Hub power!'**
+  String get ota_timeout_90s;
+
+  /// No description provided for @ota_server_accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub received command via Server. Downloading firmware...'**
+  String get ota_server_accepted;
+
+  /// No description provided for @ota_status_success_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade Complete!'**
+  String get ota_status_success_title;
+
+  /// No description provided for @ota_status_failed_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade Failed'**
+  String get ota_status_failed_title;
+
+  /// No description provided for @ota_status_flashing_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Flashing OTA Firmware'**
+  String get ota_status_flashing_title;
+
+  /// No description provided for @ota_badge_done.
+  ///
+  /// In en, this message translates to:
+  /// **'DONE'**
+  String get ota_badge_done;
+
+  /// No description provided for @ota_badge_error.
+  ///
+  /// In en, this message translates to:
+  /// **'ERROR'**
+  String get ota_badge_error;
+
+  /// No description provided for @ota_badge_flashing.
+  ///
+  /// In en, this message translates to:
+  /// **'FLASHING'**
+  String get ota_badge_flashing;
+
+  /// No description provided for @ota_keep_power_wifi.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep power & Wi-Fi stable throughout flashing'**
+  String get ota_keep_power_wifi;
+
+  /// No description provided for @ota_verified_100.
+  ///
+  /// In en, this message translates to:
+  /// **'100% Firmware flashed & integrity verified!'**
+  String get ota_verified_100;
+
+  /// No description provided for @ota_swap_boot_note.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub is swapping boot partitions and rebooting (~5–10s).'**
+  String get ota_swap_boot_note;
+
+  /// No description provided for @ota_unknown_error.
+  ///
+  /// In en, this message translates to:
+  /// **'An unknown error occurred.'**
+  String get ota_unknown_error;
+
+  /// No description provided for @changelog_version_build.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} • Build {build}'**
+  String changelog_version_build(String version, String build);
+
+  /// No description provided for @changelog_cloud_server_ver.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud Server: v{version} (Build {build})'**
+  String changelog_cloud_server_ver(String version, String build);
+
+  /// No description provided for @changelog_cdn_channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Official ZenHome Cloud CDN Channel'**
+  String get changelog_cdn_channel;
+
+  /// No description provided for @changelog_esp_hw_title.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Hub Microcontroller'**
+  String get changelog_esp_hw_title;
+
+  /// No description provided for @changelog_esp_hw_arch.
+  ///
+  /// In en, this message translates to:
+  /// **'Dual-Partition OTA Architecture • ECDSA Signed'**
+  String get changelog_esp_hw_arch;
+
+  /// No description provided for @changelog_feat1_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft Luxury Glass Architecture'**
+  String get changelog_feat1_title;
+
+  /// No description provided for @changelog_feat1_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Refined translucent aurora optics, hairline rims, and unified 6 Zen Luxury presets.'**
+  String get changelog_feat1_desc;
+
+  /// No description provided for @changelog_feat2_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic Bilingual Localization'**
+  String get changelog_feat2_title;
+
+  /// No description provided for @changelog_feat2_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Full bilingual English & Vietnamese support across every screen and dialog.'**
+  String get changelog_feat2_desc;
+
+  /// No description provided for @changelog_feat3_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud Security & Firestore RBAC'**
+  String get changelog_feat3_title;
+
+  /// No description provided for @changelog_feat3_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardened Firestore security rules and seamless multi-identity account matching.'**
+  String get changelog_feat3_desc;
+
+  /// No description provided for @changelog_feat4_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Network & Offline Resilience'**
+  String get changelog_feat4_title;
+
+  /// No description provided for @changelog_feat4_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Eliminated UDP broadcast crashes on Android 14–16 and hardened MQTT reconnection.'**
+  String get changelog_feat4_desc;
+
+  /// No description provided for @changelog_feat5_title.
+  ///
+  /// In en, this message translates to:
+  /// **'120Hz Performance & Fast Startup'**
+  String get changelog_feat5_title;
+
+  /// No description provided for @changelog_feat5_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Accelerated cloud sync and reduced background network & GPU overhead.'**
+  String get changelog_feat5_desc;
+
+  /// No description provided for @changelog_rel_1_8_21.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft translucent Liquid Glass upgrade, hairline rims, Hybrid Glass 120Hz cards, and overflow fixes across all screens.'**
+  String get changelog_rel_1_8_21;
+
+  /// No description provided for @changelog_rel_1_8_20.
+  ///
+  /// In en, this message translates to:
+  /// **'Introduced Anti-Collision Semantic Palette for 6 Zen Luxury presets and 120fps tab/menu smoothness.'**
+  String get changelog_rel_1_8_20;
+
+  /// No description provided for @changelog_rel_1_8_19.
+  ///
+  /// In en, this message translates to:
+  /// **'Zen Liquid Glass 2.0 aurora backdrop, beveled rims, and unified glass dialogs across screens.'**
+  String get changelog_rel_1_8_19;
+
+  /// No description provided for @changelog_rel_1_8_18.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved 9/9 Cloudflare Audit security items: tightened Firestore rules, blocked IDOR, enforced ECDSA P-256 OTA signatures.'**
+  String get changelog_rel_1_8_18;
+
+  /// No description provided for @changelog_rel_1_8_17.
+  ///
+  /// In en, this message translates to:
+  /// **'Launched Zen Liquid Glass UI generation for weather, device cards, and floating navigation.'**
+  String get changelog_rel_1_8_17;
+
+  /// No description provided for @changelog_rel_1_8_1.
+  ///
+  /// In en, this message translates to:
+  /// **'Added smooth spring UI animations, Root protection, tightened Local LAN API and power-loss state sync.'**
+  String get changelog_rel_1_8_1;
+
+  /// No description provided for @changelog_rel_1_8_0.
+  ///
+  /// In en, this message translates to:
+  /// **'Added Admin Passkey authentication, release changelog viewer, and dynamic language switching.'**
+  String get changelog_rel_1_8_0;
+
+  /// No description provided for @changelog_rel_1_7_14.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed UDP Socket broadcast issues on Android 16 and guarded stream listeners.'**
+  String get changelog_rel_1_7_14;
+
+  /// No description provided for @changelog_rel_1_7_13.
+  ///
+  /// In en, this message translates to:
+  /// **'Optimized multi-session auth flow and high-security real-time sync.'**
+  String get changelog_rel_1_7_13;
+
+  /// No description provided for @changelog_rel_1_7_10.
+  ///
+  /// In en, this message translates to:
+  /// **'Integrated bidirectional Firebase Crashlytics sync and web monitoring.'**
+  String get changelog_rel_1_7_10;
+
+  /// No description provided for @changelog_rel_1_7_0.
+  ///
+  /// In en, this message translates to:
+  /// **'Launched ZenHome Fluent Design UI with Dark Mode and sensor cards.'**
+  String get changelog_rel_1_7_0;
+
+  /// No description provided for @mapping_gpio_conflict_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'GPIO pin {pin} is already assigned to multiple devices: \"{names}\". Each device needs a unique GPIO pin.'**
+  String mapping_gpio_conflict_detail(String pin, String names);
+
+  /// No description provided for @mapping_room_conflict_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{room}\" has multiple devices named \"{name}\". Please use unique names.'**
+  String mapping_room_conflict_detail(String room, String name);
+
+  /// No description provided for @mapping_gpio_in_use_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'GPIO pin {pin} is already used by \"{name}\" ({room}). Please pick another pin!'**
+  String mapping_gpio_in_use_detail(String pin, String name, String room);
+
+  /// No description provided for @mapping_room_name_exists_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{room}\" already has a device named \"{name}\". Please choose a different name!'**
+  String mapping_room_name_exists_detail(String room, String name);
+
+  /// No description provided for @mapping_dup_id_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Device ID \"{id}\" is already used by another device. Please choose a different ID.'**
+  String mapping_dup_id_detail(String id);
+
+  /// No description provided for @mapping_delete_warning_detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Room: {room} • ID: {id}\nNote: Any schedules, timers, and scenes linked to this device will be removed.'**
+  String mapping_delete_warning_detail(String room, String id);
+
+  /// No description provided for @detail_gpio_pin.
+  ///
+  /// In en, this message translates to:
+  /// **'GPIO Pin'**
+  String get detail_gpio_pin;
+
+  /// No description provided for @detail_duplicate_devices.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate Devices'**
+  String get detail_duplicate_devices;
+
+  /// No description provided for @detail_requirement.
+  ///
+  /// In en, this message translates to:
+  /// **'Requirement'**
+  String get detail_requirement;
+
+  /// No description provided for @mapping_req_change_gpio.
+  ///
+  /// In en, this message translates to:
+  /// **'Change GPIO pin before saving'**
+  String get mapping_req_change_gpio;
+
+  /// No description provided for @mapping_req_rename_device.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename device before saving'**
+  String get mapping_req_rename_device;
+
+  /// No description provided for @detail_area.
+  ///
+  /// In en, this message translates to:
+  /// **'Room / Area'**
+  String get detail_area;
+
+  /// No description provided for @detail_conflict_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicting Name'**
+  String get detail_conflict_name;
+
+  /// No description provided for @detail_entered_id.
+  ///
+  /// In en, this message translates to:
+  /// **'Entered ID'**
+  String get detail_entered_id;
+
+  /// No description provided for @detail_used_by.
+  ///
+  /// In en, this message translates to:
+  /// **'Used by'**
+  String get detail_used_by;
+
+  /// No description provided for @detail_room.
+  ///
+  /// In en, this message translates to:
+  /// **'Room'**
+  String get detail_room;
+
+  /// No description provided for @detail_dup_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate Name'**
+  String get detail_dup_name;
+
+  /// No description provided for @detail_mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Mode'**
+  String get detail_mode;
+
+  /// No description provided for @mapping_saved_offline_mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved locally (Offline)'**
+  String get mapping_saved_offline_mode;
+
+  /// No description provided for @detail_details_prefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Details: {details}'**
+  String detail_details_prefix(String details);
+
+  /// No description provided for @mapping_device_count.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Count'**
+  String get mapping_device_count;
+
+  /// No description provided for @mapping_cloud_sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud Sync'**
+  String get mapping_cloud_sync;
+
+  /// No description provided for @mapping_firestore_ok.
+  ///
+  /// In en, this message translates to:
+  /// **'Firestore succeeded'**
+  String get mapping_firestore_ok;
+
+  /// No description provided for @mapping_esp_sync.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 Sync'**
+  String get mapping_esp_sync;
+
+  /// No description provided for @mapping_sent_secure.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent via encrypted channel'**
+  String get mapping_sent_secure;
+
+  /// No description provided for @btn_confirm_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Action'**
+  String get btn_confirm_action;
+
+  /// No description provided for @btn_cancel_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get btn_cancel_action;
 }
 
 class _AppLocalizationsDelegate

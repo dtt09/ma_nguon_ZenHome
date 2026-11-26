@@ -13,7 +13,7 @@ unsigned long setupPhaseStartTime = 0;
 bool isPowerOutageBoot = false;
 bool hasOfflineBackup = false;
 bool needsBackupToFlash = false;
-bool isOtaInProgress = false;
+std::atomic<bool> isOtaInProgress(false);
 unsigned long lastRelayStateChangeAt = 0;
 
 // Trạng thái khởi động lại theo lịch
@@ -21,54 +21,76 @@ bool shouldReboot = false;
 unsigned long rebootScheduledAt = 0;
 
 // Cấu trúc lệnh cấu hình lại trong nền
-PendingReconfig pendingReconfig = {false, "", "", "", ""};
+PendingReconfig pendingReconfig{};
 
 // Thông số mạng Wi-Fi và MQTT Broker HiveMQ Cloud
 String wifi_ssid = "";
 String wifi_pass = "";
 String mqtt_prefix = "";
 String mqtt_server = "e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud";
-String mqtt_user = "DTC_ZenHome";
-String mqtt_pass = "DTC_ZenHome2103";
-String admin_pass = "admin";
+String mqtt_user = "";
+String mqtt_pass = "";
+String admin_pass = "";
 String server_url = "";
+String bindingToken;
 
 // Mutex bảo vệ truy cập bộ nhớ Flash LittleFS đa luồng (Core 0 vs Core 1)
 SemaphoreHandle_t flashMutex = NULL;
 
-// ISRG Root X1 CA Certificate cho HiveMQ Cloud TLS Port 8883
-const char* const HIVEMQ_ROOT_CA PROGMEM =
+// MQTT uses ISRG Root X1. GitHub OTA also needs USERTrust ECC for github.com.
+#define ISRG_ROOT_X1_PEM \
+"-----BEGIN CERTIFICATE-----\n" \
+"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\n" \
+"-----END CERTIFICATE-----\n"
+
+const char* const HIVEMQ_ROOT_CA PROGMEM = ISRG_ROOT_X1_PEM;
+const char OTA_ROOT_CAS[] PROGMEM =
 "-----BEGIN CERTIFICATE-----\n"
-"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\n"
-"-----END CERTIFICATE-----\n";
+"MIICjzCCAhWgAwIBAgIQXIuZxVqUxdJxVt7NiYDMJjAKBggqhkjOPQQDAzCBiDEL\n"
+"MAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNl\n"
+"eSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNVBAMT\n"
+"JVVTRVJUcnVzdCBFQ0MgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTAwMjAx\n"
+"MDAwMDAwWhcNMzgwMTE4MjM1OTU5WjCBiDELMAkGA1UEBhMCVVMxEzARBgNVBAgT\n"
+"Ck5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNleSBDaXR5MR4wHAYDVQQKExVUaGUg\n"
+"VVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNVBAMTJVVTRVJUcnVzdCBFQ0MgQ2VydGlm\n"
+"aWNhdGlvbiBBdXRob3JpdHkwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAAQarFRaqflo\n"
+"I+d61SRvU8Za2EurxtW20eZzca7dnNYMYf3boIkDuAUU7FfO7l0/4iGzzvfUinng\n"
+"o4N+LZfQYcTxmdwlkWOrfzCjtHDix6EznPO/LlxTsV+zfTJ/ijTjeXmjQjBAMB0G\n"
+"A1UdDgQWBBQ64QmG1M8ZwpZ2dEl23OA1xmNjmjAOBgNVHQ8BAf8EBAMCAQYwDwYD\n"
+"VR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAwNoADBlAjA2Z6EWCNzklwBBHU6+4WMB\n"
+"zzuqQhFkoJ2UOQIReVx7Hfpkue4WQrO/isIJxOzksU0CMQDpKmFHjFJKS04YcPbW\n"
+"RNZu9YO6bVi9JNlWSOrvxKJGgYhqOkbRqZtNyWHa0V1Xahg=\n"
+"-----END CERTIFICATE-----\n"
+ISRG_ROOT_X1_PEM;
+#undef ISRG_ROOT_X1_PEM
 
 void initFlashMutex() {
   if (flashMutex == NULL) {
@@ -180,11 +202,8 @@ bool loadConfig() {
   configFile.close();
   if (err) return false;
 
-  if (doc.containsKey("admin_pass")) {
-    admin_pass = doc["admin_pass"].as<String>();
-  } else {
-    admin_pass = "admin";
-  }
+  admin_pass = doc["admin_pass"] | "";
+  if (admin_pass == "admin") admin_pass = "";
 
   wifi_ssid = doc["wifi_ssid"].as<String>();
   wifi_pass = doc["wifi_pass"].as<String>();
@@ -201,24 +220,10 @@ bool loadConfig() {
       }
     }
   }
-  if (doc.containsKey("mqtt_user")) {
-    String u = doc["mqtt_user"].as<String>();
-    if (u.length() > 0) mqtt_user = u;
-  }
-  if (doc.containsKey("mqtt_pass")) {
-    String p = doc["mqtt_pass"].as<String>();
-    if (p.length() > 0) mqtt_pass = p;
-  }
+  mqtt_user = doc["mqtt_user"] | "";
+  mqtt_pass = doc["mqtt_pass"] | "";
 
-  // Tự động bảo vệ HiveMQ Cloud: cluster yêu cầu tài khoản xác thực DTC_ZenHome chuẩn
-  if (mqtt_server.indexOf("hivemq.cloud") >= 0) {
-    if (mqtt_user.length() == 0 || mqtt_user.startsWith("user_") || mqtt_pass.length() == 0) {
-      mqtt_user = "DTC_ZenHome";
-      mqtt_pass = "DTC_ZenHome2103";
-      Serial.println("[CONFIG] 🛡️ Tự động đồng bộ tài khoản HiveMQ Cloud chuẩn: DTC_ZenHome");
-    }
-  }
-
+  bindingToken = doc["binding_token"] | "";
   if (doc.containsKey("server_url")) {
     server_url = doc["server_url"].as<String>();
   }
@@ -291,7 +296,7 @@ bool loadConfig() {
     myRelays[relayCount].id = dev["id"].as<String>();
     myRelays[relayCount].room = dev.containsKey("room") ? dev["room"].as<String>() : "living_room";
     myRelays[relayCount].pin = dev["pin"].as<int>();
-    myRelays[relayCount].state = "0"; // Mặc định tắt (Active-Low)
+    myRelays[relayCount].state = "unknown";
     myRelays[relayCount].version = 1;
     myRelays[relayCount].lastToggleTime = 0;
     myRelays[relayCount].manualOverrideUntil = 0;
@@ -304,8 +309,8 @@ bool loadConfig() {
 
     if (pcfFound && myRelays[relayCount].pin <= 7) {
       pcf.pinMode(myRelays[relayCount].pin, OUTPUT);
-      safeSetRelayPin(myRelays[relayCount].pin, HIGH); // Mặc định tắt (Active-Low)
     }
+    if (safeSetRelayPin(myRelays[relayCount].pin, HIGH)) myRelays[relayCount].state = "0";
     relayCount++;
   }
 
@@ -313,8 +318,7 @@ bool loadConfig() {
     // TH1: MẤT ĐIỆN -> KHI CÓ ĐIỆN LẠI: PHẢI TẮT TOÀN BỘ THIẾT BỊ ĐỂ AN TOÀN ĐIỆN!
     Serial.println("\n[AN TOÀN ĐIỆN] ⚡ CÓ ĐIỆN LẠI SAU KHI MẤT ĐIỆN: TẮT TOÀN BỘ RELAY!");
     for (int i = 0; i < relayCount; i++) {
-      myRelays[i].state = "0";
-      safeSetRelayPin(myRelays[i].pin, HIGH); // Active-Low TẮT
+      myRelays[i].state = safeSetRelayPin(myRelays[i].pin, HIGH) ? "0" : "unknown";
     }
     if (LittleFS.exists("/offline_backup.json")) {
       LittleFS.remove("/offline_backup.json");
@@ -396,9 +400,9 @@ void loadOfflineBackupFromFlash() {
     String st = obj["state"].as<String>();
     for (int i = 0; i < relayCount; i++) {
       if (myRelays[i].id == devId) {
-        myRelays[i].state = st;
-        if (st == "1") safeSetRelayPin(myRelays[i].pin, LOW);
-        else safeSetRelayPin(myRelays[i].pin, HIGH);
+        if ((st == "1" || st == "0") && safeSetRelayPin(myRelays[i].pin, st == "1" ? LOW : HIGH)) {
+          myRelays[i].state = st;
+        }
         break;
       }
     }

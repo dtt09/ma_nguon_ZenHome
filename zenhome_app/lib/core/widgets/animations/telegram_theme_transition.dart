@@ -8,190 +8,147 @@ double _hypot(double a, double b) => math.sqrt(a * a + b * b);
 class TelegramThemeTransition extends StatefulWidget {
   final Widget child;
 
-  const TelegramThemeTransition({
-    super.key,
-    required this.child,
-  });
+  const TelegramThemeTransition({super.key, required this.child});
 
   static TelegramThemeTransitionState? of(BuildContext context) {
     return context.findAncestorStateOfType<TelegramThemeTransitionState>();
   }
 
   @override
-  State<TelegramThemeTransition> createState() => TelegramThemeTransitionState();
+  State<TelegramThemeTransition> createState() =>
+      TelegramThemeTransitionState();
 }
 
 class TelegramThemeTransitionState extends State<TelegramThemeTransition>
     with SingleTickerProviderStateMixin {
   final GlobalKey _boundaryKey = GlobalKey();
-  late final AnimationController _animController;
-  late final Animation<double> _curveAnimation;
-  ui.Image? _oldScreenImage;
-  Offset _revealCenter = Offset.zero;
-  bool _isTransitioning = false;
+  late final AnimationController _reveal = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  );
+  Future<void> _pending = Future<void>.value();
+  int _request = 0;
+  ui.Image? _snapshot;
+  Offset _origin = Offset.zero;
 
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 550),
+  Future<void> startThemeTransition({
+    required Offset center,
+    required Future<void> Function() performThemeChange,
+  }) {
+    final request = ++_request;
+    _reveal.stop();
+    final result = _pending.then((_) async {
+      if (!mounted) return;
+      final animate =
+          request == _request &&
+          !MediaQuery.disableAnimationsOf(context) &&
+          TickerMode.valuesOf(context).enabled;
+      final image = animate ? await _capture() : null;
+      if (!mounted) {
+        image?.dispose();
+        return;
+      }
+      try {
+        if (image != null && request == _request) {
+          setState(() {
+            _origin = center;
+            _snapshot = image;
+            _reveal.value = 0;
+          });
+        }
+        await performThemeChange();
+        if (image == null || !mounted || request != _request) return;
+        await WidgetsBinding.instance.endOfFrame;
+        if (mounted && request == _request) {
+          try {
+            await _reveal.forward().orCancel;
+          } on TickerCanceled {
+            // A newer selection or disposal interrupted this reveal.
+          }
+        }
+      } finally {
+        if (mounted && identical(image, _snapshot) && image != null) {
+          setState(() => _snapshot = null);
+        }
+        image?.dispose();
+      }
+    });
+    // Keep subsequent choices in tap order, including after a failed write.
+    _pending = result.catchError((Object _) {});
+    return result;
+  }
+
+  Future<ui.Image?> _capture() async {
+    final boundary = _boundaryKey.currentContext?.findRenderObject();
+    if (boundary is! RenderRepaintBoundary ||
+        !boundary.hasSize ||
+        boundary.size.isEmpty) {
+      return null;
+    }
+    final size = boundary.size;
+    final scale = math.min(
+      View.of(context).devicePixelRatio,
+      math.min(1.5, math.sqrt(1000000 / (size.width * size.height))),
     );
-    _curveAnimation = CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOutCubic,
-    );
+    try {
+      return await boundary.toImage(pixelRatio: scale);
+    } catch (_) {
+      // The underlying render surface can disappear during a window resize.
+      return null;
+    }
   }
 
   @override
   void dispose() {
-    _animController.dispose();
-    _oldScreenImage?.dispose();
+    _reveal.dispose();
+    // The operation that captured the image also owns its disposal.
     super.dispose();
   }
 
-  /// Triggers the Telegram-style circular wave transition
-  Future<void> startThemeTransition({
-    required Offset center,
-    required Future<void> Function() performThemeChange,
-  }) async {
-    if (_isTransitioning) {
-      await performThemeChange();
-      return;
-    }
-
-    try {
-      final boundary =
-          _boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary != null) {
-        final pixelRatio = View.of(context).devicePixelRatio;
-        final image = await boundary.toImage(pixelRatio: math.min(pixelRatio, 2.0));
-
-        if (!mounted) {
-          image.dispose();
-          return;
-        }
-
-        setState(() {
-          _isTransitioning = true;
-          _oldScreenImage?.dispose();
-          _oldScreenImage = image;
-          _revealCenter = center;
-        });
-
-        // Apply the new theme
-        await performThemeChange();
-
-        // Ensure the newly styled frame is ready beneath before animating
-        await WidgetsBinding.instance.endOfFrame;
-
-        // Animate circular reveal
-        await _animController.forward(from: 0.0);
-
-        if (mounted) {
-          setState(() {
-            _oldScreenImage?.dispose();
-            _oldScreenImage = null;
-            _isTransitioning = false;
-          });
-        }
-        return;
-      }
-    } catch (e) {
-      debugPrint("Telegram theme transition exception: $e");
-    }
-
-    _oldScreenImage?.dispose();
-    _oldScreenImage = null;
-    _isTransitioning = false;
-    await performThemeChange();
-  }
-
   @override
-  Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final maxRadius = _hypot(
-      math.max(_revealCenter.dx, screenSize.width - _revealCenter.dx),
-      math.max(_revealCenter.dy, screenSize.height - _revealCenter.dy),
-    );
-
-    return RepaintBoundary(
-      key: _boundaryKey,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          widget.child,
-          if (_oldScreenImage != null)
-            IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _curveAnimation,
-                builder: (context, _) {
-                  return CustomPaint(
-                    size: screenSize,
-                    painter: TelegramRevealPainter(
-                      image: _oldScreenImage!,
-                      center: _revealCenter,
-                      radius: _curveAnimation.value * maxRadius,
-                    ),
-                  );
-                },
-              ),
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: [
+      RepaintBoundary(key: _boundaryKey, child: widget.child),
+      if (_snapshot != null)
+        IgnorePointer(
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _ThemeRevealPainter(_snapshot!, _origin, _reveal),
             ),
-        ],
-      ),
-    );
-  }
+          ),
+        ),
+    ],
+  );
 }
 
-class TelegramRevealPainter extends CustomPainter {
+class _ThemeRevealPainter extends CustomPainter {
+  _ThemeRevealPainter(this.image, this.center, this.progress)
+    : super(repaint: progress);
+
   final ui.Image image;
   final Offset center;
-  final double radius;
-
-  TelegramRevealPainter({
-    required this.image,
-    required this.center,
-    required this.radius,
-  });
+  final Animation<double> progress;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final bounds = Offset.zero & size;
+    final x = math.max(center.dx.abs(), (size.width - center.dx).abs());
+    final y = math.max(center.dy.abs(), (size.height - center.dy).abs());
+    final radius = _hypot(x, y) * Curves.easeOutCubic.transform(progress.value);
+    final mask = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRect(bounds)
+      ..addOval(Rect.fromCircle(center: center, radius: radius));
     canvas.save();
-
-    // Clip with an expanding circular cutout:
-    // Outer rectangle + inner circle with evenOdd creates a hole revealing the layer below
-    final path = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..addOval(Rect.fromCircle(center: center, radius: math.max(0.0, radius)))
-      ..fillType = PathFillType.evenOdd;
-
-    canvas.clipPath(path);
-
-    // Paint the captured old screen
-    paintImage(
-      canvas: canvas,
-      rect: Rect.fromLTWH(0, 0, size.width, size.height),
-      image: image,
-      fit: BoxFit.cover,
-    );
-
+    // Also constrain the outer edge when the reveal circle crosses the window.
+    canvas.clipRect(bounds);
+    canvas.clipPath(mask);
+    paintImage(canvas: canvas, rect: bounds, image: image, fit: BoxFit.fill);
     canvas.restore();
-
-    // Telegram subtle shining ripple contour along the advancing wave
-    final screenDiagonal = _hypot(size.width, size.height);
-    if (radius > 10 && radius < screenDiagonal * 1.1) {
-      final ripplePaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
-        ..color = Colors.white.withOpacity(
-          (0.35 * (1.0 - (radius / (screenDiagonal * 1.1)))).clamp(0.0, 0.35),
-        );
-      canvas.drawCircle(center, radius, ripplePaint);
-    }
   }
 
   @override
-  bool shouldRepaint(covariant TelegramRevealPainter oldDelegate) {
-    return oldDelegate.radius != radius;
-  }
+  bool shouldRepaint(_ThemeRevealPainter old) =>
+      image != old.image || center != old.center || progress != old.progress;
 }

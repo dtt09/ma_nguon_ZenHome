@@ -78,6 +78,12 @@ class AppLocalizationsVi extends AppLocalizations {
   String get tab_home => 'Trang chủ';
 
   @override
+  String get show_password => 'Hiện mật khẩu';
+
+  @override
+  String get hide_password => 'Ẩn mật khẩu';
+
+  @override
   String get tab_scene => 'Tiện ích';
 
   @override
@@ -90,13 +96,13 @@ class AppLocalizationsVi extends AppLocalizations {
   String get theme_mode => 'Giao diện';
 
   @override
-  String get theme_system => 'Hệ thống (Auto)';
+  String get theme_system => 'Hệ thống';
 
   @override
-  String get theme_light => 'Sáng (Light)';
+  String get theme_light => 'Sáng';
 
   @override
-  String get theme_dark => 'Tối (Dark)';
+  String get theme_dark => 'Tối';
 
   @override
   String get language => 'Ngôn ngữ';
@@ -690,13 +696,13 @@ class AppLocalizationsVi extends AppLocalizations {
       'Không tìm thấy thiết bị, hãy chắc chắn bạn đã vào WiFi của mạch!';
 
   @override
-  String get mqtt_user => 'Tài khoản MQTT (Tùy chọn)';
+  String get mqtt_user => 'Tài khoản MQTT của nhà';
 
   @override
   String get mqtt_user_hint => 'Nhập User MQTT';
 
   @override
-  String get mqtt_pass => 'Mật khẩu MQTT (Tùy chọn)';
+  String get mqtt_pass => 'Mật khẩu MQTT của nhà';
 
   @override
   String get mqtt_pass_hint => 'Nhập Pass MQTT';
@@ -2215,14 +2221,13 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get wifi_connect_esp_subtitle =>
-      'Nhập mật khẩu phát sóng của ESP32 (để trống nếu là mạng mở không mật khẩu):';
+      'Nhập mã thiết lập của Hub hiển thị qua USB.';
 
   @override
   String get wifi_esp_pass_label => 'Mật khẩu Wi-Fi ESP32';
 
   @override
-  String get wifi_esp_pass_hint =>
-      'Để trống nếu mạng mở, hoặc nhập mật khẩu AP';
+  String get wifi_esp_pass_hint => 'Mã thiết lập của Hub';
 
   @override
   String get wifi_btn_connect_now => 'Xác nhận & Kết nối ngay';
@@ -3015,4 +3020,1101 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get theme_preset_cyber => 'Titanium Công Nghệ';
+
+  @override
+  String get room_all => 'Tất cả phòng';
+
+  @override
+  String get automation_hub_title => 'Trung tâm Tiện ích';
+
+  @override
+  String get quick_scenes => 'Ngữ cảnh nhanh';
+
+  @override
+  String get see_all => 'Xem tất cả';
+
+  @override
+  String get custom_duration => 'Tùy chỉnh';
+
+  @override
+  String get ui_error_title => 'Đã xảy ra lỗi giao diện';
+
+  @override
+  String get ui_error_desc =>
+      'Thành phần giao diện gặp sự cố tạm thời. Vui lòng khởi động lại ứng dụng.';
+
+  @override
+  String get anomaly_banner_title => 'CẢNH BÁO AN TOÀN PHẦN CỨNG';
+
+  @override
+  String anomaly_locked_pill(String seconds) {
+    return 'Khóa ${seconds}s';
+  }
+
+  @override
+  String anomaly_tripped_msg(String pin, String name) {
+    return 'Cảnh báo an toàn: Rơ-le số $pin ($name) bị ngắt khẩn cấp do phát hiện đóng/ngắt bất thường (Chattering/Chập tải). Đã khóa an toàn trong 30 giây.';
+  }
+
+  @override
+  String get anomaly_unlocked_title => 'Mở Khóa An Toàn';
+
+  @override
+  String anomaly_unlocked_desc(String pin, String name) {
+    return 'Rơ-le số $pin ($name) đã hết thời gian khóa 30s và sẵn sàng hoạt động.';
+  }
+
+  @override
+  String get anomaly_relay_locked_title => 'Rơ-le đang khóa an toàn';
+
+  @override
+  String anomaly_relay_locked_desc(String pin, String name, String seconds) {
+    return 'Rơ-le số $pin ($name) đang trong thời gian bảo vệ chống chập tải (còn ${seconds}s). Vui lòng chờ!';
+  }
+
+  @override
+  String anomaly_more_locked(String count) {
+    return '+ $count rơ-le khác cũng đang được khóa an toàn';
+  }
+
+  @override
+  String hub_latency_label(String latency) {
+    return 'Độ trễ: $latency';
+  }
+
+  @override
+  String get hub_lan_no_ip => 'Chưa phát hiện IP Hub';
+
+  @override
+  String hub_ble_secured_suffix(String info) {
+    return '$info (Đã xác thực Key an toàn)';
+  }
+
+  @override
+  String get hub_ble_ready_ondemand =>
+      'Sẵn sàng nhận lệnh (Hàng đợi Connect-on-Demand & Tự ngắt nhường sóng)';
+
+  @override
+  String get hub_ble_ready_simple =>
+      'Sẵn sàng nhận lệnh (Hàng đợi Connect-on-Demand)';
+
+  @override
+  String get hub_ble_backup_desc => 'Dự phòng ngầm khi router Wi-Fi mất nguồn';
+
+  @override
+  String get hub_ble_ready_short => 'Sẵn sàng ⚡';
+
+  @override
+  String get hub_broker_unconfigured => 'Chưa cấu hình broker';
+
+  @override
+  String quick_timer_set_success(String action, String name, String minutes) {
+    return 'Đã hẹn giờ $action $name sau $minutes phút';
+  }
+
+  @override
+  String get hours_short => 'giờ';
+
+  @override
+  String get minutes_short => 'phút';
+
+  @override
+  String get disabled_desc_detailed =>
+      'Tài khoản của bạn đã bị vô hiệu hoá tạm thời hoặc thiết bị ngoại tuyến trong ngôi nhà.';
+
+  @override
+  String get btn_switch_other_home => 'Chuyển đổi sang nhà khác';
+
+  @override
+  String get btn_manage_members_perms => 'Quản lý thành viên & Quyền';
+
+  @override
+  String get btn_reconfig_hub_wifi => 'Cài đặt lại Wi-Fi cho Hub';
+
+  @override
+  String get err_no_automation_perm =>
+      'Bạn chưa được cấp quyền quản lý tự động hóa.';
+
+  @override
+  String get err_no_device_perm_scene =>
+      'Bạn không có quyền điều khiển các thiết bị trong ngữ cảnh này!';
+
+  @override
+  String get err_no_device_to_create_scene =>
+      'Bạn không có quyền điều khiển thiết bị nào để tạo ngữ cảnh.';
+
+  @override
+  String get err_no_device_to_create_schedule =>
+      'Bạn không có quyền điều khiển thiết bị nào để tạo lịch trình.';
+
+  @override
+  String get scene_subtitle_one_tap =>
+      'Kịch bản thông minh đồng bộ chỉ với 1 chạm';
+
+  @override
+  String get scene_name_example_hint => 'VD: Rời khỏi nhà, Thư giãn tối...';
+
+  @override
+  String icon_count_label(String count) {
+    return '$count Biểu tượng';
+  }
+
+  @override
+  String selected_devices_ratio(String selected, String total) {
+    return '$selected/$total thiết bị';
+  }
+
+  @override
+  String get scene_share_hint =>
+      'Tất cả thành viên trong nhà đều có thể kích hoạt';
+
+  @override
+  String get scene_run_now_title => 'Kích hoạt ngữ cảnh ngay';
+
+  @override
+  String scene_run_now_desc(String count) {
+    return 'Thực thi đồng bộ $count thiết bị ngay lập tức';
+  }
+
+  @override
+  String get scene_edit_desc => 'Tùy chỉnh biểu tượng, màu sắc và thiết bị';
+
+  @override
+  String get scene_delete_desc => 'Xóa vĩnh viễn ngữ cảnh này khỏi danh sách';
+
+  @override
+  String scene_created_by_readonly(String author) {
+    return 'Ngữ cảnh này do $author tạo. Bạn có thể bấm để kích hoạt nhưng không có quyền sửa hoặc xóa.';
+  }
+
+  @override
+  String get scene_shared_readonly =>
+      'Bạn có thể bấm để kích hoạt nhưng không có quyền sửa hoặc xóa ngữ cảnh chung này.';
+
+  @override
+  String get timer_err_gt_zero => 'Vui lòng nhập thời gian lớn hơn 0';
+
+  @override
+  String get timer_err_max_24h => 'Thời gian tối đa 24 giờ (1440 phút)';
+
+  @override
+  String get timer_pick_devices_title => 'Chọn thiết bị hẹn giờ';
+
+  @override
+  String get timer_auto_off_tag => '→ Tự động: Hẹn giờ TẮT';
+
+  @override
+  String get timer_auto_on_tag => '→ Tự động: Hẹn giờ BẬT';
+
+  @override
+  String btn_confirm_devices_count(String count) {
+    return 'Xác nhận ($count thiết bị)';
+  }
+
+  @override
+  String timer_set_multi_success(String count, String minutes) {
+    return 'Đã hẹn giờ cho $count thiết bị ($minutes phút)';
+  }
+
+  @override
+  String get err_no_cancel_timer_perm =>
+      'Bạn không có quyền hủy đếm ngược này (do Chủ nhà hoặc thành viên khác đặt).';
+
+  @override
+  String get schedule_created_by_you => 'Bạn tạo';
+
+  @override
+  String home_rules_active_count(String count) {
+    return '$count quy tắc đang bật';
+  }
+
+  @override
+  String home_rules_activated_ratio(String active, String total) {
+    return '$active/$total kích hoạt';
+  }
+
+  @override
+  String get home_name_example_hint => 'Ví dụ: Căn hộ Times City, Biệt thự...';
+
+  @override
+  String get badge_recommended => 'Khuyên dùng';
+
+  @override
+  String get home_switcher_title => 'Quản lý & Chuyển nhà';
+
+  @override
+  String get home_switcher_empty_other => 'Không có ngôi nhà nào khác';
+
+  @override
+  String get home_switcher_tip =>
+      'Bạn có thể làm chủ nhiều ngôi nhà và chuyển đổi tức thì không cần đăng xuất.';
+
+  @override
+  String get home_esp_unlinked_badge => 'Chưa thiết lập ESP32';
+
+  @override
+  String home_smart_rules_count(String count) {
+    return '$count quy tắc thông minh';
+  }
+
+  @override
+  String get home_menu_properties => 'Thuộc tính & Quy tắc';
+
+  @override
+  String get home_menu_delete => 'Xóa nhà này';
+
+  @override
+  String home_switched_toast(String name) {
+    return 'Đã chuyển sang $name!';
+  }
+
+  @override
+  String get home_new_name_label => 'Tên ngôi nhà mới:';
+
+  @override
+  String get home_new_name_hint => 'Ví dụ: Nhà vườn, Căn hộ 2, Biệt thự...';
+
+  @override
+  String get btn_delete_forever => 'Xóa vĩnh viễn';
+
+  @override
+  String get home_icon_eco => 'Sinh thái';
+
+  @override
+  String get home_icon_beach => 'Ven biển';
+
+  @override
+  String get home_icon_castle => 'Dinh thự';
+
+  @override
+  String get home_icon_warehouse => 'Kho xưởng';
+
+  @override
+  String get home_color_zen => 'Xanh ngọc Zen';
+
+  @override
+  String get home_color_royal => 'Xanh hoàng gia';
+
+  @override
+  String get home_color_purple => 'Tím hiện đại';
+
+  @override
+  String get home_color_orange => 'Cam năng lượng';
+
+  @override
+  String get home_color_emerald => 'Lục bảo';
+
+  @override
+  String get home_color_ruby => 'Đỏ Ruby';
+
+  @override
+  String get home_color_amber => 'Hổ phách';
+
+  @override
+  String get home_color_slate => 'Xám cẩm thạch';
+
+  @override
+  String greeting_user(String name) {
+    return 'Xin chào, $name';
+  }
+
+  @override
+  String to_phone_label(String phone) {
+    return 'Tới: $phone';
+  }
+
+  @override
+  String get err_otp_send_title => 'Lỗi gửi OTP';
+
+  @override
+  String get err_link_account_title => 'Lỗi liên kết tài khoản';
+
+  @override
+  String get err_verification_title => 'Lỗi xác thực';
+
+  @override
+  String get msg_data_synced => 'Đã đồng bộ dữ liệu!';
+
+  @override
+  String get google_sign_in_label => 'Đăng nhập bằng Google';
+
+  @override
+  String get member_perm_dialog_subtitle => 'Quyền điều khiển thiết bị';
+
+  @override
+  String get member_all_devices => 'Toàn quyền (Tất cả thiết bị)';
+
+  @override
+  String get member_selected_devices_only => 'Chỉ thiết bị được chọn';
+
+  @override
+  String member_select_devices_count(String selected, String total) {
+    return 'Chọn thiết bị được bật/tắt ($selected/$total):';
+  }
+
+  @override
+  String get msg_device_perms_updated => 'Đã cập nhật quyền thiết bị';
+
+  @override
+  String get err_update_failed => 'Lỗi cập nhật';
+
+  @override
+  String sent_invites_header(String count) {
+    return 'Lời mời đã gửi ($count):';
+  }
+
+  @override
+  String get err_invalid_username_input => 'Vui lòng nhập Username hợp lệ';
+
+  @override
+  String msg_invite_sent_to(String username) {
+    return 'Đã gửi lời mời tới $username';
+  }
+
+  @override
+  String msg_invite_revoked(String username) {
+    return 'Đã thu hồi lời mời tới $username';
+  }
+
+  @override
+  String msg_invite_declined(String username) {
+    return 'Đã từ chối lời mời từ $username';
+  }
+
+  @override
+  String msg_member_removed(String username) {
+    return 'Đã gỡ quyền truy cập của $username';
+  }
+
+  @override
+  String msg_member_perms_updated_for(String username) {
+    return 'Đã cập nhật quyền thiết bị cho $username';
+  }
+
+  @override
+  String msg_member_disabled_user(String username) {
+    return 'Đã vô hiệu hóa $username';
+  }
+
+  @override
+  String msg_member_enabled_user(String username) {
+    return 'Đã mở khóa $username';
+  }
+
+  @override
+  String msg_auto_granted_user(String username) {
+    return 'Đã cấp quyền tự động hóa cho $username';
+  }
+
+  @override
+  String msg_auto_revoked_user(String username) {
+    return 'Đã thu hồi quyền tự động hóa của $username';
+  }
+
+  @override
+  String msg_role_updated_user(String username) {
+    return 'Đã cập nhật vai trò cho $username';
+  }
+
+  @override
+  String settings_hub_linked_mac(String mac) {
+    return 'Đã liên kết (MAC: $mac)';
+  }
+
+  @override
+  String get settings_hub_linked_desc => 'Cấu hình mạng Wi-Fi và liên kết Hub';
+
+  @override
+  String get settings_hub_linked_prompt =>
+      'Thiết bị Hub đã được liên kết bảo mật với tài khoản. Bạn muốn cấu hình lại Wi-Fi hay hủy liên kết & Factory Reset Hub từ xa?';
+
+  @override
+  String get settings_hub_offline_unlink_title => 'Hub ESP32 ngoại tuyến!';
+
+  @override
+  String get settings_hub_offline_unlink_desc =>
+      'Nếu thiết bị đã hỏng hoặc mất, việc hủy sẽ xóa liên kết trên tài khoản ứng dụng nhưng trên mạch ESP32 vẫn giữ cấu hình cũ cho đến khi bạn reset thủ công.';
+
+  @override
+  String get btn_unlink_anyway_offline => 'Vẫn hủy liên kết (Hub offline)';
+
+  @override
+  String get btn_check_again_short => 'Kiểm tra lại';
+
+  @override
+  String get admin_pass_hub_title => 'Mật khẩu quản trị Hub';
+
+  @override
+  String get admin_pass_unlink_desc =>
+      'Vui lòng nhập mật khẩu quản trị của Hub ESP32 để ủy quyền hủy liên kết và xóa sạch cấu hình từ xa.';
+
+  @override
+  String get admin_pass_reconfig_desc =>
+      'Vui lòng nhập mật khẩu quản trị của Hub ESP32 để truy cập tính năng thay đổi Wi-Fi và MQTT.';
+
+  @override
+  String get admin_pass_ota_desc =>
+      'Vui lòng nhập mật khẩu quản trị của Hub ESP32 để ủy quyền nâng cấp vi điều khiển.';
+
+  @override
+  String get security_action_canceled => 'Hủy thao tác bảo mật';
+
+  @override
+  String get security_admin_pass_missing_unlink =>
+      'Chưa xác thực mật khẩu quản trị. Hub ESP32 vẫn được bảo vệ an toàn.';
+
+  @override
+  String get security_identity_missing_unlink =>
+      'Chưa hoàn thành xác thực danh tính. Hub ESP32 vẫn được bảo vệ nguyên vẹn.';
+
+  @override
+  String get security_admin_pass_missing_reconfig =>
+      'Chưa xác thực mật khẩu quản trị. Cấu hình Hub ESP32 được giữ an toàn.';
+
+  @override
+  String get security_identity_missing_ota =>
+      'Chưa xác thực danh tính. Quá trình nâng cấp firmware được hủy bỏ an toàn.';
+
+  @override
+  String get security_admin_pass_missing_ota =>
+      'Chưa xác thực mật khẩu quản trị. Hub ESP32 được giữ nguyên phiên bản cũ.';
+
+  @override
+  String get reason_unlink_hub =>
+      'xác nhận hủy liên kết và xóa sạch cấu hình Hub ESP32 từ xa';
+
+  @override
+  String get reason_ota_hub =>
+      'xác nhận nâng cấp Firmware cho vi điều khiển Hub ESP32';
+
+  @override
+  String unlink_hub_final_mac_note(String mac) {
+    return 'MAC Hub: $mac • ESP32 sẽ lập tức xóa /config.json, ngắt mọi rơ-le và tự động khởi động lại vào AP Setup.';
+  }
+
+  @override
+  String get btn_reset_and_unlink => 'Bắn tín hiệu Reset & Hủy';
+
+  @override
+  String get btn_keep_linked => 'Giữ lại liên kết';
+
+  @override
+  String get unlink_hub_cloud_success =>
+      'Đã hủy liên kết Hub ESP32 khỏi tài khoản trên hệ thống Cloud thành công.';
+
+  @override
+  String get detail_action_label => 'Thao tác';
+
+  @override
+  String get detail_mac_label => 'Mã MAC';
+
+  @override
+  String get detail_esp_signal_label => 'Tín hiệu ESP32';
+
+  @override
+  String get detail_time_label => 'Thời gian';
+
+  @override
+  String get detail_reset_sent => 'Đã gửi lệnh Reset bảo mật';
+
+  @override
+  String get detail_hub_offline_removed => 'Hub Offline (Đã gỡ trên Cloud)';
+
+  @override
+  String get detail_factory_reset_unlink => 'Factory Reset & Hủy Hub';
+
+  @override
+  String get hub_unlinked_short => 'Chưa liên kết Hub';
+
+  @override
+  String get hub_unlinked_setup_desc =>
+      'Tài khoản chưa được kết nối với Hub ESP32 nào. Vui lòng thiết lập Wi-Fi cho Hub trước.';
+
+  @override
+  String get hub_offline_title => 'Hub ESP32 ngoại tuyến';
+
+  @override
+  String get hub_offline_troubleshoot =>
+      'Vui lòng kiểm tra nguồn điện và Wi-Fi của thiết bị.';
+
+  @override
+  String get label_hub_id => 'Mã Hub';
+
+  @override
+  String get label_status => 'Trạng thái';
+
+  @override
+  String get label_troubleshoot => 'Khắc phục';
+
+  @override
+  String restart_hub_tls_note(String mac) {
+    return 'MAC: $mac • Lệnh gửi qua giao thức bảo mật MQTT TLS.';
+  }
+
+  @override
+  String get btn_restart_now => 'Khởi động lại ngay';
+
+  @override
+  String get detail_remote_reboot => 'Khởi động lại Hub từ xa';
+
+  @override
+  String get detail_device_mac => 'MAC Thiết bị';
+
+  @override
+  String get detail_control_channel => 'Kênh điều khiển';
+
+  @override
+  String get detail_tls_channel => 'Kênh mã hóa bảo mật (TLS)';
+
+  @override
+  String get err_send_cmd_title => 'Lỗi gửi lệnh';
+
+  @override
+  String err_send_reboot_failed(String err) {
+    return 'Không thể truyền lệnh khởi động lại: $err';
+  }
+
+  @override
+  String get delete_sub_home_confirm_desc =>
+      'Hành động này không thể hoàn tác. Ứng dụng sẽ tự động chuyển về Nhà chính mặc định của bạn.';
+
+  @override
+  String get msg_deleted_sub_home => 'Đã xóa ngôi nhà và chuyển về nhà chính!';
+
+  @override
+  String delete_sub_home_subtitle(String name) {
+    return 'Xóa vĩnh viễn $name và trở về nhà chính';
+  }
+
+  @override
+  String get hub_reconfig_title => 'Cấu hình Wi-Fi & MQTT Hub';
+
+  @override
+  String get hub_reconfig_online => 'Hub ESP32 Trực tuyến';
+
+  @override
+  String get hub_reconfig_offline => 'Hub ESP32 Ngoại tuyến';
+
+  @override
+  String get hub_reconfig_online_desc =>
+      'Hub đang online MQTT. Bạn có thể gửi cấu hình Wi-Fi và Broker mới trực tiếp qua OTA mà không cần cắm lại thiết bị!';
+
+  @override
+  String get hub_reconfig_offline_desc =>
+      'Hub đang offline. Bạn có thể lưu cấu hình mới lên Cloud hoặc bấm nút bên dưới để cấu hình trực tiếp qua Wi-Fi AP (192.168.4.1).';
+
+  @override
+  String get hub_wifi_section => 'Mạng Wi-Fi Kết Nối';
+
+  @override
+  String get hub_wifi_ssid_label => 'Tên Wi-Fi (SSID)';
+
+  @override
+  String get hub_wifi_ssid_hint => 'Nhập tên Wi-Fi 2.4GHz';
+
+  @override
+  String get hub_scan_wifi_tooltip => 'Quét Wi-Fi xung quanh';
+
+  @override
+  String get hub_no_wifi_found => 'Không tìm thấy mạng Wi-Fi nào khả dụng';
+
+  @override
+  String get hub_err_empty_ssid => 'Vui lòng nhập hoặc chọn Tên Wi-Fi (SSID)';
+
+  @override
+  String get hub_mqtt_section => 'Cấu hình MQTT Broker';
+
+  @override
+  String get hub_mqtt_host_label => 'Máy chủ MQTT (Server / Broker Host)';
+
+  @override
+  String get hub_err_empty_mqtt => 'Vui lòng nhập địa chỉ máy chủ MQTT';
+
+  @override
+  String get hub_comm_channel_title => 'Kênh truyền thông: Bảo mật nội bộ';
+
+  @override
+  String get hub_comm_channel_desc =>
+      'Định tuyến bảo mật riêng biệt gắn liền với User ID và MAC của Hub.';
+
+  @override
+  String get hub_admin_security_section => 'Bảo mật Quản trị & Đồng bộ';
+
+  @override
+  String get hub_admin_pass_desc =>
+      'Mật khẩu quản trị Hub (Dùng để bảo vệ phân quyền, gán chân, hủy liên kết)';
+
+  @override
+  String get hub_err_empty_admin_pass =>
+      'Vui lòng không để trống mật khẩu quản trị';
+
+  @override
+  String get hub_btn_apply_ota => 'Lưu & Bắn Cấu hình OTA sang Hub';
+
+  @override
+  String get hub_btn_save_cloud => 'Lưu Cấu hình lên Cloud';
+
+  @override
+  String get hub_btn_softap => 'Cấu hình qua Wi-Fi AP của Hub (192.168.4.1)';
+
+  @override
+  String get hub_reconfig_confirm_title => 'Xác nhận đổi Wi-Fi & MQTT';
+
+  @override
+  String get hub_reconfig_confirm_desc =>
+      'Hub ESP32 sẽ lưu cấu hình mới và tự động khởi động lại để kết nối vào mạng Wi-Fi và Broker MQTT mới.';
+
+  @override
+  String hub_reconfig_summary(String ssid, String broker, String mac) {
+    return 'Wi-Fi mới: $ssid\nMQTT Broker: $broker\nMAC Hub: $mac';
+  }
+
+  @override
+  String get hub_btn_push_ota_now => 'Bắn cấu hình OTA ngay';
+
+  @override
+  String get btn_review => 'Xem lại';
+
+  @override
+  String get hub_reconfig_success_title => 'Cập nhật cấu hình thành công';
+
+  @override
+  String get hub_reconfig_ota_success_desc =>
+      'Đã gửi cấu hình Wi-Fi & MQTT mới sang Hub ESP32 qua mạng OTA thành công! Bo mạch đang khởi động lại và kết nối vào mạng mới.';
+
+  @override
+  String get hub_reconfig_cloud_success_desc =>
+      'Đã lưu cấu hình mới lên tài khoản Cloud. Do Hub đang offline, bạn có thể nạp trực tiếp qua cổng AP hoặc chờ thiết bị vào mạng.';
+
+  @override
+  String get btn_done => 'Hoàn tất';
+
+  @override
+  String get hub_reconfig_err_title => 'Lỗi áp dụng cấu hình';
+
+  @override
+  String get hub_reconfig_err_desc => 'Không thể cập nhật cấu hình';
+
+  @override
+  String get hub_reconfig_method_cloud => 'Đã lưu trên Cloud (Hub Offline)';
+
+  @override
+  String get hub_reconfig_method_ota => 'Bắn lệnh Cloud OTA (Thành công)';
+
+  @override
+  String get hub_reconfig_method_local =>
+      'Gửi trực tiếp qua LAN/BLE Zero-Touch (Thành công)';
+
+  @override
+  String get detail_new_wifi => 'Tên Wi-Fi mới';
+
+  @override
+  String get detail_method => 'Phương thức';
+
+  @override
+  String err_wifi_scan_failed(String err) {
+    return 'Lỗi khi quét sóng Wi-Fi: $err';
+  }
+
+  @override
+  String wifi_band_24_available(String count) {
+    return 'Băng tần hỗ trợ: 2.4GHz ($count mạng khả dụng)';
+  }
+
+  @override
+  String get wifi_no_internet_prompt => 'Mạng không có Internet, tiếp tục?';
+
+  @override
+  String get wifi_hub_not_connected_title => 'Chưa kết nối với Hub ESP32';
+
+  @override
+  String get wifi_hub_not_connected_desc =>
+      'Để cấu hình mạng Wi-Fi và liên kết tài khoản, điện thoại bắt buộc phải kết nối với sóng Wi-Fi phát ra từ Hub ESP32 trước.';
+
+  @override
+  String get wifi_troubleshoot_checklist =>
+      'Kiểm tra lại bo mạch ESP32:\n• Đảm bảo ESP32 đã cấp nguồn điện (đèn đỏ sáng).\n• Đèn LED xanh (GPIO 2) đang nháy nhanh (chế độ phát sóng AP).\n• Nếu đèn không nháy hoặc đang sáng đứng: Nhấn giữ nút BOOT trong 5 giây để reset về chế độ cài đặt.\n• Đảm bảo đã bật Vị trí (GPS) và Wi-Fi trên điện thoại.';
+
+  @override
+  String wifi_connected_continue(String mac) {
+    return 'Đã kết nối ($mac) • Tiếp tục';
+  }
+
+  @override
+  String get wifi_check_hub_continue => 'Kiểm tra kết nối Hub & Tiếp tục';
+
+  @override
+  String get wifi_setting_up_for => 'Đang cài đặt cho: ';
+
+  @override
+  String wifi_exclusive_hub_note(String type) {
+    return '$type • Hub ESP32 sẽ liên kết độc quyền với nhà này';
+  }
+
+  @override
+  String get wifi_wizard_checking => 'Đang kiểm tra kết nối với Hub ESP32...';
+
+  @override
+  String get wifi_wizard_handshaking => 'Đang bắt tay với Hub ESP32...';
+
+  @override
+  String get wifi_wizard_not_found =>
+      'Không tìm thấy thiết bị ESP32 (192.168.4.1). Hãy kết nối đúng Wi-Fi Hub.';
+
+  @override
+  String get wifi_wizard_sending_cfg =>
+      'Đang gửi thông tin Wi-Fi và MQTT đến Hub...';
+
+  @override
+  String get wifi_wizard_rejected =>
+      'ESP32 từ chối gói cấu hình. Vui lòng kiểm tra lại mật khẩu quản trị.';
+
+  @override
+  String get wifi_wizard_waiting_cloud =>
+      'Đang đợi Hub kết nối Wi-Fi & MQTT Cloud lần đầu...';
+
+  @override
+  String get wifi_wizard_signal_ack =>
+      'Đã bắt được tín hiệu từ Hub! Đang gửi phản hồi xác nhận kích hoạt...';
+
+  @override
+  String wifi_wizard_waiting_loop(String sec) {
+    return 'Đang đợi Hub bắt tín hiệu lần đầu (${sec}s / 3 phút)...';
+  }
+
+  @override
+  String get wifi_wizard_completed_nav =>
+      'Thiết lập hoàn tất! Hub đã mở khóa toàn bộ tính năng. Đang chuyển sang thêm thiết bị...';
+
+  @override
+  String get ota_denied_title => 'Từ chối quyền truy cập';
+
+  @override
+  String get ota_owner_only_desc =>
+      'Chỉ Chủ nhà (Owner) mới có quyền nâng cấp firmware cho vi điều khiển ESP32.';
+
+  @override
+  String get ota_offline_desc =>
+      'Hub ESP32 hiện đang ngoại tuyến (mất nguồn hoặc mất kết nối Wi-Fi). Vui lòng kiểm tra lại thiết bị trước khi nâng cấp firmware.';
+
+  @override
+  String get ota_require_online => 'Hub phải trực tuyến để tiếp nhận lệnh OTA';
+
+  @override
+  String get ota_no_update_title => 'Chưa có bản cập nhật mới';
+
+  @override
+  String get ota_no_update_desc =>
+      'Hiện tại máy chủ chưa có file Firmware binary (.bin) sẵn sàng để nâng cấp OTA cho Hub ESP32.';
+
+  @override
+  String get ota_server_label => 'Máy chủ';
+
+  @override
+  String get ota_binary_not_found => 'Không tìm thấy firmware.bin';
+
+  @override
+  String get ota_up_to_date_title => 'Hub ESP32 Đã Cập Nhật';
+
+  @override
+  String get ota_up_to_date_desc =>
+      'Thiết bị Hub ESP32 của bạn hiện đang chạy phiên bản Firmware mới nhất. Toàn bộ hệ thống đang hoạt động tối ưu!';
+
+  @override
+  String get ota_hub_version_label => 'Phiên bản Hub';
+
+  @override
+  String get ota_latest_server_label => 'Bản mới nhất máy chủ';
+
+  @override
+  String get ota_optimal_status => 'Đang hoạt động tối ưu';
+
+  @override
+  String get ota_reflash_hint =>
+      'Bạn chỉ cần nạp lại nếu muốn xóa bộ nhớ phân vùng Flash sạch sẽ hoặc khôi phục firmware.';
+
+  @override
+  String get ota_btn_reflash => 'Nạp lại (Re-flash)';
+
+  @override
+  String get ota_new_found_desc =>
+      'Đã tìm thấy phiên bản Firmware mới sẵn sàng nạp cho Hub ESP32.';
+
+  @override
+  String get ota_new_version_label => 'Phiên bản mới';
+
+  @override
+  String get ota_size_label => 'Dung lượng';
+
+  @override
+  String get ota_security_verify_label => 'Xác thực bảo mật';
+
+  @override
+  String get ota_ecdsa_signed => 'Ký số điện tử ECDSA (Chính chủ)';
+
+  @override
+  String get ota_target_label => 'Mục tiêu';
+
+  @override
+  String get ota_flash_caution =>
+      'Lưu ý: Quá trình nạp kéo dài khoảng 30 - 60 giây. Tuyệt đối không ngắt nguồn điện hoặc tắt Wi-Fi.';
+
+  @override
+  String get ota_sending_cmd => 'Đang phát lệnh OTA an toàn tới Hub ESP32...';
+
+  @override
+  String ota_flashing_progress(String progress) {
+    return 'Đang tải & nạp Flash vi điều khiển: $progress%';
+  }
+
+  @override
+  String get ota_flash_rebooting =>
+      'Nâng cấp thành công! Hub ESP32 đang khởi động lại...';
+
+  @override
+  String get ota_flash_error => 'Lỗi trong quá trình nạp firmware!';
+
+  @override
+  String get ota_flash_back_online =>
+      'Nâng cấp thành công! Hub ESP32 đã hoạt động trở lại.';
+
+  @override
+  String get ota_timeout_90s =>
+      'Hết thời gian chờ phản hồi từ Hub ESP32 (Timeout 90s). Vui lòng kiểm tra lại nguồn điện Hub!';
+
+  @override
+  String get ota_server_accepted =>
+      'Hub ESP32 đã tiếp nhận lệnh qua Server. Đang tải Firmware...';
+
+  @override
+  String get ota_status_success_title => 'Nâng Cấp Thành Công!';
+
+  @override
+  String get ota_status_failed_title => 'Nâng Cấp Thất Bại';
+
+  @override
+  String get ota_status_flashing_title => 'Đang Nạp Firmware OTA';
+
+  @override
+  String get ota_badge_done => 'HOÀN TẤT';
+
+  @override
+  String get ota_badge_error => 'LỖI';
+
+  @override
+  String get ota_badge_flashing => 'ĐANG NẠP';
+
+  @override
+  String get ota_keep_power_wifi =>
+      'Giữ nguồn điện & Wi-Fi ổn định trong suốt quá trình nạp';
+
+  @override
+  String get ota_verified_100 =>
+      'Đã nạp 100% Firmware và bảo vệ toàn vẹn thành công!';
+
+  @override
+  String get ota_swap_boot_note =>
+      'Hub ESP32 đang tự động hoán đổi phân vùng boot và khởi động lại. Quá trình mất khoảng 5 - 10 giây.';
+
+  @override
+  String get ota_unknown_error => 'Đã xảy ra lỗi không xác định.';
+
+  @override
+  String changelog_version_build(String version, String build) {
+    return 'Phiên bản $version • Build $build';
+  }
+
+  @override
+  String changelog_cloud_server_ver(String version, String build) {
+    return 'Máy chủ Cloud: v$version (Build $build)';
+  }
+
+  @override
+  String get changelog_cdn_channel =>
+      'Kênh phát hành chính thức ZenHome Cloud CDN';
+
+  @override
+  String get changelog_esp_hw_title => 'Vi điều khiển Hub ESP32';
+
+  @override
+  String get changelog_esp_hw_arch =>
+      'Kiến trúc Dual-Partition OTA • Ký số ECDSA';
+
+  @override
+  String get changelog_feat1_title =>
+      'Giao diện Kính Lỏng Quang Học 2.0 (Zen Liquid Glass 2.0)';
+
+  @override
+  String get changelog_feat1_desc =>
+      'Nâng cấp toàn diện hiệu ứng khúc xạ ánh sáng Cực Quang, viền kính vát 3D và đồng bộ 6 chủ đề Zen Luxury.';
+
+  @override
+  String get changelog_feat2_title =>
+      'Hệ thống Đa ngôn ngữ Động (Dynamic Localization)';
+
+  @override
+  String get changelog_feat2_desc =>
+      'Chuyển đổi toàn diện các chuỗi giao diện sang cơ chế song ngữ (Tiếng Việt & English), loại bỏ hoàn toàn các chuỗi cứng giúp trải nghiệm chuẩn quốc tế.';
+
+  @override
+  String get changelog_feat3_title =>
+      'Bảo mật Đám mây & Phân quyền Firestore Hoàn hảo';
+
+  @override
+  String get changelog_feat3_desc =>
+      'Khắc phục triệt để lỗi phân quyền (permission-denied). Tự động nhận diện chủ tài khoản kể cả khi truy vấn qua Username hoặc Auth UID.';
+
+  @override
+  String get changelog_feat4_title =>
+      'Khả năng Tự Hồi Phục Mạng (Network & Offline Resilience)';
+
+  @override
+  String get changelog_feat4_desc =>
+      'Triệt tiêu 100% các ngoại lệ UDP Socket Broadcast trên Android 14/15/16 và lỗi race condition khi MQTT HiveMQ tự động kết nối lại.';
+
+  @override
+  String get changelog_feat5_title => 'Tối ưu hóa Hiệu năng & Tốc độ Khởi chạy';
+
+  @override
+  String get changelog_feat5_desc =>
+      'Tăng tốc độ đồng bộ đám mây và giảm 30% tài nguyên mạng tiêu thụ khi app chạy nền.';
+
+  @override
+  String get changelog_rel_1_8_21 =>
+      'Nâng cấp Liquid Glass trong suốt mềm mại, viền mảnh tinh tế, thẻ Hybrid Glass 120Hz và khắc phục lỗi tràn chữ toàn ứng dụng.';
+
+  @override
+  String get changelog_rel_1_8_20 =>
+      'Đột phá hệ thống màu chủ đạo toàn diện & Bảng màu chống xung đột (Anti-Collision Dynamic Semantic Palette) cho 6 bộ Preset Zen Luxury.';
+
+  @override
+  String get changelog_rel_1_8_19 =>
+      'Zen Liquid Glass 2.0: nâng cấp hệ thống quang học khúc xạ cực quang, viền vát và hộp thoại đồng bộ toàn app.';
+
+  @override
+  String get changelog_rel_1_8_18 =>
+      'Khắc phục triệt để 9/9 lỗ hổng bảo mật theo kiểm toán Cloudflare Audit: đóng kín Firestore Rules, chặn IDOR, bắt buộc chữ ký số ECDSA P-256 cho OTA ESP32.';
+
+  @override
+  String get changelog_rel_1_8_17 =>
+      'Khởi động thế hệ Zen Liquid Glass: nâng cấp thẻ thời tiết, thẻ thiết bị và thanh điều hướng nổi.';
+
+  @override
+  String get changelog_rel_1_8_1 =>
+      'Nâng cấp Animate UI, bảo vệ chống Root, thắt chặt Local LAN API và đồng bộ an toàn mất điện.';
+
+  @override
+  String get changelog_rel_1_8_0 =>
+      'Xác thực Admin Passkey WebAuthn, màn hình đọc cập nhật phiên bản mới, chuyển ngữ động toàn diện.';
+
+  @override
+  String get changelog_rel_1_7_14 =>
+      'Vá lỗi UDP Socket broadcast trên Android 16, bọc an toàn listener Stream.';
+
+  @override
+  String get changelog_rel_1_7_13 =>
+      'Tối ưu hóa luồng xác thực đa phiên, đồng bộ thời gian thực bảo mật cao.';
+
+  @override
+  String get changelog_rel_1_7_10 =>
+      'Tích hợp Firebase Realtime Crashlytics hai chiều và theo dõi sự cố trên Web.';
+
+  @override
+  String get changelog_rel_1_7_0 =>
+      'Ra mắt giao diện ZenHome Fluent Design mới, hỗ trợ Dark Mode và biểu đồ cảm biến.';
+
+  @override
+  String mapping_gpio_conflict_detail(String pin, String names) {
+    return 'Chân GPIO $pin đang bị gán trùng cho nhiều thiết bị: \"$names\". Mỗi thiết bị phải kết nối một chân GPIO độc lập.';
+  }
+
+  @override
+  String mapping_room_conflict_detail(String room, String name) {
+    return 'Trong \"$room\" có nhiều thiết bị cùng mang tên \"$name\". Vui lòng đặt tên khác nhau để tránh nhầm lẫn.';
+  }
+
+  @override
+  String mapping_gpio_in_use_detail(String pin, String name, String room) {
+    return 'Chân GPIO $pin đã được sử dụng cho thiết bị \"$name\" ($room). Vui lòng chọn chân GPIO khác!';
+  }
+
+  @override
+  String mapping_room_name_exists_detail(String room, String name) {
+    return 'Trong \"$room\" đã có thiết bị mang tên \"$name\". Vui lòng đặt tên khác để dễ phân biệt khi điều khiển!';
+  }
+
+  @override
+  String mapping_dup_id_detail(String id) {
+    return 'Mã ID \"$id\" đã được sử dụng cho một thiết bị khác. Vui lòng chọn mã ID khác.';
+  }
+
+  @override
+  String mapping_delete_warning_detail(String room, String id) {
+    return 'Khu vực: $room • ID: $id\nLưu ý: Mọi lịch trình, hẹn giờ và ngữ cảnh gắn với thiết bị này sẽ bị gỡ bỏ.';
+  }
+
+  @override
+  String get detail_gpio_pin => 'Chân GPIO';
+
+  @override
+  String get detail_duplicate_devices => 'Thiết bị trùng';
+
+  @override
+  String get detail_requirement => 'Yêu cầu';
+
+  @override
+  String get mapping_req_change_gpio => 'Thay đổi chân GPIO trước khi lưu';
+
+  @override
+  String get mapping_req_rename_device => 'Đổi tên thiết bị trước khi lưu';
+
+  @override
+  String get detail_area => 'Khu vực';
+
+  @override
+  String get detail_conflict_name => 'Tên xung đột';
+
+  @override
+  String get detail_entered_id => 'Mã nhập vào';
+
+  @override
+  String get detail_used_by => 'Đang sử dụng bởi';
+
+  @override
+  String get detail_room => 'Phòng';
+
+  @override
+  String get detail_dup_name => 'Tên trùng';
+
+  @override
+  String get detail_mode => 'Chế độ';
+
+  @override
+  String get mapping_saved_offline_mode => 'Lưu tạm cục bộ (Offline)';
+
+  @override
+  String detail_details_prefix(String details) {
+    return 'Chi tiết: $details';
+  }
+
+  @override
+  String get mapping_device_count => 'Số lượng thiết bị';
+
+  @override
+  String get mapping_cloud_sync => 'Đồng bộ Cloud';
+
+  @override
+  String get mapping_firestore_ok => 'Firestore thành công';
+
+  @override
+  String get mapping_esp_sync => 'Đồng bộ ESP32';
+
+  @override
+  String get mapping_sent_secure => 'Đã gửi qua kênh kết nối bảo mật';
+
+  @override
+  String get btn_confirm_action => 'Xác nhận thực hiện';
+
+  @override
+  String get btn_cancel_action => 'Hủy bỏ';
 }

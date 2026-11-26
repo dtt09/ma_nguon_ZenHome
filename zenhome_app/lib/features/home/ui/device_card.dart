@@ -1,11 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
+
+/// Builds only visible rows, letting the tallest device name set each row's height.
+class SliverDeviceGrid extends StatelessWidget {
+  const SliverDeviceGrid({
+    super.key,
+    required this.itemCount,
+    required this.itemBuilder,
+  });
+
+  final int itemCount;
+  final IndexedWidgetBuilder itemBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    final minWidth = 56 + 6 * MediaQuery.textScalerOf(context).scale(16);
+    const gap = 12.0;
+    int? previousColumns;
+    Widget? rows;
+    return SliverLayoutBuilder(
+      builder: (context, constraints) {
+        final columns = ((constraints.crossAxisExtent + gap) ~/ (minWidth + gap)).clamp(1, 4);
+        // Scrolling also changes sliver constraints. Reuse the delegate until
+        // layout columns or the device inputs change.
+        if (columns == previousColumns) return rows!;
+        previousColumns = columns;
+        final rowCount = (itemCount + columns - 1) ~/ columns;
+        return rows = SliverList.builder(
+          itemCount: rowCount,
+          itemBuilder: (context, row) => Padding(
+            padding: EdgeInsets.only(bottom: row + 1 < rowCount ? gap : 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var column = 0; column < columns; column++) ...[
+                  if (column > 0) const SizedBox(width: gap),
+                  Expanded(
+                    child: row * columns + column < itemCount
+                        ? itemBuilder(context, row * columns + column)
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
 class DeviceCard extends StatelessWidget {
   final String deviceName;
@@ -14,6 +62,7 @@ class DeviceCard extends StatelessWidget {
   final bool isOn;
   final bool isCooldown;
   final bool isRestricted;
+  final bool showRoomName;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
@@ -25,6 +74,7 @@ class DeviceCard extends StatelessWidget {
     required this.isOn,
     this.isCooldown = false,
     this.isRestricted = false,
+    this.showRoomName = true,
     required this.onTap,
     this.onLongPress,
   });
@@ -72,20 +122,22 @@ class DeviceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color glowColor = _getGlowColor(context);
+    final switchDuration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 180);
 
     final Color primaryTextColor =
         isDark ? AppColors.darkText : AppColors.lightText;
     final Color secondaryTextColor =
         isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
     final Color iconColor = isOn
-        ? (isDark ? Colors.white : glowColor)
+        ? (isDark ? Colors.white : Color.lerp(glowColor, AppColors.lightText, 0.35)!)
         : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
 
-    final Widget card = ZenGlassCard(
+    final Widget card = ZenGlassCard.lightweight(
       borderRadius: 26,
       isActive: isOn,
       glowColor: glowColor,
-      blurSigma: 0.0,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,68 +147,18 @@ class DeviceCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Builder(
-                builder: (context) {
-                  Widget iconChild = Icon(
-                    icon,
-                    size: 26,
-                    color: iconColor,
-                  );
-
-                  final bool isFan = icon == Icons.mode_fan_off ||
-                      icon == Icons.air_rounded ||
-                      icon == Icons.wind_power ||
-                      icon == Icons.toys_outlined;
-
-                  if (isFan && isOn) {
-                    iconChild = iconChild
-                        .animate(onPlay: (c) => c.repeat())
-                        .rotate(duration: 1200.ms, curve: Curves.linear);
-                  } else {
-                    iconChild = iconChild.animate(target: isOn ? 1 : 0).scale(
-                          begin: const Offset(0.92, 0.92),
-                          end: const Offset(1.08, 1.08),
-                          duration: 250.ms,
-                          curve: Curves.easeOutCubic,
-                        );
-                  }
-
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.all(11),
-                    decoration: BoxDecoration(
-                      color: isOn
-                          ? glowColor.withOpacity(isDark ? 0.26 : 0.16)
-                          : (isDark
-                              ? Colors.white.withOpacity(0.08)
-                              : Colors.white.withOpacity(0.65)),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isOn
-                            ? glowColor.withOpacity(isDark ? 0.55 : 0.35)
-                            : (isDark
-                                ? Colors.white.withOpacity(0.14)
-                                : const Color(0xFFCBD5E1).withOpacity(0.75)),
-                        width: 1.1,
-                      ),
-                      boxShadow: isOn
-                          ? [
-                              BoxShadow(
-                                color: glowColor.withOpacity(0.32),
-                                blurRadius: 12,
-                                spreadRadius: 1,
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: iconChild,
-                  );
-                },
+              Container(
+                padding: const EdgeInsets.all(11.8),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isOn
+                      ? glowColor.withValues(alpha: isDark ? 0.18 : 0.13)
+                      : Colors.white.withValues(alpha: isDark ? 0.07 : 0.54),
+                ),
+                child: Icon(icon, size: 26, color: iconColor),
               ),
               if (isRestricted)
-                ZenGlassPill(
-                  blurSigma: 0,
+                ZenGlassPill.lightweight(
                   isSelected: true,
                   glowColor: context.zenColors.warning,
                   borderRadius: 12,
@@ -172,8 +174,8 @@ class DeviceCard extends StatelessWidget {
                 LogoLoadingIndicator(color: primaryTextColor, size: 22)
               else
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 280),
-                  curve: Curves.easeInOut,
+                  duration: switchDuration,
+                  curve: Curves.easeOutCubic,
                   width: 42,
                   height: 24,
                   padding: const EdgeInsets.all(2.5),
@@ -182,87 +184,64 @@ class DeviceCard extends StatelessWidget {
                     color: isOn
                         ? glowColor
                         : (isDark
-                            ? Colors.white.withOpacity(0.14)
-                            : const Color(0xFFCBD5E1).withOpacity(0.75)),
+                            ? Colors.white.withValues(alpha: 0.14)
+                            : const Color(0xFFCBD5E1).withValues(alpha: 0.72)),
                     border: Border.all(
                       color: isOn
-                          ? Colors.white.withOpacity(0.35)
-                          : Colors.white.withOpacity(isDark ? 0.12 : 0.7),
-                      width: 0.9,
+                          ? glowColor.withValues(alpha: 0.35)
+                          : Colors.white.withValues(alpha: isDark ? 0.10 : 0.55),
+                      width: 0.8,
                     ),
-                    boxShadow: isOn
-                        ? [
-                            BoxShadow(
-                              color: glowColor.withOpacity(0.45),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
                   ),
                   child: AnimatedAlign(
-                    duration: const Duration(milliseconds: 260),
+                    duration: switchDuration,
                     curve: Curves.easeOutCubic,
                     alignment:
                         isOn ? Alignment.centerRight : Alignment.centerLeft,
                     child: Container(
                       width: 18.5,
                       height: 18.5,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.22),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
                       ),
                     ),
                   ),
                 ),
             ],
           ),
-          const Expanded(child: SizedBox(height: 8)),
+          const SizedBox(height: 14),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                roomName.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                  color: secondaryTextColor,
-                ),
-              ),
-              const SizedBox(height: 3),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  deviceName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              if (showRoomName) ...[
+                Text(
+                  roomName.toUpperCase(),
                   style: TextStyle(
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
-                    color: primaryTextColor,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: secondaryTextColor,
                   ),
+                ),
+                const SizedBox(height: 3),
+              ],
+              Text(
+                deviceName,
+                style: TextStyle(
+                  fontSize: 15.5,
+                  height: 1.2,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                  color: primaryTextColor,
                 ),
               ),
               const SizedBox(height: 5),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 280),
-                    curve: Curves.easeOutCubic,
+                  Container(
                     width: isOn ? 8 : 6,
                     height: isOn ? 8 : 6,
                     decoration: BoxDecoration(
@@ -270,34 +249,20 @@ class DeviceCard extends StatelessWidget {
                       color: isOn
                           ? glowColor
                           : (isDark ? Colors.white30 : Colors.black26),
-                      boxShadow: isOn
-                          ? [
-                              BoxShadow(
-                                color: glowColor.withOpacity(0.65),
-                                blurRadius: 7,
-                                spreadRadius: 1,
-                              ),
-                            ]
-                          : null,
                     ),
                   ),
                   const SizedBox(width: 6),
                   Flexible(
-                    child: AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 250),
+                    child: Text(
+                      isOn ? context.tr('status_on') : context.tr('status_off'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: isOn ? FontWeight.w700 : FontWeight.w600,
                         color: isOn
                             ? (isDark ? glowColor : AppColors.lightText)
                             : secondaryTextColor,
-                      ),
-                      child: Text(
-                        isOn
-                            ? context.tr('status_on')
-                            : context.tr('status_off'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
@@ -309,18 +274,16 @@ class DeviceCard extends StatelessWidget {
       ),
     );
 
-    return RepaintBoundary(
-      child: BouncingButton(
-        onTap: isCooldown
-            ? null
-            : () {
-                HapticFeedback.mediumImpact();
-                onTap();
-              },
-        onLongPress: isCooldown ? null : onLongPress,
-        scaleFactor: 0.96,
-        child: card,
-      ),
+    return BouncingButton(
+      onTap: isCooldown
+          ? null
+          : () {
+              HapticFeedback.mediumImpact();
+              onTap();
+            },
+      onLongPress: isCooldown ? null : onLongPress,
+      scaleFactor: 0.985,
+      child: card,
     );
   }
 }

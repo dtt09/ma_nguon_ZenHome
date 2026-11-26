@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:zenhome_app/core/utils/masking_helper.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -88,24 +89,25 @@ class HubReconfigController extends StateNotifier<HubReconfigState> {
           'admin_pass': newAdminPass,
         });
 
-        _ref.read(mqttRepositoryProvider).publishCmd(
+        sentDirectly = await _ref.read(mqttRepositoryProvider).publishCmd(
           '${activeConfig.mqttPrefix}/system/config',
           payload,
         );
 
-        // Đợi 800ms để đảm bảo gói tin gửi trọn vẹn qua MQTT TLS
-        await Future.delayed(const Duration(milliseconds: 800));
-        sentDirectly = true;
-      } else {
+      }
+      if (!sentDirectly) {
         // Hub Offline trên MQTT: Dự phòng tức thì gửi qua LAN HTTP hoặc BLE Zero-Touch!
         sentDirectly = await LocalNetworkService().sendReconfigHub(
           newSsid: newSsid,
           newWifiPass: newWifiPass,
           newServer: newServer,
           newAdminPass: newAdminPass,
+          newMqttUser: newUser,
+          newMqttPass: newPass,
         );
       }
 
+      if (!sentDirectly) throw StateError('Hub chưa tiếp nhận cấu hình mới');
       // 2. Cập nhật cấu hình vào Local Storage của ứng dụng
       final oldServer = activeConfig.mqttServer;
       final oldUser = activeConfig.mqttUser;
@@ -121,13 +123,19 @@ class HubReconfigController extends StateNotifier<HubReconfigState> {
       // 3. Cập nhật lên Cloud Firestore nếu tài khoản đã đăng nhập
       if (activeConfig.userId != 'guest' && activeConfig.userId.isNotEmpty) {
         try {
-          await FirebaseFirestore.instance.collection('users').doc(activeConfig.userId).set({
-            'mqttServer': newServer,
-            'mqttUser': newUser,
+          final home = FirebaseFirestore.instance.collection('users').doc(activeConfig.userId);
+          final batch = FirebaseFirestore.instance.batch();
+          batch.set(home.collection('private').doc('credentials'), {
+            'ownerUid': FirebaseAuth.instance.currentUser!.uid,
             'mqttPass': newPass,
             'adminPass': newAdminPass,
+          }, SetOptions(merge: true));
+          batch.set(home, {
+            'mqttServer': newServer,
+            'mqttUser': newUser,
             'lastWifiSsid': newSsid,
           }, SetOptions(merge: true));
+          await batch.commit();
         } catch (e) {
           debugPrint('Lỗi cập nhật Firestore khi reconfig: $e');
         }
@@ -150,7 +158,7 @@ class HubReconfigController extends StateNotifier<HubReconfigState> {
 
       String methodText = 'Đã lưu trên Cloud (Hub Offline)';
       if (isEspOnline) {
-        methodText = 'Bắn lệnh Cloud OTA (Thành công)';
+        methodText = 'Đã gửi yêu cầu qua máy chủ MQTT';
       } else if (sentDirectly) {
         methodText = 'Gửi trực tiếp qua LAN/BLE Zero-Touch (Thành công)';
       }

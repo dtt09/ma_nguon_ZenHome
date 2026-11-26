@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 import 'package:zenhome_app/features/home/ui/scene_section.dart';
+import 'package:zenhome_app/features/home/ui/components/adaptive_home_header.dart';
 import 'package:zenhome_app/features/home/ui/timer_section.dart';
 import 'package:zenhome_app/features/home/ui/schedule_section.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -95,16 +96,15 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                       // Header
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0, bottom: 18.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                        child: AdaptiveHomeHeader(
+                          heading: Row(
                           children: [
                             // Dynamic Header Glass Icon Badge
                             ZenLiquidGlass(
                               width: 48,
                               height: 48,
                               borderRadius: 16,
-                              blurSigma: 12,
+                              blurSigma: 0,
                               glowColor: zen.primary,
                               surfaceColor: zen.primary.withOpacity(isDark ? 0.20 : 0.12),
                               customGradient: LinearGradient(
@@ -147,8 +147,6 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                                       letterSpacing: -0.5,
                                       color: isDark ? AppColors.darkText : AppColors.lightText,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
@@ -160,19 +158,17 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                                       fontWeight: FontWeight.w500,
                                       color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                                     ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            // Connection Status Chip (Zen Glass Pill)
-                            ZenGlassPill(
+                          ],
+                          ),
+                          trailing: ZenGlassPill(
                               color: statusColor,
                               glowColor: statusColor,
                               isSelected: true,
-                              blurSigma: 10,
+                              blurSigma: 0,
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -183,12 +179,6 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: statusColor,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: statusColor.withOpacity(0.6),
-                                          blurRadius: 6,
-                                        ),
-                                      ],
                                     ),
                                   ),
                                   const SizedBox(width: 6),
@@ -203,7 +193,6 @@ class _ScenesScreenState extends ConsumerState<ScenesScreen> with AutomaticKeepA
                                 ],
                               ),
                             ),
-                          ],
                         ),
                       ).animate().fade(duration: 350.ms).slideY(begin: -0.1),
 

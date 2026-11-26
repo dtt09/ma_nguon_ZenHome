@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
@@ -17,14 +16,14 @@ class ReauthHelper {
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
-    return await _reauthWithGoogle(context, user, reason);
+    return _reauthWithGoogle(context, user, reason);
   }
 
   /// Xác thực bằng SĐT (OTP) một cách trực tiếp
   static Future<bool> reauthWithPhoneExplicit(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
-    return await _reauthWithPhone(context, user);
+    return _reauthWithPhone(context, user);
   }
 
   /// Xác thực lại người dùng dựa trên phương thức họ đã dùng để đăng nhập / liên kết.
@@ -35,7 +34,8 @@ class ReauthHelper {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
 
-    bool isGoogle = user.providerData.any((p) => p.providerId == 'google.com');
+    final bool isGoogle =
+        user.providerData.any((p) => p.providerId == 'google.com');
     bool isPhone = user.phoneNumber != null && user.phoneNumber!.isNotEmpty;
     if (!isPhone &&
         user.email != null &&
@@ -44,12 +44,12 @@ class ReauthHelper {
     }
 
     if (isGoogle) {
-      return await _reauthWithGoogle(context, user, reason);
-    } else if (isPhone) {
-      return await _reauthWithPhone(context, user);
-    } else {
-      return await _reauthWithPassword(context, user, reason);
+      return _reauthWithGoogle(context, user, reason);
     }
+    if (isPhone) {
+      return _reauthWithPhone(context, user);
+    }
+    return _reauthWithPassword(context, user, reason);
   }
 
   /// Lớp bảo vệ 2: Bắt buộc xác thực bằng Mật khẩu (nếu tài khoản có mật khẩu)
@@ -60,12 +60,13 @@ class ReauthHelper {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
 
-    bool hasPassword = user.providerData.any((p) => p.providerId == 'password');
+    final bool hasPassword =
+        user.providerData.any((p) => p.providerId == 'password');
     if (!hasPassword || user.email == null) {
       return true;
     }
 
-    return await _reauthWithPassword(context, user, reason);
+    return _reauthWithPassword(context, user, reason);
   }
 
   /// Lớp bảo vệ 3: Xác thực bằng phương thức gốc (OTP hoặc Google)
@@ -73,7 +74,8 @@ class ReauthHelper {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
 
-    bool isGoogle = user.providerData.any((p) => p.providerId == 'google.com');
+    final bool isGoogle =
+        user.providerData.any((p) => p.providerId == 'google.com');
     bool isPhone = user.phoneNumber != null && user.phoneNumber!.isNotEmpty;
     if (!isPhone &&
         user.email != null &&
@@ -82,16 +84,16 @@ class ReauthHelper {
     }
 
     if (isGoogle) {
-      return await _reauthWithGoogle(
+      return _reauthWithGoogle(
         context,
         user,
-        context.tr('verify_identity') ?? 'xác minh danh tính',
+        context.tr('verify_identity'),
       );
-    } else if (isPhone) {
-      return await _reauthWithPhone(context, user);
-    } else {
-      return true;
     }
+    if (isPhone) {
+      return _reauthWithPhone(context, user);
+    }
+    return true;
   }
 
   static Future<bool> _reauthWithGoogle(
@@ -99,11 +101,10 @@ class ReauthHelper {
     User user,
     String reason,
   ) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final zen = context.zenColors;
-    bool isConfirmed = false;
 
-    await showZenGlassBottomSheet<bool>(
+    final bool? confirmed = await showZenGlassBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
@@ -116,32 +117,33 @@ class ReauthHelper {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 64,
-                  height: 64,
+                  width: 60,
+                  height: 60,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
                       colors: [
-                        zen.primary.withOpacity(0.24),
-                        zen.primaryAccent.withOpacity(0.08),
+                        zen.primary.withValues(alpha: 0.16),
+                        zen.primaryAccent.withValues(alpha: 0.06),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     border: Border.all(
-                      color: zen.primary.withOpacity(0.40),
-                      width: 1.4,
+                      color: zen.primary.withValues(alpha: isDark ? 0.28 : 0.22),
+                      width: 0.9,
                     ),
                   ),
                   child: Icon(
                     Icons.security_rounded,
                     color: isDark ? zen.primaryAccent : zen.primary,
-                    size: 32,
+                    size: 28,
                   ),
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  context.tr('reauth_title') ?? 'Xác thực bảo mật',
+                  context.tr('reauth_title'),
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -162,19 +164,16 @@ class ReauthHelper {
                   ),
                 ),
                 const SizedBox(height: 24),
-                ZenLiquidGlass(
-                  blurSigma: 0,
+                ZenLiquidGlass.lightweight(
                   borderRadius: 16,
+                  enableSpecularRim: false,
                   glowColor: zen.primary,
                   customGradient: zen.brandHero,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 18,
                     vertical: 14,
                   ),
-                  onTap: () {
-                    isConfirmed = true;
-                    Navigator.pop(ctx, true);
-                  },
+                  onTap: () => Navigator.pop(ctx, true),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -191,12 +190,17 @@ class ReauthHelper {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Text(
-                        context.tr('btn_continue') ?? 'Xác thực với Google',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                      Flexible(
+                        child: Text(
+                          context.tr('btn_continue'),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ],
@@ -206,8 +210,9 @@ class ReauthHelper {
                 SizedBox(
                   width: double.infinity,
                   child: ZenGlassButton(
-                    label: context.tr('btn_cancel') ?? 'Hủy bỏ',
+                    label: context.tr('btn_cancel'),
                     isPrimary: false,
+                    maxLines: 2,
                     onPressed: () => Navigator.pop(ctx, false),
                   ),
                 ),
@@ -218,11 +223,11 @@ class ReauthHelper {
       },
     );
 
-    if (!isConfirmed) return false;
+    if (confirmed != true || !context.mounted) return false;
 
     LoadingOverlay.show(context);
     try {
-      final String? clientId = dotenv.env['GOOGLE_CLIENT_ID'];
+      final String? clientId = const String.fromEnvironment('GOOGLE_CLIENT_ID');
       final GoogleSignIn googleSignIn = GoogleSignIn(serverClientId: clientId);
       await googleSignIn.signOut();
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
@@ -242,7 +247,7 @@ class ReauthHelper {
         if (context.mounted) {
           showFloatingToast(
             context,
-            context.tr('error') ?? 'Lỗi',
+            context.tr('error'),
             'Vui lòng chọn đúng tài khoản Google đã liên kết (${linkedGoogleProvider.email}) để xác thực!',
             isError: true,
           );
@@ -268,9 +273,8 @@ class ReauthHelper {
       if (context.mounted) {
         showFloatingToast(
           context,
-          context.tr('error') ?? 'Lỗi',
-          context.tr('err_reauth_google_failed') ??
-              'Không thể xác thực lại bằng Google',
+          context.tr('error'),
+          context.tr('err_reauth_google_failed'),
           isError: true,
         );
       }
@@ -312,176 +316,18 @@ class ReauthHelper {
       } catch (_) {}
     }
 
-    if (phoneNumber.isEmpty) return false;
+    if (phoneNumber.isEmpty || !context.mounted) return false;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    bool isSuccess = false;
-    String verificationId = '';
-    bool codeSent = false;
-    bool verifyRequested = false;
-
-    await showZenGlassBottomSheet(
+    final bool? result = await showZenGlassBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       padBottomForKeyboard: true,
-      builder: (ctx) {
-        final TextEditingController otpController = TextEditingController();
-        return StatefulBuilder(
-          builder: (context, setState) {
-            final zen = context.zenColors;
-            if (!verifyRequested) {
-              verifyRequested = true;
-              FirebaseAuth.instance.verifyPhoneNumber(
-                phoneNumber: phoneNumber,
-                verificationCompleted: (_) {},
-                verificationFailed: (e) {
-                  Navigator.pop(ctx);
-                  showFloatingToast(
-                    context,
-                    context.tr('error') ?? 'Lỗi',
-                    context.l10n.err_send_otp_failed(e.message ?? ''),
-                    isError: true,
-                  );
-                },
-                codeSent: (verId, forceResendingToken) {
-                  setState(() {
-                    verificationId = verId;
-                    codeSent = true;
-                  });
-                },
-                codeAutoRetrievalTimeout: (_) {},
-              );
-            }
-
-            return SafeArea(
-              top: false,
-              child: SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(24, 10, 24, 26),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 62,
-                      height: 62,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: zen.success.withOpacity(0.16),
-                        border: Border.all(
-                          color: zen.success.withOpacity(0.4),
-                          width: 1.4,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.sms_rounded,
-                        color: zen.success,
-                        size: 30,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      context.tr('reauth_sms_title') ?? 'Xác thực qua SMS',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? AppColors.darkText : AppColors.lightText,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      !codeSent
-                          ? (context.tr('reauth_sending_otp') ??
-                              'Đang gửi mã OTP đến số điện thoại của bạn...')
-                          : context.l10n.reauth_enter_otp_msg(phoneNumber),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark
-                            ? AppColors.darkTextMuted
-                            : AppColors.lightTextMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    if (!codeSent)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: LogoLoadingIndicator(
-                          color: isDark ? zen.primaryAccent : zen.primary,
-                          size: 34,
-                        ),
-                      )
-                    else ...[
-                      TextField(
-                        controller: otpController,
-                        keyboardType: TextInputType.number,
-                        maxLength: 6,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 8,
-                          color: isDark ? AppColors.darkText : AppColors.lightText,
-                        ),
-                        decoration: zenGlassInputDecoration(
-                          context,
-                          hintText: '------',
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ZenGlassButton(
-                          label: context.tr('btn_confirm') ?? 'Xác nhận',
-                          icon: Icons.verified_rounded,
-                          onPressed: () async {
-                            if (otpController.text.length != 6) return;
-                            LoadingOverlay.show(context);
-                            try {
-                              final credential = PhoneAuthProvider.credential(
-                                verificationId: verificationId,
-                                smsCode: otpController.text.trim(),
-                              );
-                              try {
-                                await user
-                                    .reauthenticateWithCredential(credential);
-                              } catch (e) {
-                                await user.linkWithCredential(credential);
-                              }
-                              isSuccess = true;
-                              LoadingOverlay.hide();
-                              if (context.mounted) Navigator.pop(ctx);
-                            } catch (e) {
-                              LoadingOverlay.hide();
-                              showFloatingToast(
-                                context,
-                                context.tr('error') ?? 'Lỗi',
-                                context.tr('err_invalid_otp_code') ??
-                                    'Mã OTP không hợp lệ',
-                                isError: true,
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ZenGlassButton(
-                        label: context.tr('btn_cancel') ?? 'Hủy',
-                        isPrimary: false,
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      builder: (ctx) => _PhoneReauthSheet(
+        user: user,
+        phoneNumber: phoneNumber,
+      ),
     );
-    return isSuccess;
+    return result == true;
   }
 
   static Future<bool> _reauthWithPassword(
@@ -489,151 +335,372 @@ class ReauthHelper {
     User user,
     String reason,
   ) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    bool isSuccess = false;
-
-    await showZenGlassBottomSheet(
+    final bool? result = await showZenGlassBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       padBottomForKeyboard: true,
-      builder: (ctx) {
-        final TextEditingController passwordController =
-            TextEditingController();
-        bool obscurePassword = true;
-        return StatefulBuilder(
-          builder: (context, setState) {
-            final zen = context.zenColors;
-            return SafeArea(
-              top: false,
-              child: SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(24, 10, 24, 26),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 62,
-                      height: 62,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [
-                            zen.primary.withOpacity(0.24),
-                            zen.primaryAccent.withOpacity(0.08),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        border: Border.all(
-                          color: zen.primary.withOpacity(0.40),
-                          width: 1.4,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.lock_outline_rounded,
-                        color: isDark ? zen.primaryAccent : zen.primary,
-                        size: 30,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      context.tr('reauth_title') ?? 'Xác thực mật khẩu',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? AppColors.darkText : AppColors.lightText,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      context.l10n.reauth_reason_msg(reason),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark
-                            ? AppColors.darkTextMuted
-                            : AppColors.lightTextMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: passwordController,
-                      obscureText: obscurePassword,
-                      autofocus: true,
-                      decoration: zenGlassInputDecoration(
-                        context,
-                        labelText: context.tr('password') ?? 'Mật khẩu',
-                        prefixIcon: Icons.lock_rounded,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            obscurePassword
-                                ? Icons.visibility_off_rounded
-                                : Icons.visibility_rounded,
-                          ),
-                          onPressed: () => setState(
-                            () => obscurePassword = !obscurePassword,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ZenGlassButton(
-                        label: context.tr('btn_confirm') ?? 'Xác nhận',
-                        icon: Icons.verified_user_rounded,
-                        onPressed: () async {
-                          if (passwordController.text.isEmpty) {
-                            showFloatingToast(
-                              context,
-                              context.tr('error') ?? 'Lỗi',
-                              context.tr('err_empty_password') ??
-                                  'Vui lòng nhập mật khẩu',
-                              isError: true,
-                            );
-                            return;
-                          }
-                          LoadingOverlay.show(context);
-                          try {
-                            final credential = EmailAuthProvider.credential(
-                              email: user.email!,
-                              password: passwordController.text.trim(),
-                            );
-                            await user
-                                .reauthenticateWithCredential(credential);
-                            isSuccess = true;
-                            LoadingOverlay.hide();
-                            if (context.mounted) Navigator.pop(ctx);
-                          } catch (e) {
-                            LoadingOverlay.hide();
-                            showFloatingToast(
-                              context,
-                              context.tr('error') ?? 'Lỗi',
-                              context.tr('err_wrong_password') ??
-                                  'Mật khẩu không đúng',
-                              isError: true,
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ZenGlassButton(
-                        label: context.tr('btn_cancel') ?? 'Hủy',
-                        isPrimary: false,
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+      builder: (ctx) => _PasswordReauthSheet(
+        user: user,
+        reason: reason,
+      ),
+    );
+    return result == true;
+  }
+}
+
+class _PhoneReauthSheet extends StatefulWidget {
+  final User user;
+  final String phoneNumber;
+
+  const _PhoneReauthSheet({
+    required this.user,
+    required this.phoneNumber,
+  });
+
+  @override
+  State<_PhoneReauthSheet> createState() => _PhoneReauthSheetState();
+}
+
+class _PhoneReauthSheetState extends State<_PhoneReauthSheet> {
+  final TextEditingController _otpController = TextEditingController();
+  String _verificationId = '';
+  bool _codeSent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestOtp();
+  }
+
+  void _requestOtp() {
+    FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: widget.phoneNumber,
+      verificationCompleted: (_) {},
+      verificationFailed: (e) {
+        if (!mounted) return;
+        final String errTitle = context.tr('error');
+        final String errMsg = context.l10n.err_send_otp_failed(e.message ?? '');
+        Navigator.pop(context, false);
+        showFloatingToast(
+          context,
+          errTitle,
+          errMsg,
+          isError: true,
         );
       },
+      codeSent: (verId, forceResendingToken) {
+        if (!mounted) return;
+        setState(() {
+          _verificationId = verId;
+          _codeSent = true;
+        });
+      },
+      codeAutoRetrievalTimeout: (_) {},
     );
-    return isSuccess;
+  }
+
+  Future<void> _submitOtp() async {
+    if (_otpController.text.length != 6) return;
+    LoadingOverlay.show(context);
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId,
+        smsCode: _otpController.text.trim(),
+      );
+      try {
+        await widget.user.reauthenticateWithCredential(credential);
+      } catch (e) {
+        await widget.user.linkWithCredential(credential);
+      }
+      LoadingOverlay.hide();
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      LoadingOverlay.hide();
+      if (!mounted) return;
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('err_invalid_otp_code'),
+        isError: true,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(24, 10, 24, 26),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: zen.success.withValues(alpha: 0.14),
+                border: Border.all(
+                  color: zen.success.withValues(alpha: isDark ? 0.28 : 0.24),
+                  width: 0.9,
+                ),
+              ),
+              child: Icon(
+                Icons.sms_rounded,
+                color: zen.success,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              context.tr('reauth_sms_title'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: isDark ? AppColors.darkText : AppColors.lightText,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              !_codeSent
+                  ? context.tr('reauth_sending_otp')
+                  : context.l10n.reauth_enter_otp_msg(widget.phoneNumber),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (!_codeSent)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: LogoLoadingIndicator(
+                  color: isDark ? zen.primaryAccent : zen.primary,
+                  size: 34,
+                ),
+              )
+            else ...[
+              TextField(
+                controller: _otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _submitOtp(),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 8,
+                  color: isDark ? AppColors.darkText : AppColors.lightText,
+                ),
+                decoration: zenGlassInputDecoration(
+                  context,
+                  hintText: '------',
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ZenGlassButton(
+                  label: context.tr('btn_confirm'),
+                  icon: Icons.verified_rounded,
+                  maxLines: 2,
+                  onPressed: _submitOtp,
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ZenGlassButton(
+                label: context.tr('btn_cancel'),
+                isPrimary: false,
+                maxLines: 2,
+                onPressed: () => Navigator.pop(context, false),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PasswordReauthSheet extends StatefulWidget {
+  final User user;
+  final String reason;
+
+  const _PasswordReauthSheet({
+    required this.user,
+    required this.reason,
+  });
+
+  @override
+  State<_PasswordReauthSheet> createState() => _PasswordReauthSheetState();
+}
+
+class _PasswordReauthSheetState extends State<_PasswordReauthSheet> {
+  final TextEditingController _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+
+  Future<void> _submitPassword() async {
+    if (_passwordController.text.isEmpty) {
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('err_empty_password'),
+        isError: true,
+      );
+      return;
+    }
+    LoadingOverlay.show(context);
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: widget.user.email!,
+        password: _passwordController.text.trim(),
+      );
+      await widget.user.reauthenticateWithCredential(credential);
+      LoadingOverlay.hide();
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      LoadingOverlay.hide();
+      if (!mounted) return;
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('err_wrong_password'),
+        isError: true,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final zen = context.zenColors;
+
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(24, 10, 24, 26),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    zen.primary.withValues(alpha: 0.16),
+                    zen.primaryAccent.withValues(alpha: 0.06),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: Border.all(
+                  color: zen.primary.withValues(alpha: isDark ? 0.28 : 0.22),
+                  width: 0.9,
+                ),
+              ),
+              child: Icon(
+                Icons.lock_outline_rounded,
+                color: isDark ? zen.primaryAccent : zen.primary,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              context.tr('reauth_title'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: isDark ? AppColors.darkText : AppColors.lightText,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.reauth_reason_msg(widget.reason),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submitPassword(),
+              decoration: zenGlassInputDecoration(
+                context,
+                labelText: context.tr('password'),
+                prefixIcon: Icons.lock_rounded,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                  ),
+                  onPressed: () => setState(
+                    () => _obscurePassword = !_obscurePassword,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ZenGlassButton(
+                label: context.tr('btn_confirm'),
+                icon: Icons.verified_user_rounded,
+                maxLines: 2,
+                onPressed: _submitPassword,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ZenGlassButton(
+                label: context.tr('btn_cancel'),
+                isPrimary: false,
+                maxLines: 2,
+                onPressed: () => Navigator.pop(context, false),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

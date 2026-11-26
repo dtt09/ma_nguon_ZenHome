@@ -1,16 +1,14 @@
+import 'package:zenhome_app/core/services/hub_local_key.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zenhome_app/core/services/logger_service.dart';
 import 'package:zenhome_app/core/services/ble_local_service.dart';
-import 'package:zenhome_app/core/services/app_update_service.dart';
 import 'package:zenhome_app/core/services/zenhome_crypto.dart';
 
 /// Dịch vụ quản lý tìm kiếm và điều khiển thiết bị ESP32 trực tiếp qua mạng cục bộ (LAN / Wi-Fi)
@@ -22,21 +20,8 @@ class LocalNetworkService {
   static const int udpDiscoveryPort = 4210;
   static const int hubHttpPort = 80;
 
-  static final BigInt _dhPrime = BigInt.parse(
-    'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1'
-    '29024E088A67CC74020BBEA63B139B22514A08798E3404DD'
-    'EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245'
-    'E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED'
-    'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381'
-    'FFFFFFFFFFFFFFFF',
-    radix: 16,
-  );
-  static final BigInt _dhGenerator = BigInt.from(2);
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-  );
-  String? _inMemoryLocalKey;
+
+
 
   String? _cachedHubIp;
   bool _isLocalAvailable = false;
@@ -45,7 +30,7 @@ class LocalNetworkService {
   String? _monitoredMac;
   String? _currentUserId;
   String? _currentUserRole;
-  List<String>? _allowedDevices;
+  String? _bootNonce;
   bool _isDisabled = false;
   bool _isChecking = false;
   String? _cachedAdminPass;
@@ -81,10 +66,13 @@ class LocalNetworkService {
   }) {
     _cachedAdminPass = adminPass;
     _currentUserId = userId;
-    _currentUserRole = role ?? 'owner';
+    _currentUserRole = role;
     _isDisabled = isDisabled;
-    _allowedDevices = allowedDevices;
 
+    if (role != 'owner' || isDisabled) {
+      stopMonitoring();
+      return;
+    }
     if (targetMac.isEmpty || targetMac == 'unknown_mac' || targetMac == 'unknown') {
       _setLocalAvailable(false);
       return;
@@ -138,33 +126,12 @@ class LocalNetworkService {
     _bleStateSub = null;
     _bleAvailSub?.cancel();
     _bleAvailSub = null;
-    _inMemoryLocalKey = null;
+
+    _bootNonce = null;
     _lastKnownStates.clear();
     _lastKnownTemp = null;
     BleLocalService().stop();
     _setLocalAvailable(false);
-  }
-
-  /// Thông báo cho Server biết Hub đã bị reset / unlinked từ phía phần cứng (Có xác thực Firebase Token)
-  Future<void> _notifyHubResetToServer(String mac) async {
-    if (mac.isEmpty || mac == 'unknown_mac' || mac == 'unknown') return;
-    try {
-      final clean = _cleanMac(mac);
-      final baseUrl = await AppUpdateService.getLiveServerBaseUrl() ?? AppUpdateService.fallbackServerUrl;
-      final uri = Uri.parse('$baseUrl/api/v1/hub/notify-reset');
-      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-      await http.post(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          if (idToken != null) 'Authorization': 'Bearer $idToken',
-        },
-        body: jsonEncode({'macAddress': clean}),
-      ).timeout(const Duration(seconds: 4));
-      LoggerService.i('[LocalNet] ⚡ Đã báo Server hủy liên kết Hub [$clean] do Hub đã reset!');
-    } catch (e) {
-      debugPrint('[LocalNet] Lỗi gửi thông báo reset Hub: $e');
-    }
   }
 
   String _cleanMac(String mac) {
@@ -323,7 +290,7 @@ class LocalNetworkService {
                 if (json is Map<String, dynamic> && json['service'] == 'zenhome_hub') {
                   if (json['unlinked'] == true || json['mode'] == 'unlinked') {
                     LoggerService.w('[LocalNet] ⚠️ Gói tin UDP Discovery phát hiện Hub ở trạng thái unlinked!');
-                    _notifyHubResetToServer(json['macAddress']?.toString() ?? '');
+
                     return;
                   }
                   final receivedMac = _cleanMac(json['macAddress'] ?? '');
@@ -378,11 +345,14 @@ class LocalNetworkService {
         if (data is Map) {
           if (data['unlinked'] == true || data['status'] == 'unlinked' || data['mode'] == 'unlinked' || data['reset'] == true) {
             LoggerService.w('[LocalNet] ⚠️ Hub đang ở trạng thái CHƯA LIÊN KẾT / FACTORY RESET!');
-            _notifyHubResetToServer(_monitoredMac ?? data['macAddress']?.toString() ?? '');
+
             _setLocalAvailable(false);
             return false;
           }
-          if (data['status'] == 'ok') {
+          if (data['status'] == 'ok' && _cleanMac(data['macAddress']?.toString() ?? '') == _monitoredMac) {
+            final boot = data['bootNonce'];
+            if (boot is! String || !RegExp(r'^[0-9a-fA-F]{32}$').hasMatch(boot)) return false;
+            _bootNonce = boot;
             return true;
           }
         }
@@ -396,167 +366,75 @@ class LocalNetworkService {
     return List.generate(byteLength, (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
   }
 
-  /// Trao đổi và đồng bộ khóa bảo mật Zero-Knowledge giữa App và ESP32
-  /// Cơ chế: Diffie-Hellman 1536-bit (RFC 3526 MODP Group 5)
-  /// Không ai biết khóa này, kể cả Server và quản trị viên ZenHome.
-  Future<String?> getOrNegotiateLocalKey({
-    required String hubIp,
-    required String mac,
-    String? adminPass,
-    bool forceRefresh = false,
-  }) async {
-    final cleanMac = _cleanMac(mac);
-    final storageKey = 'local_sec_key_$cleanMac';
+  String _requestNonce() {
+    final boot = _bootNonce;
+    if (boot == null) throw StateError('Hub handshake required');
+    return '$boot.${_generateRandomNonce(16)}';
+  }
 
-    if (!forceRefresh) {
-      if (_inMemoryLocalKey != null && _inMemoryLocalKey!.isNotEmpty) {
-        return _inMemoryLocalKey;
-      }
-      try {
-        final saved = await _secureStorage.read(key: storageKey);
-        if (saved != null && saved.isNotEmpty) {
-          _inMemoryLocalKey = saved;
-          return saved;
-        }
-      } catch (_) {}
-    }
+  Future<String?> _localKey() async {
+    final mac = _monitoredMac;
+    if (_isDisabled || _currentUserRole != 'owner' || mac == null || mac.isEmpty) return null;
+    final home = _currentUserId;
+    if (home == null) return null;
+    return HubLocalKey.read(home, mac);
+  }
 
-    // Tiến hành trao đổi khóa tự động theo giao thức Zero-Knowledge Diffie-Hellman
-    try {
-      final rng = Random.secure();
-      final privateBytes = Uint8List(32);
-      for (int i = 0; i < 32; i++) {
-        privateBytes[i] = rng.nextInt(256);
-      }
-      final a = BigInt.parse(
-        privateBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(),
-        radix: 16,
-      );
+  Future<String?> sealSystemCommand(String homeId, String mac, String op, Map<String, dynamic> fields) async {
+    if (_currentUserId != homeId || _monitoredMac != _cleanMac(mac)) return null;
+    final key = await _localKey();
+    if (key == null || _currentUserId != homeId || _monitoredMac != _cleanMac(mac)) return null;
+    final inner = {...fields, 'action': op, 'ts': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      'nonce': _generateRandomNonce(16)};
+    return jsonEncode({'enc': ZenHomeCrypto.encryptPayload(plaintext: jsonEncode(inner), keyHex: key)});
+  }
 
-      // Tính khóa công khai A = g^a mod p
-      final A = _dhGenerator.modPow(a, _dhPrime);
-      final aHex = A.toRadixString(16).toLowerCase();
+  Future<Map<String, dynamic>?> _verifiedReply(http.Response response, String op, Map<String,String> request) async {
+    final key = await _localKey();
+    if (response.statusCode != 200 || key == null) return null;
+    final outer = jsonDecode(response.body);
+    if (outer is! Map || outer['data'] is! String) return null;
+    final data = outer['data'] as String;
+    final proof = ZenHomeCrypto.sign(key, "reply:$op:${request['X-ZenHome-Nonce']}:${ZenHomeCrypto.digest(data)}");
+    if (!ZenHomeCrypto.matches(proof, outer['proof'])) return null;
+    return jsonDecode(data) as Map<String, dynamic>;
+  }
 
-      final exchangeUri = Uri.parse('http://$hubIp/api/auth/key-exchange');
-      final effectiveAdmin = adminPass ?? _cachedAdminPass;
-      final bodyMap = <String, dynamic>{
-        'clientPublicKey': aHex,
-        'mac': cleanMac,
-      };
-      if (effectiveAdmin != null && effectiveAdmin.isNotEmpty) {
-        bodyMap['adminPass'] = effectiveAdmin;
-      }
-      final res = await http.post(
-        exchangeUri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(bodyMap),
-      ).timeout(const Duration(milliseconds: 3000));
-
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        if (data is Map && data['status'] == 'ok' && data['serverPublicKey'] != null) {
-          final bHex = (data['serverPublicKey'] as String).toLowerCase();
-          final proof = (data['proof'] as String?)?.toLowerCase();
-          final B = BigInt.parse(bHex, radix: 16);
-
-          // Tính khóa chia sẻ chung S = B^a mod p
-          final S = B.modPow(a, _dhPrime);
-          var sHex = S.toRadixString(16).toLowerCase();
-          if (sHex.length % 2 != 0) sHex = '0$sHex';
-
-          final sBytes = <int>[];
-          for (int i = 0; i < sHex.length; i += 2) {
-            sBytes.add(int.parse(sHex.substring(i, i + 2), radix: 16));
-          }
-          final derivedKey = sha256.convert(sBytes).toString().toLowerCase();
-
-          // Xác thực Proof = HMAC(K, clientPub + ":" + serverPub)
-          final keyBytes = <int>[];
-          for (int i = 0; i < derivedKey.length; i += 2) {
-            keyBytes.add(int.parse(derivedKey.substring(i, i + 2), radix: 16));
-          }
-          final expectedProof = Hmac(sha256, keyBytes)
-              .convert(utf8.encode('$aHex:$bHex'))
-              .toString()
-              .toLowerCase();
-
-          if (proof != null && proof == expectedProof) {
-            _inMemoryLocalKey = derivedKey;
-            await _secureStorage.write(key: storageKey, value: derivedKey);
-            LoggerService.i('[LocalSec] 🔐 Đã tự động trao đổi & đồng bộ khóa Zero-Knowledge với Hub ($mac) thành công!');
-            return derivedKey;
-          } else {
-            LoggerService.w('[LocalSec] ❌ Xác thực Proof chữ ký trao đổi khóa thất bại!');
-          }
-        }
-      }
-    } catch (e) {
-      LoggerService.w('[LocalSec] Lỗi trao đổi khóa Zero-Knowledge với Hub: $e');
-    }
-    return null;
+  Future<Map<String, String>> _signedHeaders(String op, [String body = '']) async {
+    final user = _currentUserId;
+    final key = await _localKey();
+    if (user == null || user.isEmpty || key == null) throw StateError('Hub credentials unavailable');
+    final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final nonce = _requestNonce();
+    return {
+      'Content-Type': 'application/json',
+      'X-ZenHome-User': user,
+      'X-ZenHome-Timestamp': '$timestamp',
+      'X-ZenHome-Nonce': nonce,
+      'X-ZenHome-Signature': ZenHomeCrypto.sign(key, '$op:$user:${ZenHomeCrypto.digest(body)}:$timestamp:$nonce'),
+    };
   }
 
   /// Điều khiển Relay trực tiếp qua mạng nội bộ (LAN HTTP hoặc BLE GATT Zero-Touch)
   /// Tự động xác thực chữ ký HMAC-SHA256 theo chuẩn bảo mật Zero-Knowledge và Phân quyền RBAC
   Future<bool> sendLocalControl({required String devId, required String cmd}) async {
-    // 0. Kiểm tra phân quyền thành viên (RBAC)
-    if (_isDisabled || _currentUserRole == 'disabled') {
-      LoggerService.w('[LocalNet-RBAC] 🚫 Tài khoản đang bị Chủ nhà tạm khóa quyền điều khiển!');
-      return false;
-    }
-    if (_currentUserRole == 'member' && _allowedDevices != null && !_allowedDevices!.contains(devId)) {
-      LoggerService.w('[LocalNet-RBAC] 🚫 Thành viên không có quyền điều khiển thiết bị $devId!');
-      return false;
-    }
-
-    // 1. Thử gửi qua Wi-Fi LAN HTTP nếu có IP Hub được ghi nhận
+    final user = _currentUserId;
+    final key = await _localKey();
+    if (user == null || user.isEmpty || key == null) return false;
     if (_cachedHubIp != null && _cachedHubIp!.isNotEmpty) {
       try {
         final uri = Uri.parse('http://$_cachedHubIp/api/control');
-        final user = _currentUserId ?? 'owner';
-        // Bảo vệ RBAC: Chỉ Chủ nhà (owner / co_owner) mới được gửi adminPass để tránh thành viên qua mặt phân quyền
-        final effectiveAdmin = (_currentUserRole == 'owner' || _currentUserRole == 'co_owner') ? (_cachedAdminPass ?? 'admin') : '';
-        // SEC-FIX [ZH-HIGH-17]: Monotonic Sequence Version (ver) chống xung đột Race Condition
-        // SEC-FIX [ZH-MED-05]: Bổ sung Unix timestamp giây (ts) và Nonce ngẫu nhiên 8-byte vào body điều khiển LAN HTTP
         final ver = DateTime.now().millisecondsSinceEpoch;
-        final tsSec = ver ~/ 1000;
-        final nonceBase64 = base64Url.encode(List<int>.generate(8, (_) => Random.secure().nextInt(256)));
-        final body = jsonEncode({
-          'id': devId,
-          'cmd': cmd,
-          'user': user,
-          'ver': ver,
-          'ts': tsSec,
-          'nonce': nonceBase64,
-          if (effectiveAdmin.isNotEmpty) 'adminPass': effectiveAdmin,
-        });
-
-        // Lấy hoặc tự động trao đổi khóa bảo mật với ESP32
-        String? localKey;
-        if (_monitoredMac != null && _monitoredMac!.isNotEmpty) {
-          localKey = await getOrNegotiateLocalKey(hubIp: _cachedHubIp!, mac: _monitoredMac!);
-        }
-
-        Map<String, String> headers = {
+        final timestamp = ver ~/ 1000;
+        final nonce = _requestNonce();
+        final body = jsonEncode({'id': devId, 'cmd': cmd, 'user': user, 'ver': ver, 'ts': timestamp, 'nonce': nonce});
+        final headers = {
           'Content-Type': 'application/json',
           'X-ZenHome-User': user,
+          'X-ZenHome-Timestamp': '$timestamp',
+          'X-ZenHome-Nonce': nonce,
+          'X-ZenHome-Signature': ZenHomeCrypto.sign(key, '$user:$devId:$cmd:$timestamp:$nonce'),
         };
-
-        if (localKey != null && localKey.isNotEmpty) {
-          final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
-          final nonce = _generateRandomNonce(8);
-          final signPayload = '$user:$devId:$cmd:$timestamp:$nonce';
-          final keyBytes = <int>[];
-          for (int i = 0; i < localKey.length; i += 2) {
-            keyBytes.add(int.parse(localKey.substring(i, i + 2), radix: 16));
-          }
-          final signature = Hmac(sha256, keyBytes).convert(utf8.encode(signPayload)).toString();
-
-          headers['X-ZenHome-Signature'] = signature;
-          headers['X-ZenHome-Timestamp'] = timestamp;
-          headers['X-ZenHome-Nonce'] = nonce;
-        }
-
         var res = await http.post(
           uri,
           headers: headers,
@@ -565,7 +443,8 @@ class LocalNetworkService {
 
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
-          if (data is Map && data['status'] == 'ok') {
+          if (data is Map && data['status'] == 'ok' && data['state'] == cmd &&
+              ZenHomeCrypto.matches(ZenHomeCrypto.sign(key, 'ack:$user:$devId:$cmd:$nonce'), data['proof'])) {
             final String stateStr = data['state'] ?? cmd;
             final bool isTurnOn = stateStr == '1';
             _lastKnownStates[devId] = isTurnOn;
@@ -580,17 +459,10 @@ class LocalNetworkService {
 
     // 2. Dự phòng tức thì qua BLE ngầm khi Router Wi-Fi mất nguồn / hỏng (Hỗ trợ Connect-on-Demand & Multi-user)
     try {
-      String? localKey;
-      if (_monitoredMac != null && _monitoredMac!.isNotEmpty) {
-        localKey = await _secureStorage.read(key: 'local_sec_key_$_monitoredMac');
-      }
-      if (localKey == null || localKey.isEmpty) {
-        localKey = BleLocalService.deriveMasterKey(mac: _monitoredMac!, adminPass: _cachedAdminPass);
-      }
       final bleSuccess = await BleLocalService().sendControlCommand(
         devId: devId,
         cmd: cmd,
-        localKey: localKey,
+        localKey: key,
       );
       if (bleSuccess) {
         _lastKnownStates[devId] = cmd == '1';
@@ -611,35 +483,14 @@ class LocalNetworkService {
       final uri = Uri.parse('http://$_cachedHubIp/api/members');
       final body = jsonEncode(membersData);
 
-      String? localKey;
-      if (_monitoredMac != null && _monitoredMac!.isNotEmpty) {
-        localKey = await getOrNegotiateLocalKey(hubIp: _cachedHubIp!, mac: _monitoredMac!);
-      }
-
-      Map<String, String> headers = {'Content-Type': 'application/json'};
-
-      if (localKey != null && localKey.isNotEmpty) {
-        final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
-        final nonce = _generateRandomNonce(8);
-        final signPayload = 'members:$timestamp:$nonce';
-        final keyBytes = <int>[];
-        for (int i = 0; i < localKey.length; i += 2) {
-          keyBytes.add(int.parse(localKey.substring(i, i + 2), radix: 16));
-        }
-        final signature = Hmac(sha256, keyBytes).convert(utf8.encode(signPayload)).toString();
-
-        headers['X-ZenHome-Signature'] = signature;
-        headers['X-ZenHome-Timestamp'] = timestamp;
-        headers['X-ZenHome-Nonce'] = nonce;
-      }
-
+      final headers = await _signedHeaders('members', body);
       final res = await http.post(
         uri,
         headers: headers,
         body: body,
       ).timeout(const Duration(milliseconds: 2000));
 
-      if (res.statusCode == 200) {
+      if (await _verifiedReply(res, 'members', headers) != null) {
         LoggerService.i('[LocalNet] ✅ Đã đồng bộ phân quyền thành viên tới Hub qua LAN thành công!');
         return true;
       }
@@ -655,54 +506,33 @@ class LocalNetworkService {
     required String newWifiPass,
     String? newServer,
     String? newAdminPass,
+    String? newMqttUser,
+    String? newMqttPass,
   }) async {
     final effectiveAdmin = newAdminPass ?? _cachedAdminPass;
-
-    // 1. Thử gửi qua Wi-Fi LAN HTTP nếu có IP Hub được ghi nhận
+    final key = await _localKey();
+    if (key == null) return false;
     if (_cachedHubIp != null && _cachedHubIp!.isNotEmpty) {
       try {
         final uri = Uri.parse('http://$_cachedHubIp/api/reconfig');
-        final user = _currentUserId ?? 'owner';
-        final body = jsonEncode({
+        final config = jsonEncode({
           'wifi_ssid': newSsid,
           'wifi_pass': newWifiPass,
           if (newServer != null && newServer.isNotEmpty) 'mqtt_server': newServer,
+          if (newMqttUser?.isNotEmpty == true) 'mqtt_user': newMqttUser,
+          if (newMqttPass?.isNotEmpty == true) 'mqtt_pass': newMqttPass,
           if (effectiveAdmin != null && effectiveAdmin.isNotEmpty) 'admin_pass': effectiveAdmin,
-          'user': user,
         });
-
-        String? localKey;
-        if (_monitoredMac != null && _monitoredMac!.isNotEmpty) {
-          localKey = await getOrNegotiateLocalKey(hubIp: _cachedHubIp!, mac: _monitoredMac!);
-        }
-
-        Map<String, String> headers = {
-          'Content-Type': 'application/json',
-          'X-ZenHome-User': user,
-        };
-
-        if (localKey != null && localKey.isNotEmpty) {
-          final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
-          final nonce = _generateRandomNonce(8);
-          final signPayload = 'reconfig:$newSsid:$timestamp:$nonce';
-          final keyBytes = <int>[];
-          for (int i = 0; i < localKey.length; i += 2) {
-            keyBytes.add(int.parse(localKey.substring(i, i + 2), radix: 16));
-          }
-          final signature = Hmac(sha256, keyBytes).convert(utf8.encode(signPayload)).toString();
-
-          headers['X-ZenHome-Signature'] = signature;
-          headers['X-ZenHome-Timestamp'] = timestamp;
-          headers['X-ZenHome-Nonce'] = nonce;
-        }
-
+        final data = ZenHomeCrypto.encryptPayload(plaintext: config, keyHex: key);
+        final body = jsonEncode({'data': data});
+        final headers = await _signedHeaders('reconfig', data);
         final res = await http.post(
           uri,
           headers: headers,
           body: body,
         ).timeout(const Duration(milliseconds: 2500));
 
-        if (res.statusCode == 200) {
+        if (await _verifiedReply(res, 'reconfig', headers) != null) {
           LoggerService.i('[LocalNet] 📡 Đã gửi cấu hình Wi-Fi mới thành công qua mạng LAN HTTP!');
           return true;
         }
@@ -713,20 +543,14 @@ class LocalNetworkService {
 
     // 2. Fallback sang BLE Zero-Touch (Kể cả khi Hub mất Wi-Fi hoàn toàn)
     try {
-      String? localKey;
-      if (_monitoredMac != null && _monitoredMac!.isNotEmpty) {
-        localKey = await _secureStorage.read(key: 'local_sec_key_$_monitoredMac');
-      }
-      if (localKey == null || localKey.isEmpty) {
-        localKey = BleLocalService.deriveMasterKey(mac: _monitoredMac!, adminPass: effectiveAdmin);
-      }
-
       final bleSuccess = await BleLocalService().sendReconfigCommand(
         newSsid: newSsid,
         newWifiPass: newWifiPass,
         newServer: newServer,
         newAdminPass: effectiveAdmin,
-        localKey: localKey,
+        newMqttUser: newMqttUser,
+        newMqttPass: newMqttPass,
+        localKey: key,
       );
       if (bleSuccess) {
         LoggerService.i('[LocalNet] 📡 Đã gửi cấu hình Wi-Fi mới thành công qua BLE Zero-Touch!');
@@ -743,19 +567,16 @@ class LocalNetworkService {
   Future<Map<String, dynamic>?> fetchAndSyncLocalStatus(String ip) async {
     try {
       final uri = Uri.parse('http://$ip/api/status');
-      final headers = <String, String>{};
-      if (_currentUserId != null && _currentUserId!.isNotEmpty) {
-        headers['X-ZenHome-User'] = _currentUserId!;
-      }
+      final headers = await _signedHeaders('status');
       final res = await http.get(uri, headers: headers).timeout(const Duration(milliseconds: 2000));
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final data = await _verifiedReply(res, 'status', headers);
+      if (data != null) {
 
         // Phát hiện nếu Hub đang ở chế độ unlinked / reset
         if (data['unlinked'] == true || data['status'] == 'unlinked' || data['mode'] == 'unlinked' || data['reset'] == true) {
           LoggerService.w('[LocalNet] ⚠️ Hub phản hồi trạng thái CHƯA LIÊN KẾT / FACTORY RESET!');
-          _notifyHubResetToServer(_monitoredMac ?? data['macAddress']?.toString() ?? '');
+
           _setLocalAvailable(false);
           return null;
         }
@@ -796,10 +617,11 @@ class LocalNetworkService {
     if (_cachedHubIp == null || _cachedHubIp!.isEmpty) return null;
     try {
       final uri = Uri.parse('http://$_cachedHubIp/api/rules');
-      final res = await http.get(uri).timeout(const Duration(milliseconds: 2000));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        if (data is Map && data['rules'] is List) {
+      final headers = await _signedHeaders('rules-get');
+      final res = await http.get(uri, headers: headers).timeout(const Duration(milliseconds: 2000));
+      final data = await _verifiedReply(res, 'rules-get', headers);
+      if (data != null) {
+        if (data['rules'] is List) {
           return List<Map<String, dynamic>>.from(data['rules']);
         }
       }
@@ -815,12 +637,13 @@ class LocalNetworkService {
     try {
       final uri = Uri.parse('http://$_cachedHubIp/api/rules');
       final body = jsonEncode({'rules': rules});
+      final headers = await _signedHeaders('rules-set', body);
       final res = await http.post(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: body,
       ).timeout(const Duration(milliseconds: 2500));
-      if (res.statusCode == 200) {
+      if (await _verifiedReply(res, 'rules-set', headers) != null) {
         LoggerService.i('[LocalNet] ✅ Đã lưu thành công ${rules.length} quy tắc tự động hóa vào Flash Hub!');
         return true;
       }
@@ -835,12 +658,13 @@ class LocalNetworkService {
     if (_cachedHubIp == null || _cachedHubIp!.isEmpty) return false;
     try {
       final uri = Uri.parse('http://$_cachedHubIp/api/auth/rotate-key');
-      final localKey = await getOrNegotiateLocalKey(hubIp: _cachedHubIp!, mac: _monitoredMac!);
+      final localKey = await _localKey();
       if (localKey == null || localKey.isEmpty) return false;
 
       final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
-      final nonce = _generateRandomNonce(8);
-      final user = _currentUserId ?? 'owner';
+      final nonce = _requestNonce();
+      final user = _currentUserId;
+      if (user == null || user.isEmpty) return false;
       final signPayload = 'rotate:$user:$timestamp:$nonce';
 
       final keyBytes = <int>[];
@@ -868,7 +692,7 @@ class LocalNetworkService {
         if (data is Map && data['status'] == 'ok' && data['encKey'] != null) {
           final decryptedNewKey = ZenHomeCrypto.decryptPayload(envelope: data['encKey'].toString(), keyHex: localKey);
           if (decryptedNewKey != null && decryptedNewKey.length == 64) {
-            await _secureStorage.write(key: 'local_sec_key_$_monitoredMac', value: decryptedNewKey);
+            await HubLocalKey.save(user, _monitoredMac!, decryptedNewKey);
             LoggerService.i('[LocalSec] 🔄 Luân chuyển khóa thành công! Khóa mới đã được lưu an toàn vào Hardware Keystore.');
             return true;
           }

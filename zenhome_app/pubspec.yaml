@@ -3,7 +3,7 @@ description: "A new Flutter project."
 
 publish_to: 'none'
 
-version: 1.9.0+210
+version: 1.9.1+211
 
 environment:
   sdk: ^3.12.2
@@ -59,9 +59,7 @@ flutter:
   uses-material-design: true
   generate: true
 
-  # KHAI BÁO FILE .env ĐỂ ĐỌC BIẾN MÔI TRƯỜNG Ở ĐÂY
   assets:
-    - .env
     - public/zenhome_logo_real.png
     - public/zenhome_logo_padded.png
     - public/zenhome_logo_transparent.png

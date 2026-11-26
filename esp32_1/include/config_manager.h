@@ -5,9 +5,9 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
-#define FIRMWARE_VERSION_STR "3.0.0"
-#define FIRMWARE_BUILD_NUM 210
-#define FIRMWARE_VERSION "3.0.0 (Build 210)"
+#define FIRMWARE_VERSION_STR "3.0.1"
+#define FIRMWARE_BUILD_NUM 211
+#define FIRMWARE_VERSION "3.0.1 (Build 211)"
 #define MAX_RELAYS 16
 #define MIN_RELAY_DWELL_MS 800                // Thời gian trễ tối thiểu 800ms giữa 2 lần đổi trạng thái
 #define MANUAL_OVERRIDE_MS (30 * 60 * 1000UL) // Khóa tự động hóa 30 phút khi người dùng can thiệp thủ công
@@ -30,6 +30,8 @@ struct PendingReconfig {
   String ssid;
   String pass;
   String mqttServer;
+  String mqttUser;
+  String mqttPass;
   String adminPass;
 };
 
@@ -44,7 +46,8 @@ extern unsigned long setupPhaseStartTime;
 extern bool isPowerOutageBoot;
 extern bool hasOfflineBackup;
 extern bool needsBackupToFlash;
-extern bool isOtaInProgress;
+#include <atomic>
+extern std::atomic<bool> isOtaInProgress;
 extern unsigned long lastRelayStateChangeAt;
 
 extern bool shouldReboot;
@@ -60,8 +63,10 @@ extern String mqtt_user;
 extern String mqtt_pass;
 extern String admin_pass;
 extern String server_url;
+extern String bindingToken;
 
 extern const char* const HIVEMQ_ROOT_CA PROGMEM;
+extern const char OTA_ROOT_CAS[] PROGMEM;
 extern SemaphoreHandle_t flashMutex;
 
 // Flash Mutex Helpers

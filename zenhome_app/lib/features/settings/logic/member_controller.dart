@@ -41,6 +41,7 @@ class MemberController extends StateNotifier<bool> {
             .get();
         for (var doc in query.docs) {
           if (doc.data()['isSubHome'] != true) {
+            await FirebaseFirestore.instance.collection('membership_identities').doc(user.uid).set({'username': doc.id});
             currentUsername = doc.id;
             return currentUsername;
           }
@@ -94,37 +95,18 @@ class MemberController extends StateNotifier<bool> {
 
     state = true;
     try {
-      // 1. Thêm vào pendingInvitations của đối phương bằng update() trực tiếp.
-      // Theo Firestore Security Rules mới: Cấm người ngoài đọc doc của user khác (chống rò rỉ MQTT/ESP MAC),
-      // nhưng cho phép update nếu trường bị tác động duy nhất là pendingInvitations.
-      // Nếu user không tồn tại, Firestore update() sẽ trả về ngoại lệ 'not-found'.
-      try {
-        await FirebaseFirestore.instance.collection('users').doc(trimmed).update({
-          'pendingInvitations': FieldValue.arrayUnion([currentUsername])
-        });
-      } on FirebaseException catch (e) {
-        if (e.code == 'not-found') {
-          state = false;
-          return const MemberOperationResult(
-            success: false,
-            errorMessage: 'err_user_not_found',
-          );
-        }
-        rethrow;
-      }
-
-      // 2. Lưu lại lời mời đã gửi trên tài khoản người mời để có thể theo dõi và thu hồi
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).set({
-        'sentInvitations': FieldValue.arrayUnion([trimmed])
-      }, SetOptions(merge: true));
-
-      // 3. Bắn Alert để Server kích hoạt thông báo Push FCM
-      final inviterName = FirebaseAuth.instance.currentUser?.displayName ?? currentUsername ?? 'Ai đó';
-      await FirebaseFirestore.instance.collection('users').doc(trimmed).collection('alerts').add({
+      final db = FirebaseFirestore.instance;
+      final owner = db.collection('users').doc(currentUsername!);
+      final target = db.collection('users').doc(trimmed);
+      final batch = db.batch();
+      batch.update(owner, {'sentInvitations': FieldValue.arrayUnion([trimmed])});
+      batch.update(target, {'pendingInvitations': FieldValue.arrayUnion([currentUsername])});
+      batch.set(target.collection('alerts').doc(), {
         'type': 'new_invite',
-        'inviter': inviterName,
+        'inviter': currentUsername,
         'timestamp': FieldValue.serverTimestamp(),
       });
+      await batch.commit();
 
       state = false;
       return MemberOperationResult(
@@ -145,15 +127,15 @@ class MemberController extends StateNotifier<bool> {
     if (currentUsername == null) await loadCurrentUsername();
     state = true;
     try {
-      // 1. Gỡ khỏi pendingInvitations của đối phương
-      await FirebaseFirestore.instance.collection('users').doc(targetUsername).update({
+      final db = FirebaseFirestore.instance;
+      final batch = db.batch();
+      batch.update(db.collection('users').doc(targetUsername), {
         'pendingInvitations': FieldValue.arrayRemove([currentUsername])
       });
-
-      // 2. Gỡ khỏi sentInvitations của chính mình
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
+      batch.update(db.collection('users').doc(currentUsername!), {
         'sentInvitations': FieldValue.arrayRemove([targetUsername])
       });
+      await batch.commit();
 
       state = false;
       return MemberOperationResult(
@@ -186,31 +168,21 @@ class MemberController extends StateNotifier<bool> {
     }
 
     try {
-      // 2. Thêm người dùng vào sharedWith và sharedUids của Chủ nhà
-      final currentUid = FirebaseAuth.instance.currentUser?.uid;
-      final updateData = <String, dynamic>{
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final db = FirebaseFirestore.instance;
+      final batch = db.batch();
+      batch.update(db.collection('users').doc(ownerUsername), {
         'sharedWith': FieldValue.arrayUnion([currentUsername]),
-      };
-      if (currentUid != null && currentUid.isNotEmpty) {
-        updateData['sharedUids'] = FieldValue.arrayUnion([currentUid]);
-      }
-      await FirebaseFirestore.instance.collection('users').doc(ownerUsername).set(
-        updateData,
-        SetOptions(merge: true),
-      );
-
-      // 3. Cập nhật ownerUsername cho chính mình và gỡ khỏi danh sách chờ
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
-        'ownerUsername': ownerUsername,
-        'pendingInvitations': FieldValue.arrayRemove([ownerUsername])
+        'sharedUids': FieldValue.arrayUnion([uid]),
+        'memberUids.$currentUsername': uid,
+        'sentInvitations': FieldValue.arrayRemove([currentUsername]),
       });
-
-      // Đồng thời dọn dẹp khỏi sentInvitations của chủ nhà
-      try {
-        await FirebaseFirestore.instance.collection('users').doc(ownerUsername).update({
-          'sentInvitations': FieldValue.arrayRemove([currentUsername])
-        });
-      } catch (_) {}
+      batch.update(db.collection('users').doc(currentUsername!), {
+        'ownerUsername': ownerUsername,
+        'sharedHomeIds': FieldValue.arrayUnion([ownerUsername]),
+        'pendingInvitations': FieldValue.arrayRemove([ownerUsername]),
+      });
+      await batch.commit();
 
       // 4. Lấy dữ liệu nhà chủ và chuyển không gian làm việc
       final targetDoc = await FirebaseFirestore.instance.collection('users').doc(ownerUsername).get();
@@ -251,7 +223,7 @@ class MemberController extends StateNotifier<bool> {
               ? data['mqttServer']
               : 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud',
           mqttUser: data['mqttUser'],
-          mqttPass: data['mqttPass'],
+          mqttPass: null,
           devices: restoredDevices,
           role: assignedRole,
           homeName: 'Nhà của $ownerName',
@@ -286,14 +258,15 @@ class MemberController extends StateNotifier<bool> {
   Future<MemberOperationResult> rejectInvite(String ownerUsername) async {
     if (currentUsername == null) await loadCurrentUsername();
     try {
-      await FirebaseFirestore.instance.collection('users').doc(currentUsername).update({
+      final db = FirebaseFirestore.instance;
+      final batch = db.batch();
+      batch.update(db.collection('users').doc(currentUsername!), {
         'pendingInvitations': FieldValue.arrayRemove([ownerUsername])
       });
-      try {
-        await FirebaseFirestore.instance.collection('users').doc(ownerUsername).update({
-          'sentInvitations': FieldValue.arrayRemove([currentUsername])
-        });
-      } catch (_) {}
+      batch.update(db.collection('users').doc(ownerUsername), {
+        'sentInvitations': FieldValue.arrayRemove([currentUsername])
+      });
+      await batch.commit();
       return MemberOperationResult(success: true, message: 'Đã từ chối lời mời từ $ownerUsername');
     } catch (e) {
       return MemberOperationResult(success: false, errorMessage: e.toString());
@@ -304,20 +277,15 @@ class MemberController extends StateNotifier<bool> {
   Future<MemberOperationResult> removeMember(String memberUsername) async {
     if (currentUsername == null) await loadCurrentUsername();
     try {
-      String? memberUid;
-      try {
-        final memberDoc = await FirebaseFirestore.instance.collection('users').doc(memberUsername).get();
-        if (memberDoc.exists) {
-          memberUid = memberDoc.data()?['uid'];
-        }
-      } catch (e) {
-        debugPrint('Lỗi tra cứu member UID: $e');
-      }
+      final owner = FirebaseFirestore.instance.collection('users').doc(currentUsername!);
+      final members = (await owner.get()).data()?['memberUids'];
+      final memberUid = members is Map ? members[memberUsername] as String? : null;
 
       final Map<String, dynamic> ownerUpdates = {
         'sharedWith': FieldValue.arrayRemove([memberUsername]),
         'automationEditors': FieldValue.arrayRemove([memberUsername]),
         'disabledMembers': FieldValue.arrayRemove([memberUsername]),
+        'memberUids.$memberUsername': FieldValue.delete(),
         'memberRoles.$memberUsername': FieldValue.delete(),
         'memberDevicePermissions.$memberUsername': FieldValue.delete(),
       };
@@ -327,10 +295,6 @@ class MemberController extends StateNotifier<bool> {
       }
 
       await FirebaseFirestore.instance.collection('users').doc(currentUsername).update(ownerUpdates);
-      await FirebaseFirestore.instance.collection('users').doc(memberUsername).update({
-        'ownerUsername': FieldValue.delete(),
-        'ownerEmail': FieldValue.delete()
-      });
       _syncToLocalHubIfAvailable();
       return MemberOperationResult(success: true, message: 'Đã gỡ quyền truy cập của $memberUsername');
     } catch (e) {
@@ -368,15 +332,9 @@ class MemberController extends StateNotifier<bool> {
   Future<MemberOperationResult> toggleDisableMember(String memberUsername, bool isDisabled) async {
     if (currentUsername == null) await loadCurrentUsername();
     try {
-      String? memberUid;
-      try {
-        final memberDoc = await FirebaseFirestore.instance.collection('users').doc(memberUsername).get();
-        if (memberDoc.exists) {
-          memberUid = memberDoc.data()?['uid'];
-        }
-      } catch (e) {
-        debugPrint('Lỗi tra cứu member UID: $e');
-      }
+      final owner = FirebaseFirestore.instance.collection('users').doc(currentUsername!);
+      final members = (await owner.get()).data()?['memberUids'];
+      final memberUid = members is Map ? members[memberUsername] as String? : null;
 
       final Map<String, dynamic> ownerUpdates = {
         'disabledMembers': isDisabled

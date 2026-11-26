@@ -100,7 +100,6 @@ class DeviceMappingController extends StateNotifier<bool> {
           'devices': devices.map((e) => e.toJson()).toList(),
           'mqttServer': activeConfig.mqttServer,
           'mqttUser': activeConfig.mqttUser,
-          'mqttPass': activeConfig.mqttPass,
           'macAddress': activeConfig.macAddress,
         }, SetOptions(merge: true));
       }
@@ -109,17 +108,12 @@ class DeviceMappingController extends StateNotifier<bool> {
       try {
         final devicesList = devices.map((e) => e.toJson()).toList();
         final configPayload = jsonEncode({
-          'admin_pass': activeConfig.adminPass,
           'devices': devicesList,
         });
         final configTopic = '${activeConfig.mqttPrefix}/system/config';
-        _ref.read(mqttRepositoryProvider).publishCmd(configTopic, configPayload);
-
-        // Đồng thời gửi cả payload dạng mảng thuần để tương thích mọi phiên bản Firmware
-        _ref.read(mqttRepositoryProvider).publishCmd(configTopic, jsonEncode(devicesList));
-
-        final restartTopic = '${activeConfig.mqttPrefix}/system/restart';
-        _ref.read(mqttRepositoryProvider).publishCmd(restartTopic, '1');
+        if (!await _ref.read(mqttRepositoryProvider).publishCmd(configTopic, configPayload)) {
+          throw StateError('Đã lưu cấu hình lên máy chủ, Hub chưa nhận được bản cập nhật');
+        }
 
         final mqttRepo = _ref.read(mqttRepositoryProvider);
         if (mqttRepo.client?.connectionStatus?.state == mqtt.MqttConnectionState.connected) {
@@ -128,8 +122,8 @@ class DeviceMappingController extends StateNotifier<bool> {
             mqttRepo.client?.subscribe(stateTopic, mqtt.MqttQos.atLeastOnce);
           }
         }
-      } catch (e) {
-        debugPrint('Lỗi publish config MQTT: $e');
+      } catch (_) {
+        rethrow;
       }
 
       state = false;

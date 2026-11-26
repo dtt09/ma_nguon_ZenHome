@@ -711,7 +711,6 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
       'version': widget.version,
       'sha256': widget.expectedSha256,
       if (widget.signature.isNotEmpty) 'sig': widget.signature,
-      'admin_pass': widget.activeConfig.adminPass ?? 'admin',
       'server_authorized': true,
       'timestamp': DateTime.now().toIso8601String(),
     });
@@ -739,6 +738,7 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
         final user = FirebaseAuth.instance.currentUser;
         final token = await user?.getIdToken();
 
+        if (!AppUpdateService.isSecureUrl(widget.serverBaseUrl) || token == null) return;
         final triggerUrl = Uri.parse('${widget.serverBaseUrl}/api/v1/hub/ota/trigger');
         final res = await http.post(
           triggerUrl,
@@ -749,7 +749,6 @@ class _EspOtaProgressDialogState extends ConsumerState<_EspOtaProgressDialog> {
           body: jsonEncode({
             'userId': widget.activeConfig.userId,
             'macAddress': widget.activeConfig.macAddress,
-            'adminPass': widget.activeConfig.adminPass ?? 'admin',
             'version': widget.version,
           }),
         ).timeout(const Duration(seconds: 10));

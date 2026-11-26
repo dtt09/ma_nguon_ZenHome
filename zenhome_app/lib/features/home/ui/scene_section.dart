@@ -13,6 +13,7 @@ import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/premium_dialog.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
+import 'package:zenhome_app/features/home/ui/components/adaptive_home_header.dart';
 import 'package:zenhome_app/core/widgets/bouncing_button.dart';
 import 'package:zenhome_app/core/providers/local_network_provider.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
@@ -378,9 +379,7 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
         } else {
           final targetTopic = '$mqttPrefix/$roomId/$devId/cmd';
           ref.read(mqttRepositoryProvider).publishCmd(targetTopic, mqttPayload);
-          if (cleanPrefix != mqttPrefix) {
-            ref.read(mqttRepositoryProvider).publishCmd('$cleanPrefix/$roomId/$devId/cmd', mqttPayload);
-          }
+
         }
       });
       delayMs += 60; // Xen kẽ 60ms giữa các cuộn hút rơ-le
@@ -1613,15 +1612,12 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Section Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Flexible(
-              child: Row(
+        AdaptiveHomeHeader(
+              heading: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ZenLiquidGlass(
-                    blurSigma: 8,
+                    blurSigma: 0,
                     borderRadius: 11,
                     padding: const EdgeInsets.all(7),
                     glowColor: zen.primary,
@@ -1647,14 +1643,12 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                         fontWeight: FontWeight.bold,
                         color: isDark ? AppColors.darkText : AppColors.lightText,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (_customScenes.isNotEmpty) ...[
                     const SizedBox(width: 8),
                     ZenGlassPill(
-                      blurSigma: 8,
+                      blurSigma: 0,
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                       child: Text(
                         '${_customScenes.length}',
@@ -1668,12 +1662,10 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                   ],
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            BouncingButton(
+              trailing: BouncingButton(
               onTap: () => _showAddSceneBottomSheet(),
               child: ZenLiquidGlass(
-                blurSigma: 10,
+                blurSigma: 0,
                 borderRadius: 20,
                 padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
                 glowColor: zen.primary,
@@ -1681,8 +1673,8 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                 customGradient: zen.navPillGradient,
                 customShadows: [
                   BoxShadow(
-                    color: zen.primary.withOpacity(isDark ? 0.38 : 0.24),
-                    blurRadius: 10,
+                    color: Colors.black.withOpacity(isDark ? 0.12 : 0.05),
+                    blurRadius: 6,
                     offset: const Offset(0, 3),
                   ),
                 ],
@@ -1699,7 +1691,6 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                 ),
               ),
             ),
-          ],
         ),
         const SizedBox(height: 14),
 
@@ -1707,7 +1698,7 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
           ZenGlassCard(
             borderRadius: 22,
             padding: const EdgeInsets.all(24),
-            blurSigma: 12,
+            blurSigma: 0,
             glowColor: zen.primary,
             child: Center(
               child: Column(
@@ -1731,7 +1722,9 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
           )
         else
           SizedBox(
-            height: 152,
+            // Space for icon, insets, two name lines, and two action-count lines.
+            height: 100 + MediaQuery.textScalerOf(context).scale(14) * 2.7 +
+                MediaQuery.textScalerOf(context).scale(11) * 2.7,
             child: ReorderableListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: _customScenes.length,
@@ -1792,13 +1785,13 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                     _executeCustomScene(scene);
                   },
                   child: ZenGlassCard(
-                    width: 136,
+                    width: 84 + MediaQuery.textScalerOf(context).scale(14) * 5.5,
                     margin: const EdgeInsets.only(right: 14, bottom: 4),
                     padding: const EdgeInsets.all(14),
                     borderRadius: 22,
                     glowColor: sceneColor,
                     isActive: true,
-                    blurSigma: 12,
+                    blurSigma: 0,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1815,7 +1808,7 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                               surfaceColor: sceneColor.withOpacity(isDark ? 0.24 : 0.15),
                               customShadows: [
                                 BoxShadow(
-                                  color: sceneColor.withOpacity(0.22),
+                                  color: sceneColor.withOpacity(0.06),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
@@ -1851,26 +1844,25 @@ class _SceneSectionState extends ConsumerState<SceneSection> {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        // Bottom info: Scene Name and Action Count (FittedBox chống tràn chữ)
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text(
+                        Text(
                             _getSceneName(scene),
                             style: TextStyle(
                               fontSize: 14,
+                              height: 1.25,
                               fontWeight: FontWeight.bold,
                               color: isDark ? AppColors.darkText : AppColors.lightText,
                             ),
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '$actionCount ${context.tr('action')}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
+                            height: 1.25,
                             fontWeight: FontWeight.w500,
                             color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
                           ),

@@ -1,10 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:zenhome_app/core/models/smart_config.dart';
 
 class EspApiService {
-  static String get espIp => dotenv.env['ESP_IP'] ?? 'http://192.168.4.1';
+  static String get espIp => 'http://192.168.4.1';
 
   static Future<bool> sendConfigToESP({
     required String wifiSsid,
@@ -12,9 +11,13 @@ class EspApiService {
     required String adminPass,
     required SmartConfig config,
     String? serverUrl,
+    required String bindingToken,
+    required String localKey,
   }) async {
     try {
       final Map<String, dynamic> payload = {
+        'binding_token': bindingToken,
+        'local_key': localKey,
         'wifi_ssid': wifiSsid,
         'wifi_pass': wifiPass,
         'admin_pass': adminPass,

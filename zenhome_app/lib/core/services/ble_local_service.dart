@@ -1,10 +1,10 @@
+import 'package:zenhome_app/core/services/hub_local_key.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:zenhome_app/core/services/logger_service.dart';
 import 'package:zenhome_app/core/services/zenhome_crypto.dart';
 
@@ -43,10 +43,6 @@ class BleLocalService {
   final Guid _serviceUuid = Guid(serviceUuidStr);
   final Guid _controlCharUuid = Guid(controlCharUuidStr);
   final Guid _statusCharUuid = Guid(statusCharUuidStr);
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-  );
 
   BluetoothDevice? _connectedDevice;
   BluetoothDevice? _cachedDiscoveredDevice;
@@ -55,13 +51,15 @@ class BleLocalService {
   BluetoothCharacteristic? _statusChar;
   StreamSubscription? _statusCharSub;
   Completer<bool>? _authCompleter;
+  String? _expectedHubProof;
+  String? _bootNonce;
+  StreamSubscription? _connectionSub;
+
 
   bool _isScanning = false;
   bool _isConnected = false;
   bool _isAuthenticated = false;
   String? _monitoredMac;
-  String? _adminPass;
-  String? _explicitLocalKey;
   String? _userId;
   String? _role;
   List<String>? _allowedDevices;
@@ -90,29 +88,11 @@ class BleLocalService {
   }
   BluetoothCharacteristic? get statusChar => _statusChar;
 
-  /// Phái sinh Master Key chuẩn mã hóa từ adminPass và MAC phần cứng (Đồng bộ với ESP32)
-  static String deriveMasterKey({required String mac, String? adminPass}) {
-    final effectivePass = (adminPass != null && adminPass.isNotEmpty) ? adminPass : 'admin';
-    final clean = mac.replaceAll(':', '').replaceAll('-', '').trim().toUpperCase();
-    final keySeed = 'ZenHome_Key_Salt:$effectivePass:$clean';
-    return sha256.convert(utf8.encode(keySeed)).toString().toLowerCase();
-  }
-
-  /// Lấy khóa bí mật đã lưu hoặc tự động phái sinh từ thông tin cấu hình
-  Future<String> _getOrDeriveKey() async {
-    if (_explicitLocalKey != null && _explicitLocalKey!.isNotEmpty) {
-      return _explicitLocalKey!;
-    }
-    if (_monitoredMac != null && _monitoredMac!.isNotEmpty && _monitoredMac != 'unknown_mac') {
-      try {
-        final saved = await _secureStorage.read(key: 'local_sec_key_$_monitoredMac');
-        if (saved != null && saved.isNotEmpty) {
-          return saved;
-        }
-      } catch (_) {}
-      return deriveMasterKey(mac: _monitoredMac!, adminPass: _adminPass);
-    }
-    return '';
+  Future<String> _getLocalKey() async {
+    final home = _userId;
+    final mac = _monitoredMac;
+    if (_role != 'owner' || home == null || mac == null) return '';
+    return await HubLocalKey.read(home, mac) ?? '';
   }
 
   /// Khởi tạo tham số giám sát (Không kết nối sẵn mà chỉ dò tìm thụ động khi cần)
@@ -128,8 +108,6 @@ class BleLocalService {
       return;
     }
     _monitoredMac = targetMac.replaceAll(':', '').replaceAll('-', '').trim().toUpperCase();
-    _adminPass = adminPass;
-    _explicitLocalKey = localKey;
     _userId = userId;
     _role = role ?? 'owner';
     _allowedDevices = allowedDevices;
@@ -173,7 +151,13 @@ class BleLocalService {
     _passiveDiscoveryTimer = null;
     _idleDisconnectTimer?.cancel();
     _idleDisconnectTimer = null;
+    for (final task in _taskQueue) {
+      if (!task.completer.isCompleted) task.completer.complete(false);
+    }
     _taskQueue.clear();
+    _monitoredMac = null;
+    _cachedDiscoveredDevice = null;
+    _role = null;
     disconnect();
   }
 
@@ -316,7 +300,8 @@ class BleLocalService {
       }
 
       // Lắng nghe trạng thái ngắt kết nối
-      target.connectionState.listen((state) {
+      await _connectionSub?.cancel();
+      _connectionSub = target.connectionState.listen((state) {
         if (state == BluetoothConnectionState.disconnected) {
           _isConnected = false;
           _isAuthenticated = false;
@@ -336,6 +321,11 @@ class BleLocalService {
               _controlChar = c;
             } else if (c.uuid == _statusCharUuid) {
               _statusChar = c;
+              final boot = jsonDecode(utf8.decode(await c.read()))['bootNonce'];
+              if (boot is! String || !RegExp(r'^[a-fA-F0-9]{32}$').hasMatch(boot)) {
+                throw const FormatException('Missing BLE boot challenge');
+              }
+              _bootNonce = boot;
               await c.setNotifyValue(true);
               _statusCharSub?.cancel();
               _statusCharSub = c.onValueReceived.listen((value) {
@@ -348,7 +338,7 @@ class BleLocalService {
 
       // Bắt tay xác thực Key hai chiều có Timeout & Reactive ACK
       if (_controlChar != null) {
-        _authCompleter?.complete(false);
+        if (_authCompleter?.isCompleted == false) _authCompleter!.complete(false);
         _authCompleter = Completer<bool>();
         await _authenticateWithKey();
 
@@ -380,7 +370,7 @@ class BleLocalService {
   Future<void> _authenticateWithKey() async {
     if (_controlChar == null || _monitoredMac == null) return;
     try {
-      final key = await _getOrDeriveKey();
+      final key = await _getLocalKey();
       if (key.isEmpty) {
         LoggerService.w('[BLE-KEY] ⚠️ Không có khóa bảo mật hợp lệ để xác thực BLE!');
         await disconnect();
@@ -388,8 +378,11 @@ class BleLocalService {
       }
 
       final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
-      final nonce = _generateRandomNonce(8);
-      final signPayload = 'auth:$_monitoredMac:$timestamp:$nonce';
+      final nonce = '$_bootNonce.${_generateRandomNonce(32)}';
+      final user = _userId;
+      if (_role != 'owner' || user == null || user.isEmpty) return;
+      final signPayload = 'auth:$_monitoredMac:$user:$timestamp:$nonce';
+      _expectedHubProof = ZenHomeCrypto.sign(key, 'hub-auth:$_monitoredMac:$user:$timestamp:$nonce');
 
       final keyBytes = <int>[];
       for (int i = 0; i < key.length; i += 2) {
@@ -407,7 +400,7 @@ class BleLocalService {
         'sig': signature,
       };
 
-      await _controlChar!.write(utf8.encode(jsonEncode(authMap)), withoutResponse: false);
+      await _controlChar!.write(utf8.encode(jsonEncode(authMap)), withoutResponse: false, allowLongWrite: true);
       LoggerService.i('[BLE-KEY] 🔑 Đã gửi bản tin xác thực Key tới Hub qua Bluetooth!');
     } catch (e) {
       LoggerService.w('[BLE-KEY] Gửi xác thực Key thất bại: $e');
@@ -419,7 +412,8 @@ class BleLocalService {
       final str = utf8.decode(value);
       final json = jsonDecode(str);
       if (json is Map) {
-        if (json['status'] == 'auth_ok' || json['authenticated'] == true) {
+        if (json['status'] == 'auth_ok' && _authCompleter?.isCompleted == false &&
+            ZenHomeCrypto.matches(_expectedHubProof ?? '', json['proof'])) {
           _isAuthenticated = true;
           _bleAuthenticatedController.add(true);
           _bleAvailableController.add(true);
@@ -436,11 +430,7 @@ class BleLocalService {
           LoggerService.w('[BLE-KEY] ⛔ Hub từ chối xác thực Key: ${json['error'] ?? 'auth_failed'}');
         }
 
-        if (json.containsKey('id') && json.containsKey('state')) {
-          final devId = json['id'].toString();
-          final state = json['state'].toString() == '1';
-          _bleDeviceStateController.add({devId: state});
-        }
+
       }
     } catch (e) {
       debugPrint('[BLE] Lỗi đọc notify: $e');
@@ -465,6 +455,7 @@ class BleLocalService {
           break;
         }
 
+        if (_taskQueue.isEmpty) break;
         final task = _taskQueue.removeAt(0);
         bool success = false;
 
@@ -510,17 +501,6 @@ class BleLocalService {
 
     final completer = Completer<bool>();
 
-    // Queue Collapsing (Chống spam hàng đợi BLE):
-    // Nếu trong hàng đợi đã có lệnh cho cùng thiết bị này chưa kịp gửi,
-    // gom lệnh cũ lại và thay bằng lệnh mới nhất để chỉ bắn 1 gói tin cuối cùng tới ESP32
-    _taskQueue.removeWhere((task) {
-      if (task.type == _BleTaskType.control && task.devId == devId) {
-        if (!task.completer.isCompleted) task.completer.complete(true);
-        return true;
-      }
-      return false;
-    });
-
     _taskQueue.add(_BleTask(
       type: _BleTaskType.control,
       devId: devId,
@@ -538,11 +518,12 @@ class BleLocalService {
   Future<bool> _executeRawControlCommand(String devId, String cmd, String? localKey) async {
     if (_controlChar == null) return false;
     try {
-      final key = localKey ?? await _getOrDeriveKey();
+      final key = localKey ?? await _getLocalKey();
       if (key.isEmpty) return false;
       final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
-      final nonce = _generateRandomNonce(8);
-      final user = _userId ?? 'owner';
+      final nonce = '$_bootNonce.${_generateRandomNonce(32)}';
+      final user = _userId;
+      if (_role != 'owner' || user == null || user.isEmpty) return false;
 
       final signPayload = '$user:$devId:$cmd:$timestamp:$nonce';
       final keyBytes = <int>[];
@@ -566,11 +547,9 @@ class BleLocalService {
       final finalPayload = {'enc': encEnvelope};
 
       final jsonBytes = utf8.encode(jsonEncode(finalPayload));
-      await _controlChar!.write(jsonBytes, withoutResponse: false);
-
-      _bleDeviceStateController.add({devId: cmd == '1'});
-      LoggerService.i('[BLE-QUEUE] ⚡ Lệnh $devId -> $cmd đã bắn thành công qua BLE (Mã hóa AES-256 & HMAC-SHA256)!');
-      return true;
+      final applied = await _writeAndConfirm(jsonBytes, nonce, 'ok', key, user, device: devId, state: cmd);
+      if (applied) _bleDeviceStateController.add({devId: cmd == '1'});
+      return applied;
     } catch (e) {
       LoggerService.w('[BLE-QUEUE] Bắn lệnh điều khiển qua BLE thất bại: $e');
       return false;
@@ -583,6 +562,8 @@ class BleLocalService {
     required String newWifiPass,
     String? newServer,
     String? newAdminPass,
+    String? newMqttUser,
+    String? newMqttPass,
     String? localKey,
   }) async {
     final completer = Completer<bool>();
@@ -593,6 +574,8 @@ class BleLocalService {
         'pass': newWifiPass,
         'server': newServer,
         'adminPass': newAdminPass,
+        'mqttUser': newMqttUser,
+        'mqttPass': newMqttPass,
       },
       localKey: localKey,
       completer: completer,
@@ -607,26 +590,24 @@ class BleLocalService {
   Future<bool> _executeRawReconfigCommand(Map<String, dynamic> data, String? localKey) async {
     if (_controlChar == null) return false;
     try {
-      final key = localKey ?? await _getOrDeriveKey();
+      final key = localKey ?? await _getLocalKey();
       if (key.isEmpty) return false;
       final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
-      final nonce = _generateRandomNonce(8);
-      final user = _userId ?? 'owner';
-      final newSsid = data['ssid'] ?? '';
-
-      final signPayload = 'reconfig:$newSsid:$timestamp:$nonce';
-      final keyBytes = <int>[];
-      for (int i = 0; i < key.length; i += 2) {
-        keyBytes.add(int.parse(key.substring(i, i + 2), radix: 16));
-      }
-      final signature = Hmac(sha256, keyBytes).convert(utf8.encode(signPayload)).toString();
-
-      final Map<String, dynamic> payloadMap = {
+      final nonce = '$_bootNonce.${_generateRandomNonce(32)}';
+      final user = _userId;
+      if (_role != 'owner' || user == null || user.isEmpty) return false;
+      final config = jsonEncode({
+        'wifi_ssid': data['ssid'],
+        'wifi_pass': data['pass'],
+        if (data['server']?.isNotEmpty == true) 'mqtt_server': data['server'],
+        if (data['mqttUser']?.isNotEmpty == true) 'mqtt_user': data['mqttUser'],
+        if (data['mqttPass']?.isNotEmpty == true) 'mqtt_pass': data['mqttPass'],
+        if (data['adminPass']?.isNotEmpty == true) 'admin_pass': data['adminPass'],
+      });
+      final signature = ZenHomeCrypto.sign(key, 'reconfig:$user:${ZenHomeCrypto.digest(config)}:$timestamp:$nonce');
+      final payloadMap = {
         'action': 'reconfig',
-        'wifi_ssid': newSsid,
-        'wifi_pass': data['pass'] ?? '',
-        if (data['server'] != null && data['server'].toString().isNotEmpty) 'mqtt_server': data['server'],
-        if (data['adminPass'] != null && data['adminPass'].toString().isNotEmpty) 'admin_pass': data['adminPass'],
+        'data': config,
         'user': user,
         'sig': signature,
         'ts': timestamp,
@@ -639,12 +620,45 @@ class BleLocalService {
       final finalPayload = {'enc': encEnvelope};
 
       final jsonBytes = utf8.encode(jsonEncode(finalPayload));
-      await _controlChar!.write(jsonBytes, withoutResponse: false);
-      LoggerService.i('[BLE-RECONFIG] 📡 Đã mã hóa AES-256 và gửi bản tin cấu hình Wi-Fi mới qua BLE!');
-      return true;
+      return await _writeAndConfirm(jsonBytes, nonce, 'reconfig_ok', key, user);
     } catch (e) {
       LoggerService.w('[BLE-RECONFIG] Bắn bản tin reconfig qua BLE thất bại: $e');
       return false;
+    }
+  }
+
+  Future<bool> _writeAndConfirm(List<int> bytes, String nonce, String status, String key, String user,
+      {String? device, String? state}) async {
+    final ack = Completer<bool>();
+    final sub = _statusChar!.onValueReceived.listen((value) {
+      try {
+        final reply = jsonDecode(utf8.decode(value));
+        if (reply is! Map || reply['nonce'] != nonce || ack.isCompleted) return;
+        if (device != null && reply['id'] != device) return;
+        final proof = ZenHomeCrypto.sign(key, "ble-ack:$user:$nonce:${reply['status']}:${reply['id'] ?? ''}:${reply['state'] ?? ''}");
+        if (!ZenHomeCrypto.matches(proof, reply['proof'])) return;
+        ack.complete(reply['status'] == status && (state == null || reply['state'] == state));
+      } on FormatException {
+        // Other BLE notifications may arrive while this request is in flight.
+      }
+    });
+    try {
+      final maxWrite = min(400, (_connectedDevice?.mtuNow ?? 23) - 3);
+      if (bytes.length <= maxWrite) {
+        await _controlChar!.write(bytes, withoutResponse: false);
+      } else {
+        final size = min(300, maxWrite - 4);
+        final count = (bytes.length / size).ceil();
+        if (bytes.length > 3072 || count > 12) return false;
+        for (var index = 0; index < count; index++) {
+          final end = min(bytes.length, (index + 1) * size);
+          await _controlChar!.write([0x5a, 0x48, index, count, ...bytes.sublist(index * size, end)],
+              withoutResponse: false);
+        }
+      }
+      return await ack.future.timeout(const Duration(seconds: 3), onTimeout: () => false);
+    } finally {
+      await sub.cancel();
     }
   }
 
@@ -657,7 +671,11 @@ class BleLocalService {
   Future<void> disconnect() async {
     _idleDisconnectTimer?.cancel();
     _idleDisconnectTimer = null;
-    _statusCharSub?.cancel();
+    await _connectionSub?.cancel();
+    _connectionSub = null;
+    _expectedHubProof = null;
+    _bootNonce = null;
+    await _statusCharSub?.cancel();
     _statusCharSub = null;
     if (_authCompleter != null && !_authCompleter!.isCompleted) {
       _authCompleter!.complete(false);

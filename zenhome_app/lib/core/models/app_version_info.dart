@@ -12,6 +12,7 @@ class AppVersionInfo {
   final bool isForceUpdate;
   final String? publishedAt;
   final int? fileSizeBytes;
+  final String? sha256;
 
   AppVersionInfo({
     required this.latestVersion,
@@ -27,6 +28,7 @@ class AppVersionInfo {
     this.isForceUpdate = false,
     this.publishedAt,
     this.fileSizeBytes,
+    this.sha256,
   });
 
   bool hasUpdate(int currentBuildNumber) {
@@ -51,6 +53,7 @@ class AppVersionInfo {
     bool? isForceUpdate,
     String? publishedAt,
     int? fileSizeBytes,
+    String? sha256,
   }) {
     return AppVersionInfo(
       latestVersion: latestVersion ?? this.latestVersion,
@@ -65,6 +68,7 @@ class AppVersionInfo {
       directApkUrl: directApkUrl ?? this.directApkUrl,
       isForceUpdate: isForceUpdate ?? this.isForceUpdate,
       publishedAt: publishedAt ?? this.publishedAt,
+      sha256: sha256 ?? this.sha256,
       fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
     );
   }
@@ -87,6 +91,7 @@ class AppVersionInfo {
           'https://github.com/dtt09/ma_nguon_ZenHome/releases/latest/download/ZenHome_Release.apk',
       isForceUpdate: json['isForceUpdate'] == true,
       publishedAt: json['publishedAt']?.toString(),
+      sha256: json['sha256']?.toString(),
       fileSizeBytes: int.tryParse(json['fileSizeBytes']?.toString() ?? ''),
     );
   }
@@ -105,6 +110,7 @@ class AppVersionInfo {
       'directApkUrl': directApkUrl,
       'isForceUpdate': isForceUpdate,
       'publishedAt': publishedAt,
+      'sha256': sha256,
       'fileSizeBytes': fileSizeBytes,
     };
   }

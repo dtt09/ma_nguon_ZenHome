@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:zenhome_app/core/services/app_update_service.dart';
@@ -37,6 +35,7 @@ class _NotificationHistoryScreenState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(notificationProvider.notifier).markAllAsRead();
     });
   }
@@ -138,17 +137,21 @@ class _NotificationHistoryScreenState
           children: [
             Text(
               context.tr('notification_history_title'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontWeight: FontWeight.w800,
-                fontSize: 18.5,
+                fontSize: 17.5,
                 color: textColor,
                 letterSpacing: -0.3,
               ),
             ),
             Text(
               '${notifications.length} ${context.tr('notification')}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 11.5,
+                fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: mutedColor,
               ),
@@ -158,32 +161,38 @@ class _NotificationHistoryScreenState
         actions: [
           if (notifications.isNotEmpty)
             Center(
-              child: ZenGlassPill(
-                blurSigma: 0,
-                isSelected: true,
-                glowColor: zen.danger,
-                borderRadius: 14,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-                onTap: _clearHistory,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.delete_sweep_rounded,
-                      color: zen.danger,
-                      size: 17,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      context.tr('clear_all'),
-                      style: TextStyle(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 120),
+                child: ZenGlassPill.lightweight(
+                  isSelected: true,
+                  glowColor: zen.danger,
+                  borderRadius: 14,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  onTap: _clearHistory,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.delete_sweep_rounded,
                         color: zen.danger,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
+                        size: 16,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          context.tr('clear_all'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: zen.danger,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -192,8 +201,6 @@ class _NotificationHistoryScreenState
       body: Column(
         children: [
           const SizedBox(height: 12),
-
-          // Thanh Lọc Danh Mục Kính Lỏng Đồng Bộ Menu Chính (Zen Glass Scrollable Filter Bar 2.0)
           ZenGlassScrollableFilterBar<String>(
             height: 44,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -226,16 +233,13 @@ class _NotificationHistoryScreenState
             },
           ),
           const SizedBox(height: 12),
-
-          // Danh sách Thẻ Thông Báo Kính Lỏng hoặc Màn hình Trống Pha Lê
           Expanded(
             child: filteredNotifs.isEmpty
                 ? Center(
-                    child: Padding(
+                    child: SingleChildScrollView(
                       padding: const EdgeInsets.all(28.0),
-                      child: ZenGlassCard(
+                      child: ZenGlassCard.lightweight(
                         borderRadius: 28,
-                        blurSigma: 20,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 28,
                           vertical: 34,
@@ -248,16 +252,16 @@ class _NotificationHistoryScreenState
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
-                                    zen.primary.withOpacity(0.20),
-                                    zen.primaryAccent.withOpacity(0.06),
+                                    zen.primary.withValues(alpha: 0.18),
+                                    zen.primaryAccent.withValues(alpha: 0.06),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: zen.primary.withOpacity(0.32),
-                                  width: 1.4,
+                                  color: zen.primary.withValues(alpha: 0.24),
+                                  width: 1.0,
                                 ),
                               ),
                               child: Icon(
@@ -288,10 +292,7 @@ class _NotificationHistoryScreenState
                             ),
                           ],
                         ),
-                      )
-                          .animate()
-                          .fade(duration: 280.ms)
-                          .scale(begin: const Offset(0.95, 0.95)),
+                      ),
                     ),
                   )
                 : ListView.builder(
@@ -316,182 +317,198 @@ class _NotificationHistoryScreenState
                           notif['homeId'] != activeConfig.userId;
 
                       return RepaintBoundary(
-                        child: ZenGlassCard(
+                        child: ZenGlassCard.lightweight(
                           margin: const EdgeInsets.only(bottom: 12),
                           borderRadius: 22,
-                          blurSigma: 0, // Tối ưu hóa GPU: 0 blur cục bộ đạt 120 FPS mượt mà khi cuộn danh sách
                           isActive: !isRead,
                           glowColor: catColor,
                           padding: const EdgeInsets.all(15),
-                        onTap: notif['category'] == 'update'
-                            ? () {
-                                AppUpdateService.checkAndPromptUpdate(
-                                  context,
-                                  isManualCheck: true,
-                                );
-                              }
-                            : null,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Leading Glowing Squircle Icon
-                            Container(
-                              width: 46,
-                              height: 46,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    catColor.withOpacity(isDark ? 0.24 : 0.16),
-                                    catColor.withOpacity(isDark ? 0.08 : 0.05),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color:
-                                      catColor.withOpacity(isDark ? 0.42 : 0.3),
-                                  width: 1.15,
-                                ),
-                              ),
-                              child: Icon(catIcon, color: catColor, size: 22),
-                            ),
-                            const SizedBox(width: 14),
-
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          notif['title'] ?? '',
-                                          style: TextStyle(
-                                            fontWeight: isRead
-                                                ? FontWeight.w700
-                                                : FontWeight.w800,
-                                            fontSize: 15,
-                                            color: textColor,
-                                          ),
-                                        ),
+                          onTap: notif['category'] == 'update'
+                              ? () {
+                                  AppUpdateService.checkAndPromptUpdate(
+                                    context,
+                                    isManualCheck: true,
+                                  );
+                                }
+                              : null,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      catColor.withValues(
+                                        alpha: isDark ? 0.22 : 0.14,
                                       ),
-                                      if (isSharedHome) ...[
-                                        const SizedBox(width: 6),
-                                        ZenGlassPill(
-                                          blurSigma: 0,
-                                          isSelected: true,
-                                          glowColor: AppColors.purpleGlow,
-                                          borderRadius: 8,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 7,
-                                            vertical: 2.5,
-                                          ),
+                                      catColor.withValues(
+                                        alpha: isDark ? 0.08 : 0.04,
+                                      ),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: catColor.withValues(
+                                      alpha: isDark ? 0.30 : 0.22,
+                                    ),
+                                    width: 0.9,
+                                  ),
+                                ),
+                                child: Icon(catIcon, color: catColor, size: 22),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Expanded(
                                           child: Text(
-                                            context.tr('shared_home_badge'),
-                                            style: const TextStyle(
-                                              fontSize: 9.5,
-                                              color: AppColors.purpleGlow,
-                                              fontWeight: FontWeight.w800,
+                                            notif['title'] ?? '',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontWeight: isRead
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w800,
+                                              fontSize: 15,
+                                              color: textColor,
                                             ),
                                           ),
                                         ),
-                                      ],
-                                      if (!isRead) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          width: 8.5,
-                                          height: 8.5,
-                                          decoration: BoxDecoration(
-                                            color: catColor,
-                                            shape: BoxShape.circle,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color:
-                                                    catColor.withOpacity(0.85),
-                                                blurRadius: 8,
+                                        if (isSharedHome) ...[
+                                          const SizedBox(width: 6),
+                                          Flexible(
+                                            flex: 0,
+                                            child: ZenGlassPill.lightweight(
+                                              isSelected: true,
+                                              glowColor: AppColors.purpleGlow,
+                                              borderRadius: 8,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 7,
+                                                vertical: 2.5,
                                               ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    notif['body'] ?? '',
-                                    style: TextStyle(
-                                      color: mutedColor,
-                                      fontSize: 13.2,
-                                      height: 1.38,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 9),
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8.5,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: catColor
-                                              .withOpacity(isDark ? 0.16 : 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: catColor.withOpacity(0.24),
-                                            width: 0.8,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          _getCategoryName(cat ?? 'other'),
-                                          style: TextStyle(
-                                            color: catColor,
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.access_time_rounded,
-                                            size: 12,
-                                            color: mutedColor.withOpacity(0.8),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            formattedTime,
-                                            style: TextStyle(
-                                              color:
-                                                  mutedColor.withOpacity(0.85),
-                                              fontSize: 11.2,
-                                              fontWeight: FontWeight.w600,
+                                              child: Text(
+                                                context.tr('shared_home_badge'),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 9.5,
+                                                  color: AppColors.purpleGlow,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ],
+                                        if (!isRead) ...[
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            width: 8,
+                                            height: 8,
+                                            decoration: BoxDecoration(
+                                              color: catColor,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      notif['body'] ?? '',
+                                      style: TextStyle(
+                                        color: mutedColor,
+                                        fontSize: 13.2,
+                                        height: 1.38,
                                       ),
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                    const SizedBox(height: 9),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: Wrap(
+                                        alignment: WrapAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        spacing: 8,
+                                        runSpacing: 6,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8.5,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: catColor.withValues(
+                                                alpha: isDark ? 0.16 : 0.10,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: catColor.withValues(
+                                                  alpha: 0.22,
+                                                ),
+                                                width: 0.8,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              _getCategoryName(cat ?? 'other'),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: catColor,
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.access_time_rounded,
+                                                size: 12,
+                                                color: mutedColor.withValues(
+                                                  alpha: 0.8,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Flexible(
+                                                child: Text(
+                                                  formattedTime,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    color: mutedColor.withValues(
+                                                      alpha: 0.85,
+                                                    ),
+                                                    fontSize: 11.2,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ).animate().slideX(
-                            begin: 0.06,
-                            delay: Duration(
-                              milliseconds: (index.clamp(0, 10)) * 28,
-                            ),
-                            duration: 240.ms,
+                            ],
                           ),
-                    );
-                  },
+                        ),
+                      );
+                    },
                   ),
           ),
         ],

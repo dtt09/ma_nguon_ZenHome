@@ -1,3 +1,4 @@
+import 'package:zenhome_app/core/services/member_device_service.dart';
 import 'package:zenhome_app/features/notifications/logic/notification_provider.dart';
 import 'dart:async';
 import 'dart:convert'; 
@@ -12,6 +13,7 @@ import 'package:zenhome_app/core/providers/mqtt_provider.dart';
 import 'package:zenhome_app/features/auth/logic/auth_provider.dart';
 import 'package:zenhome_app/core/utils/helpers.dart'; 
 import 'package:zenhome_app/features/home/ui/device_card.dart';
+import 'package:zenhome_app/features/home/ui/components/adaptive_home_header.dart';
 import 'package:zenhome_app/features/home/ui/weather_card.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
@@ -67,6 +69,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
   String _selectedRoomCode = '';
   final List<StreamSubscription> _subscriptions = [];
   final List<Timer> _timers = [];
+  final Set<String> _pendingMemberCommands = {};
+  bool _readingMemberStates = false;
+
+  Future<void> _refreshMemberStates() async {
+    final home = ref.read(homeConfigProvider).activeConfig;
+    if (_readingMemberStates || home.userId == 'guest' || home.isDisabled) return;
+    _readingMemberStates = true;
+    try {
+      final states = await MemberDeviceService.confirmedStates(home.userId);
+      if (!mounted || ref.read(homeConfigProvider).activeConfig.userId != home.userId) return;
+      for (final entry in states.entries) {
+        ref.read(globalDeviceStatesProvider.notifier).updateState(entry.key, entry.value);
+      }
+    } catch (_) {
+      // Keep last confirmed states while the API is unavailable.
+    } finally {
+      _readingMemberStates = false;
+    }
+  }
+
   // SEC-FIX [Phase P3]: Quản lý danh sách các chân rơ-le đang bị khóa an toàn (30s)
   final Map<int, AnomalyAlert> _activeAnomalies = {};
   final Map<int, Timer> _anomalyTimers = {};
@@ -113,6 +135,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _timers.add(Timer.periodic(const Duration(seconds: 10), (_) => _refreshMemberStates()));
+    _refreshMemberStates();
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
     List<String> availableRooms = activeConfig.devices.map((e) => e.room).toSet().toList();
     if (availableRooms.isNotEmpty) {
@@ -254,7 +278,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     }
   }
 
-  void _toggleDevice(String devId, String roomId, bool currentState) {
+  Future<void> _toggleDevice(String devId, String roomId, bool currentState) async {
     if (ref.read(pendingDeviceOperationsProvider).contains(devId)) return; 
 
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
@@ -297,6 +321,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         context.tr('no_permission_device'),
         isError: true,
       );
+      return;
+    }
+
+    if (activeConfig.role != 'owner' || !ref.read(localNetworkServiceProvider).isLocalAvailable) {
+      final home = activeConfig.userId;
+      final operation = '$home/$devId';
+      if (!_pendingMemberCommands.add(operation)) return;
+      try {
+        final confirmed = await MemberDeviceService.control(home, devId, !currentState);
+        if (!mounted || ref.read(homeConfigProvider).activeConfig.userId != home) return;
+        if (!confirmed) throw StateError('No confirmed device state');
+        ref.read(globalDeviceStatesProvider.notifier).updateState(devId, !currentState);
+      } catch (_) {
+        if (mounted) showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_timeout'), isError: true);
+      } finally {
+        _pendingMemberCommands.remove(operation);
+      }
       return;
     }
 
@@ -381,11 +422,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         });
         ref.read(mqttRepositoryProvider).publishCmd(topicCmd1, payload);
 
-        final cleanPrefix = mqttPrefix.replaceAll(':', '');
-        if (cleanPrefix != mqttPrefix) {
-          final topicCmd2 = '$cleanPrefix/$roomId/$devId/cmd';
-          ref.read(mqttRepositoryProvider).publishCmd(topicCmd2, payload);
-        }
       } catch (e) {
         debugPrint('[MQTT] Lỗi publish lệnh relay: $e');
       }
@@ -891,7 +927,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         const Text(
                           'CẢNH BÁO AN TOÀN PHẦN CỨNG',
@@ -902,7 +941,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                             letterSpacing: 0.5,
                           ),
                         ),
-                        const Spacer(),
                         ZenGlassPill(
                           blurSigma: 0,
                           borderRadius: 8,
@@ -965,17 +1003,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     final isLocalAvailable = ref.watch(isLocalNetworkAvailableProvider).value ?? localService.isLocalAvailable;
     final mqttState = ref.watch(mqttConnectionStateProvider);
     final isOnline = ref.watch(espOnlineStateProvider);
-    final isConnected = isLocalAvailable || (mqttState == 2 && isOnline);
+    final isConnected = (activeConfig.isHubLinked && !activeConfig.isDisabled) ||
+        isLocalAvailable || (mqttState == 2 && isOnline);
 
     return SafeArea(
       bottom: false,
       child: RefreshIndicator(
         onRefresh: _onRefresh,
         color: context.zenColors.primary,
-        child: SingleChildScrollView(
+        child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20.0, 20.0, 20.0, 130.0),
-          child: Column(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              sliver: SliverToBoxAdapter(
+                child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header Kiến Trúc Kính Lỏng (Liquid Glass Tiered Architecture)
@@ -985,13 +1027,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // TẦNG 1: Lời chào, Logo, Vai trò + Nút Thông báo & Avatar
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Cụm Logo + Lời chào & Tên & Vai trò (Cấu trúc phân tầng linh hoạt, không cắt chữ)
-                      Expanded(
-                        child: Row(
+                  AdaptiveHomeHeader(
+                    heading: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             ZenLiquidGlass(
@@ -1008,11 +1045,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 3,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
                                     children: [
-                                      Flexible(
-                                        child: Text(
+                                      Text(
                                           _getGreetingPrefix(),
                                           style: TextStyle(
                                             fontSize: 12,
@@ -1022,11 +1060,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                                                 : const Color(0xFF64748B),
                                             letterSpacing: 0.2,
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                      const SizedBox(width: 6),
                                       Builder(
                                         builder: (context) {
                                           String roleName = activeConfig.role == 'owner'
@@ -1065,18 +1099,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                                           : const Color(0xFF0F172A),
                                       letterSpacing: -0.3,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 10),
                       // Nút Thông báo & Avatar góc phải
-                      Row(
+                      trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           NotificationBadge(
@@ -1093,7 +1123,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                           ),
                         ],
                       ),
-                    ],
                   ),
                   
                   const SizedBox(height: 10),
@@ -1104,12 +1133,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                     borderRadius: 22,
                     blurSigma: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Cột Bên trái: Home Selector (Icon nhà + Tên nhà to rõ + Chevron)
-                        Expanded(
-                          child: GestureDetector(
+                    child: AdaptiveHomeHeader(
+                        heading: GestureDetector(
                             behavior: HitTestBehavior.opaque,
                             onTap: () => showHomeSwitcherBottomSheet(context, ref),
                             child: Row(
@@ -1142,8 +1167,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                                                 : const Color(0xFF0F172A),
                                             letterSpacing: -0.4,
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                       const SizedBox(width: 4),
@@ -1160,12 +1183,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                               ],
                             ),
                           ),
-                        ),
-
-                        const SizedBox(width: 10),
 
                         // Cột Bên phải: Connection Capsule với hiệu ứng đèn thở quang học (Pulsing Glow)
-                        Builder(
+                        trailing: Builder(
                           builder: (context) {
                             final zen = context.zenColors;
                             final isLanAvailable = ref.watch(isLanAvailableProvider).value ?? ref.watch(localNetworkServiceProvider).isLanAvailable;
@@ -1216,13 +1236,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: statusColor,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: statusColor.withOpacity(0.8),
-                                          blurRadius: 4,
-                                          spreadRadius: 1,
-                                        ),
-                                      ],
                                     ),
                                   ),
                                   const SizedBox(width: 5),
@@ -1241,7 +1254,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                             );
                           },
                         ),
-                      ],
                     ),
                   ),
                 ],
@@ -1274,13 +1286,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
               const SizedBox(height: 25),
               
               // Thanh Menu Phân Loại Phòng Kính Lỏng (Liquid Glass Room Capsule Dock)
-              RepaintBoundary(
-                child: SizedBox(
-                  height: 44,
-                  child: ListView(
+              if (roomTabs.isNotEmpty)
+                SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
-                    children: roomTabs.map((roomCode) {
+                    child: Row(children: roomTabs.map((roomCode) {
                       return RoomTabWidget(
                         key: ValueKey('room_$roomCode'),
                         roomCode: roomCode,
@@ -1289,14 +1299,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                           setState(() => _selectedRoomCode = roomCode);
                         },
                       );
-                    }).toList(),
-                  ),
+                    }).toList()),
+                ),
+              const SizedBox(height: 20),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              
-              Builder(
-                
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 130),
+              sliver: Builder(
                 builder: (context) {
                   final Map<String, bool> states = ref.watch(globalDeviceStatesProvider);
                   final Set<String> pendingDevices = ref.watch(pendingDeviceOperationsProvider);
@@ -1305,7 +1317,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                       .toList();
                   sortedDevices.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-                  List<Widget> activeDevices = sortedDevices.map((dev) {
+                  Widget buildDevice(BuildContext context, int index) {
+                        final dev = sortedDevices[index];
                         bool isOn = states[dev.id] ?? false;
                         // SEC-FIX [Phase P3]: Khóa an toàn nếu rơ-le đang nằm trong danh sách Anomaly
                         bool isAnomalyLocked = _activeAnomalies.containsKey(dev.pin);
@@ -1325,10 +1338,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                           onTap: () => _toggleDevice(dev.id, dev.room, isOn),
                           onLongPress: (isRestricted || isAnomalyLocked) ? null : () => _showQuickAutomationModal(dev, isOn),
                         );
-                      }).toList();
+                  }
 
-                  if (activeDevices.isEmpty) {
-                    return Padding(
+                  if (sortedDevices.isEmpty) {
+                    return SliverToBoxAdapter(child: Padding(
                       padding: const EdgeInsets.only(top: 16),
                       child: ZenGlassCard(
                         width: double.infinity,
@@ -1362,38 +1375,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                           ],
                         ),
                       ),
-                    ).animate().fade(duration: 300.ms).scale(begin: const Offset(0.95, 0.95), curve: Curves.easeOutBack);
+                    ).animate().fade(duration: 200.ms));
                   }
 
-                  return RepaintBoundary(
-                    child: AnimatedOpacity(
+                  return SliverAnimatedOpacity(
                       opacity: isConnected ? 1.0 : 0.5,
                       duration: const Duration(milliseconds: 300),
-                      child: GridView.count(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 14,
-                        mainAxisSpacing: 14,
-                        childAspectRatio: 0.86,
-                        children: activeDevices.asMap().entries.map((entry) {
-                          final delayMs = (entry.key * 25).clamp(0, 150);
-                          return entry.value
-                              .animate(
-                                key: ValueKey('anim_${_selectedRoomCode}_${entry.key}'),
-                                delay: Duration(milliseconds: delayMs),
-                              )
-                              .fade(duration: 280.ms, curve: Curves.easeOutQuart)
-                              .slideY(begin: 0.08, end: 0, duration: 280.ms, curve: Curves.easeOutQuart)
-                              .scale(begin: const Offset(0.96, 0.96), end: const Offset(1.0, 1.0), duration: 280.ms, curve: Curves.easeOutQuart);
-                        }).toList(),
+                      sliver: SliverDeviceGrid(
+                        itemCount: sortedDevices.length,
+                        itemBuilder: buildDevice,
                       ),
-                    ),
                   );
                 }
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1656,18 +1652,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     String targetActionText,
     int mins,
   ) async {
-    final mqttState = ref.read(mqttConnectionStateProvider);
-    final isOnline = ref.read(espOnlineStateProvider);
-    if (mqttState != 2 || !isOnline) {
-      showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait'), isError: true);
-      return;
-    }
-
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
     String targetId = activeConfig.userId;
     String cmdTopic = targetAction == 'delay_off' ? '$deviceTopic/timer_off' : '$deviceTopic/timer_on';
 
-    ref.read(mqttRepositoryProvider).publishCmd(cmdTopic, mins.toString());
+    if (!await ref.read(mqttRepositoryProvider).publishCmd(cmdTopic, mins.toString())) {
+          if (mounted) showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_timeout'), isError: true);
+          return;
+        }
+        if (!mounted) return;
 
     int targetTime = DateTime.now().millisecondsSinceEpoch + (mins * 60000);
     String timerId = DateTime.now().millisecondsSinceEpoch.toString();

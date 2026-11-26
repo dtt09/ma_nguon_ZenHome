@@ -19,7 +19,7 @@ class RoomTabWidget extends StatelessWidget {
 
   IconData _getRoomIcon(String code) {
     final lower = code.toLowerCase();
-    if (lower == 'all') {
+    if (lower == 'all' || lower == 'room_all') {
       return Icons.grid_view_rounded;
     }
     if (lower.contains('khach') ||
@@ -84,57 +84,6 @@ class RoomTabWidget extends StatelessWidget {
     return Icons.meeting_room_rounded;
   }
 
-  LinearGradient _getRoomGradient(BuildContext context, String code) {
-    final lower = code.toLowerCase();
-    if (lower.contains('khach') || lower.contains('living')) {
-      return const LinearGradient(
-        colors: [Color(0xFFF59E0B), Color(0xFFEA580C)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    }
-    if (lower.contains('ngu') || lower.contains('bed')) {
-      return const LinearGradient(
-        colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    }
-    if (lower.contains('bep') || lower.contains('kitchen')) {
-      return const LinearGradient(
-        colors: [Color(0xFFF97316), Color(0xFFE11D48)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    }
-    if (lower.contains('tam') || lower.contains('bath')) {
-      return const LinearGradient(
-        colors: [Color(0xFF06B6D4), Color(0xFF0284C7)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    }
-    if (lower.contains('cong') ||
-        lower.contains('balcony') ||
-        lower.contains('san')) {
-      return const LinearGradient(
-        colors: [Color(0xFF10B981), Color(0xFF059669)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    }
-    if (lower.contains('lam_viec') ||
-        lower.contains('work') ||
-        lower.contains('office')) {
-      return const LinearGradient(
-        colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    }
-    return context.zenColors.brandHero;
-  }
-
   Color _getRoomGlow(BuildContext context, String code) {
     final lower = code.toLowerCase();
     if (lower.contains('khach') || lower.contains('living')) {
@@ -166,7 +115,6 @@ class RoomTabWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final IconData roomIcon = _getRoomIcon(roomCode);
-    final LinearGradient roomGradient = _getRoomGradient(context, roomCode);
     final Color roomColor = _getRoomGlow(context, roomCode);
 
     return RepaintBoundary(
@@ -175,45 +123,48 @@ class RoomTabWidget extends StatelessWidget {
           HapticFeedback.selectionClick();
           onTap();
         },
-        scaleFactor: 0.94,
-        child: ZenGlassPill(
+        scaleFactor: 0.985,
+        child: ZenGlassPill.lightweight(
           isSelected: isSelected,
           glowColor: roomColor,
-          blurSigma: 0, // Tối ưu GPU 120 FPS: 0 blur cục bộ, giữ nguyên viền quang học 3D và gradient
-          customGradient: isSelected ? roomGradient : null,
           borderRadius: 22,
           margin: const EdgeInsets.only(right: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedScale(
-                scale: isSelected ? 1.15 : 1.0,
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutBack,
-                child: Icon(
-                  roomIcon,
-                  size: 17,
-                  color: isSelected
-                      ? Colors.white
-                      : (isDark ? roomColor.withOpacity(0.92) : roomColor),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 196),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedScale(
+                  scale: isSelected ? 1.05 : 1.0,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  child: Icon(
+                    roomIcon,
+                    size: 17,
+                    color: isDark ? roomColor : Color.lerp(roomColor, AppColors.lightText, 0.38),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 7),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                style: TextStyle(
-                  color: isSelected
-                      ? Colors.white
-                      : (isDark ? AppColors.darkText : AppColors.lightText),
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  fontSize: 13,
-                  letterSpacing: 0.2,
+                const SizedBox(width: 7),
+                Flexible(
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    style: TextStyle(
+                      color: isDark ? AppColors.darkText : AppColors.lightText,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      fontSize: 13,
+                      letterSpacing: 0.2,
+                    ),
+                    child: Text(
+                      context.tr(roomCode),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
-                child: Text(context.tr(roomCode)),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

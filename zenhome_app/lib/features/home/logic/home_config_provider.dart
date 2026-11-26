@@ -413,12 +413,17 @@ class HomeConfigNotifier extends ChangeNotifier {
       }
       if (primaryUsername.isEmpty) primaryUsername = ownDocsQuery.docs.first.id;
 
+      await FirebaseFirestore.instance.collection('membership_identities').doc(currentUser.uid)
+          .set({'username': primaryUsername});
       List<SmartConfig> updatedHomes = [];
 
       // Nạp tất cả các nhà sở hữu (cả nhà chính và các nhà phụ)
       for (var doc in ownDocsQuery.docs) {
         final data = doc.data();
         final homeId = doc.id;
+        final privateDoc = await doc.reference.collection('private').doc('credentials').get();
+        final credentials = privateDoc.data();
+        final stored = _availableHomes.where((home) => home.role == 'owner' && home.userId == homeId).firstOrNull;
         final bool isSub = (data['isSubHome'] == true) || (homeId != primaryUsername);
 
         List<DeviceConfig> restoredDevices = [];
@@ -439,7 +444,8 @@ class HomeConfigNotifier extends ChangeNotifier {
               ? data['mqttServer']
               : 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud',
           mqttUser: data['mqttUser'],
-          mqttPass: data['mqttPass'],
+          mqttPass: credentials?['mqttPass'] ?? stored?.mqttPass,
+          adminPass: credentials?['adminPass'] ?? stored?.adminPass ?? '',
           devices: restoredDevices,
           role: 'owner',
           homeName: homeName,
@@ -463,35 +469,8 @@ class HomeConfigNotifier extends ChangeNotifier {
         sharedOwnerUsernames.add(primaryData['ownerUsername'].toString());
       }
 
-      // B. Qua trường sharedWith và sharedUids trên các document khác
-      try {
-        final sharedWithQuery = await FirebaseFirestore.instance.collection('users')
-            .where('sharedWith', arrayContains: primaryUsername)
-            .get();
-        for (var doc in sharedWithQuery.docs) {
-          if (!sharedOwnerUsernames.contains(doc.id) && doc.id != primaryUsername) {
-            sharedOwnerUsernames.add(doc.id);
-          }
-        }
-      } catch (e) {
-        debugPrint("Lỗi query sharedWith: $e");
-      }
-
-      try {
-        final currentUid = currentUser?.uid;
-        if (currentUid != null && currentUid.isNotEmpty) {
-          final sharedUidsQuery = await FirebaseFirestore.instance.collection('users')
-              .where('sharedUids', arrayContains: currentUid)
-              .get();
-          for (var doc in sharedUidsQuery.docs) {
-            if (!sharedOwnerUsernames.contains(doc.id) && doc.id != primaryUsername) {
-              sharedOwnerUsernames.add(doc.id);
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint("Lỗi query sharedUids: $e");
-      }
+      final ids = primaryData['sharedHomeIds'];
+      if (ids is List) sharedOwnerUsernames.addAll(ids.whereType<String>());
 
       // Tải thông tin từng nhà được chia sẻ
       for (String ownerUsername in sharedOwnerUsernames) {
@@ -538,8 +517,7 @@ class HomeConfigNotifier extends ChangeNotifier {
               mqttServer: (ownerData['mqttServer'] != null && ownerData['mqttServer'].toString().isNotEmpty && ownerData['mqttServer'] != 'broker.emqx.io')
                   ? ownerData['mqttServer']
                   : 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud',
-              mqttUser: ownerData['mqttUser'],
-              mqttPass: ownerData['mqttPass'],
+
               devices: ownerDevices,
               role: assignedRole,
               homeName: 'Nhà của $ownerName',

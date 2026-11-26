@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
+import 'package:zenhome_app/core/widgets/animations/zen_page_route.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
@@ -23,22 +24,20 @@ class DisabledView extends ConsumerWidget {
       bottom: false,
       child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 30, 24, 110),
-          child: ZenGlassCard(
+          padding: EdgeInsets.fromLTRB(24, 30, 24, zenBottomNavClearance(context)),
+          child: ZenGlassCard.lightweight(
             borderRadius: 28,
-            blurSigma: 22,
             isActive: true,
             glowColor: zen.warning,
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ZenLiquidGlass(
-                  blurSigma: 0,
+                ZenLiquidGlass.lightweight(
                   borderRadius: 34,
                   padding: const EdgeInsets.all(20),
                   glowColor: zen.warning,
-                  surfaceColor: zen.warning.withOpacity(0.16),
+                  surfaceColor: zen.warning.withValues(alpha: 0.14),
                   child: Icon(
                     Icons.lock_person_rounded,
                     size: 52,
@@ -47,7 +46,7 @@ class DisabledView extends ConsumerWidget {
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  context.tr('access_restricted') ?? 'Quyền truy cập bị giới hạn',
+                  context.tr('access_restricted'),
                   style: TextStyle(
                     fontSize: 21,
                     fontWeight: FontWeight.w800,
@@ -59,7 +58,7 @@ class DisabledView extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Text(
-                    '${context.tr('msg_disabled_desc') ?? 'Tài khoản của bạn đã bị vô hiệu hoá tạm thời hoặc thiết bị ngoại tuyến trong ngôi nhà'} "${activeConfig.homeName}".',
+                    '${context.tr('disabled_desc_detailed')} "${activeConfig.homeName}".',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
@@ -75,7 +74,8 @@ class DisabledView extends ConsumerWidget {
                   width: double.infinity,
                   child: ZenGlassButton(
                     icon: Icons.swap_horiz_rounded,
-                    label: context.tr('switch_home') ?? 'Chuyển đổi sang nhà khác',
+                    label: context.tr('btn_switch_other_home'),
+                    maxLines: 2,
                     onPressed: () => showHomeSwitcherBottomSheet(context, ref),
                   ),
                 ),
@@ -85,12 +85,13 @@ class DisabledView extends ConsumerWidget {
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
-                    child: ZenGlassButton(
+                    child: ZenGlassButton.lightweight(
                       isPrimary: false,
                       icon: Icons.people_outline_rounded,
-                      label: context.tr('manage_members') ?? 'Quản lý thành viên & Quyền',
+                      label: context.tr('btn_manage_members_perms'),
+                      maxLines: 2,
                       onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => MemberScreen()));
+                        Navigator.push(context, ZenPageRoute(builder: (_) => MemberScreen()));
                       },
                     ),
                   ),
@@ -100,12 +101,13 @@ class DisabledView extends ConsumerWidget {
                 const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
-                  child: ZenGlassButton(
+                  child: ZenGlassButton.lightweight(
                     isPrimary: false,
                     icon: Icons.wifi_rounded,
-                    label: context.tr('wifi_setup_title') ?? 'Cài đặt lại Wi-Fi cho Hub',
+                    label: context.tr('btn_reconfig_hub_wifi'),
+                    maxLines: 2,
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const WifiSetupScreen()));
+                      Navigator.push(context, ZenPageRoute(builder: (_) => const WifiSetupScreen()));
                     },
                   ),
                 ),

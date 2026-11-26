@@ -1,14 +1,14 @@
-import 'dart:io';
-import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
+import 'package:zenhome_app/core/utils/localization_extension.dart';
+import 'package:zenhome_app/core/utils/secure_window_helper.dart';
+import 'package:zenhome_app/core/utils/toast_helper.dart';
+import 'package:zenhome_app/core/widgets/animations/zen_page_route.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
+import 'package:zenhome_app/features/admin/logic/admin_login_logic.dart';
 import 'package:zenhome_app/features/admin/ui/device_mapping_screen.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
-import 'package:zenhome_app/core/utils/localization_extension.dart';
-import 'package:zenhome_app/core/utils/toast_helper.dart';
-import 'package:zenhome_app/features/admin/logic/admin_login_logic.dart';
 
 class AdminLoginScreen extends ConsumerStatefulWidget {
   const AdminLoginScreen({super.key});
@@ -24,16 +24,12 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   @override
   void initState() {
     super.initState();
-    if (Platform.isAndroid) {
-      FlutterWindowManagerPlus.addFlags(FlutterWindowManagerPlus.FLAG_SECURE);
-    }
+    SecureWindowHelper.acquire();
   }
 
   @override
   void dispose() {
-    if (Platform.isAndroid) {
-      FlutterWindowManagerPlus.clearFlags(FlutterWindowManagerPlus.FLAG_SECURE);
-    }
+    SecureWindowHelper.release();
     _passController.dispose();
     super.dispose();
   }
@@ -49,6 +45,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
         context.tr('err_not_linked_esp32'),
         isError: true,
       );
+      return;
     }
 
     final isSuccess = ref
@@ -57,7 +54,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
     if (isSuccess) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const DeviceMappingScreen()),
+        ZenPageRoute(builder: (context) => const DeviceMappingScreen()),
       );
     }
   }
@@ -84,12 +81,10 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Glowing Glass Shield Orb
-                ZenLiquidGlass(
-                  width: 98,
-                  height: 98,
-                  borderRadius: 49,
-                  blurSigma: 18,
+                ZenLiquidGlass.lightweight(
+                  width: 96,
+                  height: 96,
+                  borderRadius: 48,
                   glowColor: zen.primary,
                   alignment: Alignment.center,
                   child: Container(
@@ -100,9 +95,9 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: zen.primary.withOpacity(0.36),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
+                          color: zen.primary.withValues(alpha: 0.18),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
@@ -114,17 +109,16 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Credentials Glass Card
-                ZenGlassCard(
+                ZenGlassCard.lightweight(
                   isActive: true,
-                  blurSigma: 18,
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
                       Text(
                         context.tr('admin_login_title'),
                         textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
@@ -142,7 +136,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 26),
+                      const SizedBox(height: 24),
                       TextField(
                         controller: _passController,
                         obscureText: _obscurePass,
@@ -173,11 +167,14 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                       const SizedBox(height: 22),
                       SizedBox(
                         width: double.infinity,
-                        child: ZenGlassButton(
+                        child: ZenGlassButton.lightweight(
                           label: context.tr('btn_confirm'),
                           icon: Icons.verified_user_rounded,
+                          maxLines: 2,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 16),
+                            horizontal: 20,
+                            vertical: 15,
+                          ),
                           onPressed: _login,
                         ),
                       ),

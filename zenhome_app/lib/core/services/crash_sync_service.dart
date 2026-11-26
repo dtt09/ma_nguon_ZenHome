@@ -1,3 +1,4 @@
+import 'package:zenhome_app/core/services/app_update_service.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -233,15 +234,16 @@ class CrashSyncService {
     // 5. Fallback HTTP tới Backend Server nếu Firestore không ghi được (ví dụ do Rules hoặc Offline)
     if (!firestoreSaved) {
       try {
-        final prefs = await SharedPreferences.getInstance();
-        final serverIp = prefs.getString('zenhome_server_ip') ?? '192.168.1.100';
-        final url = Uri.parse('http://$serverIp:5000/api/v1/system/crash-logs');
-        
+        final base = await AppUpdateService.getLiveServerBaseUrl();
+        final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        if (!AppUpdateService.isSecureUrl(base) || token == null) return;
+        final url = Uri.parse('$base/api/v1/system/crash-logs');
+
         // Timeout 3s để không chặn luồng giao diện
         await http.post(
           url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(payload),
+          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+          body: jsonEncode({...payload, 'timestamp': DateTime.now().toUtc().toIso8601String()}),
         ).timeout(const Duration(seconds: 3));
       } catch (_) {
         // Hoàn toàn im lặng khi offline

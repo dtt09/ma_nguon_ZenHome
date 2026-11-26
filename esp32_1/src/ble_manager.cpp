@@ -14,32 +14,36 @@ bool isBleAuthenticated = false;
 unsigned long bleConnectedAt = 0;
 int bleFailedAuthAttempts = 0;
 
-BleClientSlot bleSlots[BLE_MAX_CLIENTS] = {0};
+BleClientSlot bleSlots[BLE_MAX_CLIENTS]{};
 
 bool hasAnyBleClient() {
   for (int i = 0; i < BLE_MAX_CLIENTS; i++) {
-    if (bleSlots[i].connHandle != 0) return true;
+    if (bleSlots[i].occupied) return true;
   }
   return false;
 }
 
 static BleClientSlot* getBleSlot(uint16_t handle) {
   for (int i = 0; i < BLE_MAX_CLIENTS; i++) {
-    if (bleSlots[i].connHandle == handle) return &bleSlots[i];
+    if (bleSlots[i].occupied && bleSlots[i].connHandle == handle) return &bleSlots[i];
   }
   return nullptr;
 }
 
 static void addBleSlot(uint16_t handle) {
   for (int i = 0; i < BLE_MAX_CLIENTS; i++) {
-    if (bleSlots[i].connHandle == handle) {
+    if (bleSlots[i].occupied && bleSlots[i].connHandle == handle) {
       bleSlots[i].lastActivity = millis();
       return;
     }
   }
   for (int i = 0; i < BLE_MAX_CLIENTS; i++) {
-    if (bleSlots[i].connHandle == 0) {
+    if (!bleSlots[i].occupied) {
       bleSlots[i].connHandle = handle;
+      bleSlots[i].occupied = true;
+      bleSlots[i].fragments.clear();
+      bleSlots[i].partsReceived = 0;
+      bleSlots[i].partCount = 0;
       bleSlots[i].isAuthenticated = false;
       bleSlots[i].connectedAt = millis();
       bleSlots[i].lastActivity = millis();
@@ -54,8 +58,8 @@ static void addBleSlot(uint16_t handle) {
 
 static void removeBleSlot(uint16_t handle) {
   for (int i = 0; i < BLE_MAX_CLIENTS; i++) {
-    if (bleSlots[i].connHandle == handle) {
-      bleSlots[i].connHandle = 0;
+    if (bleSlots[i].occupied && bleSlots[i].connHandle == handle) {
+      bleSlots[i].occupied = false;
       bleSlots[i].isAuthenticated = false;
       bleSlots[i].connectedAt = 0;
       bleSlots[i].lastActivity = 0;
@@ -92,15 +96,15 @@ void checkBleSlotTimeouts() {
   if (isBleEnabled && pBleServer) {
     unsigned long currentMillis = millis();
     for (int i = 0; i < BLE_MAX_CLIENTS; i++) {
-      if (bleSlots[i].connHandle != 0) {
+      if (bleSlots[i].occupied) {
         if (!bleSlots[i].isAuthenticated && (currentMillis - bleSlots[i].connectedAt >= 8000)) {
           Serial.printf("\n[BLE-SECURITY] ⚠️ Handle %d không xác thực Key trong 8s! Ngắt kết nối nhường slot...\n", bleSlots[i].connHandle);
           pBleServer->disconnect(bleSlots[i].connHandle);
-          bleSlots[i].connHandle = 0;
+          bleSlots[i].occupied = false;
         } else if (bleSlots[i].isAuthenticated && (currentMillis - bleSlots[i].lastActivity >= 15000)) {
           Serial.printf("\n[BLE-MULTIUSER] ⏱️ Handle %d rảnh rỗi quá 15s! Tự ngắt để giải phóng slot cho máy khác...\n", bleSlots[i].connHandle);
           pBleServer->disconnect(bleSlots[i].connHandle);
-          bleSlots[i].connHandle = 0;
+          bleSlots[i].occupied = false;
         }
       }
     }
@@ -119,10 +123,10 @@ void setBleActive(bool active) {
     }
   } else {
     for (int i = 0; i < BLE_MAX_CLIENTS; i++) {
-      if (bleSlots[i].connHandle != 0 && pBleServer) {
+      if (bleSlots[i].occupied && pBleServer) {
         Serial.printf("\n[BLE] 🔌 Wi-Fi Router đã phục hồi -> Ngắt kết nối Client Handle %d...\n", bleSlots[i].connHandle);
         pBleServer->disconnect(bleSlots[i].connHandle);
-        bleSlots[i].connHandle = 0;
+        bleSlots[i].occupied = false;
       }
     }
     isBleClientConnected = false;
@@ -135,6 +139,12 @@ void setBleActive(bool active) {
   }
 }
 
+static void notifyBleClient(uint16_t handle, const String& message) {
+  if (!pBleStatusChar) return;
+  os_mbuf* buffer = ble_hs_mbuf_from_flat(message.c_str(), message.length());
+  if (buffer) ble_gattc_notify_custom(handle, pBleStatusChar->getHandle(), buffer);
+}
+
 void notifyBleRelayState(const String& devId, const String& state) {
   if (isBleEnabled && pBleStatusChar && hasAnyBleClient()) {
     StaticJsonDocument<128> doc;
@@ -143,8 +153,9 @@ void notifyBleRelayState(const String& devId, const String& state) {
     doc["uptime"] = millis() / 1000;
     String out;
     serializeJson(doc, out);
-    pBleStatusChar->setValue(out.c_str());
-    pBleStatusChar->notify();
+    for (const auto& slot : bleSlots) {
+      if (slot.occupied && slot.isAuthenticated) notifyBleClient(slot.connHandle, out);
+    }
   }
 }
 
@@ -173,363 +184,108 @@ class BleServerCallbacks : public NimBLEServerCallbacks {
 };
 
 class BleControlCallbacks : public NimBLECharacteristicCallbacks {
-  void onWrite(NimBLECharacteristic* pChar, ble_gap_conn_desc* desc) override {
-    uint16_t connHandle = desc ? desc->conn_handle : 0;
-    BleClientSlot* slot = connHandle != 0 ? getBleSlot(connHandle) : nullptr;
-    
-    if (slot) {
-      slot->lastActivity = millis();
-      if (isBleSlotRateLimited(slot)) {
-        return;
+  void onWrite(NimBLECharacteristic* characteristic, ble_gap_conn_desc* peer) override {
+    if (!peer || !isConfigured || !isProvisioned || currentLocalSecretKey.isEmpty()) return;
+    auto* slot = getBleSlot(peer->conn_handle);
+    if (!slot || isBleSlotRateLimited(slot)) return;
+    slot->lastActivity = millis();
+
+    std::string raw = characteristic->getValue();
+    if (raw.size() >= 4 && raw[0] == 0x5a && raw[1] == 0x48) {
+      uint8_t index = raw[2], total = raw[3];
+      if (!slot->isAuthenticated || !total || total > 12 || raw.size() > 304) return;
+      if (index == 0) {
+        slot->fragments.clear();
+        slot->partsReceived = 0;
+        slot->partCount = total;
       }
+      if (slot->partCount != total || index != slot->partsReceived ||
+          slot->fragments.size() + raw.size() - 4 > 3072) return;
+      slot->fragments.append(raw, 4, std::string::npos);
+      if (++slot->partsReceived < total) return;
+      raw.swap(slot->fragments);
+      slot->fragments.clear();
+      slot->partCount = 0;
     }
-
-    std::string rxVal = pChar->getValue();
-    if (rxVal.empty()) return;
-
-    String payload = String(rxVal.c_str());
-    StaticJsonDocument<512> doc;
-    DeserializationError err = deserializeJson(doc, payload);
-    if (err) {
-      return;
+    DynamicJsonDocument packet(4096);
+    if (raw.empty() || deserializeJson(packet, raw)) return;
+    if (packet.containsKey("enc")) {
+      String envelope = packet["enc"] | "";
+      if (!envelope.startsWith("ZHENC1:")) return;
+      String plain = decryptEnvelopeWithKeyHex(envelope, currentLocalSecretKey);
+      if (plain.isEmpty() || deserializeJson(packet, plain)) return;
     }
+    String action = packet["action"] | "";
+    String user = packet["user"] | "";
+    String ts = packet["ts"].as<String>();
+    String nonce = packet["nonce"] | "";
+    String sig = packet["sig"] | "";
+    String cmd = packet["cmd"] | "";
+    String id = packet["id"] | "";
+    String data = packet["data"] | "";
+    String mac = WiFi.macAddress();
+    mac.replace(":", "");
+    mac.toUpperCase();
+    String fields;
+    if (action == "auth") fields = "auth:" + mac + ":" + user + ":" + ts + ":" + nonce;
+    else if (action == "reconfig") fields = signedLocalPayload(action, user, data, ts, nonce);
+    else if (cmd == "reboot") fields = "reboot:" + ts + ":" + nonce;
+    else if (id.length() && (cmd == "0" || cmd == "1")) fields = user + ":" + id + ":" + cmd + ":" + ts + ":" + nonce;
+    else return;
 
-    if (doc.containsKey("enc")) {
-      String encData = doc["enc"].as<String>();
-      String decryptedJson = "";
-      if (currentLocalSecretKey.length() > 0) {
-        decryptedJson = decryptEnvelopeWithKeyHex(encData, currentLocalSecretKey);
-      }
-      if (decryptedJson.length() == 0 && admin_pass.length() > 0) {
-        String mac = WiFi.macAddress();
-        mac.replace(":", "");
-        mac.toUpperCase();
-        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + admin_pass + ":" + mac);
-        decryptedJson = decryptEnvelopeWithKeyHex(encData, masterKey);
-        if (decryptedJson.length() > 0) {
-          currentLocalSecretKey = masterKey;
-          saveLocalSecretKey(masterKey);
-        }
-      }
-      if (decryptedJson.length() == 0) {
-        decryptedJson = decryptStorageString(encData);
-      }
-      if (decryptedJson.length() == 0) {
-        Serial.printf("[BLE-CONTROL] ❌ Lỗi giải mã phong bì bảo mật từ Handle %d!\n", connHandle);
-        return;
-      }
-      DeserializationError encErr = deserializeJson(doc, decryptedJson);
-      if (encErr) {
-        Serial.printf("[BLE-CONTROL] ❌ Lỗi parse JSON giải mã từ Handle %d!\n", connHandle);
-        return;
-      }
-      Serial.printf("[BLE-CONTROL] 🔐 [AES-256 Confidential] Đã giải mã thành công gói tin bảo mật từ Handle %d!\n", connHandle);
-    }
-
-    if (!isConfigured || !isProvisioned) {
-      Serial.println("[BLE] ⛔ ESP32 chưa liên kết tài khoản ZenHome! Từ chối thao tác.");
-      return;
-    }
-
-    // Lệnh Reboot thủ công qua BLE
-    if (doc.containsKey("cmd") && doc["cmd"] == "reboot") {
-      if (doc.containsKey("sig") && doc.containsKey("ts") && doc.containsKey("nonce")) {
-        String ts = doc["ts"].as<String>();
-        String nonce = doc["nonce"].as<String>();
-        String sig = doc["sig"].as<String>();
-        if (verifyHmacSha256(currentLocalSecretKey, "reboot:" + ts + ":" + nonce, sig)) {
-          Serial.println("\n[BLE] 🔄 Nhận lệnh Reboot thủ công từ App qua BLE (Chữ ký hợp lệ)! Khởi động lại sau 1.5s...");
-          rebootScheduledAt = millis();
-          shouldReboot = true;
-          return;
-        }
-      }
-    }
-
-    // Lệnh Reconfig Wi-Fi qua BLE
-    if (doc.containsKey("action") && doc["action"] == "reconfig") {
-      if (!doc.containsKey("wifi_ssid") || !doc.containsKey("sig") || !doc.containsKey("ts") || !doc.containsKey("nonce")) {
-        Serial.println("[BLE-RECONFIG] ⛔ Gói tin thiếu tham số cấu hình!");
-        return;
-      }
-
-      String newSsid = doc["wifi_ssid"].as<String>();
-      String newPass = doc.containsKey("wifi_pass") ? doc["wifi_pass"].as<String>() : "";
-      String sig = doc["sig"].as<String>();
-      String ts = doc["ts"].as<String>();
-      String nonce = doc["nonce"].as<String>();
-      String user = doc.containsKey("user") ? doc["user"].as<String>() : "owner";
-
-      if (isNonceReplayedOrInvalid(nonce) || isTimestampExpired(ts)) {
-        Serial.println("[BLE-RECONFIG] ⛔ Gói tin quá hạn hoặc Replay Attack!");
-        return;
-      }
-
-      String signPayload = "reconfig:" + newSsid + ":" + ts + ":" + nonce;
-      bool authOk = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
-
-      if (!authOk) {
-        String effectivePass = (admin_pass.length() > 0) ? admin_pass : "admin";
-        String mac = WiFi.macAddress();
-        mac.replace(":", "");
-        mac.toUpperCase();
-        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + effectivePass + ":" + mac);
-        authOk = verifyHmacSha256(masterKey, signPayload, sig);
-      }
-
-      if (!authOk) {
-        Serial.println("[BLE-RECONFIG] ❌ Chữ ký bảo mật không hợp lệ cho lệnh đổi Wi-Fi!");
-        return;
-      }
-
-      if (!isUserAuthorizedForDevice(user, "*")) {
-        Serial.printf("[BLE-RECONFIG] 🚫 User '%s' không có quyền quản trị để đổi Wi-Fi Hub!\n", user.c_str());
-        return;
-      }
-
-      pendingReconfig.ssid = newSsid;
-      pendingReconfig.pass = newPass;
-      pendingReconfig.mqttServer = doc.containsKey("mqtt_server") ? doc["mqtt_server"].as<String>() : "";
-      pendingReconfig.adminPass = doc.containsKey("admin_pass") ? doc["admin_pass"].as<String>() : "";
-      pendingReconfig.requested = true;
-
-      Serial.println("[BLE-RECONFIG] 📡 Đã tiếp nhận cấu hình Wi-Fi mới qua BLE! Đang ủy thác ghi Flash lên Core 1...");
-      if (pBleStatusChar) {
-        StaticJsonDocument<128> res;
-        res["status"] = "reconfig_ok";
-        res["message"] = "Rebooting into new WiFi";
-        String out;
-        serializeJson(res, out);
-        pBleStatusChar->setValue(out.c_str());
-        pBleStatusChar->notify();
-      }
-      return;
-    }
-
-    // 1. Xác thực Key khi vừa kết nối (AUTH HANDSHAKE)
-    if (doc.containsKey("action") && doc["action"] == "auth") {
-      if (!doc.containsKey("ts") || !doc.containsKey("nonce") || !doc.containsKey("sig")) {
-        Serial.println("[BLE-AUTH] ⛔ Gói tin Auth thiếu tham số chữ ký Key!");
-        if (pBleStatusChar) {
-          StaticJsonDocument<128> res;
-          res["status"] = "auth_failed";
-          res["authenticated"] = false;
-          res["error"] = "missing_params";
-          String out;
-          serializeJson(res, out);
-          pBleStatusChar->setValue(out.c_str());
-          pBleStatusChar->notify();
-        }
-        return;
-      }
-      String ts = doc["ts"].as<String>();
-      String nonce = doc["nonce"].as<String>();
-      String sig = doc["sig"].as<String>();
-
-      if (isNonceReplayedOrInvalid(nonce)) {
-        Serial.println("[BLE-AUTH] ⛔ Phát hiện Replay Attack hoặc Nonce không hợp lệ!");
-        if (pBleStatusChar) {
-          StaticJsonDocument<128> res;
-          res["status"] = "auth_failed";
-          res["authenticated"] = false;
-          res["error"] = "replay_nonce";
-          String out;
-          serializeJson(res, out);
-          pBleStatusChar->setValue(out.c_str());
-          pBleStatusChar->notify();
-        }
-        return;
-      }
-      if (isTimestampExpired(ts)) {
-        Serial.println("[BLE-AUTH] ⛔ Gói tin Auth đã hết hạn thời gian!");
-        if (pBleStatusChar) {
-          StaticJsonDocument<128> res;
-          res["status"] = "auth_failed";
-          res["authenticated"] = false;
-          res["error"] = "expired_ts";
-          String out;
-          serializeJson(res, out);
-          pBleStatusChar->setValue(out.c_str());
-          pBleStatusChar->notify();
-        }
-        return;
-      }
-
-      String mac = WiFi.macAddress();
-      mac.replace(":", "");
-      mac.toUpperCase();
-
-      String expectedAuthPayload = "auth:" + mac + ":" + ts + ":" + nonce;
-      bool authOk = verifyHmacSha256(currentLocalSecretKey, expectedAuthPayload, sig);
-      if (!authOk) {
-        String effectivePass = (admin_pass.length() > 0) ? admin_pass : "admin";
-        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + effectivePass + ":" + mac);
-        if (verifyHmacSha256(masterKey, expectedAuthPayload, sig)) {
-          authOk = true;
-          currentLocalSecretKey = masterKey;
-          pendingSecretKeyToSave = masterKey;
-          Serial.println("[BLE-AUTH] 🔄 Đã đồng bộ currentLocalSecretKey theo Master Key của App!");
-        }
-      }
-
-      if (authOk) {
-        if (slot) {
-          slot->isAuthenticated = true;
-          slot->failedAuthAttempts = 0;
-          slot->lastActivity = millis();
-        }
-        isBleAuthenticated = true;
-        if (ts.length() > 0) {
-          softSyncClockFromApp(ts.toInt());
-        }
-        triggerLedActionBlip();
-        Serial.printf("[BLE-AUTH] 🔐 Xác thực Key kết nối Bluetooth thành công (Handle: %d)! Cho phép giao tiếp.\n", connHandle);
-
-        if (pBleStatusChar) {
-          StaticJsonDocument<128> res;
-          res["status"] = "auth_ok";
-          res["authenticated"] = true;
-          res["mac"] = mac;
-          String out;
-          serializeJson(res, out);
-          pBleStatusChar->setValue(out.c_str());
-          pBleStatusChar->notify();
-        }
-      } else {
-        if (slot) slot->failedAuthAttempts++;
-        int fails = slot ? slot->failedAuthAttempts : 1;
-        Serial.printf("[BLE-AUTH] ❌ Xác thực Key thất bại (Handle: %d)! (Lần %d/3)\n", connHandle, fails);
-        if (pBleStatusChar) {
-          StaticJsonDocument<128> res;
-          res["status"] = "auth_failed";
-          res["authenticated"] = false;
-          res["error"] = "bad_signature";
-          String out;
-          serializeJson(res, out);
-          pBleStatusChar->setValue(out.c_str());
-          pBleStatusChar->notify();
-        }
-        if (fails >= 3 && pBleServer && connHandle != 0) {
-          Serial.printf("[BLE-AUTH] ⛔ Handle %d quá 3 lần sai Key! Chủ động ngắt kết nối BLE...\n", connHandle);
-          pBleServer->disconnect(connHandle);
-        }
-      }
-      return;
-    }
-
-    // 2. Lệnh điều khiển thiết bị
-    if (doc.containsKey("id") && doc.containsKey("cmd")) {
-      String devId = doc["id"].as<String>();
-      String cmd = doc["cmd"].as<String>();
-      String user = doc.containsKey("user") ? doc["user"].as<String>() : "";
-
-      if (!doc.containsKey("sig") || !doc.containsKey("ts") || !doc.containsKey("nonce")) {
-        Serial.println("[BLE-CONTROL] ⛔ TỪ CHỐI LỆNH: Bắt buộc phải có chữ ký xác thực Key!");
-        return;
-      }
-
-      String sig = doc["sig"].as<String>();
-      String ts = doc["ts"].as<String>();
-      String nonce = doc["nonce"].as<String>();
-
-      if (isNonceReplayedOrInvalid(nonce)) {
-        Serial.println("[BLE-CONTROL] ⛔ Phát hiện Replay Attack hoặc Nonce không hợp lệ!");
-        return;
-      }
-      if (isTimestampExpired(ts)) {
-        Serial.println("[BLE-CONTROL] ⛔ Gói tin BLE đã hết hạn thời gian!");
-        return;
-      }
-
-      String signPayload = (user.length() > 0) ? (user + ":" + devId + ":" + cmd + ":" + ts + ":" + nonce) : (devId + ":" + cmd + ":" + ts + ":" + nonce);
-      bool cmdSigOk = verifyHmacSha256(currentLocalSecretKey, signPayload, sig);
-
-      if (!cmdSigOk && user.length() > 0) {
-        String legacyPayload = devId + ":" + cmd + ":" + ts + ":" + nonce;
-        if (verifyHmacSha256(currentLocalSecretKey, legacyPayload, sig)) {
-          cmdSigOk = true;
-        }
-      }
-
-      if (!cmdSigOk) {
-        String effectivePass = (admin_pass.length() > 0) ? admin_pass : "admin";
-        String mac = WiFi.macAddress();
-        mac.replace(":", "");
-        mac.toUpperCase();
-        String masterKey = computeSha256OfText("ZenHome_Key_Salt:" + effectivePass + ":" + mac);
-        if (verifyHmacSha256(masterKey, signPayload, sig)) {
-          cmdSigOk = true;
-          currentLocalSecretKey = masterKey;
-          pendingSecretKeyToSave = masterKey;
-        } else if (user.length() > 0 && verifyHmacSha256(masterKey, devId + ":" + cmd + ":" + ts + ":" + nonce, sig)) {
-          cmdSigOk = true;
-          currentLocalSecretKey = masterKey;
-          pendingSecretKeyToSave = masterKey;
-        }
-      }
-
-      if (!cmdSigOk) {
-        Serial.printf("[BLE-CONTROL] ⛔ Chữ ký bảo mật không hợp lệ (Handle: %d)! Từ chối điều khiển.\n", connHandle);
-        if (pBleStatusChar) {
-          StaticJsonDocument<128> res;
-          res["id"] = devId;
-          res["status"] = "cmd_failed";
-          res["error"] = "bad_signature";
-          String out;
-          serializeJson(res, out);
-          pBleStatusChar->setValue(out.c_str());
-          pBleStatusChar->notify();
-        }
-        if (slot) slot->failedAuthAttempts++;
-        int fails = slot ? slot->failedAuthAttempts : 1;
-        if (fails >= 3 && pBleServer && connHandle != 0) {
-          pBleServer->disconnect(connHandle);
-        }
-        return;
-      }
-
-      if (ts.length() > 0) {
-        softSyncClockFromApp(ts.toInt());
-      }
-
-      if (!isUserAuthorizedForDevice(user, devId)) {
-        Serial.printf("[BLE-CONTROL] 🚫 [RBAC] Người dùng '%s' không có thẩm quyền điều khiển '%s' (Handle: %d)!\n", user.c_str(), devId.c_str(), connHandle);
-        if (pBleStatusChar) {
-          StaticJsonDocument<128> res;
-          res["id"] = devId;
-          res["status"] = "forbidden";
-          res["user"] = user;
-          String out;
-          serializeJson(res, out);
-          pBleStatusChar->setValue(out.c_str());
-          pBleStatusChar->notify();
-        }
-        return;
-      }
-
-      if (slot) {
-        slot->isAuthenticated = true;
-        slot->failedAuthAttempts = 0;
-        slot->lastActivity = millis();
-      }
+    StaticJsonDocument<512> response;
+    response["nonce"] = nonce;
+    if (!id.isEmpty()) response["id"] = id;
+    if (!isLocalOwner(user) || isTimestampExpired(ts) ||
+        !verifyHmacSha256(currentLocalSecretKey, fields, sig) || isInvalidLocalNonce(nonce)) {
+      response["status"] = action == "auth" ? "auth_failed" : "cmd_failed";
+      response["error"] = "unauthorized";
+      if (++slot->failedAuthAttempts >= 3) { pBleServer->disconnect(slot->connHandle); return; }
+    } else if (action == "auth") {
+      slot->isAuthenticated = true;
+      slot->failedAuthAttempts = 0;
       isBleAuthenticated = true;
-      bool ok = applyRelayCommand(devId, cmd, "ble", 2);
-      if (ok) {
-        Serial.printf("[BLE-CONTROL] ⚡ [Key & RBAC OK] User '%s' đổi trạng thái %s -> %s (Handle: %d)\n", 
-                      user.length() > 0 ? user.c_str() : "owner", devId.c_str(), cmd.c_str(), connHandle);
-        if (pBleStatusChar) {
-          StaticJsonDocument<128> res;
-          res["id"] = devId;
-          res["state"] = cmd;
-          res["status"] = "ok";
-          String out;
-          serializeJson(res, out);
-          pBleStatusChar->setValue(out.c_str());
-          pBleStatusChar->notify();
-        }
+      softSyncClockFromApp(ts.toInt());
+      response["status"] = "auth_ok";
+      response["authenticated"] = true;
+      response["mac"] = mac;
+      response["proof"] = computeHmacSha256(currentLocalSecretKey, "hub-auth:" + mac + ":" + user + ":" + ts + ":" + nonce);
+    } else if (!slot->isAuthenticated) {
+      response["status"] = "cmd_failed";
+      response["error"] = "unauthenticated";
+    } else if (action == "reconfig") {
+      DynamicJsonDocument config(1024);
+      if (deserializeJson(config, data) || !config["wifi_ssid"].is<const char*>()) {
+        response["status"] = "cmd_failed";
+      } else {
+        pendingReconfig.mqttUser = config["mqtt_user"] | "";
+        pendingReconfig.mqttPass = config["mqtt_pass"] | "";
+        pendingReconfig.ssid = config["wifi_ssid"].as<String>();
+        pendingReconfig.pass = config["wifi_pass"] | "";
+        pendingReconfig.mqttServer = config["mqtt_server"] | "";
+        pendingReconfig.adminPass = config["admin_pass"] | "";
+        pendingReconfig.requested = true;
+        response["status"] = "reconfig_ok";
       }
-      return;
+    } else if (cmd == "reboot") {
+      shouldReboot = true;
+      rebootScheduledAt = millis();
+      response["status"] = "ok";
+    } else if (applyRelayCommand(id, cmd, "ble", 2)) {
+      response["status"] = "ok";
+      response["state"] = cmd;
+      response["proof"] = computeHmacSha256(currentLocalSecretKey, "ack:" + user + ":" + id + ":" + cmd + ":" + nonce);
+    } else {
+      response["status"] = "cmd_failed";
     }
+    if (action != "auth") {
+      String status = response["status"] | "";
+      String state = response["state"] | "";
+      response["proof"] = computeHmacSha256(currentLocalSecretKey, "ble-ack:" + user + ":" + nonce + ":" + status + ":" + id + ":" + state);
+    }
+    String reply;
+    serializeJson(response, reply);
+    notifyBleClient(peer->conn_handle, reply);
   }
 };
 
@@ -542,7 +298,7 @@ void setupBLE() {
   NimBLEDevice::init(devName.c_str());
   NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Công suất phát +9dBm
   // [ZH-HIGH-04] Cấu hình BLE Security: Secure Connections, Bonding, MITM Protection
-  NimBLEDevice::setSecurityAuth(true, true, true);
+  NimBLEDevice::setSecurityAuth(true, false, true);
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
   NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
   NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
@@ -555,15 +311,17 @@ void setupBLE() {
 
   pBleControlChar = pService->createCharacteristic(
     ZENHOME_BLE_CHAR_CONTROL_UUID,
-    NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR | NIMBLE_PROPERTY::WRITE_ENC | NIMBLE_PROPERTY::WRITE_AUTHEN
+    NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR | NIMBLE_PROPERTY::WRITE_ENC
   );
   pBleControlChar->setCallbacks(new BleControlCallbacks());
 
   pBleStatusChar = pService->createCharacteristic(
     ZENHOME_BLE_CHAR_STATUS_UUID,
-    NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ_ENC | NIMBLE_PROPERTY::READ_AUTHEN
+    NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ_ENC
   );
 
+  String hello = "{\"bootNonce\":\"" + localBootNonce() + "\"}";
+  pBleStatusChar->setValue(hello.c_str());
   pService->start();
 
   NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();

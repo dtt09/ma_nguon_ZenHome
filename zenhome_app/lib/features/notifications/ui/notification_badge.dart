@@ -6,12 +6,23 @@ import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 class NotificationBadge extends StatelessWidget {
   final int unreadCount;
   final VoidCallback onPressed;
+  final double blurSigma;
+  final ZenGlassSurfaceMode surfaceMode;
 
   const NotificationBadge({
     super.key,
     required this.unreadCount,
     required this.onPressed,
+    this.blurSigma = 0.0,
+    this.surfaceMode = ZenGlassSurfaceMode.tintedGlass,
   });
+
+  const NotificationBadge.lightweight({
+    super.key,
+    required this.unreadCount,
+    required this.onPressed,
+  })  : blurSigma = 0.0,
+        surfaceMode = ZenGlassSurfaceMode.tintedGlass;
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +37,13 @@ class NotificationBadge extends StatelessWidget {
           width: 44,
           height: 44,
           borderRadius: 16,
-          blurSigma: 16,
+          blurSigma: blurSigma,
+          surfaceMode: surfaceMode,
+          rimWidth: 0.8,
           glowColor: hasUnread ? zen.danger : zen.primary,
           surfaceColor: isDark
-              ? Colors.white.withOpacity(0.08)
-              : Colors.white.withOpacity(0.70),
+              ? Colors.white.withValues(alpha: 0.07)
+              : Colors.white.withValues(alpha: 0.72),
           alignment: Alignment.center,
           onTap: () {
             HapticFeedback.selectionClick();
@@ -60,12 +73,12 @@ class NotificationBadge extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: isDark ? AppColors.darkBg : Colors.white,
-                    width: 1.5,
+                    width: 1.2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: zen.danger.withOpacity(0.55),
-                      blurRadius: 8,
+                      color: zen.danger.withValues(alpha: 0.22),
+                      blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
                   ],

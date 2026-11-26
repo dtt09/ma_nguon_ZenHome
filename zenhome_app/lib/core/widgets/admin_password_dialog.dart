@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/haptic_helper.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
@@ -100,25 +99,26 @@ class _AdminPasswordModalContentState
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              width: 68,
-              height: 68,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: zen.brandHero,
                 boxShadow: [
                   BoxShadow(
-                    color: zen.primary.withOpacity(0.38),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
+                    color: Colors.black
+                        .withValues(alpha: widget.isDark ? 0.24 : 0.10),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: const Icon(
                 Icons.admin_panel_settings_rounded,
                 color: Colors.white,
-                size: 35,
+                size: 32,
               ),
-            ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
+            ),
             const SizedBox(height: 18),
             Text(
               widget.title,
@@ -184,6 +184,7 @@ class _AdminPasswordModalContentState
               child: ZenGlassButton(
                 label: context.tr('btn_confirm'),
                 icon: Icons.verified_user_rounded,
+                maxLines: 2,
                 onPressed: _verify,
               ),
             ),
@@ -193,6 +194,7 @@ class _AdminPasswordModalContentState
               child: ZenGlassButton(
                 label: context.tr('btn_cancel'),
                 isPrimary: false,
+                maxLines: 2,
                 onPressed: () {
                   HapticHelper.light();
                   Navigator.pop(context, false);

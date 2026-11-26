@@ -1,9 +1,11 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:zenhome_app/core/services/app_update_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:zenhome_app/core/models/smart_config.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
@@ -158,7 +160,8 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
 
   void handlePhoneLogin() async {
     final String rawInput = phoneController.text.trim();
-    final String input = rawInput.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+    final String input = RegExp(r'^[+0-9 ()-]+$').hasMatch(rawInput)
+        ? rawInput.replaceAll(RegExp(r'[ ()-]'), '') : rawInput;
     final String password = passwordController.text;
     
     setState(() {
@@ -172,99 +175,25 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
 
     LoadingOverlay.show(context);
     String emailToLogin = input;
-    String? phoneNumber;
     try {
-      
       if (!input.contains('@')) {
-        final phoneDigits = input.replaceAll('+', '');
-        final bool isPhone = RegExp(r'^\d{9,15}$').hasMatch(phoneDigits);
-        
-        if (!isPhone) {
-           final doc = await FirebaseFirestore.instance.collection('users').doc(input).get();
-           if (!doc.exists) {
-              await LoadingOverlay.hideError();
-              showFloatingToast(context, context.tr('error'), context.tr('err_user_not_found'), isError: true);
-              return;
-           }
-           final data = doc.data() as Map<String, dynamic>;
-           if (data.containsKey('email') && data['email'].toString().isNotEmpty) {
-              emailToLogin = data['email'];
-           } else if (data.containsKey('phoneNumber') && data['phoneNumber'].toString().isNotEmpty) {
-              phoneNumber = data['phoneNumber'];
-           } else {
-              await LoadingOverlay.hideError();
-              showFloatingToast(context, context.tr('error'), context.tr('err_unlinked_account'), isError: true);
-              return;
-           }
-        } else {
-           // Chuẩn hóa các biến thể của SĐT (+84..., 0..., và chuỗi số thuần)
-           String plusVariant = input.startsWith('0') ? '+84${input.substring(1)}' : (input.startsWith('+') ? input : '+$input');
-           String zeroVariant = input.startsWith('+84') ? '0${input.substring(3)}' : (input.startsWith('0') ? input : '0$phoneDigits');
-           phoneNumber = plusVariant;
-
-           // Tra cứu qua bảng phone_lookup với allow get: if true (O(1) tuyệt đối an toàn)
-           final candidates = [plusVariant, zeroVariant, phoneDigits];
-           for (final candidate in candidates) {
-             try {
-               final phoneLookupDoc = await FirebaseFirestore.instance.collection('phone_lookup').doc(candidate).get();
-               if (phoneLookupDoc.exists) {
-                 final data = phoneLookupDoc.data() as Map<String, dynamic>;
-                 if (data.containsKey('email') && data['email'].toString().isNotEmpty) {
-                   emailToLogin = data['email'];
-                   break;
-                 } else if (data.containsKey('username') && data['username'].toString().isNotEmpty) {
-                   // Tra cứu tiếp hồ sơ người dùng qua username (get O(1) được phép công khai)
-                   final userDoc = await FirebaseFirestore.instance.collection('users').doc(data['username'].toString()).get();
-                   if (userDoc.exists) {
-                     final uData = userDoc.data() as Map<String, dynamic>;
-                     if (uData.containsKey('email') && uData['email'].toString().isNotEmpty) {
-                       emailToLogin = uData['email'];
-                       break;
-                     }
-                   }
-                 }
-               }
-             } catch (e) {
-               debugPrint('Lỗi tra cứu phone_lookup ($candidate): $e');
-             }
-           }
+        final phone = RegExp(r'^\+?\d{9,15}$').hasMatch(input);
+        final identifier = !phone ? input : input.startsWith('0') ? '+84${input.substring(1)}'
+            : input.startsWith('+') ? input : '+$input';
+        const base = AppUpdateService.fallbackServerUrl;
+        if (!AppUpdateService.isSecureUrl(base)) {
+          throw FirebaseAuthException(code: 'network-request-failed', message: 'HTTPS authentication service unavailable');
         }
-
-        if (phoneNumber != null && (emailToLogin == input || emailToLogin.isEmpty)) {
-           emailToLogin = '${phoneNumber!.replaceAll('+', '')}@zenhome.local';
+        final response = await http.post(Uri.parse('$base/api/v1/auth/resolve-login'),
+            headers: {'Content-Type':'application/json'},
+            body: jsonEncode({'identifier': identifier, 'password': password})).timeout(const Duration(seconds: 12));
+        if (response.statusCode != 200) {
+          throw FirebaseAuthException(code: response.statusCode == 429 ? 'too-many-requests'
+              : response.statusCode == 503 ? 'network-request-failed' : 'invalid-credential');
         }
-      } else {
-         // Đăng nhập trực tiếp bằng email mà không cần tra cứu Firestore trước,
-         // tránh trường hợp email trong Firestore bị lệch so với Firebase Auth.
-         emailToLogin = input;
+        emailToLogin = jsonDecode(response.body)['email'] as String;
       }
-
-      UserCredential? userCred;
-      try {
-        userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
-           email: emailToLogin,
-           password: password
-        );
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'user-not-found' || e.code == 'invalid-credential' || e.code == 'wrong-password') {
-           String? dummyEmailToTry;
-           
-           if (phoneNumber != null) {
-               dummyEmailToTry = '${phoneNumber!.replaceAll('+', '')}@zenhome.local';
-           }
-           
-           if (dummyEmailToTry != null && dummyEmailToTry != emailToLogin) {
-             userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
-                email: dummyEmailToTry,
-                password: password
-             );
-           } else {
-             rethrow;
-           }
-        } else {
-           rethrow;
-        }
-      }
+      final userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(email: emailToLogin, password: password);
 
       final QuerySnapshot query = await FirebaseFirestore.instance.collection('users').where('uid', isEqualTo: userCred.user!.uid).get();
       
@@ -366,7 +295,7 @@ mixin LoginLogicMixin on ConsumerState<LoginScreen> {
   void handleGoogleLogin() async {
     setState(() => isGoogleLoading = true);
     try {
-      final String? clientId = dotenv.env['GOOGLE_CLIENT_ID'];
+      final String? clientId = const String.fromEnvironment('GOOGLE_CLIENT_ID');
       if (clientId == null || clientId.isEmpty) {
          showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_missing_google_id') ?? 'Thiếu cấu hình GOOGLE_CLIENT_ID', isError: true);
          setState(() => isGoogleLoading = false);

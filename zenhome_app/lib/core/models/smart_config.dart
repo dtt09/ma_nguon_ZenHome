@@ -56,7 +56,7 @@ class SmartConfig {
     this.mqttServer = 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud', 
     this.mqttUser,
     this.mqttPass,
-    this.adminPass = 'admin', 
+    this.adminPass = '', 
     required this.devices,
     this.role = 'owner',
     this.homeName = 'My Home',
@@ -104,13 +104,9 @@ class SmartConfig {
         mqttServer: (json['mqttServer'] != null && json['mqttServer'].toString().isNotEmpty && json['mqttServer'] != 'broker.emqx.io')
             ? json['mqttServer']
             : 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud', 
-        mqttUser: (json['mqttUser'] != null && json['mqttUser'].toString().isNotEmpty && !json['mqttUser'].toString().startsWith('user_'))
-            ? json['mqttUser']
-            : 'DTC_ZenHome',
-        mqttPass: (json['mqttPass'] != null && json['mqttPass'].toString().isNotEmpty)
-            ? json['mqttPass']
-            : 'DTC_ZenHome2103',
-        adminPass: json['adminPass'] ?? 'admin', 
+        mqttUser: json['role'] == 'owner' ? json['mqttUser'] : null,
+        mqttPass: json['role'] == 'owner' ? json['mqttPass'] : null,
+        adminPass: json['role'] == 'owner' ? json['adminPass'] ?? '' : '',
         role: json['role'] ?? 'owner',
         homeName: json['homeName'] ?? 'My Home',
         ownerEmail: json['ownerEmail'],

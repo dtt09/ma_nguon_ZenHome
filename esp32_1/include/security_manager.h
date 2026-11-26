@@ -47,10 +47,13 @@ bool verifyFirmwareEcdsaSignature(const uint8_t* sha256Bytes, const String& sigH
 
 // Hardware Storage at Rest Encryption
 void getHardwareStorageKey(uint8_t outKey[32]);
+bool isLocalOwner(const String& user);
+String signedLocalPayload(const String& action, const String& user, const String& data, const String& ts, const String& nonce);
+String encryptEnvelopeWithKeyHex(const String& plaintext, const String& keyHex);
 String encryptStorageString(const String& plaintext);
 String decryptStorageString(const String& envelope);
 String decryptEnvelopeWithKeyHex(const String& envelope, const String& keyHex);
-void saveLocalSecretKey(const String& key);
+bool saveLocalSecretKey(const String& key);
 void loadLocalSecretKey();
 
 // Hardware Security Telemetry (Phase P2)
@@ -58,6 +61,8 @@ void getHardwareSecurityInfo(bool& flashEnc, bool& secBoot);
 void secureZeroMemory(void* v, size_t n);
 
 // Security Guards (Anti-Replay, Token Bucket, Honey-Tokens)
+const String& localBootNonce();
+bool isInvalidLocalNonce(const String& nonce);
 bool isNonceReplayedOrInvalid(const String& nonce);
 bool isTimestampExpired(const String& tsStr);
 void softSyncClockFromApp(long validTs);

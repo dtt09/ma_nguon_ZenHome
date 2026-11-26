@@ -13,10 +13,10 @@ class LuxurySliderTrackShape extends RoundedRectSliderTrackShape {
 
   const LuxurySliderTrackShape({
     this.activeGradient = const [Color(0xFFF59E0B), Color(0xFFEA580C)],
-    this.inactiveColor = const Color(0x1FFFFFFF),
-    this.borderColor = const Color(0x26FFFFFF),
+    this.inactiveColor = const Color(0x18FFFFFF),
+    this.borderColor = const Color(0x1FFFFFFF),
     this.trackHeight = 10.0,
-    this.enableGlow = true,
+    this.enableGlow = false,
   });
 
   @override
@@ -32,7 +32,8 @@ class LuxurySliderTrackShape extends RoundedRectSliderTrackShape {
             .width ??
         24.0;
     final double trackLeft = offset.dx + overlayWidth / 2;
-    final double trackTop = offset.dy + (parentBox.size.height - trackHeight) / 2;
+    final double trackTop =
+        offset.dy + (parentBox.size.height - trackHeight) / 2;
     final double trackWidth = parentBox.size.width - overlayWidth;
     return Rect.fromLTWH(trackLeft, trackTop, trackWidth, trackHeight);
   }
@@ -72,10 +73,10 @@ class LuxurySliderTrackShape extends RoundedRectSliderTrackShape {
     final Paint borderPaint = Paint()
       ..color = borderColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.1;
+      ..strokeWidth = 0.9;
     canvas.drawRRect(fullRRect, borderPaint);
 
-    // 2. Rãnh đang hoạt động (Luminous Liquid Active Track)
+    // 2. Rãnh đang hoạt động (Tonal Liquid Active Track)
     final double activeWidth =
         (thumbCenter.dx - trackRect.left).clamp(0.0, trackRect.width);
     if (activeWidth > 0) {
@@ -89,8 +90,8 @@ class LuxurySliderTrackShape extends RoundedRectSliderTrackShape {
 
       if (enableGlow && activeGradient.isNotEmpty) {
         final Paint glowPaint = Paint()
-          ..color = activeGradient.first.withOpacity(0.38)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
+          ..color = activeGradient.first.withValues(alpha: 0.24)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
         canvas.drawRRect(activeRRect, glowPaint);
       }
 
@@ -107,7 +108,7 @@ class LuxurySliderTrackShape extends RoundedRectSliderTrackShape {
   }
 }
 
-/// Nút kéo Kính Ngọc 3D (Liquid Crystal Thumb)
+/// Nút kéo Kính Ngọc (Soft Crystal Thumb)
 class LuxurySliderThumbShape extends SliderComponentShape {
   final double enabledThumbRadius;
   final Color glowColor;
@@ -144,11 +145,16 @@ class LuxurySliderThumbShape extends SliderComponentShape {
     final Path shadowPath = Path()
       ..addOval(
         Rect.fromCircle(
-          center: center + const Offset(0, 3),
-          radius: enabledThumbRadius + 1,
+          center: center + const Offset(0, 2),
+          radius: enabledThumbRadius,
         ),
       );
-    canvas.drawShadow(shadowPath, glowColor.withOpacity(0.55), 8, true);
+    canvas.drawShadow(
+      shadowPath,
+      Colors.black.withValues(alpha: 0.16),
+      3.0,
+      true,
+    );
 
     final Paint outerRingPaint = Paint()
       ..color = Colors.white
@@ -167,7 +173,7 @@ class LuxurySliderThumbShape extends SliderComponentShape {
     canvas.drawCircle(center, enabledThumbRadius - 2.8, corePaint);
 
     final Paint gripPaint = Paint()
-      ..color = Colors.white.withOpacity(0.92)
+      ..color = Colors.white.withValues(alpha: 0.90)
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeWidth = 1.8;
@@ -190,6 +196,8 @@ class LuxurySlider extends StatelessWidget {
   final Color? glowColor;
   final List<int>? milestoneValues;
   final String Function(int)? milestoneLabelBuilder;
+  final bool enableTrackGlow;
+  final bool wrapMilestones;
 
   const LuxurySlider({
     super.key,
@@ -202,6 +210,8 @@ class LuxurySlider extends StatelessWidget {
     this.glowColor,
     this.milestoneValues,
     this.milestoneLabelBuilder,
+    this.enableTrackGlow = false,
+    this.wrapMilestones = true,
   });
 
   @override
@@ -212,97 +222,112 @@ class LuxurySlider extends StatelessWidget {
         activeGradient ?? zen.brandHero.colors;
     final Color effectiveGlow = glowColor ?? effectiveGradient.first;
     final Color inactiveTrack = isDark
-        ? Colors.white.withOpacity(0.09)
-        : const Color(0xFF94A3B8).withOpacity(0.20);
+        ? Colors.white.withValues(alpha: 0.08)
+        : const Color(0xFF94A3B8).withValues(alpha: 0.18);
     final Color trackBorder = isDark
-        ? Colors.white.withOpacity(0.14)
-        : const Color(0xFFCBD5E1).withOpacity(0.75);
+        ? Colors.white.withValues(alpha: 0.13)
+        : const Color(0xFF94A3B8).withValues(alpha: 0.28);
+
+    List<Widget> buildMilestonePills() {
+      return milestoneValues!.map((m) {
+        final bool isSelected = value.round() == m;
+        final bool isReached = value >= m;
+        final String label = milestoneLabelBuilder != null
+            ? milestoneLabelBuilder!(m)
+            : (m < 60 ? '${m}m' : '${m ~/ 60}h');
+
+        return ZenGlassPill.lightweight(
+          isSelected: isSelected,
+          glowColor: effectiveGlow,
+          borderRadius: 12,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8.5,
+            vertical: 4.5,
+          ),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onChanged(m.toDouble());
+            onChangeEnd?.call(m.toDouble());
+          },
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight:
+                  (isSelected || isReached) ? FontWeight.w800 : FontWeight.w600,
+              color: isSelected
+                  ? (isDark ? Colors.white : effectiveGlow)
+                  : (isReached
+                      ? (isDark ? AppColors.darkText : AppColors.lightText)
+                      : (isDark
+                          ? AppColors.darkTextMuted
+                          : AppColors.lightTextMuted)),
+            ),
+          ),
+        );
+      }).toList();
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 10,
-            trackShape: LuxurySliderTrackShape(
-              activeGradient: effectiveGradient,
-              inactiveColor: inactiveTrack,
-              borderColor: trackBorder,
+        RepaintBoundary(
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
               trackHeight: 10,
-              enableGlow: true,
+              trackShape: LuxurySliderTrackShape(
+                activeGradient: effectiveGradient,
+                inactiveColor: inactiveTrack,
+                borderColor: trackBorder,
+                trackHeight: 10,
+                enableGlow: enableTrackGlow,
+              ),
+              thumbShape: LuxurySliderThumbShape(
+                enabledThumbRadius: 13,
+                glowColor: effectiveGlow,
+                coreGradient: effectiveGradient,
+              ),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
+              overlayColor: effectiveGlow.withValues(alpha: 0.14),
             ),
-            thumbShape: LuxurySliderThumbShape(
-              enabledThumbRadius: 13,
-              glowColor: effectiveGlow,
-              coreGradient: effectiveGradient,
-            ),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
-            overlayColor: effectiveGlow.withOpacity(0.18),
-          ),
-          child: Slider(
-            value: value.clamp(min, max),
-            min: min,
-            max: max,
-            onChanged: (val) {
-              if (val.round() != value.round()) {
-                if (milestoneValues != null &&
-                    milestoneValues!.contains(val.round())) {
-                  HapticFeedback.mediumImpact();
-                } else if (val.round() % 5 == 0) {
-                  HapticFeedback.selectionClick();
+            child: Slider(
+              value: value.clamp(min, max),
+              min: min,
+              max: max,
+              onChanged: (val) {
+                if (val.round() != value.round()) {
+                  if (milestoneValues != null &&
+                      milestoneValues!.contains(val.round())) {
+                    HapticFeedback.mediumImpact();
+                  } else if (val.round() % 5 == 0) {
+                    HapticFeedback.selectionClick();
+                  }
                 }
-              }
-              onChanged(val);
-            },
-            onChangeEnd: onChangeEnd,
+                onChanged(val);
+              },
+              onChangeEnd: onChangeEnd,
+            ),
           ),
         ),
-
         if (milestoneValues != null && milestoneValues!.isNotEmpty) ...[
           const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: milestoneValues!.map((m) {
-                final bool isSelected = value.round() == m;
-                final bool isReached = value >= m;
-                final String label = milestoneLabelBuilder != null
-                    ? milestoneLabelBuilder!(m)
-                    : (m < 60 ? '${m}m' : '${m ~/ 60}h');
-
-                return ZenGlassPill(
-                  blurSigma: 0,
-                  isSelected: isSelected,
-                  glowColor: effectiveGlow,
-                  borderRadius: 12,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8.5,
-                    vertical: 4.5,
-                  ),
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    onChanged(m.toDouble());
-                    onChangeEnd?.call(m.toDouble());
-                  },
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight:
-                          (isSelected || isReached) ? FontWeight.w800 : FontWeight.w600,
-                      color: isSelected
-                          ? (isDark ? Colors.white : effectiveGlow)
-                          : (isReached
-                              ? (isDark ? AppColors.darkText : AppColors.lightText)
-                              : (isDark
-                                  ? AppColors.darkTextMuted
-                                  : AppColors.lightTextMuted)),
+            child: wrapMilestones
+                ? SizedBox(
+                    width: double.infinity,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      runAlignment: WrapAlignment.center,
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: buildMilestonePills(),
                     ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: buildMilestonePills(),
                   ),
-                );
-              }).toList(),
-            ),
           ),
         ],
       ],

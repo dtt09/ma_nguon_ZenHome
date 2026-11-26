@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/haptic_helper.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
@@ -35,34 +34,32 @@ Future<bool?> showPremiumConfirmDialog({
         children: [
           if (icon != null) ...[
             Container(
-              width: 64,
-              height: 64,
+              width: 60,
+              height: 60,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
                   colors: [
-                    accentColor.withOpacity(0.26),
-                    accentColor.withOpacity(0.08),
+                    accentColor.withValues(alpha: 0.16),
+                    accentColor.withValues(alpha: 0.06),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 border: Border.all(
-                  color: accentColor.withOpacity(isDark ? 0.5 : 0.35),
-                  width: 1.4,
+                  color: accentColor.withValues(alpha: isDark ? 0.26 : 0.20),
+                  width: 0.9,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: accentColor.withOpacity(isDark ? 0.28 : 0.16),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
+                    color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: Icon(icon, size: 30, color: accentColor),
-            )
-                .animate()
-                .scale(delay: 120.ms, duration: 300.ms, curve: Curves.easeOutBack),
+              child: Icon(icon, size: 28, color: accentColor),
+            ),
             const SizedBox(height: 18),
           ],
           Text(
@@ -92,6 +89,7 @@ Future<bool?> showPremiumConfirmDialog({
                 child: ZenGlassButton(
                   label: cancelText,
                   isPrimary: false,
+                  maxLines: 2,
                   onPressed: () => Navigator.of(ctx).pop(false),
                 ),
               ),
@@ -101,6 +99,7 @@ Future<bool?> showPremiumConfirmDialog({
                   label: confirmText,
                   isPrimary: true,
                   isDanger: isDanger,
+                  maxLines: 2,
                   onPressed: () {
                     onConfirm();
                     Navigator.of(ctx).pop(true);

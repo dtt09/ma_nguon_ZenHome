@@ -15,6 +15,7 @@ bool lockMqtt(TickType_t waitTicks = pdMS_TO_TICKS(500));
 void unlockMqtt();
 bool safeMqttPublish(const char* topic, const char* payload, bool retained = false);
 
+void publishRelayState(const String& stateTopic, const String& state, const String& requestNonce = "");
 void initMqttClient();
 bool verifyBindingWithDatabase();
 void connectMQTT();

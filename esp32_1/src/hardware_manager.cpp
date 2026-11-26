@@ -258,11 +258,11 @@ void recoverI2CBus() {
   }
 }
 
-void safeSetRelayPin(int pin, int level) {
+bool safeSetRelayPin(int pin, int level) {
   if (pin >= 0 && pin <= 7) {
     if (!lockI2C(pdMS_TO_TICKS(1000))) {
       Serial.println("[HARDWARE] ⚠️ Hết thời gian chờ Mutex I2C khi điều khiển relay!");
-      return;
+      return false;
     }
     if (!pcfFound) {
       recoverI2CBusInternal();
@@ -278,19 +278,25 @@ void safeSetRelayPin(int pin, int level) {
         }
         lastRelayOnTime = millis();
       }
-      pcf.digitalWrite(pin, level);
+      bool written = pcf.digitalWrite(pin, level);
+      if (!written) pcfFound = false;
+      unlockI2C();
+      return written;
     }
     unlockI2C();
+    return false;
   } else if (pin >= 8 && pin <= 33 && !(pin >= 6 && pin <= 11)) {
     // Hỗ trợ điều khiển trực tiếp GPIO trên ESP32 nếu pin > 7 (ví dụ GPIO 12, 13, 14, 15, 16, 17, 18, 19, 23, 25, 26, 27, 32, 33)
     pinMode(pin, OUTPUT);
     digitalWrite(pin, level);
     Serial.printf("[HARDWARE] ⚡ Điều khiển trực tiếp chân GPIO %d -> %s\n", pin, level == LOW ? "BẬT (LOW)" : "TẮT (HIGH)");
+    return true;
   }
+  return false;
 }
 
-bool applyRelayCommand(const String& devId, const String& targetState, const String& source, uint8_t priority) {
-  if (!isConfigured || !isProvisioned) {
+bool applyRelayCommand(const String& devId, const String& targetState, const String& source, uint8_t priority, const String& requestNonce) {
+  if (!isConfigured || !isProvisioned || (targetState != "1" && targetState != "0")) {
     Serial.println("[SECURITY] ⛔ ESP32 chưa liên kết tài khoản ZenHome! Từ chối điều khiển relay.");
     return false;
   }
@@ -315,8 +321,8 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
       bool stateActuallyChanged = (myRelays[i].state != targetState);
 
       // 1. TÔN TRỌNG THAO TÁC THỦ CÔNG: Nếu lệnh phát từ Rule Engine (Priority 4), kiểm tra Holdoff
-      if (priority >= 4) {
-        if (now < myRelays[i].manualOverrideUntil) {
+      if (priority >= 4 && source != "countdown_timer") {
+        if (myRelays[i].manualOverrideUntil != 0 && (int32_t)(myRelays[i].manualOverrideUntil - now) > 0) {
           Serial.printf("[RULE-ENGINE] ⏳ %s đang trong thời gian can thiệp thủ công (%lus còn lại). Tôn trọng lệnh người dùng!\n",
                         devId.c_str(), (myRelays[i].manualOverrideUntil - now) / 1000);
           unlockRelays();
@@ -336,7 +342,7 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
         if (WiFi.status() == WL_CONNECTED && mqttClient.connected()) {
           String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
           String stateTopic = mqtt_prefix + "/" + rName + "/" + devId + "/state";
-          safeMqttPublish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
+          publishRelayState(stateTopic, myRelays[i].state);
         }
         unlockRelays();
         return false;
@@ -349,6 +355,10 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
           return false;
         }
 
+        if (!safeSetRelayPin(myRelays[i].pin, targetState == "1" ? LOW : HIGH)) {
+          unlockRelays();
+          return false;
+        }
         myRelays[i].state = targetState;
         myRelays[i].lastToggleTime = now;
         myRelays[i].version++;
@@ -356,12 +366,6 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
         // Khi người dùng (Priority <= 3) thao tác, kích hoạt Holdoff 30 phút khóa Rule Engine
         if (priority <= 3) {
           myRelays[i].manualOverrideUntil = now + MANUAL_OVERRIDE_MS;
-        }
-
-        if (targetState == "1") {
-          safeSetRelayPin(myRelays[i].pin, LOW); // Active-Low BẬT
-        } else {
-          safeSetRelayPin(myRelays[i].pin, HIGH); // Active-Low TẮT
         }
 
         // Cập nhật bộ đếm lùi tự ngắt (Micro Rule Engine)
@@ -381,13 +385,7 @@ bool applyRelayCommand(const String& devId, const String& targetState, const Str
         // Luôn gửi xác nhận trạng thái thực tế về MQTT để giải phóng pending trên App/Server
         String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
         String stateTopic = mqtt_prefix + "/" + rName + "/" + devId + "/state";
-        safeMqttPublish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
-        String cleanP = mqtt_prefix;
-        cleanP.replace(":", "");
-        String stateTopic2 = cleanP + "/" + rName + "/" + devId + "/state";
-        if (stateTopic2 != stateTopic) {
-          safeMqttPublish(stateTopic2.c_str(), myRelays[i].state.c_str(), true);
-        }
+        publishRelayState(stateTopic, myRelays[i].state, requestNonce);
       } else {
         if (stateActuallyChanged) {
           needsBackupToFlash = true;
@@ -566,11 +564,12 @@ void evaluateLocalRules(float currentTemp) {
     if (strcmp(localRules[i].type, "countdown") == 0 && localRules[i].isCountingDown) {
       uint32_t elapsedSec = (now - localRules[i].turnOnTime) / 1000;
       if (elapsedSec >= localRules[i].autoOffSec) {
-        localRules[i].isCountingDown = false;
         String devId(localRules[i].targetDevId);
         Serial.printf("\n[MICRO-RULES] ⏱️ Quy tắc đếm lùi '%s' hết giờ (%us)! Tự động TẮT %s (Priority 4)\n",
                       localRules[i].id, localRules[i].autoOffSec, devId.c_str());
-        applyRelayCommand(devId, "0", "countdown_timer", 4);
+        if (applyRelayCommand(devId, "0", "countdown_timer", 4)) {
+          localRules[i].isCountingDown = false;
+        }
       }
     }
   }

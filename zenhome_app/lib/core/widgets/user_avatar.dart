@@ -1,18 +1,29 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import 'zen_liquid_glass.dart';
 
 class UserAvatar extends StatelessWidget {
   final double radius;
   final VoidCallback? onTap;
+  final double blurSigma;
+  final ZenGlassSurfaceMode surfaceMode;
 
   const UserAvatar({
     super.key,
     this.radius = 21,
     this.onTap,
+    this.blurSigma = 0.0,
+    this.surfaceMode = ZenGlassSurfaceMode.tintedGlass,
   });
+
+  const UserAvatar.lightweight({
+    super.key,
+    this.radius = 21,
+    this.onTap,
+  })  : blurSigma = 0.0,
+        surfaceMode = ZenGlassSurfaceMode.tintedGlass;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +64,9 @@ class UserAvatar extends StatelessWidget {
       width: radius * 2,
       height: radius * 2,
       borderRadius: radius,
-      blurSigma: 14,
+      blurSigma: blurSigma,
+      surfaceMode: surfaceMode,
+      rimWidth: 0.8,
       padding: const EdgeInsets.all(2.2),
       alignment: Alignment.center,
       onTap: onTap != null
@@ -66,4 +79,3 @@ class UserAvatar extends StatelessWidget {
     );
   }
 }
-

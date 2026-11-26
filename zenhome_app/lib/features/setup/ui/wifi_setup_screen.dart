@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:wifi_scan/wifi_scan.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
@@ -42,7 +41,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
   bool _obscureWifiPass = true;
   bool _obscureAdminPass = true;
   bool _obscureConfirmPass = true;
-  bool _showAdvancedMqtt = false;
+  bool _showAdvancedMqtt = true;
 
   bool _isCheckingEsp = false;
   String? _detectedEspMac;
@@ -84,10 +83,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     }
     final activeConfig =
         widget.targetHome ?? ref.read(homeConfigProvider).activeConfig;
-    final defaultServer = dotenv.env['DEFAULT_MQTT_SERVER'] ??
-        'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
-    final defaultUser = dotenv.env['DEFAULT_MQTT_USER'] ?? 'DTC_ZenHome';
-    final defaultPass = dotenv.env['DEFAULT_MQTT_PASS'] ?? 'DTC_ZenHome2103';
+    final defaultServer = 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
 
     _mqttServerController.text = (activeConfig.mqttServer.isNotEmpty &&
             activeConfig.mqttServer != 'broker.emqx.io')
@@ -95,13 +91,13 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
         : defaultServer;
     _mqttUserController.text = (activeConfig.mqttUser != null &&
             activeConfig.mqttUser!.isNotEmpty &&
-            !activeConfig.mqttUser!.startsWith('user_'))
+            activeConfig.role == 'owner')
         ? activeConfig.mqttUser!
-        : defaultUser;
+        : '';
     _mqttPassController.text =
         (activeConfig.mqttPass != null && activeConfig.mqttPass!.isNotEmpty)
             ? activeConfig.mqttPass!
-            : defaultPass;
+            : '';
 
     _startWifiMonitoring();
   }
@@ -159,16 +155,6 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
 
   @override
   void dispose() {
-    // Nếu màn hình bị đóng khi chưa hoàn tất toàn bộ bước ghép nối, reset MAC để tránh liên kết ảo
-    if (_currentStep != 3) {
-      final activeConfig = ref.read(homeConfigProvider).activeConfig;
-      if (activeConfig.macAddress.isNotEmpty) {
-        activeConfig.macAddress = '';
-        ref.read(homeConfigProvider).saveConfigToStorage(activeConfig);
-        debugPrint(
-            "[SETUP-DISPOSE] 🛑 Đã dọn dẹp và reset MAC về rỗng do người dùng thoát trước khi hoàn tất.");
-      }
-    }
     _wifiMonitorTimer?.cancel();
     WifiProvisioningService.releaseWifiUsage();
     if (Platform.isAndroid) {
@@ -385,8 +371,19 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     );
   }
 
-  void _showConnectToEspModal(WiFiAccessPoint ap) {
-    final passCtrl = TextEditingController(text: '12345678');
+  Future<void> _showConnectToEspModal(WiFiAccessPoint ap) async {
+    final homeId = (widget.targetHome ?? ref.read(homeConfigProvider).activeConfig).userId;
+    try {
+      if (!await ref.read(wifiSetupWizardProvider.notifier).prepareEnrollment(homeId)) {
+        throw StateError('Không thể lấy mã ghép');
+      }
+    } catch (_) {
+      if (mounted) showFloatingToast(context, context.tr('error'),
+          'Cần kết nối Internet và đăng nhập tài khoản chủ nhà trước khi ghép Hub.', isError: true);
+      return;
+    }
+    if (!mounted) return;
+    final passCtrl = TextEditingController();
     bool obscure = true;
 
     showZenGlassBottomSheet<void>(
@@ -506,6 +503,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                           horizontal: 20, vertical: 15),
                       onPressed: () {
                         final pwd = passCtrl.text.trim();
+                        if (pwd.isEmpty) return;
                         Navigator.pop(ctx);
                         _showConnectingProgressModal(ap, pwd);
                       },
@@ -1381,10 +1379,7 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
   Future<void> _executePairingWorkflow() async {
     final activeConfig =
         widget.targetHome ?? ref.read(homeConfigProvider).activeConfig;
-    final defaultServer = dotenv.env['DEFAULT_MQTT_SERVER'] ??
-        'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
-    final defaultUser = dotenv.env['DEFAULT_MQTT_USER'] ?? 'DTC_ZenHome';
-    final defaultPass = dotenv.env['DEFAULT_MQTT_PASS'] ?? 'DTC_ZenHome2103';
+    final defaultServer = 'e164fa85145b4a4c8e56a723ef3187e1.s1.eu.hivemq.cloud';
 
     await ref.read(wifiSetupWizardProvider.notifier).executePairingWorkflow(
           wifiSsid: _ssidController.text.trim(),
@@ -1394,8 +1389,6 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
           mqttUser: _mqttUserController.text.trim(),
           mqttPass: _mqttPassController.text.trim(),
           defaultServer: defaultServer,
-          defaultUser: defaultUser,
-          defaultPass: defaultPass,
           targetHomeId: activeConfig.userId,
         );
 
@@ -1419,84 +1412,61 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
     final mutedColor =
         isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
-    final steps = [
-      {'title': context.tr('wifi_step_prep'), 'icon': Icons.power_rounded},
-      {'title': context.tr('wifi_step_config'), 'icon': Icons.wifi_rounded},
-      {'title': context.tr('wifi_step_pair'), 'icon': Icons.sync_rounded},
-      {
-        'title': context.tr('wifi_step_done'),
-        'icon': Icons.check_circle_rounded
-      },
+    final labels = [
+      context.tr('wifi_step_prep'),
+      context.tr('wifi_step_config'),
+      context.tr('wifi_step_pair'),
+      context.tr('wifi_step_done'),
     ];
 
-    return ZenGlassCard(
-      blurSigma: 16,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      child: Row(
-        children: List.generate(steps.length * 2 - 1, (index) {
-          if (index.isOdd) {
-            final stepBefore = index ~/ 2;
-            final isPassed = _currentStep > stepBefore;
-            return Expanded(
-              child: Container(
-                height: 2.5,
-                margin: const EdgeInsets.only(bottom: 18),
-                decoration: BoxDecoration(
-                  color: isPassed
-                      ? AppColors.emeraldGlow
-                      : (isDark
-                          ? Colors.white.withOpacity(0.14)
-                          : const Color(0xFFCBD5E1)),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            );
-          }
-
-          final stepIndex = index ~/ 2;
-          final isCurrent = _currentStep == stepIndex;
-          final isCompleted = _currentStep > stepIndex;
-
-          final Color activeGlow =
-              isCompleted ? AppColors.emeraldGlow : zen.primary;
-
-          return Column(
-            mainAxisSize: MainAxisSize.min,
+    return ZenGlassCard.lightweight(
+      padding: const EdgeInsets.all(12),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const spacing = 8.0;
+          final labelWidth = 12 + MediaQuery.textScalerOf(context).scale(11) * 4.5;
+          final columns = constraints.maxWidth >= labels.length * (labelWidth + spacing) ? 4 : 2;
+          final width = (constraints.maxWidth - (columns - 1) * spacing) / columns;
+          return Wrap(
+            spacing: spacing,
+            runSpacing: 12,
             children: [
-              ZenGlassPill(
-                blurSigma: 0,
-                borderRadius: 18,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                isSelected: isCurrent || isCompleted,
-                glowColor: activeGlow,
-                customGradient: isCurrent ? zen.brandHero : null,
-                child: isCompleted
-                    ? const Icon(Icons.check_rounded,
-                        size: 17, color: AppColors.emeraldGlow)
-                    : Text(
-                        '${stepIndex + 1}',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.bold,
-                          color: isCurrent ? Colors.white : mutedColor,
+              for (var index = 0; index < labels.length; index++)
+                SizedBox(
+                  width: width,
+                  child: Semantics(
+                    selected: index == _currentStep,
+                    child: Column(
+                      children: [
+                        ZenGlassPill.lightweight(
+                          isSelected: index <= _currentStep,
+                          glowColor: index < _currentStep ? AppColors.emeraldGlow : zen.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          child: index < _currentStep
+                              ? const Icon(Icons.check_rounded, size: 17, color: AppColors.emeraldGlow)
+                              : Text('${index + 1}', style: TextStyle(
+                                  color: index == _currentStep ? textColor : mutedColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13.5,
+                                )),
                         ),
-                      ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                steps[stepIndex]['title'] as String,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
-                  color: isCurrent
-                      ? textColor
-                      : (isCompleted ? AppColors.emeraldGlow : mutedColor),
+                        const SizedBox(height: 5),
+                        Text(
+                          labels[index],
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: index == _currentStep ? textColor : mutedColor,
+                            fontWeight: index == _currentStep ? FontWeight.bold : FontWeight.w600,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
             ],
           );
-        }),
+        },
       ),
     );
   }
@@ -2362,14 +2332,16 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                 children: [
                   Icon(Icons.timer_outlined, size: 16, color: accentColor),
                   const SizedBox(width: 6),
-                  Text(
-                    context
-                        .tr('wifi_time_remaining')
-                        .replaceAll('{time}', timeFormatted),
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.bold,
-                      color: accentColor,
+                  Flexible(
+                    child: Text(
+                      context
+                          .tr('wifi_time_remaining')
+                          .replaceAll('{time}', timeFormatted),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.bold,
+                        color: accentColor,
+                      ),
                     ),
                   ),
                 ],
@@ -2494,13 +2466,15 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                   const Icon(Icons.memory_rounded,
                       size: 17, color: AppColors.emeraldGlow),
                   const SizedBox(width: 8),
-                  Text(
-                    'MAC: $_detectedEspMac',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      fontFamily: 'monospace',
-                      color: AppColors.emeraldGlow,
+                  Flexible(
+                    child: Text(
+                      'MAC: $_detectedEspMac',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        fontFamily: 'monospace',
+                        color: AppColors.emeraldGlow,
+                      ),
                     ),
                   ),
                 ],
@@ -2577,28 +2551,21 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      'Đang cài đặt cho: ',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: mutedColor,
-                      ),
-                    ),
-                    Flexible(
-                      child: Text(
-                        home.homeName,
+                Text.rich(
+                  TextSpan(
+                    text: 'Đang cài đặt cho: ',
+                    style: TextStyle(fontSize: 11.5, color: mutedColor),
+                    children: [
+                      TextSpan(
+                        text: home.homeName,
                         style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.bold,
                           color: textColor,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -2608,8 +2575,6 @@ class _WifiSetupScreenState extends ConsumerState<WifiSetupScreen> {
                     fontWeight: FontWeight.w600,
                     color: themeColor,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

@@ -10,6 +10,10 @@
 
 struct BleClientSlot {
   uint16_t connHandle;
+  bool occupied;
+  std::string fragments;
+  uint8_t partsReceived;
+  uint8_t partCount;
   bool isAuthenticated;
   unsigned long connectedAt;
   unsigned long lastActivity;

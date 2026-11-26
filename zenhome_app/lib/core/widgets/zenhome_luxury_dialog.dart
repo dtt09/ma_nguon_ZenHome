@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/haptic_helper.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
@@ -12,7 +11,7 @@ enum ZenHomeStatusType {
   caution,
 }
 
-/// Bảng thông báo trạng thái Liquid Glass 2.0 chuẩn ZenHome
+/// Bảng thông báo trạng thái Liquid Glass chuẩn ZenHome
 class ZenHomeLuxuryDialog extends StatelessWidget {
   final ZenHomeStatusType type;
   final String title;
@@ -65,7 +64,7 @@ class ZenHomeLuxuryDialog extends StatelessWidget {
       case ZenHomeStatusType.warning:
       case ZenHomeStatusType.caution:
         return const LinearGradient(
-          colors: [Color(0xFFD97706), Color(0xFFF59E0B), Color(0xFFFCD34D)],
+          colors: [Color(0xFFD97706), Color(0xFFF59E0B), Color(0xFFFBBF24)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         );
@@ -92,68 +91,84 @@ class ZenHomeLuxuryDialog extends StatelessWidget {
     final gradient = _getAccentGradient();
 
     return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: Material(
           color: Colors.transparent,
           child: ZenGlassDialogSurface(
             accentColor: primaryColor,
             maxWidth: 390,
             padding: EdgeInsets.zero,
+            scrollable: true,
+            maxHeightFactor: 0.85,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Thanh ánh sáng đỉnh đầu (Accent Horizon Bar)
                 Container(
-                  height: 4,
+                  height: 2.5,
                   width: double.infinity,
-                  decoration: BoxDecoration(gradient: gradient),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: gradient.colors
+                          .map((c) => c.withValues(alpha: 0.82))
+                          .toList(),
+                      begin: gradient.begin,
+                      end: gradient.end,
+                    ),
+                  ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Stack(
+                      Container(
+                        width: 68,
+                        height: 68,
                         alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: 82,
-                            height: 82,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: primaryColor.withOpacity(isDark ? 0.16 : 0.12),
-                            ),
-                          )
-                              .animate(onPlay: (c) => c.repeat(reverse: true))
-                              .scale(
-                                begin: const Offset(0.92, 0.92),
-                                end: const Offset(1.12, 1.12),
-                                duration: 2000.ms,
-                                curve: Curves.easeInOut,
-                              ),
-                          Container(
-                            width: 62,
-                            height: 62,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              gradient: gradient,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: primaryColor.withOpacity(0.42),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 6),
-                                ),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: primaryColor.withValues(
+                            alpha: isDark ? 0.13 : 0.09,
+                          ),
+                        ),
+                        child: Container(
+                          width: 54,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            gradient: LinearGradient(
+                              colors: [
+                                primaryColor.withValues(alpha: 0.22),
+                                primaryColor.withValues(alpha: 0.08),
                               ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            child: Icon(
-                              _getIconData(),
-                              size: 34,
-                              color: Colors.white,
+                            border: Border.all(
+                              color: primaryColor.withValues(
+                                alpha: isDark ? 0.30 : 0.24,
+                              ),
+                              width: 0.9,
                             ),
-                          ).animate().scale(duration: 450.ms, curve: Curves.easeOutBack),
-                        ],
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(
+                                  alpha: isDark ? 0.22 : 0.08,
+                                ),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            _getIconData(),
+                            size: 30,
+                            color: primaryColor,
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
                       Text(
                         title,
                         textAlign: TextAlign.center,
@@ -161,9 +176,10 @@ class ZenHomeLuxuryDialog extends StatelessWidget {
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.3,
-                          color: isDark ? AppColors.darkText : AppColors.lightText,
+                          color:
+                              isDark ? AppColors.darkText : AppColors.lightText,
                         ),
-                      ).animate().fadeIn(duration: 250.ms).slideY(begin: 0.1, end: 0),
+                      ),
                       const SizedBox(height: 10),
                       Text(
                         message,
@@ -171,30 +187,33 @@ class ZenHomeLuxuryDialog extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13.8,
                           height: 1.48,
-                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                          color: isDark
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF334155),
                         ),
-                      ).animate().fadeIn(delay: 80.ms, duration: 250.ms),
+                      ),
                       if (details != null && details!.isNotEmpty) ...[
                         const SizedBox(height: 18),
-                        ZenLiquidGlass(
-                          blurSigma: 0,
+                        ZenLiquidGlass.lightweight(
                           borderRadius: 16,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 12,
                           ),
                           surfaceColor: isDark
-                              ? Colors.white.withOpacity(0.06)
-                              : Colors.white.withOpacity(0.65),
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : Colors.white.withValues(alpha: 0.65),
                           child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: details!.entries.map((entry) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 5),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 5),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    SizedBox(
-                                      width: 105,
+                                    Expanded(
+                                      flex: 2,
                                       child: Text(
                                         entry.key,
                                         style: TextStyle(
@@ -208,18 +227,23 @@ class ZenHomeLuxuryDialog extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
+                                      flex: 3,
                                       child: Text(
                                         entry.value,
                                         textAlign: TextAlign.right,
                                         softWrap: true,
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
-                                          fontFamily: (entry.value.contains(':') &&
-                                                      entry.value.contains('-')) ||
-                                                  entry.value.length > 18
-                                              ? 'monospace'
-                                              : null,
+                                          fontFamily:
+                                              (entry.value.contains(':') &&
+                                                          entry.value
+                                                              .contains('-')) ||
+                                                      entry.value.length > 18
+                                                  ? 'monospace'
+                                                  : null,
                                           color: isDark
                                               ? AppColors.darkText
                                               : AppColors.lightText,
@@ -231,15 +255,18 @@ class ZenHomeLuxuryDialog extends StatelessWidget {
                               );
                             }).toList(),
                           ),
-                        ).animate().fadeIn(delay: 150.ms, duration: 250.ms),
+                        ),
                       ],
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 22),
                       SizedBox(
                         width: double.infinity,
                         child: ZenGlassButton(
                           label: primaryButtonText ??
-                              (type == ZenHomeStatusType.error ? 'Đóng' : 'Đồng ý'),
+                              (type == ZenHomeStatusType.error
+                                  ? 'Đóng'
+                                  : 'Đồng ý'),
                           accentColor: primaryColor,
+                          maxLines: 2,
                           onPressed: () {
                             HapticHelper.light();
                             Navigator.of(context, rootNavigator: true).pop();
@@ -254,6 +281,7 @@ class ZenHomeLuxuryDialog extends StatelessWidget {
                           child: ZenGlassButton(
                             label: secondaryButtonText!,
                             isPrimary: false,
+                            maxLines: 2,
                             onPressed: () {
                               HapticHelper.light();
                               Navigator.of(context, rootNavigator: true).pop();
@@ -274,6 +302,37 @@ class ZenHomeLuxuryDialog extends StatelessWidget {
   }
 }
 
+Future<void> _showLuxuryStatusDialog(
+  BuildContext context, {
+  required ZenHomeLuxuryDialog dialog,
+}) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+  final bool disableAnimations =
+      MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+  return showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'Dismiss',
+    barrierColor: Colors.black.withValues(alpha: isDark ? 0.50 : 0.34),
+    transitionDuration: disableAnimations
+        ? Duration.zero
+        : const Duration(milliseconds: 220),
+    pageBuilder: (ctx, animation, secondaryAnimation) => dialog,
+    transitionBuilder: (ctx, animation, secondaryAnimation, child) {
+      if (disableAnimations) return child;
+      final curved = animation.drive(CurveTween(curve: Curves.easeOutCubic));
+      return FadeTransition(
+        opacity: curved,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.95, end: 1.0).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
 Future<void> showZenHomeSuccessDialog(
   BuildContext context, {
   required String title,
@@ -283,11 +342,9 @@ Future<void> showZenHomeSuccessDialog(
   VoidCallback? onDismiss,
 }) {
   HapticHelper.heavy();
-  return showDialog<void>(
-    context: context,
-    barrierDismissible: true,
-    barrierColor: Colors.black.withOpacity(0.56),
-    builder: (ctx) => ZenHomeLuxuryDialog(
+  return _showLuxuryStatusDialog(
+    context,
+    dialog: ZenHomeLuxuryDialog(
       type: ZenHomeStatusType.success,
       title: title,
       message: message,
@@ -307,11 +364,9 @@ Future<void> showZenHomeErrorDialog(
   VoidCallback? onDismiss,
 }) {
   HapticHelper.errorVibrate();
-  return showDialog<void>(
-    context: context,
-    barrierDismissible: true,
-    barrierColor: Colors.black.withOpacity(0.56),
-    builder: (ctx) => ZenHomeLuxuryDialog(
+  return _showLuxuryStatusDialog(
+    context,
+    dialog: ZenHomeLuxuryDialog(
       type: ZenHomeStatusType.error,
       title: title,
       message: message,
@@ -331,11 +386,9 @@ Future<void> showZenHomeWarningDialog(
   VoidCallback? onDismiss,
 }) {
   HapticHelper.warning();
-  return showDialog<void>(
-    context: context,
-    barrierDismissible: true,
-    barrierColor: Colors.black.withOpacity(0.56),
-    builder: (ctx) => ZenHomeLuxuryDialog(
+  return _showLuxuryStatusDialog(
+    context,
+    dialog: ZenHomeLuxuryDialog(
       type: ZenHomeStatusType.warning,
       title: title,
       message: message,
@@ -372,31 +425,42 @@ Future<bool> showZenHomeCautionDialog(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          height: 4,
+          height: 2.5,
           width: double.infinity,
-          decoration: BoxDecoration(gradient: gradient),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: gradient.colors
+                  .map((c) => c.withValues(alpha: 0.82))
+                  .toList(),
+              begin: gradient.begin,
+              end: gradient.end,
+            ),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 62,
-                height: 62,
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: accentColor.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(18),
+                  color: accentColor.withValues(alpha: isDark ? 0.14 : 0.10),
                   border: Border.all(
-                    color: accentColor.withOpacity(0.38),
-                    width: 1.5,
+                    color: accentColor.withValues(alpha: isDark ? 0.28 : 0.22),
+                    width: 0.9,
                   ),
                 ),
                 child: Icon(
-                  isDanger ? Icons.warning_amber_rounded : Icons.shield_outlined,
-                  size: 34,
+                  isDanger
+                      ? Icons.warning_amber_rounded
+                      : Icons.shield_outlined,
+                  size: 32,
                   color: accentColor,
                 ),
-              ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+              ),
               const SizedBox(height: 18),
               Text(
                 title,
@@ -408,16 +472,20 @@ Future<bool> showZenHomeCautionDialog(
                 ),
               ),
               const SizedBox(height: 12),
-              ZenLiquidGlass(
-                blurSigma: 0,
+              ZenLiquidGlass.lightweight(
                 borderRadius: 14,
                 glowColor: accentColor,
                 padding: const EdgeInsets.all(12),
-                surfaceColor: accentColor.withOpacity(isDark ? 0.12 : 0.08),
+                surfaceColor:
+                    accentColor.withValues(alpha: isDark ? 0.11 : 0.08),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline_rounded, size: 18, color: accentColor),
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 18,
+                      color: accentColor,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -442,7 +510,9 @@ Future<bool> showZenHomeCautionDialog(
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12.5,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted,
                     height: 1.4,
                   ),
                 ),
@@ -454,6 +524,7 @@ Future<bool> showZenHomeCautionDialog(
                   label: confirmText,
                   isDanger: isDanger,
                   accentColor: accentColor,
+                  maxLines: 2,
                   onPressed: () {
                     HapticHelper.medium();
                     Navigator.pop(ctx, true);
@@ -466,6 +537,7 @@ Future<bool> showZenHomeCautionDialog(
                 child: ZenGlassButton(
                   label: cancelText,
                   isPrimary: false,
+                  maxLines: 2,
                   onPressed: () {
                     HapticHelper.light();
                     Navigator.pop(ctx, false);

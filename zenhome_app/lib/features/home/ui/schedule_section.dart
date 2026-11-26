@@ -922,7 +922,7 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                       isPrimary: true,
                       borderRadius: 18,
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                      onPressed: () {
+                      onPressed: () async {
                         if (newDevices.isEmpty) {
                           Navigator.pop(ctx);
                           if (!mounted) return;
@@ -963,19 +963,6 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                           return;
                         }
 
-                        final mqttState = ref.read(mqttConnectionStateProvider);
-                        final isOnline = ref.read(espOnlineStateProvider);
-                        if (mqttState != 2 || !isOnline) {
-                          Navigator.pop(ctx);
-                          if (!mounted) return;
-                          showFloatingToast(
-                            context,
-                            context.tr('error'),
-                            context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...',
-                            isError: true,
-                          );
-                          return;
-                        }
 
                         HapticFeedback.mediumImpact();
 
@@ -989,8 +976,11 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                             : DateTime.now().millisecondsSinceEpoch.toString();
 
                         for (String dev in newDevices) {
-                          ref.read(mqttRepositoryProvider).publishCmd(
-                              '$dev/schedule', '$newId|$hOn:$mOn|$hOff:$mOff|$daysBinary|1');
+                          if (!await ref.read(mqttRepositoryProvider).publishCmd('$dev/schedule', '$newId|$hOn:$mOn|$hOff:$mOff|$daysBinary|1')) {
+          if (mounted) showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_timeout'), isError: true);
+          return;
+        }
+        if (!mounted) return;
                         }
 
                         final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -1284,12 +1274,6 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
   }
 
   void _deleteSchedule(String id) {
-    final mqttState = ref.read(mqttConnectionStateProvider);
-    final isOnline = ref.read(espOnlineStateProvider);
-    if (mqttState != 2 || !isOnline) {
-      showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
-      return;
-    }
     
     showPremiumConfirmDialog(
       context: context,
@@ -1299,11 +1283,15 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
       cancelText: context.tr('btn_cancel'),
       isDanger: true,
       icon: Icons.auto_delete_rounded,
-      onConfirm: () {
+      onConfirm: () async {
         final scheduleToDel = _savedSchedules.firstWhere((s) => s['id'] == id);
         List<String> sTopics = List<String>.from(scheduleToDel['topics'] ?? (scheduleToDel['topic'] != null ? [scheduleToDel['topic']] : []));
         for (String topic in sTopics) {
-          ref.read(mqttRepositoryProvider).publishCmd('$topic/schedule', '${scheduleToDel['id']}|00:00|00:00|0000000|0');
+          if (!await ref.read(mqttRepositoryProvider).publishCmd('$topic/schedule', '${scheduleToDel['id']}|00:00|00:00|0000000|0')) {
+          if (mounted) showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_timeout'), isError: true);
+          return;
+        }
+        if (!mounted) return;
         }
         
         setState(() => _savedSchedules.removeWhere((s) => s['id'] == id));
@@ -1617,22 +1605,8 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                             activeColor: isDark ? zen.primaryAccent : zen.primary,
                             onChanged: !_canManageSchedule(schedule)
                                 ? null
-                                : (val) {
-                                    final mqttState =
-                                        ref.read(mqttConnectionStateProvider);
-                                    final isOnline = ref.read(espOnlineStateProvider);
-                                    if (mqttState != 2 || !isOnline) {
-                                      showFloatingToast(
-                                        context,
-                                        context.tr('error'),
-                                        context.tr('toast_mqtt_wait') ??
-                                            'Đang kết nối máy chủ...',
-                                        isError: true,
-                                      );
-                                      return;
-                                    }
+                                : (val) async {
 
-                                    setState(() => schedule['isActive'] = val);
                                     String daysBinary = List<bool>.from(schedule['days'])
                                         .map((d) => d ? '1' : '0')
                                         .join('');
@@ -1645,11 +1619,14 @@ class _ScheduleSectionState extends ConsumerState<ScheduleSection> {
                                                 ? [schedule['topic']]
                                                 : []));
                                     for (String dev in sTopics) {
-                                      ref
-                                          .read(mqttRepositoryProvider)
-                                          .publishCmd('$dev/schedule', payload);
+if (!await ref.read(mqttRepositoryProvider).publishCmd('$dev/schedule', payload)) {
+          if (mounted) showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_timeout'), isError: true);
+          return;
+        }
+        if (!mounted) return;
                                     }
 
+                                    setState(() => schedule['isActive'] = val);
                                     final activeConfig =
                                         ref.read(homeConfigProvider).activeConfig;
                                     String targetId = activeConfig.userId;

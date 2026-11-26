@@ -1,15 +1,14 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pinput/pinput.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
-import 'package:zenhome_app/core/widgets/animations/dual_layer_screen_wrapper.dart';
 import 'package:zenhome_app/core/widgets/loading_overlay.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/core/services/session_manager.dart';
@@ -48,9 +47,6 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   void initState() {
     super.initState();
     _currentVerificationId = widget.verificationId;
-    _pinFocusNode.addListener(() {
-      if (mounted) setState(() {});
-    });
     _startTimer();
   }
 
@@ -187,289 +183,116 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     }
   }
 
-  Widget _buildMainContent(
-    BuildContext context, {
-    required bool isOverWave,
-    required ScrollController controller,
-  }) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final zen = context.zenColors;
-    final Color primaryColor = isDark ? zen.primaryAccent : zen.primary;
-    final Color textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final Color mutedColor =
-        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-
-    // Split-wave header colors
-    final Color headerAccent = isOverWave ? Colors.white : primaryColor;
-    final Color headerTitleColor =
-        isOverWave ? Colors.white : (isDark ? AppColors.darkText : AppColors.lightText);
-    final Color headerDescColor = isOverWave
-        ? Colors.white.withOpacity(0.86)
-        : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted);
-
-    // Frosted Glass PinTheme 2.0
-    final defaultPinTheme = PinTheme(
-      width: 46,
-      height: 58,
+  Widget _buildPinInput(BuildContext context, BoxConstraints constraints) {
+    final scheme = Theme.of(context).colorScheme;
+    const length = 6;
+    final gap = math.min(6.0, constraints.maxWidth * 0.016);
+    final width = math.min(
+      52.0,
+      (constraints.maxWidth - gap * (length - 1)) / length,
+    );
+    final theme = PinTheme(
+      width: width,
+      height: math.max(54.0, MediaQuery.textScalerOf(context).scale(22) + 16),
       textStyle: TextStyle(
-        fontSize: 24,
-        color: textColor,
-        fontWeight: FontWeight.w800,
+        fontSize: 22,
+        color: scheme.onSurface,
+        fontWeight: FontWeight.w600,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(isDark ? 0.08 : 0.72),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withOpacity(0.18)
-              : const Color(0xFFCBD5E1).withOpacity(0.88),
-          width: 1.2,
-        ),
+        color: scheme.surface.withValues(alpha: 0.55),
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
       ),
     );
-
-    final focusedPinTheme = defaultPinTheme.copyDecorationWith(
-      color: isDark
-          ? context.zenColors.primary.withOpacity(0.16)
-          : Colors.white.withOpacity(0.94),
-      border: Border.all(color: context.zenColors.primary, width: 2.0),
-      boxShadow: isOverWave
-          ? const []
-          : [
-              BoxShadow(
-                color: context.zenColors.primary.withOpacity(
-                  isDark ? 0.38 : 0.24,
-                ),
-                blurRadius: 14,
-                spreadRadius: 1,
-                offset: const Offset(0, 4),
-              ),
-            ],
-    );
-
-    final submittedPinTheme = defaultPinTheme.copyDecorationWith(
-      color: AppColors.emeraldGlow.withOpacity(isDark ? 0.14 : 0.09),
-      border: Border.all(
-        color: AppColors.emeraldGlow.withOpacity(0.85),
-        width: 1.6,
+    return Pinput(
+      length: length,
+      controller: _pinController,
+      focusNode: _pinFocusNode,
+      readOnly: _isVerifying,
+      defaultPinTheme: theme,
+      focusedPinTheme: theme.copyDecorationWith(
+        border: Border.all(color: scheme.primary, width: 2),
       ),
+      submittedPinTheme: theme.copyDecorationWith(
+        color: scheme.primary.withValues(alpha: 0.08),
+      ),
+      separatorBuilder: (_) => SizedBox(width: gap),
+      pinAnimationType: MediaQuery.disableAnimationsOf(context)
+          ? PinAnimationType.none
+          : PinAnimationType.fade,
+      onChanged: (_) => setState(() {}),
+      onCompleted: (_) => _verifyOtp(),
     );
+  }
 
-    final String formattedTime =
+  @override
+  Widget build(BuildContext context) {
+    final zen = context.zenColors;
+    final scheme = Theme.of(context).colorScheme;
+    final formattedTime =
         '${_secondsRemaining ~/ 60}:${(_secondsRemaining % 60).toString().padLeft(2, '0')}';
-
-    return SafeArea(
-      bottom: false,
-      child: Column(
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-              child: ZenGlassIconButton(
-                icon: Icons.arrow_back_ios_new_rounded,
-                size: 40,
-                iconSize: 18,
-                borderRadius: 14,
-                blurSigma: isOverWave ? 0 : 14,
-                iconColor: isDark ? Colors.white : AppColors.lightText,
-                onTap: () {
-                  FirebaseAuth.instance.signOut();
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ),
-
-          Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                controller: controller,
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(22, 10, 22, 32),
+    return ZenGlassScaffold(
+      body: SafeArea(
+        child: ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // --- Split-Wave Shield Emblem ---
-                    Container(
-                      width: 88,
-                      height: 88,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isOverWave
-                            ? Colors.white.withOpacity(0.16)
-                            : primaryColor.withOpacity(0.12),
-                        border: Border.all(
-                          color: isOverWave
-                              ? Colors.white.withOpacity(0.36)
-                              : primaryColor.withOpacity(0.28),
-                          width: 1.3,
-                        ),
-                        boxShadow: isOverWave
-                            ? const []
-                            : [
-                                BoxShadow(
-                                  color: primaryColor.withOpacity(0.20),
-                                  blurRadius: 22,
-                                  spreadRadius: 2,
-                                ),
-                              ],
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: BackButton(
+                        onPressed: () {
+                          FirebaseAuth.instance.signOut();
+                          Navigator.pop(context);
+                        },
                       ),
-                      child: Icon(
-                        Icons.shield_rounded,
-                        size: 46,
-                        color: headerAccent,
-                      ),
-                    )
-                        .animate()
-                        .scale(duration: 600.ms, curve: Curves.easeOutBack)
-                        .shimmer(
-                          delay: 400.ms,
-                          duration: 1200.ms,
-                          color: isOverWave
-                              ? Colors.white38
-                              : primaryColor.withOpacity(0.3),
-                        ),
-                    const SizedBox(height: 22),
-
+                    ),
+                    const SizedBox(height: 12),
                     Text(
                       context.tr('verify_otp'),
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${context.tr('otp_sent_to')} ${widget.phoneNumber}.\n${context.tr('enter_6_digit_otp')}',
                       style: TextStyle(
-                        fontSize: 27,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                        color: headerTitleColor,
+                        color: scheme.onSurfaceVariant,
+                        height: 1.45,
                       ),
-                    )
-                        .animate()
-                        .fadeIn(delay: 200.ms)
-                        .slideY(begin: 0.25, end: 0, curve: Curves.easeOut),
-                    const SizedBox(height: 10),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        '${context.tr('otp_sent_to')} ${widget.phoneNumber}.\n${context.tr('enter_6_digit_otp')}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: headerDescColor,
-                          height: 1.5,
-                        ),
-                      ),
-                    )
-                        .animate()
-                        .fadeIn(delay: 300.ms)
-                        .slideY(begin: 0.25, end: 0, curve: Curves.easeOut),
-
-                    const SizedBox(height: 32),
-
-                    // --- True Refractive Liquid Glass 2.0 OTP Card ---
-                    ZenLiquidGlass(
-                      borderRadius: 28,
-                      blurSigma: isOverWave ? 0 : 20,
-                      rimWidth: 1.3,
-                      glowColor: zen.primary,
-                      padding: const EdgeInsets.fromLTRB(18, 28, 18, 24),
-                      customShadows: isOverWave ? const [] : null,
-                      customGradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: isDark
-                            ? [
-                                const Color(0xFF0F172A).withOpacity(0.70),
-                                const Color(0xFF0A1120).withOpacity(0.54),
-                              ]
-                            : [
-                                Colors.white.withOpacity(0.84),
-                                Colors.white.withOpacity(0.70),
-                              ],
-                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    ZenGlassCard.lightweight(
+                      padding: const EdgeInsets.all(16),
                       child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Pinput(
-                            length: 6,
-                            controller: _pinController,
-                            readOnly: _isVerifying,
-                            focusNode: isOverWave ? null : _pinFocusNode,
-                            defaultPinTheme: defaultPinTheme,
-                            focusedPinTheme: focusedPinTheme,
-                            submittedPinTheme: submittedPinTheme,
-                            separatorBuilder: (index) =>
-                                const SizedBox(width: 6),
-                            onChanged: (_) {
-                              if (mounted && !isOverWave) setState(() {});
-                            },
-                            onCompleted: (pin) => _verifyOtp(),
-                          )
-                              .animate()
-                              .fadeIn(delay: 380.ms)
-                              .scale(
-                                begin: const Offset(0.94, 0.94),
-                                duration: 400.ms,
-                                curve: Curves.easeOutBack,
-                              ),
-
-                          const SizedBox(height: 24),
-
-                          ZenGlassPill(
-                            blurSigma: 0,
-                            isSelected: _secondsRemaining > 0,
-                            glowColor: _secondsRemaining > 0
-                                ? primaryColor
-                                : zen.danger,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 7,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _secondsRemaining > 0
-                                      ? Icons.timer_outlined
-                                      : Icons.error_outline_rounded,
-                                  size: 16,
-                                  color: _secondsRemaining > 0
-                                      ? primaryColor
-                                      : zen.danger,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _secondsRemaining > 0
-                                      ? context
-                                          .tr('resend_otp_in')
-                                          .replaceFirst(
-                                            '{seconds}',
-                                            formattedTime,
-                                          )
-                                      : context.tr('err_invalid_otp'),
-                                  style: TextStyle(
-                                    color: _secondsRemaining > 0
-                                        ? textColor
-                                        : zen.danger,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
+                          LayoutBuilder(builder: _buildPinInput),
+                          const SizedBox(height: 18),
+                          Text(
+                            _secondsRemaining > 0
+                                ? context
+                                      .tr('resend_otp_in')
+                                      .replaceFirst('{seconds}', formattedTime)
+                                : context.tr('err_invalid_otp'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: _secondsRemaining > 0
+                                  ? scheme.onSurfaceVariant
+                                  : zen.danger,
                             ),
                           ),
-
-                          const SizedBox(height: 14),
-
+                          const SizedBox(height: 8),
                           Wrap(
                             alignment: WrapAlignment.center,
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              Text(
-                                context.tr('did_not_receive_otp'),
-                                style: TextStyle(
-                                  color: mutedColor,
-                                  fontSize: 13.5,
-                                ),
-                              ),
+                              Text(context.tr('did_not_receive_otp')),
                               TextButton(
                                 onPressed: _canResend
                                     ? () {
@@ -477,48 +300,25 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                                         _resendOtp();
                                       }
                                     : null,
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: Text(
-                                  context.tr('resend'),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13.5,
-                                    color: _canResend
-                                        ? primaryColor
-                                        : mutedColor.withOpacity(0.5),
-                                  ),
-                                ),
+                                child: Text(context.tr('resend')),
                               ),
                             ],
                           ),
-
-                          const SizedBox(height: 20),
-
-                          SizedBox(
-                            width: double.infinity,
-                            height: 54,
-                            child: ZenGlassButton(
-                              label: context.tr('btn_verify_otp'),
-                              icon: Icons.verified_rounded,
-                              isLoading: _isVerifying,
-                              borderRadius: 16,
-                              onPressed: _pinController.text.length == 6 &&
-                                      _secondsRemaining > 0 &&
-                                      !_isVerifying
-                                  ? () {
-                                      HapticFeedback.lightImpact();
-                                      _verifyOtp();
-                                    }
-                                  : null,
-                            ),
+                          const SizedBox(height: 10),
+                          ZenGlassButton(
+                            label: context.tr('btn_verify_otp'),
+                            icon: Icons.verified_outlined,
+                            maxLines: 3,
+                            isLoading: _isVerifying,
+                            onPressed:
+                                _pinController.text.length == 6 &&
+                                    _secondsRemaining > 0 &&
+                                    !_isVerifying
+                                ? () {
+                                    HapticFeedback.lightImpact();
+                                    _verifyOtp();
+                                  }
+                                : null,
                           ),
                         ],
                       ),
@@ -527,21 +327,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ZenGlassScaffold(
-      body: DualLayerScreenWrapper(
-        waveHeightPercent: 0.35,
-        builder: (context, isTopLayer, controller) => _buildMainContent(
-          context,
-          isOverWave: isTopLayer,
-          controller: controller,
+          ],
         ),
       ),
     );

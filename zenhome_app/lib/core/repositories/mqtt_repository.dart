@@ -1,3 +1,5 @@
+import 'package:zenhome_app/core/services/local_network_service.dart';
+import 'package:zenhome_app/core/services/member_device_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:mqtt_client/mqtt_client.dart';
@@ -59,6 +61,10 @@ class MqttRepository {
     _connectionStateController.add(1);
     _isIntentionalDisconnect = false;
     String safeId = userId.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    if (mqttUser == null || mqttUser.isEmpty || mqttPass == null || mqttPass.isEmpty) {
+      disconnect();
+      return;
+    }
     // Rút gọn safeId nếu quá dài để tránh vượt giới hạn độ dài của một số MQTT Broker
     if (safeId.length > 10) safeId = safeId.substring(0, 10);
     String clientId = 'app_${safeId}_${DateTime.now().millisecondsSinceEpoch}';
@@ -81,21 +87,7 @@ class MqttRepository {
     client!.connectionMessage = connMess;
 
     try {
-      // Xác thực MQTT client credentials
-      String effectiveUser = mqttUser ?? '';
-      String effectivePass = mqttPass ?? '';
-      if (mqttServer.contains('hivemq.cloud')) {
-        if (effectiveUser.isEmpty || effectivePass.isEmpty) {
-          LoggerService.w('[MQTT] ⚠️ Chưa cung cấp thông tin xác thực (User/Pass) cho broker đám mây HiveMQ TLS.');
-        }
-      }
-
-      LoggerService.i('Đang kết nối broker MQTT: $mqttServer (TLS/8883) [User: $effectiveUser] ...');
-      if (effectiveUser.isNotEmpty && effectivePass.isNotEmpty) {
-        await client!.connect(effectiveUser, effectivePass);
-      } else {
-        await client!.connect();
-      }
+      await client!.connect(mqttUser, mqttPass);
     } catch (e, stack) {
       LoggerService.e('Lỗi kết nối MQTT', e, stack);
       client!.disconnect();
@@ -254,27 +246,6 @@ class MqttRepository {
           } catch (e) {
             LoggerService.w('[MQTT] ⚠️ Lỗi giải mã JSON cảnh báo dị thường: $e');
           }
-        } else if (cleanCurrent.endsWith('/state')) {
-          // BẢO VỆ CHỐNG NHẢY CHÉO CÔNG TẮC: Chỉ nhận nếu topic thuộc về chính Hub này
-          if (cleanCurrent.startsWith(cleanPrefix) || cleanCurrent.startsWith(cleanPrefixNoColon)) {
-            final parts = currentTopic.split('/');
-            if (parts.length >= 2) {
-              String devId = parts[parts.length - 2];
-              bool isOn = false;
-              final trimmed = payload.trim();
-              if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-                try {
-                  final json = jsonDecode(trimmed);
-                  isOn = json['state'] == 1 || json['state'] == '1' || json['action'] == '1' || json['action'] == 'ON';
-                } catch (_) {
-                  isOn = trimmed.contains('"state":1') || trimmed.contains('"state": 1');
-                }
-              } else {
-                isOn = trimmed == '1';
-              }
-              _deviceStateController.add({devId: isOn});
-            }
-          }
         }
       }
     });
@@ -339,7 +310,36 @@ class MqttRepository {
 
   bool _isIntentionalDisconnect = false;
 
-  void publishCmd(String topic, String message) {
+  Future<bool> publishCmd(String topic, String message) async {
+    final parts = topic.split('/');
+    try {
+      if (parts.length == 5 && parts.last == 'cmd') {
+        final payload = jsonDecode(message);
+        final target = payload is Map ? payload['action'].toString() : payload.toString();
+        if (target != '0' && target != '1') return false;
+        final confirmed = await MemberDeviceService.control(parts.first, parts[3], target == '1');
+        if (confirmed) _deviceStateController.add({parts[3]: target == '1'});
+        return confirmed;
+      }
+      if (parts.length == 5 && const {'timer_on','timer_off','schedule'}.contains(parts.last)) {
+        return await MemberDeviceService.setAutomation(parts, message);
+      }
+      if (parts.length == 4 && parts[2] == 'system') {
+        if (client?.connectionStatus?.state != MqttConnectionState.connected) return false;
+        final value = jsonDecode(message);
+        if (value is List) return false;
+        final fields = value is Map ? Map<String,dynamic>.from(value) : <String,dynamic>{};
+        if (parts.last != 'config') fields.remove('admin_pass');
+        final envelope = await LocalNetworkService().sealSystemCommand(parts[0], parts[1], parts.last, fields);
+        if (envelope == null) return false;
+        _sendActualPublish(topic, envelope);
+        return true;
+      }
+      if (parts.length != 4 || parts[2] != 'setup' || parts[3] != 'confirm') return false;
+    } catch (_) {
+      return false;
+    }
+
     if (client?.connectionStatus?.state != MqttConnectionState.connected) {
       if (!_isHardDisconnected) {
         final now = DateTime.now().millisecondsSinceEpoch;
@@ -362,9 +362,10 @@ class MqttRepository {
           });
         }
       }
-      return;
+      return false;
     }
     _sendActualPublish(topic, message);
+    return true;
   }
 
   void _sendActualPublish(String topic, String message) {

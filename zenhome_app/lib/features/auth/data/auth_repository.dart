@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:zenhome_app/core/services/logger_service.dart';
 
 class AuthRepository {
@@ -21,7 +20,7 @@ class AuthRepository {
   Future<UserCredential?> signInWithGoogle() async {
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId: dotenv.env['GOOGLE_CLIENT_ID']!,
+        serverClientId: const String.fromEnvironment('GOOGLE_CLIENT_ID'),
       );
       await googleSignIn.signOut();
       

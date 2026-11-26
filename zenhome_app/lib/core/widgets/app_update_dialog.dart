@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/models/app_version_info.dart';
 import 'package:zenhome_app/core/services/app_update_service.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/toast_helper.dart';
+import 'package:zenhome_app/core/widgets/animations/zen_page_route.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 import 'package:zenhome_app/features/settings/ui/version_changelog_screen.dart';
 
@@ -173,7 +173,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: zen.warning.withOpacity(0.18),
+                  color: zen.warning.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -213,6 +213,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                 child: ZenGlassButton(
                   label: isVi ? 'Tiếp tục tải' : 'Keep Downloading',
                   isPrimary: false,
+                  maxLines: 2,
                   onPressed: () => Navigator.of(ctx).pop(false),
                 ),
               ),
@@ -221,6 +222,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                 child: ZenGlassButton(
                   label: isVi ? 'Hủy tải' : 'Cancel',
                   isDanger: true,
+                  maxLines: 2,
                   onPressed: () => Navigator.of(ctx).pop(true),
                 ),
               ),
@@ -240,8 +242,8 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
     final isVi = Localizations.localeOf(context).languageCode == 'vi';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final zen = context.zenColors;
-    final liveBase =
-        await AppUpdateService.getLiveServerBaseUrl() ?? 'http://192.168.1.6:5000';
+    final liveBase = await AppUpdateService.getLiveServerBaseUrl() ??
+        'http://192.168.1.6:5000';
 
     if (!mounted) return;
 
@@ -258,7 +260,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: zen.danger.withOpacity(0.16),
+                  color: zen.danger.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -292,13 +294,12 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
             ),
           ),
           const SizedBox(height: 14),
-          ZenLiquidGlass(
-            blurSigma: 0,
+          ZenLiquidGlass.lightweight(
             borderRadius: 16,
             padding: const EdgeInsets.all(12),
             surfaceColor: isDark
-                ? Colors.white.withOpacity(0.06)
-                : Colors.white.withOpacity(0.65),
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.white.withValues(alpha: 0.65),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -310,16 +311,18 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                       color: context.zenColors.primary,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      isVi
-                          ? 'Bảng kiểm tra sự cố & Thử lại'
-                          : 'Troubleshooting Checklist',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isDark
-                            ? context.zenColors.primaryAccent
-                            : context.zenColors.primary,
+                    Expanded(
+                      child: Text(
+                        isVi
+                            ? 'Bảng kiểm tra sự cố & Thử lại'
+                            : 'Troubleshooting Checklist',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? context.zenColors.primaryAccent
+                              : context.zenColors.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -328,11 +331,11 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                 Text(
                   isVi
                       ? '• Đảm bảo điện thoại và máy tính chạy ZenHome cùng kết nối chung một mạng Wi-Fi.\n'
-                        '• Kiểm tra máy chủ ZenHome Server (IP: $liveBase) có đang hoạt động.\n'
-                        '• Nếu không tải được tự động trong app, bạn có thể tải trực tiếp file APK qua Trình duyệt.'
+                          '• Kiểm tra máy chủ ZenHome Server (IP: $liveBase) có đang hoạt động.\n'
+                          '• Nếu không tải được tự động trong app, bạn có thể tải trực tiếp file APK qua Trình duyệt.'
                       : '• Ensure phone and ZenHome host are on the same Wi-Fi.\n'
-                        '• Check if ZenHome Server (IP: $liveBase) is running.\n'
-                        '• If direct in-app download fails, open via Browser to download.',
+                          '• Check if ZenHome Server (IP: $liveBase) is running.\n'
+                          '• If direct in-app download fails, open via Browser to download.',
                   style: TextStyle(
                     fontSize: 11.8,
                     height: 1.45,
@@ -352,6 +355,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                   label: isVi ? 'Trình duyệt' : 'Browser',
                   icon: Icons.open_in_browser_rounded,
                   isPrimary: false,
+                  maxLines: 2,
                   onPressed: () {
                     Navigator.of(ctx).pop();
                     String targetUrl = widget.updateInfo.downloadUrl;
@@ -368,6 +372,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                 child: ZenGlassButton(
                   label: isVi ? 'Thử lại' : 'Retry',
                   icon: Icons.refresh_rounded,
+                  maxLines: 2,
                   onPressed: () {
                     Navigator.of(ctx).pop();
                     _startDownload();
@@ -387,7 +392,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
 
     if (_isAlreadyComplete) {
       final installed =
-          await AppUpdateService.installCompletedApk(updateInfo.latestVersion);
+          await AppUpdateService.installCompletedApk(updateInfo.latestVersion, expectedHash: updateInfo.sha256);
       if (!installed && mounted) {
         setState(() => _isAlreadyComplete = false);
       } else {
@@ -410,14 +415,15 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
       }
     }
 
-    final isApkFile =
-        targetUrl.toLowerCase().endsWith('.apk') || targetUrl.contains('/downloads/');
+    final isApkFile = targetUrl.toLowerCase().endsWith('.apk') ||
+        targetUrl.contains('/downloads/');
 
     if (isApkFile) {
       final success = await AppUpdateService.startBackgroundDownload(
         url: targetUrl,
         version: updateInfo.latestVersion,
         expectedTotalBytes: updateInfo.fileSizeBytes,
+        expectedHash: updateInfo.sha256,
         title: context.tr('downloading_in_background_title'),
         downloadingText: context.tr('downloading_update'),
         completeText: context.tr('download_complete_body'),
@@ -479,6 +485,8 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
           maxWidth: 420,
           accentColor: accentColor,
           padding: EdgeInsets.zero,
+          scrollable: true,
+          maxHeightFactor: 0.85,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -499,22 +507,22 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                 child: Column(
                   children: [
                     Container(
-                      width: 64,
-                      height: 64,
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.20),
+                        color: Colors.white.withValues(alpha: 0.16),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.38),
-                          width: 2,
+                          color: Colors.white.withValues(alpha: 0.28),
+                          width: 1.2,
                         ),
                       ),
                       child: const Icon(
                         Icons.system_update_rounded,
                         color: Colors.white,
-                        size: 35,
+                        size: 32,
                       ),
-                    ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
+                    ),
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -524,7 +532,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                       decoration: BoxDecoration(
                         color: isForce
                             ? Colors.white
-                            : Colors.white.withOpacity(0.24),
+                            : Colors.white.withValues(alpha: 0.20),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -561,75 +569,90 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ZenLiquidGlass(
-                      blurSigma: 0,
+                    ZenLiquidGlass.lightweight(
                       borderRadius: 16,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 11,
                       ),
                       surfaceColor: isDark
-                          ? Colors.white.withOpacity(0.06)
-                          : Colors.white.withOpacity(0.68),
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.white.withValues(alpha: 0.68),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                context.tr('current_version'),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isDark
-                                      ? AppColors.darkTextMuted
-                                      : AppColors.lightTextMuted,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  context.tr('current_version'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'v$currentVersion (+$currentBuildNumber)',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark
-                                      ? AppColors.darkText
-                                      : AppColors.lightText,
+                                const SizedBox(height: 2),
+                                Text(
+                                  'v$currentVersion (+$currentBuildNumber)',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark
+                                        ? AppColors.darkText
+                                        : AppColors.lightText,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 18,
-                            color: isDark
-                                ? AppColors.darkTextMuted
-                                : AppColors.lightTextMuted,
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 18,
+                              color: isDark
+                                  ? AppColors.darkTextMuted
+                                  : AppColors.lightTextMuted,
+                            ),
                           ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                context.tr('latest_version'),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isDark
-                                      ? AppColors.darkTextMuted
-                                      : AppColors.lightTextMuted,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  context.tr('latest_version'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'v${updateInfo.latestVersion} (+${updateInfo.latestBuildNumber})',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: isDark
-                                      ? zen.primaryAccent
-                                      : zen.primary,
+                                const SizedBox(height: 2),
+                                Text(
+                                  'v${updateInfo.latestVersion} (+${updateInfo.latestBuildNumber})',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark
+                                        ? zen.primaryAccent
+                                        : zen.primary,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -647,13 +670,12 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                     ),
                     const SizedBox(height: 8),
 
-                    ZenLiquidGlass(
-                      blurSigma: 0,
+                    ZenLiquidGlass.lightweight(
                       borderRadius: 16,
                       padding: const EdgeInsets.all(12),
                       surfaceColor: isDark
-                          ? Colors.white.withOpacity(0.05)
-                          : Colors.white.withOpacity(0.62),
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.white.withValues(alpha: 0.62),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxHeight: 155),
                         child: SizedBox(
@@ -677,14 +699,13 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                     const SizedBox(height: 18),
 
                     if (_isDownloading) ...[
-                      ZenLiquidGlass(
-                        blurSigma: 0,
+                      ZenLiquidGlass.lightweight(
                         borderRadius: 20,
                         glowColor: zen.primary,
                         padding: const EdgeInsets.all(16),
                         surfaceColor: isDark
-                            ? Colors.white.withOpacity(0.07)
-                            : Colors.white.withOpacity(0.70),
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : Colors.white.withValues(alpha: 0.70),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -709,7 +730,8 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                                         child: Text(
                                           _statusText.isNotEmpty
                                               ? _statusText
-                                              : context.tr('downloading_update'),
+                                              : context
+                                                  .tr('downloading_update'),
                                           style: TextStyle(
                                             fontSize: 12.5,
                                             fontWeight: FontWeight.w700,
@@ -724,35 +746,42 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    gradient: zen.brandHero,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.bolt_rounded,
-                                        size: 14,
-                                        color: Colors.white,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _speedText.isNotEmpty
-                                            ? _speedText
-                                            : '0 KB/s',
-                                        style: const TextStyle(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.bold,
+                                Flexible(
+                                  flex: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: zen.brandHero,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.bolt_rounded,
+                                          size: 14,
                                           color: Colors.white,
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            _speedText.isNotEmpty
+                                                ? _speedText
+                                                : '0 KB/s',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],
@@ -764,8 +793,8 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                                 value: _progress > 0 ? _progress : null,
                                 minHeight: 10,
                                 backgroundColor: isDark
-                                    ? Colors.white.withOpacity(0.10)
-                                    : Colors.black.withOpacity(0.08),
+                                    ? Colors.white.withValues(alpha: 0.10)
+                                    : Colors.black.withValues(alpha: 0.08),
                                 valueColor:
                                     AlwaysStoppedAnimation<Color>(zen.primary),
                               ),
@@ -784,16 +813,22 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                                         : zen.primary,
                                   ),
                                 ),
-                                Text(
-                                  _receivedBytes > 0
-                                      ? '${(_receivedBytes / 1048576).toStringAsFixed(1)} MB / ${_totalBytes > 0 ? (_totalBytes / 1048576).toStringAsFixed(1) : (updateInfo.fileSizeBytes != null ? (updateInfo.fileSizeBytes! / 1048576).toStringAsFixed(1) : "?")} MB'
-                                      : '0.0 MB / ${(updateInfo.fileSizeBytes != null ? (updateInfo.fileSizeBytes! / 1048576).toStringAsFixed(1) : "?")} MB',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? AppColors.darkTextMuted
-                                        : AppColors.lightTextMuted,
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    _receivedBytes > 0
+                                        ? '${(_receivedBytes / 1048576).toStringAsFixed(1)} MB / ${_totalBytes > 0 ? (_totalBytes / 1048576).toStringAsFixed(1) : (updateInfo.fileSizeBytes != null ? (updateInfo.fileSizeBytes! / 1048576).toStringAsFixed(1) : "?")} MB'
+                                        : '0.0 MB / ${(updateInfo.fileSizeBytes != null ? (updateInfo.fileSizeBytes! / 1048576).toStringAsFixed(1) : "?")} MB',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.end,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? AppColors.darkTextMuted
+                                          : AppColors.lightTextMuted,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -805,10 +840,12 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                       Row(
                         children: [
                           Expanded(
+                            flex: 3,
                             child: ZenGlassButton(
                               label: context.tr('btn_download_in_background'),
                               icon: Icons.arrow_downward_rounded,
                               isPrimary: false,
+                              maxLines: 2,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 11,
@@ -825,29 +862,32 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          ZenGlassButton(
-                            label: isVi ? 'Hủy' : 'Cancel',
-                            icon: Icons.close_rounded,
-                            isPrimary: false,
-                            isDanger: true,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 11,
+                          Expanded(
+                            flex: 2,
+                            child: ZenGlassButton(
+                              label: isVi ? 'Hủy' : 'Cancel',
+                              icon: Icons.close_rounded,
+                              isPrimary: false,
+                              isDanger: true,
+                              maxLines: 2,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 11,
+                              ),
+                              onPressed: _confirmCancel,
                             ),
-                            onPressed: _confirmCancel,
                           ),
                         ],
                       ),
                     ] else ...[
                       if (_errorMessage != null) ...[
-                        ZenLiquidGlass(
-                          blurSigma: 0,
+                        ZenLiquidGlass.lightweight(
                           borderRadius: 16,
                           glowColor: zen.danger,
                           margin: const EdgeInsets.only(bottom: 14),
                           padding: const EdgeInsets.all(14),
                           surfaceColor: zen.danger
-                              .withOpacity(isDark ? 0.14 : 0.08),
+                              .withValues(alpha: isDark ? 0.13 : 0.08),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -859,14 +899,16 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                                     color: zen.danger,
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    isVi
-                                        ? 'Không thể tải file tự động'
-                                        : 'Direct download failed',
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: zen.danger,
+                                  Expanded(
+                                    child: Text(
+                                      isVi
+                                          ? 'Không thể tải file tự động'
+                                          : 'Direct download failed',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: zen.danger,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -886,8 +928,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                         ),
                       ],
                       Center(
-                        child: ZenGlassPill(
-                          blurSigma: 0,
+                        child: ZenGlassPill.lightweight(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 14,
                             vertical: 7,
@@ -895,7 +936,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
+                              ZenPageRoute(
                                 builder: (_) => VersionChangelogScreen(
                                   updateInfo: updateInfo,
                                 ),
@@ -912,13 +953,18 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                                     isDark ? zen.primaryAccent : zen.primary,
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                context.tr('version_changelog_title'),
-                                style: TextStyle(
-                                  fontSize: 12.2,
-                                  fontWeight: FontWeight.w700,
-                                  color:
-                                      isDark ? zen.primaryAccent : zen.primary,
+                              Flexible(
+                                child: Text(
+                                  context.tr('version_changelog_title'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12.2,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark
+                                        ? zen.primaryAccent
+                                        : zen.primary,
+                                  ),
                                 ),
                               ),
                             ],
@@ -933,6 +979,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                               child: ZenGlassButton(
                                 label: context.tr('btn_later'),
                                 isPrimary: false,
+                                maxLines: 2,
                                 onPressed: () => Navigator.of(context).pop(),
                               ),
                             ),
@@ -944,6 +991,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                                 label: isVi ? 'Trình duyệt' : 'Browser',
                                 icon: Icons.open_in_browser_rounded,
                                 isPrimary: false,
+                                maxLines: 2,
                                 onPressed: () async {
                                   String targetUrl = updateInfo.downloadUrl;
                                   if (updateInfo.directApkUrl != null &&
@@ -981,6 +1029,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog> {
                                           ? Icons.refresh_rounded
                                           : Icons.download_rounded)),
                               isDanger: isForce,
+                              maxLines: 2,
                               onPressed: _startDownload,
                             ),
                           ),

@@ -146,6 +146,8 @@ void loop() {
         cfgDoc["wifi_ssid"] = pendingReconfig.ssid;
         cfgDoc["wifi_pass"] = pendingReconfig.pass;
         if (pendingReconfig.mqttServer.length() > 0) cfgDoc["mqtt_server"] = pendingReconfig.mqttServer;
+        if (!pendingReconfig.mqttUser.isEmpty()) cfgDoc["mqtt_user"] = pendingReconfig.mqttUser;
+        if (!pendingReconfig.mqttPass.isEmpty()) cfgDoc["mqtt_pass"] = pendingReconfig.mqttPass;
         if (pendingReconfig.adminPass.length() > 0) cfgDoc["admin_pass"] = pendingReconfig.adminPass;
 
         if (saveConfig(cfgDoc)) {

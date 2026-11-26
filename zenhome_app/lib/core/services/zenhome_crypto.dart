@@ -17,6 +17,20 @@ class SecurityException implements Exception {
 /// Thiết lập đường hầm bảo mật thông tin (Confidentiality & Integrity) cho các kênh LAN & BLE
 /// Tương thích 100% với hàm decryptStorageString trên vi điều khiển ESP32
 class ZenHomeCrypto {
+  static String sign(String keyHex, String message) =>
+      Hmac(sha256, _hexToBytes(keyHex)).convert(utf8.encode(message)).toString();
+
+  static String digest(String message) => sha256.convert(utf8.encode(message)).toString();
+
+  static bool matches(String expected, Object? received) {
+    if (received is! String || received.length != expected.length || expected.isEmpty) return false;
+    var difference = 0;
+    for (var i = 0; i < expected.length; i++) {
+      difference |= expected.codeUnitAt(i) ^ received.codeUnitAt(i);
+    }
+    return difference == 0;
+  }
+
   /// Mã hóa payload thành phong bì an toàn: `ZHENC1:<ivHex>:<cipherHex>:<hmacTag>`
   static String encryptPayload({required String plaintext, required String keyHex}) {
     if (plaintext.isEmpty || keyHex.isEmpty) return '';

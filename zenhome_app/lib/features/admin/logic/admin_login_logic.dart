@@ -13,7 +13,7 @@ class AdminLoginNotifier extends StateNotifier<AdminLoginState> {
   bool verifyPassword(WidgetRef ref, String password) {
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
 
-    if (password == activeConfig.adminPass) {
+    if (activeConfig.role == 'owner' && password.isNotEmpty && password == activeConfig.adminPass) {
       state = const AdminLoginState(isError: false);
       return true;
     } else {

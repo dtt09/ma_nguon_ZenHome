@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:zenhome_app/core/models/smart_config.dart';
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
@@ -115,7 +114,7 @@ mixin AuthHelperMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
 
   Future<void> handleGoogleAuth({String? loginHint}) async {
     try {
-      final String? clientId = dotenv.env['GOOGLE_CLIENT_ID'];
+      final String? clientId = const String.fromEnvironment('GOOGLE_CLIENT_ID');
       if (clientId == null || clientId.isEmpty) {
          showFloatingToast(context, context.tr('error') ?? 'Lỗi', context.tr('err_missing_google_id') ?? 'Thiếu cấu hình GOOGLE_CLIENT_ID', isError: true);
          return;

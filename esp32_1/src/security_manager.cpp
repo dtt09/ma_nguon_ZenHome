@@ -28,8 +28,6 @@ std::vector<MemberRule> cachedMembers;
 String cachedOwner = "";
 
 // [ZH-MED-01] Nonce RingBuffer sức chứa 64 phần tử chống tràn nonce replay attack
-static uint32_t recentNonceHashCache[NONCE_CACHE_SIZE] = {0};
-static int nonceCacheIndex = 0;
 static ClientTokenBucket clientRateLimits[RATE_LIMIT_CLIENTS] = {0};
 
 uint8_t hexNibble(char c) {
@@ -106,7 +104,6 @@ String computeSha256Hex(const String& inputHex) {
 }
 
 String computeSha256OfText(const String& text) {
-  if (text.length() == 0) return "";
   uint8_t output[32];
   const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
   mbedtls_md(md_info, (const unsigned char*)text.c_str(), text.length(), output);
@@ -151,7 +148,10 @@ bool verifyHmacSha256(const String& keyHex, const String& message, const String&
   }
   String expected = computeHmacSha256(keyHex, message);
   if (expected.length() < 32) return false;
-  return sig.equalsIgnoreCase(expected);
+  String normalized = sig;
+  normalized.toLowerCase();
+  expected.toLowerCase();
+  return constantTimeCompare(normalized, expected);
 }
 
 bool verifyFirmwareEcdsaSignature(const uint8_t* sha256Bytes, const String& sigHex) {
@@ -199,8 +199,10 @@ void getHardwareStorageKey(uint8_t outKey[32]) {
   uint8_t macBytes[6];
   WiFi.macAddress(macBytes);
   char seed[128];
-  // Khắc phục ZH-08: Tăng cường entropy bằng cách kết hợp MAC phần cứng cùng admin_pass
-  if (admin_pass.length() > 0) {
+  // The binding survives administrator password changes. Flash encryption is configured separately.
+  if (bindingToken.length() == 43) {
+    snprintf(seed, sizeof(seed), "ZenHome:storage:v2:%s", bindingToken.c_str());
+  } else if (admin_pass.length() > 0) {
     snprintf(seed, sizeof(seed), "ZenHome_Storage_Vault_Salt_2026_%02X%02X%02X%02X%02X%02X_%s",
              macBytes[0], macBytes[1], macBytes[2], macBytes[3], macBytes[4], macBytes[5], admin_pass.c_str());
   } else {
@@ -212,10 +214,8 @@ void getHardwareStorageKey(uint8_t outKey[32]) {
   secureZeroMemory(seed, sizeof(seed));
 }
 
-String encryptStorageString(const String& plaintext) {
-  if (plaintext.length() == 0) return "";
-  uint8_t key[32];
-  getHardwareStorageKey(key);
+static String encryptWithKey(const String& plaintext, uint8_t (&key)[32]) {
+  if (plaintext.isEmpty()) return "";
 
   uint8_t iv[16];
   for (int i = 0; i < 4; i++) {
@@ -273,6 +273,32 @@ String encryptStorageString(const String& plaintext) {
 
   free(cipherHex);
   return envelope;
+}
+
+String encryptStorageString(const String& plaintext) {
+  uint8_t key[32];
+  getHardwareStorageKey(key);
+  return encryptWithKey(plaintext, key);
+}
+
+String encryptEnvelopeWithKeyHex(const String& plaintext, const String& keyHex) {
+  if (keyHex.length() != 64) return "";
+  uint8_t key[32];
+  for (size_t i = 0; i < sizeof(key); ++i) {
+    key[i] = (hexNibble(keyHex[2*i]) << 4) | hexNibble(keyHex[2*i+1]);
+  }
+  return encryptWithKey(plaintext, key);
+}
+
+bool isLocalOwner(const String& user) {
+  int slash = mqtt_prefix.indexOf('/');
+  return slash > 0 && !user.isEmpty() && mqtt_prefix.substring(0, slash) == user;
+}
+
+String signedLocalPayload(const String& action, const String& user, const String& data, const String& ts, const String& nonce) {
+  String digest = computeSha256OfText(data);
+  digest.toLowerCase();
+  return action + ":" + user + ":" + digest + ":" + ts + ":" + nonce;
 }
 
 String decryptEnvelopeWithKeyHex(const String& envelope, const String& keyHex) {
@@ -400,20 +426,22 @@ String decryptStorageString(const String& envelope) {
   return "";
 }
 
-void saveLocalSecretKey(const String& key) {
-  currentLocalSecretKey = key;
-  if (!lockFlash()) return;
-  File f = LittleFS.open("/local_sec_key.dat", "w");
-  if (f) {
-    String encrypted = encryptStorageString(key);
-    f.print(encrypted);
-    f.close();
-    Serial.println("[LOCAL-SEC] 🔐 Đã lưu khóa bảo mật mã hóa phần cứng vào Flash LittleFS!");
-  }
+bool saveLocalSecretKey(const String& key) {
+  if (key.length() != 64 || !lockFlash()) return false;
+  String encrypted = encryptStorageString(key);
+  File file = LittleFS.open("/local_sec_key.tmp", "w");
+  bool written = file && !encrypted.isEmpty() && file.print(encrypted) == encrypted.length();
+  file.close();
+  bool saved = written && LittleFS.rename("/local_sec_key.tmp", "/local_sec_key.dat");
+  if (saved) currentLocalSecretKey = key;
   unlockFlash();
+  return saved;
 }
 
 void loadLocalSecretKey() {
+  currentLocalSecretKey = "";
+  // Older devices used publicly guessable password-derived keys. Re-enroll before network access.
+  if (bindingToken.length() != 43) return;
   if (lockFlash()) {
     if (LittleFS.exists("/local_sec_key.dat")) {
       File f = LittleFS.open("/local_sec_key.dat", "r");
@@ -439,37 +467,60 @@ void loadLocalSecretKey() {
     }
   }
 
-  String mac = WiFi.macAddress();
-  mac.replace(":", "");
-  mac.toUpperCase();
+}
 
-  String adminPass = (admin_pass.length() > 0) ? admin_pass : "admin";
-  String keySeed = "ZenHome_Key_Salt:" + adminPass + ":" + mac;
-  currentLocalSecretKey = computeSha256OfText(keySeed);
-  saveLocalSecretKey(currentLocalSecretKey);
-  Serial.println("[LOCAL-SEC] 🔐 Đã khởi tạo và mã hóa lưu khóa bảo mật đồng bộ với App: " + currentLocalSecretKey.substring(0, 8) + "...");
+const String& localBootNonce() {
+  static String value = []() {
+    uint8_t random[16];
+    esp_fill_random(random, sizeof(random));
+    char hex[33];
+    bytesToHex(random, sizeof(random), hex);
+    return String(hex);
+  }();
+  return value;
+}
+
+bool isInvalidLocalNonce(const String& nonce) {
+  return !nonce.startsWith(localBootNonce() + ".") || isNonceReplayedOrInvalid(nonce);
 }
 
 bool isNonceReplayedOrInvalid(const String& nonce) {
-  if (nonce.length() < 8) return true;
-  uint32_t h = fnv1a_32(nonce.c_str());
-  for (int i = 0; i < NONCE_CACHE_SIZE; i++) {
-    if (recentNonceHashCache[i] != 0 && recentNonceHashCache[i] == h) {
-      return true; // Phát hiện Nonce trùng lặp
+  if (nonce.length() < 16 || nonce.length() > 96) return true;
+  struct Entry { uint8_t digest[16]; uint32_t accepted; bool occupied; };
+  static Entry entries[128];
+  static portMUX_TYPE guard = portMUX_INITIALIZER_UNLOCKED;
+  uint8_t hash[32];
+  const auto* algo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  if (mbedtls_md(algo, (const unsigned char*)nonce.c_str(), nonce.length(), hash)) return true;
+  const uint32_t now = millis();
+  portENTER_CRITICAL(&guard);
+  Entry* freeEntry = nullptr;
+  bool duplicate = false;
+  for (auto& entry : entries) {
+    if (!entry.occupied || now - entry.accepted > 120000UL) {
+      freeEntry = &entry;
+    } else if (!memcmp(entry.digest, hash, sizeof(entry.digest))) {
+      duplicate = true;
+      break;
     }
   }
-  recentNonceHashCache[nonceCacheIndex] = h;
-  nonceCacheIndex = (nonceCacheIndex + 1) % NONCE_CACHE_SIZE;
-  return false;
+  if (!duplicate && freeEntry) {
+    memcpy(freeEntry->digest, hash, sizeof(freeEntry->digest));
+    freeEntry->accepted = now;
+    freeEntry->occupied = true;
+  }
+  portEXIT_CRITICAL(&guard);
+  return duplicate || !freeEntry;
 }
 
 bool isTimestampExpired(const String& tsStr) {
   time_t now = time(nullptr);
+  if (tsStr.length() != 10 || tsStr.toInt() < 1700000000) return true;
   if (now > 1700000000) {
     long reqTs = tsStr.toInt();
     if (reqTs <= 0) return true;
     long diff = labs((long)now - reqTs);
-    if (diff > 300) { // Lệch quá 300 giây (5 phút) -> Hết hạn
+    if (diff > 60) {
       return true;
     }
   }
@@ -479,7 +530,7 @@ bool isTimestampExpired(const String& tsStr) {
 void softSyncClockFromApp(long validTs) {
   if (validTs < 1700000000) return;
   time_t now = time(nullptr);
-  if (now < 1700000000 || (labs((long)now - validTs) > 30 && WiFi.status() != WL_CONNECTED)) {
+  if (now < 1700000000) {
     struct timeval tv;
     tv.tv_sec = validTs;
     tv.tv_usec = 0;
@@ -669,11 +720,6 @@ bool isUserAuthorizedForDevice(const String& user, const String& devId) {
     }
   }
 
-  // Chế độ tương thích ngược: Cho phép lệnh khuyết danh (user rỗng) chỉ khi nhà chưa cấu hình thành viên nào
-  if (cachedMembers.empty() && user.length() == 0) {
-    return true;
-  }
-
   // 2. Chặn các chuỗi mạo danh rỗng hoặc "owner" / "admin" giả mạo
   if (user.length() == 0) {
     Serial.printf("[RBAC] ⛔ Từ chối lệnh khuyết danh tính trên thiết bị '%s'!\n", devId.c_str());
@@ -698,6 +744,7 @@ bool isUserAuthorizedForDevice(const String& user, const String& devId) {
       if (m.role.equalsIgnoreCase("admin") || m.role.equalsIgnoreCase("owner")) {
         return true;
       }
+      if (devId == "*") return false;
       if (m.allowedDevices.empty()) {
         return true;
       }

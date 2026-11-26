@@ -22,18 +22,18 @@ static SemaphoreHandle_t mqttMutex = NULL;
 
 void initMqttMutex() {
   if (mqttMutex == NULL) {
-    mqttMutex = xSemaphoreCreateMutex();
+    mqttMutex = xSemaphoreCreateRecursiveMutex();
   }
 }
 
 bool lockMqtt(TickType_t waitTicks) {
   if (mqttMutex == NULL) return true;
-  return xSemaphoreTake(mqttMutex, waitTicks) == pdTRUE;
+  return xSemaphoreTakeRecursive(mqttMutex, waitTicks) == pdTRUE;
 }
 
 void unlockMqtt() {
   if (mqttMutex != NULL) {
-    xSemaphoreGive(mqttMutex);
+    xSemaphoreGiveRecursive(mqttMutex);
   }
 }
 
@@ -45,132 +45,103 @@ bool safeMqttPublish(const char* topic, const char* payload, bool retained) {
   return ok;
 }
 
+static uint64_t epochMillis() {
+  timeval tv;
+  gettimeofday(&tv, nullptr);
+  return uint64_t(tv.tv_sec) * 1000 + tv.tv_usec / 1000;
+}
+
+static String cleanDeviceBase(const String& room, const String& id) {
+  String mac = WiFi.macAddress();
+  mac.replace(":", "");
+  mac.toUpperCase();
+  return mqtt_prefix.substring(0, mqtt_prefix.indexOf('/')) + "/" + mac + "/" + room + "/" + id;
+}
+
+void publishRelayState(const String& stateTopic, const String& state, const String& requestNonce) {
+  if (bindingToken.length() != 43 || !stateTopic.endsWith("/state") || (state != "0" && state != "1")) return;
+  String rawBase = stateTopic.substring(0, stateTopic.length() - 6);
+  int devSlash = rawBase.lastIndexOf('/');
+  int roomSlash = rawBase.lastIndexOf('/', devSlash - 1);
+  String base = cleanDeviceBase(rawBase.substring(roomSlash + 1, devSlash), rawBase.substring(devSlash + 1));
+  String nonce = requestNonce;
+  if (nonce.isEmpty()) {
+    uint8_t random[16];
+    esp_fill_random(random, sizeof(random));
+    char hex[33];
+    bytesToHex(random, sizeof(random), hex);
+    nonce = hex;
+  }
+  String ts = String(epochMillis());
+  String proof = computeHmacSha256(computeSha256OfText(bindingToken), "state-v1\n" + base + "\n" + state + "\n" + ts + "\n" + nonce);
+  StaticJsonDocument<384> ack;
+  ack["v"] = 1;
+  ack["state"] = state;
+  ack["ts"] = ts;
+  ack["nonce"] = nonce;
+  ack["sig"] = proof;
+  String payload;
+  serializeJson(ack, payload);
+  String canonical = base + "/state";
+  safeMqttPublish(canonical.c_str(), payload.c_str(), true);
+  if (canonical != stateTopic) safeMqttPublish(stateTopic.c_str(), payload.c_str(), true);
+}
+
 void initMqttClient() {
   initMqttMutex();
   espClient.setCACert(HIVEMQ_ROOT_CA); // [ZH-CRIT-03] Xác thực chứng chỉ X.509 Root CA cho HiveMQ Cloud TLS Port 8883
   espClient.setTimeout(15); // 15 giây timeout cho phiên bắt tay TLS
   mqttClient.setServer(mqtt_server.c_str(), 8883);
   mqttClient.setCallback(mqttCallback);
-  mqttClient.setBufferSize(1024);
+  mqttClient.setBufferSize(4096);
   mqttClient.setKeepAlive(15); // Giảm KeepAlive xuống 15s (Broker kích hoạt LWT 'offline' sau tối đa 22s khi mất điện)
   mqttClient.setSocketTimeout(15); // 15 giây timeout cho MQTT CONNACK và Ping
 }
 
 /**
- * Xác thực đồng nhất User & MAC giữa ESP32 và Database Firestore
- * Nếu Database báo không khớp (đã hủy liên kết hoặc gán MAC khác) -> reset về AP Setup.
- * Chỉ khi hợp lệ mới cho phép kết nối MQTT!
+ * Verify an enrolled hub with its authenticated HTTPS origin.
  */
 bool verifyBindingWithDatabase() {
-  if (WiFi.status() != WL_CONNECTED) return false;
+  if (WiFi.status() != WL_CONNECTED || time(nullptr) < 1700000000 ||
+      !server_url.startsWith("https://") || bindingToken.length() != 43) return false;
+  int slash = mqtt_prefix.indexOf('/');
+  if (slash <= 0) return false;
 
-  int slashIdx = mqtt_prefix.indexOf('/');
-  if (slashIdx <= 0) {
-    Serial.println("[VERIFY] ⛔ mqtt_prefix không hợp lệ: " + mqtt_prefix);
-    resetToFactoryDefaults();
-    delay(500);
-    ESP.restart();
-    return false;
-  }
+  String mac = WiFi.macAddress();
+  mac.replace(":", "");
+  mac.toUpperCase();
+  StaticJsonDocument<192> doc;
+  doc["userId"] = mqtt_prefix.substring(0, slash);
+  doc["macAddress"] = mac;
+  String body;
+  serializeJson(doc, body);
+  String baseUrl = server_url;
+  while (baseUrl.endsWith("/")) baseUrl.remove(baseUrl.length() - 1);
 
-  String linkedUser = mqtt_prefix.substring(0, slashIdx);
-  linkedUser.trim();
-  String myMac = WiFi.macAddress();
-  String cleanHwMac = myMac;
-  cleanHwMac.replace(":", "");
-  cleanHwMac.replace("-", "");
-  cleanHwMac.toUpperCase();
-
-  static unsigned long lastVerifyLogTime = 0;
-  if (millis() - lastVerifyLogTime >= 15000) {
-    lastVerifyLogTime = millis();
-    Serial.println("\n[VERIFY] 🔍 Đang xác thực User [" + linkedUser + "] và MAC [" + cleanHwMac + "] với Database...");
-  }
-
-  // Thử các địa chỉ Server ứng viên
-  String candidates[3];
-  int candidateCount = 0;
-  if (server_url.length() > 5) {
-    candidates[candidateCount++] = server_url;
-  }
-  candidates[candidateCount++] = "http://" + WiFi.gatewayIP().toString() + ":5000";
-  candidates[candidateCount++] = "http://192.168.1.9:5000";
-
-  bool serverResponded = false;
+  WiFiClientSecure client;
+  client.setCACert(HIVEMQ_ROOT_CA);
   HTTPClient http;
-
-  for (int i = 0; i < candidateCount; i++) {
-    esp_task_wdt_reset();
-    vTaskDelay(pdMS_TO_TICKS(15)); // [ZH-MED-04] Nhường CPU cho FreeRTOS Task WDT
-    String verifyUrl = candidates[i] + "/api/v1/hub/verify-binding?userId=" + linkedUser + 
-                       "&macAddress=" + cleanHwMac + 
-                       "&setup=" + (isSetupPending ? "1" : "0") + 
-                       "&adminPass=" + admin_pass;
-    http.begin(verifyUrl);
-    http.setTimeout(3500);
-    int httpCode = http.GET();
-
-    if (httpCode == 200) {
-      serverResponded = true;
-      String resPayload = http.getString();
-      http.end();
-
-      DynamicJsonDocument resDoc(512);
-      DeserializationError err = deserializeJson(resDoc, resPayload);
-      if (!err && resDoc.containsKey("valid")) {
-        bool isValid = resDoc["valid"].as<bool>();
-        if (isValid) {
-          Serial.println("[VERIFY] ✅ XÁC THỰC THÀNH CÔNG: User và MAC hợp lệ với Database!");
-          isBindingVerified = true;
-          return true;
-        } else {
-          String reason = resDoc.containsKey("reason") ? resDoc["reason"].as<String>() : "UNKNOWN";
-          String msg = resDoc.containsKey("message") ? resDoc["message"].as<String>() : "";
-          Serial.println("\n[BẢO MẬT] ❌ XÁC THỰC THẤT BẠI TRÊN DATABASE!");
-          Serial.println("[BẢO MẬT] ❌ Lý do: " + reason + " - " + msg);
-
-          // Nếu đang trong giai đoạn Setup xác nhận (90s) và Database tạm thời báo UNLINKED:
-          // Không xóa cấu hình ngay lập tức mà để vòng lặp Setup 90s tiếp tục chờ hoặc xử lý timeout!
-          if (isSetupPending && reason == "UNLINKED_IN_DATABASE") {
-            Serial.println("[SETUP] ⏳ Đang trong 90s Setup: Chờ App/Database hoàn tất ghi dữ liệu...");
-            return false;
-          }
-
-          Serial.println("[BẢO MẬT] 🔄 Tài khoản trên Database không hợp lệ hoặc sai khác phần cứng.");
-          Serial.println("[BẢO MẬT] 👉 Reset toàn bộ cấu hình ESP32 và quay về chế độ AP Setup...\n");
-          resetToFactoryDefaults();
-          delay(600);
-          ESP.restart();
-          return false;
-        }
-      }
-      break;
-    }
-    http.end();
+  if (!http.begin(client, baseUrl + "/api/v1/hub/verify-binding")) return false;
+  http.setTimeout(3500);
+  http.addHeader("Authorization", "Bearer " + bindingToken);
+  http.addHeader("Content-Type", "application/json");
+  if (http.POST(body) == 200) {
+    StaticJsonDocument<256> result;
+    isBindingVerified = !deserializeJson(result, http.getString()) && result["valid"] == true;
   }
+  http.end();
+  return isBindingVerified;
+}
 
-  // Nếu Server nội bộ chưa phản hồi (máy tính tắt server hoặc kết nối trực tiếp HiveMQ Cloud):
-  if (!serverResponded) {
-    Serial.println("[VERIFY] ℹ️ Server nội bộ chưa phản hồi. Kiểm tra tính toàn vẹn cục bộ...");
-    String prefixMac = mqtt_prefix.substring(slashIdx + 1);
-    prefixMac.replace(":", "");
-    prefixMac.replace("-", "");
-    prefixMac.toUpperCase();
-
-    if (prefixMac == cleanHwMac && linkedUser.length() > 0 && linkedUser != "guest" && prefixMac != "UNKNOWN_MAC") {
-      Serial.println("[VERIFY] ⚠️ Cục bộ hợp lệ (User: " + linkedUser + ", MAC: " + cleanHwMac + "). Cho phép kết nối MQTT.");
-      isBindingVerified = true;
-      return true;
-    } else {
-      Serial.println("[VERIFY] ⛔ MAC trong cấu hình không khớp phần cứng! Hủy cấu hình về AP Setup.");
-      resetToFactoryDefaults();
-      delay(500);
-      ESP.restart();
-      return false;
-    }
+static void subscribeHubCommands() {
+  String canonical = cleanDeviceBase("", "");
+  canonical.remove(canonical.length() - 2);
+  const char* topics[] = {"/+/+/cmd", "/system/config", "/system/reset", "/system/reboot",
+                          "/system/restart", "/system/ota_update", "/system/members"};
+  for (const char* topic : topics) {
+    mqttClient.subscribe((canonical + topic).c_str(), 1);
+    if (canonical != mqtt_prefix) mqttClient.subscribe((mqtt_prefix + topic).c_str(), 1);
   }
-
-  return false;
 }
 
 void connectMQTT() {
@@ -186,7 +157,16 @@ void connectMQTT() {
     }
   }
 
-  Serial.println("\n[MQTT] 📡 Đang kết nối MQTT TLS (8883) tới: " + mqtt_server + " (User: " + mqtt_user + ")");
+  // Kiểm tra phân giải DNS trước khi bắt tay socket TLS
+  IPAddress resolvedIp;
+  if (!WiFi.hostByName(mqtt_server.c_str(), resolvedIp)) {
+    Serial.println("[MQTT] ⚠️ Không thể phân giải DNS: " + mqtt_server + ". Thử lại với Public DNS (8.8.8.8)...");
+    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, IPAddress(8, 8, 8, 8), IPAddress(1, 1, 1, 1));
+    delay(100);
+    WiFi.hostByName(mqtt_server.c_str(), resolvedIp);
+  }
+
+  Serial.println("\n[MQTT] 📡 Đang kết nối MQTT TLS (8883) tới: " + mqtt_server + " [" + resolvedIp.toString() + "] (User: " + mqtt_user + ")");
   Serial.printf("[MQTT] ℹ️ Bộ nhớ Heap khả dụng: %u bytes\n", ESP.getFreeHeap());
   String mac = WiFi.macAddress();
   mac.replace(":", "");
@@ -196,8 +176,13 @@ void connectMQTT() {
   // Dọn dẹp triệt để TLS Socket cũ trước khi khởi tạo phiên bắt tay mới
   espClient.stop();
   delay(30);
-  espClient.setHandshakeTimeout(15);
-  espClient.setCACert(HIVEMQ_ROOT_CA); // [ZH-CRIT-03] Xác thực chứng chỉ X.509 Root CA chống MitM
+  espClient.setHandshakeTimeout(20);
+
+  if (time(nullptr) < 1700000000) {
+    isConnectingMqtt = false;
+    return;
+  }
+  espClient.setCACert(HIVEMQ_ROOT_CA);
 
   // [Phase P3: Software Mutual TLS - mTLS] Kiểm tra nếu có certificate và private key trong LittleFS
   static String clientCertPem = "";
@@ -222,7 +207,8 @@ void connectMQTT() {
     }
   }
 
-  if (clientCertPem.length() > 0 && clientKeyPem.length() > 0) {
+  // Chỉ kích hoạt Client Cert mTLS nếu Broker hỗ trợ (Broker HiveMQ Cloud Serverless từ chối client cert nếu gửi lên)
+  if (mqtt_server.indexOf("hivemq.cloud") < 0 && clientCertPem.length() > 0 && clientKeyPem.length() > 0) {
     espClient.setCertificate(clientCertPem.c_str());
     espClient.setPrivateKey(clientKeyPem.c_str());
   }
@@ -230,7 +216,7 @@ void connectMQTT() {
   bool connected = false;
   if (mqtt_user != "" && mqtt_pass != "") {
     connected = mqttClient.connect(clientId.c_str(), mqtt_user.c_str(), mqtt_pass.c_str(), statusTopic.c_str(), 1, true, "offline");
-  } else {
+  } else if (mqtt_server.indexOf("hivemq.cloud") < 0 && clientCertPem.length() > 0 && clientKeyPem.length() > 0) {
     connected = mqttClient.connect(clientId.c_str(), statusTopic.c_str(), 1, true, "offline");
   }
 
@@ -246,7 +232,9 @@ void connectMQTT() {
 
       String setupConfirmTopic = mqtt_prefix + "/setup/confirm";
       mqttClient.subscribe(setupConfirmTopic.c_str(), 1);
-      mqttClient.subscribe("+/+/setup/confirm", 1);
+      String compact = cleanDeviceBase("", "");
+      compact.remove(compact.length() - 2);
+      mqttClient.subscribe((compact + "/setup/confirm").c_str(), 1);
 
       sendSetupHandshakeBeacon();
       isConnectingMqtt = false;
@@ -263,7 +251,7 @@ void connectMQTT() {
       for (int i = 0; i < relayCount; i++) {
         String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
         String stateTopic = mqtt_prefix + "/" + rName + "/" + myRelays[i].id + "/state";
-        mqttClient.publish(stateTopic.c_str(), "0", true);
+        publishRelayState(stateTopic, myRelays[i].state);
       }
       if (LittleFS.exists("/offline_backup.json")) {
         LittleFS.remove("/offline_backup.json");
@@ -284,7 +272,7 @@ void connectMQTT() {
       for (int i = 0; i < relayCount; i++) {
         String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
         String stateTopic = mqtt_prefix + "/" + rName + "/" + myRelays[i].id + "/state";
-        mqttClient.publish(stateTopic.c_str(), myRelays[i].state.c_str(), true);
+        publishRelayState(stateTopic, myRelays[i].state);
 
         JsonObject rObj = relayArr.createNestedObject();
         rObj["id"] = myRelays[i].id;
@@ -303,37 +291,7 @@ void connectMQTT() {
       Serial.println("[SYNC] ✅ Đã đẩy tín hiệu backup trạng thái lần cuối lên Cloud & xóa backup tạm trên ESP32!");
     }
 
-    String listenTopic = mqtt_prefix + "/+/+/cmd";
-    mqttClient.subscribe(listenTopic.c_str());
-    String cleanMacPrefix = mqtt_prefix;
-    cleanMacPrefix.replace(":", "");
-    String cleanListenTopic = cleanMacPrefix + "/+/+/cmd";
-    if (cleanListenTopic != listenTopic) {
-      mqttClient.subscribe(cleanListenTopic.c_str());
-    }
-    
-    String systemConfigTopic = mqtt_prefix + "/system/config";
-    mqttClient.subscribe(systemConfigTopic.c_str());
-
-    String systemResetTopic = mqtt_prefix + "/system/reset";
-    mqttClient.subscribe(systemResetTopic.c_str());
-
-    String systemRebootTopic = mqtt_prefix + "/system/reboot";
-    String systemRestartTopic = mqtt_prefix + "/system/restart";
-    mqttClient.subscribe(systemRebootTopic.c_str());
-    mqttClient.subscribe(systemRestartTopic.c_str());
-
-    String systemOtaTopic = mqtt_prefix + "/system/ota_update";
-    mqttClient.subscribe(systemOtaTopic.c_str());
-    String cleanMacOtaTopic = mqtt_prefix;
-    cleanMacOtaTopic.replace(":", "");
-    cleanMacOtaTopic += "/system/ota_update";
-    if (cleanMacOtaTopic != systemOtaTopic) {
-      mqttClient.subscribe(cleanMacOtaTopic.c_str());
-    }
-
-    String systemMembersTopic = mqtt_prefix + "/system/members";
-    mqttClient.subscribe(systemMembersTopic.c_str());
+    subscribeHubCommands();
 
     // Phát Heartbeat ban đầu thông báo phiên bản Firmware & Trạng thái bảo mật phần cứng ngay khi kết nối
     {
@@ -384,6 +342,12 @@ void connectMQTT() {
         char errBuf[128] = {0};
         espClient.lastError(errBuf, sizeof(errBuf));
         Serial.printf(" (MQTT_CONNECT_FAILED: Lỗi kết nối Socket TCP/TLS - %s)\n", errBuf);
+        Serial.printf("[MQTT-DIAG] WiFi IP: %s | Server: %s | DNS: %s | Epoch: %ld | Heap: %u bytes\n",
+                      WiFi.localIP().toString().c_str(),
+                      mqtt_server.c_str(),
+                      resolvedIp.toString().c_str(),
+                      (long)time(nullptr),
+                      ESP.getFreeHeap());
       } else if (state == 4 || state == 5) {
         Serial.println(" (MQTT_UNAUTHORIZED: Sai tên đăng nhập hoặc mật khẩu)");
       } else {
@@ -478,6 +442,8 @@ void checkMqttConnection() {
   }
 }
 
+static String setupChallenge;
+
 void sendSetupHandshakeBeacon() {
   if (!mqttClient.connected() || !isSetupPending) return;
 
@@ -487,6 +453,14 @@ void sendSetupHandshakeBeacon() {
 
   StaticJsonDocument<256> doc;
   doc["mac"] = mac;
+  if (setupChallenge.isEmpty()) {
+    uint8_t random[16];
+    esp_fill_random(random, sizeof(random));
+    char challengeHex[33];
+    bytesToHex(random, sizeof(random), challengeHex);
+    setupChallenge = challengeHex;
+  }
+  doc["challenge"] = setupChallenge;
   doc["status"] = "ready_confirm";
   doc["ip"] = WiFi.localIP().toString();
   doc["uptime"] = millis() / 1000;
@@ -525,31 +499,7 @@ void unlockAllFeatures() {
   mqttClient.publish(eventTopic.c_str(), "{\"event\":\"setup_completed\",\"status\":\"unlocked\"}", false);
 
   // 5. Đăng ký toàn bộ topic điều khiển & quản trị
-  String listenTopic = mqtt_prefix + "/+/+/cmd";
-  mqttClient.subscribe(listenTopic.c_str());
-
-  String systemConfigTopic = mqtt_prefix + "/system/config";
-  mqttClient.subscribe(systemConfigTopic.c_str());
-
-  String systemResetTopic = mqtt_prefix + "/system/reset";
-  mqttClient.subscribe(systemResetTopic.c_str());
-
-  String systemRebootTopic = mqtt_prefix + "/system/reboot";
-  String systemRestartTopic = mqtt_prefix + "/system/restart";
-  mqttClient.subscribe(systemRebootTopic.c_str());
-  mqttClient.subscribe(systemRestartTopic.c_str());
-
-  String systemOtaTopic = mqtt_prefix + "/system/ota_update";
-  mqttClient.subscribe(systemOtaTopic.c_str());
-  String cleanMacOtaTopic = mqtt_prefix;
-  cleanMacOtaTopic.replace(":", "");
-  cleanMacOtaTopic += "/system/ota_update";
-  if (cleanMacOtaTopic != systemOtaTopic) {
-    mqttClient.subscribe(cleanMacOtaTopic.c_str());
-  }
-
-  String systemMembersTopic = mqtt_prefix + "/system/members";
-  mqttClient.subscribe(systemMembersTopic.c_str());
+  subscribeHubCommands();
 
   // 6. Phát hiện Home Assistant
   publishHomeAssistantDiscovery();
@@ -558,7 +508,7 @@ void unlockAllFeatures() {
   for (int i = 0; i < relayCount; i++) {
     String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
     String stateTopic = mqtt_prefix + "/" + rName + "/" + myRelays[i].id + "/state";
-    mqttClient.publish(stateTopic.c_str(), "0", true);
+    publishRelayState(stateTopic, myRelays[i].state);
   }
 }
 
@@ -633,61 +583,95 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
   // Lệnh xác nhận thiết lập từ App (Setup Handshake Confirm)
   String setupConfirmTopic = mqtt_prefix + "/setup/confirm";
-  if ((topicStr == setupConfirmTopic || topicStr.endsWith("/setup/confirm")) && isSetupPending) {
-    Serial.println("\n[SETUP] 🤝 ĐÃ NHẬN TÍN HIỆU PHẢN HỒI XÁC NHẬN TỪ APP: " + topicStr);
-
-    DynamicJsonDocument confirmDoc(256);
-    DeserializationError cErr = deserializeJson(confirmDoc, message);
-    bool isConfirmed = (!cErr && confirmDoc.containsKey("confirm")) ? confirmDoc["confirm"].as<bool>() : true;
-
-    if (isConfirmed) {
-      // Tự động đồng bộ userId theo App nếu có
-      if (!cErr && confirmDoc.containsKey("userId")) {
-        String newUid = confirmDoc["userId"].as<String>();
-        if (newUid.length() > 0 && newUid != "guest") {
-          String curMac = WiFi.macAddress();
-          mqtt_prefix = newUid + "/" + curMac;
-          Serial.println("[SETUP] 🔄 Đã đồng bộ mqtt_prefix theo App: " + mqtt_prefix);
-        }
-      }
+  String cleanConfirmTopic = setupConfirmTopic;
+  cleanConfirmTopic.replace(":", "");
+  if (isSetupPending && (topicStr == setupConfirmTopic || topicStr == cleanConfirmTopic)) {
+    DynamicJsonDocument confirmDoc(512);
+    String user = mqtt_prefix.substring(0, mqtt_prefix.indexOf('/'));
+    String mac = WiFi.macAddress();
+    mac.replace(":", "");
+    mac.toUpperCase();
+    String signedFields = user + ":" + mac + ":" + setupChallenge;
+    if (deserializeJson(confirmDoc, message) || confirmDoc["confirm"] != true ||
+        !isBindingVerified || setupChallenge.isEmpty() ||
+        confirmDoc["userId"] != user || confirmDoc["challenge"] != setupChallenge ||
+        !verifyHmacSha256(currentLocalSecretKey, "setup:" + signedFields, confirmDoc["sig"] | "")) return;
+    {
       // 1. Gỡ cờ pending và tạo provisioned.txt
+      File marker = LittleFS.open("/provisioned.txt", "w");
+      if (!marker) return;
+      bool written = marker.print("1") == 1;
+      marker.close();
+      if (!written || !LittleFS.remove("/setup_pending.txt")) return;
       isSetupPending = false;
-      if (LittleFS.exists("/setup_pending.txt")) {
-        LittleFS.remove("/setup_pending.txt");
-      }
       isProvisioned = true;
       isConfigured = true;
-      File provFile = LittleFS.open("/provisioned.txt", "w");
-      if (provFile) {
-        provFile.print("1");
-        provFile.close();
-      }
 
-      // 2. Phát tín hiệu báo hoàn thành thiết lập cho App
+      StaticJsonDocument<384> result;
+      result["status"] = "completed";
+      result["mac"] = mac;
+      result["challenge"] = setupChallenge;
+      result["proof"] = computeHmacSha256(currentLocalSecretKey, "complete:" + signedFields);
+      String completeMsg;
+      serializeJson(result, completeMsg);
       String setupCompleteTopic = mqtt_prefix + "/setup/complete";
-      String mac = WiFi.macAddress();
-      mac.replace(":", "");
-      mac.toUpperCase();
-      String completeMsg = "{\"status\":\"completed\",\"mac\":\"" + mac + "\"}";
       mqttClient.publish(setupCompleteTopic.c_str(), completeMsg.c_str(), true);
-
+      String cleanCompleteTopic = setupCompleteTopic;
+      cleanCompleteTopic.replace(":", "");
+      if (cleanCompleteTopic != setupCompleteTopic) mqttClient.publish(cleanCompleteTopic.c_str(), completeMsg.c_str(), true);
+      setupChallenge = "";
       // 3. Mở khóa toàn bộ tính năng của ESP32
       unlockAllFeatures();
       return;
     }
   }
 
-  // Lệnh Reboot / Restart
-  String systemRebootTopic = mqtt_prefix + "/system/reboot";
-  String systemRestartTopic = mqtt_prefix + "/system/restart";
-  if ((topicStr == systemRebootTopic || topicStr == systemRestartTopic) && message == "1") {
-    Serial.println("\n[!] NHẬN ĐƯỢC LỆNH KHỞI ĐỘNG LẠI (REBOOT) TỪ APP!");
-    mqttClient.publish(systemRebootTopic.c_str(), "", true);
-    mqttClient.publish(systemRestartTopic.c_str(), "", true);
-    Serial.println("ESP32 sẽ khởi động lại sau 1 giây...");
-    rebootScheduledAt = millis();
-    shouldReboot = true;
-    return;
+  if (!isProvisioned || isSetupPending) return;
+  String cleanPrefix = mqtt_prefix;
+  cleanPrefix.replace(":", "");
+  if (topicStr.startsWith(cleanPrefix + "/")) topicStr = mqtt_prefix + topicStr.substring(cleanPrefix.length());
+  if (!topicStr.startsWith(mqtt_prefix + "/")) return;
+  String suffix = topicStr.substring(mqtt_prefix.length() + 1);
+  if (suffix.startsWith("system/")) {
+    DynamicJsonDocument wrapper(4096);
+    if (deserializeJson(wrapper, message)) return;
+    String action = suffix.substring(7);
+    if (wrapper.containsKey("enc")) {
+      String enc = wrapper["enc"] | "";
+      if (!enc.startsWith("ZHENC1:")) return;
+      message = decryptEnvelopeWithKeyHex(enc, currentLocalSecretKey);
+      wrapper.clear();
+      if (deserializeJson(wrapper, message) || time(nullptr) < 1700000000 ||
+          wrapper["ts"].as<String>().toInt() <= time(nullptr) - esp_timer_get_time() / 1000000 ||
+          wrapper["action"] != action || isTimestampExpired(wrapper["ts"].as<String>()) ||
+          isNonceReplayedOrInvalid(wrapper["nonce"] | "")) return;
+    } else {
+      if (bindingToken.length() != 43 || wrapper["v"] != 1 ||
+          (action != "config" && action != "members" && action != "ota_update" && action != "reset")) return;
+      String data = wrapper["data"] | "";
+      String ts = wrapper["ts"] | "";
+      String nonce = wrapper["nonce"] | "";
+      if (ts.length() != 13 || nonce.length() != 32) return;
+      uint64_t issued = strtoull(ts.c_str(), nullptr, 10);
+      uint64_t now = epochMillis();
+      if (issued + 60000 < now || issued > now + 60000 || issued < now - uint64_t(esp_timer_get_time() / 1000)) return;
+      String mac = WiFi.macAddress();
+      mac.replace(":", "");
+      mac.toUpperCase();
+      String canonical = mqtt_prefix.substring(0, mqtt_prefix.indexOf('/')) + "/" + mac + "/" + suffix;
+      String fields = "admin-v1\n" + canonical + "\n" + computeSha256OfText(data) + "\n" + ts + "\n" + nonce;
+      if (!verifyHmacSha256(computeSha256OfText(bindingToken), fields, wrapper["sig"] | "") ||
+          isNonceReplayedOrInvalid(nonce)) return;
+      message = data;
+      wrapper.clear();
+      if (deserializeJson(wrapper, message) || !wrapper.is<JsonObject>()) return;
+      if (action == "config" && (wrapper.size() != 1 || !wrapper["devices"].is<JsonArray>())) return;
+    }
+    if (suffix == "system/reboot" || suffix == "system/restart") {
+      rebootScheduledAt = millis();
+      shouldReboot = true;
+      return;
+    }
   }
 
   // Lệnh OTA
@@ -705,27 +689,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     StaticJsonDocument<512> otaDoc;
     DeserializationError err = deserializeJson(otaDoc, message);
     if (!err && otaDoc.containsKey("url")) {
-      bool authorized = false;
-      if (otaDoc.containsKey("admin_pass")) {
-        String sentPass = otaDoc["admin_pass"].as<String>();
-        if (admin_pass.length() > 0 && constantTimeCompare(sentPass, admin_pass)) {
-          authorized = true;
-        }
-      }
-      String sigHex = otaDoc.containsKey("sig") ? otaDoc["sig"].as<String>() : "";
-      if (sigHex.length() >= 64) {
-        authorized = true;
-      }
-
-      if (!authorized) {
-        Serial.println("[OTA] ❌ Từ chối nâng cấp firmware: Sai mật khẩu quản trị hoặc thiếu ủy quyền!");
-        if (mqttClient.connected()) {
-          String resTopic = mqtt_prefix + "/system/ota_result";
-          mqttClient.publish(resTopic.c_str(), "{\"status\":\"error\",\"message\":\"Từ chối nâng cấp: Sai mật khẩu quản trị!\"}", false);
-        }
-        return;
-      }
-
+      String sigHex = otaDoc["sig"] | "";
       // [ZH-HIGH-19] Anti-Rollback firmware check: Bắt buộc build >= FIRMWARE_BUILD_NUM
       int newBuild = -1;
       if (otaDoc.containsKey("build")) {
@@ -735,7 +699,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       } else if (otaDoc.containsKey("buildNumber")) {
         newBuild = otaDoc["buildNumber"].as<int>();
       }
-      if (newBuild > 0 && newBuild < FIRMWARE_BUILD_NUM) {
+      if (newBuild < FIRMWARE_BUILD_NUM) {
         Serial.printf("[OTA] ⛔ ANTI-ROLLBACK: Từ chối hạ cấp firmware! Bản hiện tại: %d, bản yêu cầu: %d\n", FIRMWARE_BUILD_NUM, newBuild);
         if (mqttClient.connected()) {
           String resTopic = mqtt_prefix + "/system/ota_result";
@@ -756,28 +720,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   // Lệnh Reset hệ thống
   String systemResetTopic = mqtt_prefix + "/system/reset";
   if (topicStr == systemResetTopic) {
-    bool authorized = false;
-    DynamicJsonDocument resetDoc(384);
-    DeserializationError err = deserializeJson(resetDoc, message);
-    if (!err && resetDoc.is<JsonObject>()) {
-      String sentPass = resetDoc.containsKey("admin_pass") ? resetDoc["admin_pass"].as<String>() : "";
-      if (admin_pass.length() > 0 && constantTimeCompare(sentPass, admin_pass)) {
-        authorized = true;
-      } else {
-        Serial.println("\n[!] ⛔ TỪ CHỐI FACTORY RESET: Sai mật khẩu quản trị (admin_pass)!");
-      }
-    } else {
-      Serial.println("\n[!] ⛔ TỪ CHỐI FACTORY RESET: Bắt buộc gửi payload JSON kèm mật khẩu admin_pass hợp lệ!");
-    }
-
-    if (!authorized) {
-      mqttClient.publish(systemResetTopic.c_str(), "", true);
-      return;
-    }
-
-    Serial.println("\n[!] 🔐 ĐÃ XÁC THỰC THÀNH CÔNG YÊU CẦU FACTORY RESET!");
     mqttClient.publish(systemResetTopic.c_str(), "", true);
-    
     resetToFactoryDefaults();
     Serial.println("Hệ thống sẽ khởi động lại và vào chế độ AP Setup sau 2 giây...");
     rebootScheduledAt = millis();
@@ -807,16 +750,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             Serial.println("\n[CONFIG] 📥 Nhận mảng thiết bị trực tiếp từ App qua MQTT!");
             doc["devices"] = newConfigDoc.as<JsonArray>();
           } else if (newConfigDoc.is<JsonObject>()) {
-            String currentAdminPass = doc.containsKey("admin_pass") ? doc["admin_pass"].as<String>() : (admin_pass.length() > 0 ? admin_pass : "admin");
-            String sentAdminPass = newConfigDoc.containsKey("admin_pass") ? newConfigDoc["admin_pass"].as<String>() : "";
-
-            bool isDeviceOnlyUpdate = (newConfigDoc.containsKey("devices") && !newConfigDoc.containsKey("wifi_ssid") && !newConfigDoc.containsKey("admin_pass"));
-
-            if (!isDeviceOnlyUpdate && sentAdminPass.length() > 0 && !constantTimeCompare(sentAdminPass, currentAdminPass)) {
-              Serial.println("\n[!] BẢO MẬT: Sai hoặc thiếu mật khẩu quản trị! Từ chối ghi đè cấu hình ESP32.");
-              return;
-            }
-
             if (newConfigDoc.containsKey("wifi_ssid")) {
               String s = newConfigDoc["wifi_ssid"].as<String>();
               if (s.length() > 0) doc["wifi_ssid"] = s;
@@ -833,10 +766,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             }
             if (newConfigDoc.containsKey("mqtt_pass")) {
               doc["mqtt_pass"] = newConfigDoc["mqtt_pass"].as<String>();
-            }
-            if (newConfigDoc.containsKey("mqtt_prefix")) {
-              String p = newConfigDoc["mqtt_prefix"].as<String>();
-              if (p.length() > 0) doc["mqtt_prefix"] = p;
             }
             if (newConfigDoc.containsKey("admin_pass")) {
               doc["admin_pass"] = newConfigDoc["admin_pass"].as<String>();
@@ -872,48 +801,43 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  // Lệnh điều khiển rơ-le
-  int lastSlash = topicStr.lastIndexOf('/');
-  int secondLastSlash = topicStr.lastIndexOf('/', lastSlash - 1);
-  if (lastSlash == -1 || secondLastSlash == -1) return;
-  
-  String devId = topicStr.substring(secondLastSlash + 1, lastSlash); 
-  String targetState = "";
-
-  if (message.startsWith("{") && message.endsWith("}")) {
-    StaticJsonDocument<256> doc;
-    DeserializationError err = deserializeJson(doc, message);
-    if (!err) {
-      // SEC-FIX [ZH-HIGH-17]: Monotonic Sequence Version (ver) chống xung đột Race Condition
-      if (doc.containsKey("ver")) {
-        static std::map<String, uint64_t> lastRelayVer;
-        uint64_t cmdVer = doc["ver"].as<uint64_t>();
-        if (cmdVer > 0 && lastRelayVer.find(devId) != lastRelayVer.end() && cmdVer <= lastRelayVer[devId]) {
-          Serial.printf("[MQTT-CONFLICT] ⚠️ Bỏ qua lệnh cũ cho thiết bị '%s' (ver: %llu <= last_ver: %llu)\n", devId.c_str(), cmdVer, lastRelayVer[devId]);
-          return;
-        }
-        lastRelayVer[devId] = cmdVer;
-      }
-      if (doc.containsKey("action")) {
-        String act = doc["action"].as<String>();
-        targetState = (act == "1" || act == "ON" || act == "on") ? "1" : "0";
-      } else if (doc.containsKey("state")) {
-        targetState = doc["state"].as<String>();
-      }
-      if (doc.containsKey("user")) {
-        String reqUser = doc["user"].as<String>();
-        bool isOwnerUser = reqUser.equalsIgnoreCase("owner") || (cachedOwner.length() > 0 && reqUser.equalsIgnoreCase(cachedOwner));
-        if (!isOwnerUser && reqUser.length() > 0 && !isUserAuthorizedForDevice(reqUser, devId)) {
-          Serial.printf("[MQTT-RBAC] 🚫 Từ chối user '%s' điều khiển '%s' qua MQTT (Không có quyền/Bị khóa)!\n", reqUser.c_str(), devId.c_str());
-          return;
-        }
-      }
+  // The server signs the canonical device path and requested state.
+  if (!suffix.endsWith("/cmd") || bindingToken.length() != 43) return;
+  int roomSlash = suffix.indexOf('/');
+  int deviceSlash = suffix.lastIndexOf('/');
+  if (roomSlash <= 0 || deviceSlash <= roomSlash + 1 || suffix.indexOf('/', roomSlash + 1) != deviceSlash) return;
+  String room = suffix.substring(0, roomSlash);
+  String id = suffix.substring(roomSlash + 1, deviceSlash);
+  String base = cleanDeviceBase(room, id);
+  StaticJsonDocument<512> doc;
+  if (deserializeJson(doc, message) || doc["v"] != 1) return;
+  String state = doc["state"] | "";
+  String ts = doc["ts"] | "";
+  String nonce = doc["nonce"] | "";
+  if ((state != "0" && state != "1") || ts.length() != 13 || nonce.length() != 32) return;
+  for (size_t i = 0; i < nonce.length(); ++i) if (!isxdigit(nonce[i])) return;
+  for (size_t i = 0; i < ts.length(); ++i) if (!isdigit(ts[i])) return;
+  uint64_t issued = strtoull(ts.c_str(), nullptr, 10);
+  uint64_t now = epochMillis();
+  if (issued + 60000 < now || issued > now + 60000 || issued < now - (uint64_t)(esp_timer_get_time() / 1000)) return;
+  const String fields = "relay-v1\n" + base + "\n" + state + "\n" + ts + "\n" + nonce;
+  if (!verifyHmacSha256(computeSha256OfText(bindingToken), fields, doc["sig"] | "")) return;
+  static uint64_t lastIssued[MAX_RELAYS] = {};
+  static String lastNonce[MAX_RELAYS];
+  for (int i = 0; i < relayCount; ++i) {
+    String relayRoom = myRelays[i].room.isEmpty() ? String("living_room") : myRelays[i].room;
+    if (myRelays[i].id != id || relayRoom != room) continue;
+    if (issued == lastIssued[i] && lastNonce[i] == nonce && myRelays[i].state == state) {
+      publishRelayState(base + "/state", state, nonce);
+      return;
     }
-  } else {
-    targetState = message;
+    if (issued <= lastIssued[i]) return;
+    if (applyRelayCommand(id, state, "mqtt", 2, nonce)) {
+      lastIssued[i] = issued;
+      lastNonce[i] = nonce;
+    }
+    return;
   }
-
-  applyRelayCommand(devId, targetState, "mqtt", 2);
 }
 
 void publishHomeAssistantDiscovery() {
@@ -928,14 +852,13 @@ void publishHomeAssistantDiscovery() {
   // 1. Discovery cho các Rơ-le (Switches)
   for (int i = 0; i < relayCount; i++) {
     String rName = myRelays[i].room.length() > 0 ? myRelays[i].room : "living_room";
-    String cmdTopic = mqtt_prefix + "/" + rName + "/" + myRelays[i].id + "/cmd";
     String stateTopic = mqtt_prefix + "/" + rName + "/" + myRelays[i].id + "/state";
     String discTopic = "homeassistant/switch/zenhome_" + cleanMac + "/" + myRelays[i].id + "/config";
 
     StaticJsonDocument<512> discDoc;
     discDoc["name"] = "ZenHome " + myRelays[i].id;
     discDoc["unique_id"] = cleanMac + "_" + myRelays[i].id;
-    discDoc["command_topic"] = cmdTopic;
+    discDoc["value_template"] = "{{ value_json.state }}";
     discDoc["state_topic"] = stateTopic;
     discDoc["payload_on"] = "1";
     discDoc["payload_off"] = "0";
@@ -981,19 +904,6 @@ void publishHomeAssistantDiscovery() {
 }
 
 void publishOtaMessage(const String& subTopic, const String& payload) {
-  if (!mqttClient.connected()) {
-    if (WiFi.status() == WL_CONNECTED) {
-      String mac = WiFi.macAddress();
-      mac.replace(":", "");
-      String clientId = "ESP32_" + mac;
-      String statusTopic = mqtt_prefix + "/esp_status";
-      if (mqtt_user != "" && mqtt_pass != "") {
-        mqttClient.connect(clientId.c_str(), mqtt_user.c_str(), mqtt_pass.c_str(), statusTopic.c_str(), 1, true, "offline");
-      } else {
-        mqttClient.connect(clientId.c_str(), statusTopic.c_str(), 1, true, "offline");
-      }
-    }
-  }
   if (!mqttClient.connected()) return;
   String t1 = mqtt_prefix + subTopic;
   mqttClient.publish(t1.c_str(), payload.c_str(), false);
@@ -1010,34 +920,29 @@ void publishOtaMessage(const String& subTopic, const String& payload) {
 }
 
 void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, const String& signatureHex, int newBuild) {
-  if (fwUrl.length() < 10) return;
-  if (newBuild > 0 && newBuild < FIRMWARE_BUILD_NUM) {
+  if (!fwUrl.startsWith("https://") || expectedSha256.length() != 64 || signatureHex.isEmpty()) return;
+  if (newBuild < FIRMWARE_BUILD_NUM) {
     Serial.printf("[SERVER-OTA] ⛔ ANTI-ROLLBACK: Từ chối hạ cấp firmware! Bản hiện tại: %d, bản yêu cầu: %d\n", FIRMWARE_BUILD_NUM, newBuild);
     publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"code\":\"ANTI_ROLLBACK\",\"message\":\"Từ chối hạ cấp firmware về bản cũ!\"}");
     return;
   }
-  if (isOtaInProgress) {
+  if (isOtaInProgress.exchange(true)) {
     Serial.println("[SERVER-OTA] ⚠️ Đang có tiến trình nạp OTA chạy trong nền, bỏ qua yêu cầu trùng lặp!");
     return;
   }
-  isOtaInProgress = true;
   Serial.println("\n[SERVER-OTA] 🚀 Bắt đầu quá trình nâng cấp Firmware: " + fwUrl);
 
   publishOtaMessage("/system/ota_progress", "{\"progress\":0,\"status\":\"starting\"}");
 
-  bool isHttps = fwUrl.startsWith("https://");
-  WiFiClient plainClient;
   WiFiClientSecure secureClient;
-  if (isHttps) {
-    secureClient.setCACert(HIVEMQ_ROOT_CA); // [ZH-CRIT-03] Xác thực chứng chỉ X.509 Root CA cho HTTPS OTA downloads
-  }
+  secureClient.setCACert(OTA_ROOT_CAS);
 
   HTTPClient http;
   http.setConnectTimeout(10000);
   http.setTimeout(30000);
   http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS); // Theo sát chuyển hướng 302 của GitHub Releases
 
-  bool beginOk = isHttps ? http.begin(secureClient, fwUrl) : http.begin(plainClient, fwUrl);
+  bool beginOk = http.begin(secureClient, fwUrl);
   if (!beginOk) {
     Serial.println("[SERVER-OTA] ❌ Không thể khởi tạo kết nối HTTP/HTTPS!");
     publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Không thể kết nối tới URL tải firmware!\"}");
@@ -1083,16 +988,20 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, c
 
   mbedtls_md_context_t md_ctx;
   mbedtls_md_init(&md_ctx);
-  mbedtls_md_setup(&md_ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0);
-  mbedtls_md_starts(&md_ctx);
-
-  while (http.connected() && (written < (size_t)contentLength)) {
+  bool hashOk = mbedtls_md_setup(&md_ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0) == 0 &&
+                mbedtls_md_starts(&md_ctx) == 0;
+  unsigned long lastData = millis();
+  while (hashOk && http.connected() && written < (size_t)contentLength && millis() - lastData < 30000) {
     size_t sizeAvailable = stream->available();
     if (sizeAvailable > 0) {
-      int c = stream->readBytes(buff, ((sizeAvailable > sizeof(buff)) ? sizeof(buff) : sizeAvailable));
-      Update.write(buff, c);
-      mbedtls_md_update(&md_ctx, buff, c);
-      written += c;
+      size_t bytesToRead = std::min(sizeof(buff), std::min(sizeAvailable, (size_t)contentLength - written));
+      size_t count = stream->readBytes(buff, bytesToRead);
+      if (!count || Update.write(buff, count) != count || mbedtls_md_update(&md_ctx, buff, count) != 0) {
+        hashOk = false;
+        break;
+      }
+      written += count;
+      lastData = millis();
 
       int progress = (written * 100) / contentLength;
       if (progress - lastProgress >= 5 || written == (size_t)contentLength) {
@@ -1115,15 +1024,15 @@ void performServerOtaUpdate(const String& fwUrl, const String& expectedSha256, c
 
   http.end();
 
-  uint8_t calculatedShaBytes[32];
-  mbedtls_md_finish(&md_ctx, calculatedShaBytes);
+  uint8_t calculatedShaBytes[32] = {};
+  hashOk = hashOk && written == (size_t)contentLength && mbedtls_md_finish(&md_ctx, calculatedShaBytes) == 0;
   mbedtls_md_free(&md_ctx);
 
   char calculatedShaHex[65];
   bytesToHex(calculatedShaBytes, 32, calculatedShaHex);
   String calculatedSha = String(calculatedShaHex);
 
-  if (expectedSha256.length() == 64 && !expectedSha256.equalsIgnoreCase(calculatedSha)) {
+  if (!hashOk || !expectedSha256.equalsIgnoreCase(calculatedSha)) {
     Serial.println("[SERVER-OTA] ❌ BẢO MẬT: Kiểm tra tính toàn vẹn thất bại! Từ chối firmware không hợp lệ.");
     Update.abort();
     publishOtaMessage("/system/ota_result", "{\"status\":\"error\",\"message\":\"Xác thực tính toàn vẹn thất bại! Firmware có thể bị sửa đổi hoặc lỗi mạng.\"}");

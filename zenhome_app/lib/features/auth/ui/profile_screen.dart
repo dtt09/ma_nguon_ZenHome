@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:zenhome_app/features/home/logic/home_config_provider.dart';
 import 'package:zenhome_app/core/services/session_manager.dart';
@@ -320,7 +319,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) return;
       LoadingOverlay.show(context);
       try {
-        final String? clientId = dotenv.env['GOOGLE_CLIENT_ID'];
+        final String? clientId = const String.fromEnvironment('GOOGLE_CLIENT_ID');
         final GoogleSignIn googleSignIn = GoogleSignIn(serverClientId: clientId);
         await googleSignIn.signOut();
 

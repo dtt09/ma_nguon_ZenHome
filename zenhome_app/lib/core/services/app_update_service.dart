@@ -1,3 +1,4 @@
+import 'package:crypto/crypto.dart' as crypto;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -17,8 +18,13 @@ import 'package:zenhome_app/features/notifications/logic/notification_helper.dar
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 
 class AppUpdateService {
-  static const String fallbackServerUrl = 'http://192.168.1.6:5000'; // Default host LAN fallback
+  static const String fallbackServerUrl = String.fromEnvironment('ZENHOME_SERVER_URL');
   static const String _prefKeyLastServerUrl = 'last_known_server_base_url';
+
+  static bool isSecureUrl(String? url) {
+    final uri = url == null ? null : Uri.tryParse(url);
+    return uri != null && uri.isScheme('https') && uri.host.isNotEmpty && uri.userInfo.isEmpty;
+  }
 
   /// Lấy thông tin phiên bản hiện tại của ứng dụng
   static Future<PackageInfo> getPackageInfo() async {
@@ -45,7 +51,7 @@ class AppUpdateService {
           .timeout(const Duration(seconds: 4));
       if (doc.exists && doc.data() != null) {
         final base = doc.data()!['serverBaseUrl']?.toString().trim();
-        if (base != null && base.isNotEmpty && !base.contains('127.0.0.1') && !base.contains('localhost')) {
+        if (base != null && isSecureUrl(base)) {
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString(_prefKeyLastServerUrl, base);
@@ -66,7 +72,7 @@ class AppUpdateService {
           .timeout(const Duration(seconds: 4));
       if (vDoc.exists && vDoc.data() != null) {
         final base = vDoc.data()!['serverBaseUrl']?.toString().trim();
-        if (base != null && base.isNotEmpty && !base.contains('127.0.0.1') && !base.contains('localhost')) {
+        if (base != null && isSecureUrl(base)) {
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString(_prefKeyLastServerUrl, base);
@@ -82,12 +88,12 @@ class AppUpdateService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cached = prefs.getString(_prefKeyLastServerUrl);
-      if (cached != null && cached.isNotEmpty && !cached.contains('127.0.0.1') && !cached.contains('localhost')) {
+      if (isSecureUrl(cached)) {
         return cached;
       }
     } catch (_) {}
 
-    return fallbackServerUrl;
+    return isSecureUrl(fallbackServerUrl) ? fallbackServerUrl : null;
   }
 
   /// Tự động chuyển đổi và chuẩn hóa URL tải APK theo đúng IP máy chủ thực tế
@@ -162,6 +168,7 @@ class AppUpdateService {
     try {
       final liveBase = await getLiveServerBaseUrl();
       final baseUrl = customServerUrl ?? liveBase ?? fallbackServerUrl;
+      if (!isSecureUrl(baseUrl)) return null;
       final uri = Uri.parse('$baseUrl/api/v1/system/app-version');
       final res = await http.get(uri).timeout(const Duration(seconds: 4));
       if (res.statusCode == 200) {
@@ -190,6 +197,7 @@ class AppUpdateService {
   static Future<bool> launchDownloadUrl(String url) async {
     try {
       final resolvedUrl = await resolveDownloadUrl(url);
+      if (!isSecureUrl(resolvedUrl)) return false;
       final uri = Uri.parse(resolvedUrl);
       try {
         final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -266,13 +274,18 @@ class AppUpdateService {
   }
 
   /// Cài đặt trực tiếp file APK đã tải xong của phiên bản [version]
-  static Future<bool> installCompletedApk(String version) async {
+  static Future<bool> hasExpectedApkHash(File file, String? expectedHash) async {
+    if (expectedHash == null || !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(expectedHash)) return false;
+    return (await crypto.sha256.bind(file.openRead()).first).toString() == expectedHash.toLowerCase();
+  }
+
+  static Future<bool> installCompletedApk(String version, {String? expectedHash}) async {
     try {
       final tempDir = await getTemporaryDirectory();
       final sanitizedVer = version.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
       final apkFile = File('${tempDir.path}/zenhome_update_$sanitizedVer.apk');
       if (await apkFile.exists()) {
-        return await installApkFile(apkFile.path);
+        return await installApkFile(apkFile.path, expectedHash: expectedHash);
       }
     } catch (_) {}
     return false;
@@ -363,12 +376,16 @@ class AppUpdateService {
     required String url,
     String? version,
     int? expectedTotalBytes,
+    String? expectedHash,
     required Function(int received, int total, double progress, double speedBytesPerSec) onProgress,
   }) async {
     _isCancelled = false;
     downloadErrorNotifier.value = null;
 
     try {
+      if (expectedHash == null || !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(expectedHash)) {
+        throw const FormatException('Missing SHA-256 in APK release metadata');
+      }
       final targetVersion = version ?? currentDownloadingVersion ?? 'latest';
       final sanitizedVer = targetVersion.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
 
@@ -384,8 +401,7 @@ class AppUpdateService {
       // 2. Nếu file hoàn chỉnh đã tồn tại và đúng kích thước -> dùng luôn
       if (await finalFile.exists()) {
         final existingFullLen = await finalFile.length();
-        if ((expectedTotalBytes != null && expectedTotalBytes > 0 && existingFullLen == expectedTotalBytes) ||
-            (expectedTotalBytes == null && existingFullLen > 1000000)) {
+        if (await hasExpectedApkHash(finalFile, expectedHash)) {
           debugPrint("[UPDATE] APK $sanitizedVer đã tải trọn vẹn trước đó ($existingFullLen bytes).");
           onProgress(existingFullLen, existingFullLen, 1.0, 0.0);
           return finalFilePath;
@@ -393,6 +409,7 @@ class AppUpdateService {
       }
 
       final resolvedUrl = await resolveDownloadUrl(url);
+      if (!isSecureUrl(resolvedUrl)) throw const FormatException('APK downloads require HTTPS');
       String activeUrl = resolvedUrl;
       debugPrint("[UPDATE] Bắt đầu tải APK từ: $activeUrl (Bản: $sanitizedVer)");
 
@@ -426,6 +443,10 @@ class AppUpdateService {
             if (await finalFile.exists()) {
               try { await finalFile.delete(); } catch (_) {}
             }
+            if (!await hasExpectedApkHash(partFile, expectedHash)) {
+              await partFile.delete();
+              throw const FormatException('APK checksum mismatch');
+            }
             await partFile.rename(finalFilePath);
             onProgress(contentLength, contentLength, 1.0, currentSpeed);
             return finalFilePath;
@@ -433,13 +454,13 @@ class AppUpdateService {
 
           ioClient = HttpClient()
             ..connectionTimeout = const Duration(seconds: 20)
-            ..idleTimeout = const Duration(seconds: 45)
-            ..badCertificateCallback = ((X509Certificate cert, String host, int port) => true);
+            ..idleTimeout = const Duration(seconds: 45);
           _activeIoClient = ioClient;
 
           HttpClientResponse? response;
           try {
             final request = await ioClient.getUrl(Uri.parse(activeUrl));
+            request.followRedirects = false;
             request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
 
             // Gửi Range Header nếu đã có dữ liệu trước đó
@@ -450,10 +471,11 @@ class AppUpdateService {
 
             response = await request.close();
           } catch (connErr) {
-            if (activeUrl != url && url.startsWith('http')) {
+            if (activeUrl != url && isSecureUrl(url)) {
               activeUrl = url;
               debugPrint("[UPDATE] Thử kết nối URL dự phòng: $activeUrl");
               final fbRequest = await ioClient.getUrl(Uri.parse(activeUrl));
+              fbRequest.followRedirects = false;
               fbRequest.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
               if (existingBytes > 0) {
                 fbRequest.headers.set(HttpHeaders.rangeHeader, 'bytes=$existingBytes-');
@@ -464,6 +486,19 @@ class AppUpdateService {
             }
           }
 
+          for (var hops = 0; response!.isRedirect; hops++) {
+            final location = response.headers.value(HttpHeaders.locationHeader);
+            if (hops >= 5 || location == null) throw const HttpException('Invalid APK redirect');
+            final target = Uri.parse(activeUrl).resolve(location);
+            if (!isSecureUrl(target.toString())) throw const HttpException('Insecure APK redirect');
+            await response.drain<void>();
+            activeUrl = target.toString();
+            final next = await ioClient.getUrl(target);
+            next.followRedirects = false;
+            next.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
+            if (existingBytes > 0) next.headers.set(HttpHeaders.rangeHeader, 'bytes=$existingBytes-');
+            response = await next.close();
+          }
           final statusCode = response.statusCode;
 
           if (statusCode == HttpStatus.partialContent) {
@@ -571,6 +606,10 @@ class AppUpdateService {
           if (await finalFile.exists()) {
             try { await finalFile.delete(); } catch (_) {}
           }
+          if (!await hasExpectedApkHash(partFile, expectedHash)) {
+            await partFile.delete();
+            throw const FormatException('APK checksum mismatch');
+          }
           await partFile.rename(finalFilePath);
 
           onProgress(
@@ -583,6 +622,7 @@ class AppUpdateService {
           debugPrint("[UPDATE] Tải APK hoàn tất 100%: $finalFilePath ($finalPartLen bytes)");
           return finalFilePath;
         } catch (e) {
+          if (e is FormatException) rethrow;
           if (_isCancelled) {
             try { await sink?.close(); } catch (_) {}
             ioClient?.close(force: true);
@@ -638,6 +678,7 @@ class AppUpdateService {
     required String failedText,
     required String openingInstallerText,
     int? expectedTotalBytes,
+    String? expectedHash,
   }) async {
     if (isDownloadingNotifier.value) return false;
 
@@ -673,6 +714,7 @@ class AppUpdateService {
         url: url,
         version: version,
         expectedTotalBytes: expectedTotalBytes,
+        expectedHash: expectedHash,
         onProgress: (received, total, progress, speedBytesPerSec) {
           final pct = (progress * 100).clamp(0, 100).toInt();
           downloadProgressNotifier.value = progress;
@@ -715,16 +757,16 @@ class AppUpdateService {
           indeterminate: false,
         );
 
-        final installed = await installApkFile(apkFilePath);
+        final installed = await installApkFile(apkFilePath, expectedHash: expectedHash);
 
         Future.delayed(const Duration(seconds: 4), () {
           NotificationHelper.cancelNotification(NotificationHelper.downloadNotificationId);
         });
 
         if (!installed) {
-          await launchDownloadUrl(url);
+          downloadErrorNotifier.value = failedText;
         }
-        return true;
+        return installed;
       } else {
         if (!_isCancelled) {
           final err = downloadErrorNotifier.value ?? failedText;
@@ -744,7 +786,7 @@ class AppUpdateService {
   }
 
   /// Mở trình cài đặt PackageInstaller của Android để cài đặt bản cập nhật
-  static Future<bool> installApkFile(String filePath) async {
+  static Future<bool> installApkFile(String filePath, {String? expectedHash}) async {
     try {
       final file = File(filePath);
       if (!await file.exists()) {
@@ -752,6 +794,7 @@ class AppUpdateService {
         return false;
       }
 
+      if (!await hasExpectedApkHash(file, expectedHash)) return false;
       final result = await OpenFilex.open(
         filePath,
         type: 'application/vnd.android.package-archive',

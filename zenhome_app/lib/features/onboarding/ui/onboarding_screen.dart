@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
 import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
+import 'package:zenhome_app/core/widgets/animations/zen_page_route.dart';
 import 'package:zenhome_app/features/auth/ui/login_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -32,7 +33,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        ZenPageRoute(builder: (context) => const LoginScreen()),
       );
     }
   }
@@ -63,26 +64,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         'icon': Icons.home_max_rounded,
         'title': context.tr('onboarding_title_1'),
         'desc': context.tr('onboarding_desc_1'),
-        'color': const Color(0xFF3B82F6),
+        'color': zen.primary,
       },
       {
         'icon': Icons.auto_awesome_mosaic_rounded,
         'title': context.tr('onboarding_title_2'),
         'desc': context.tr('onboarding_desc_2'),
-        'color': const Color(0xFF10B981),
+        'color': zen.success,
       },
       {
         'icon': Icons.notifications_active_rounded,
         'title': context.tr('onboarding_title_3'),
         'desc': context.tr('onboarding_desc_3'),
-        'color': const Color(0xFFF59E0B),
+        'color': zen.warning,
       },
     ];
 
     final Color activePageColor = pages[_currentPage]['color'] as Color;
 
     return ZenGlassScaffold(
-      meshIntensity: 1.15,
+      meshIntensity: 1.0,
       appBar: ZenGlassAppBar(
         automaticallyImplyLeading: false,
         title: Row(
@@ -96,33 +97,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               color: primaryColor,
             ),
             const SizedBox(width: 9),
-            Text(
-              'ZenHome',
-              style: TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.6,
-                color: textColor,
+            Flexible(
+              child: Text(
+                'ZenHome',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                  color: textColor,
+                ),
               ),
             ),
           ],
         ),
         actions: [
           Center(
-            child: ZenGlassPill(
-              blurSigma: 0,
+            child: ZenGlassPill.lightweight(
               borderRadius: 20,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               onTap: _onSkip,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    context.tr('btn_skip'),
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: mutedColor,
+                  Flexible(
+                    child: Text(
+                      context.tr('btn_skip'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: mutedColor,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 3),
@@ -161,9 +169,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Center(
                       child: SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
-                        child: ZenGlassCard(
+                        child: ZenGlassCard.lightweight(
                           borderRadius: 32,
-                          blurSigma: 22,
                           isActive: true,
                           glowColor: pageColor,
                           padding: const EdgeInsets.fromLTRB(26, 30, 26, 34),
@@ -202,32 +209,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                       shape: BoxShape.circle,
                                       gradient: RadialGradient(
                                         colors: [
-                                          pageColor.withOpacity(
-                                            isDark ? 0.28 : 0.18,
+                                          pageColor.withValues(
+                                            alpha: isDark ? 0.24 : 0.14,
                                           ),
-                                          pageColor.withOpacity(0.0),
+                                          pageColor.withValues(alpha: 0.0),
                                         ],
                                       ),
                                     ),
                                   ),
-                                  ZenLiquidGlass(
+                                  ZenLiquidGlass.lightweight(
                                     width: 118,
                                     height: 118,
                                     borderRadius: 36,
-                                    blurSigma: 0,
                                     glowColor: pageColor,
-                                    rimWidth: 1.4,
                                     alignment: Alignment.center,
-                                    surfaceColor: pageColor.withOpacity(
-                                      isDark ? 0.16 : 0.10,
+                                    surfaceColor: pageColor.withValues(
+                                      alpha: isDark ? 0.16 : 0.10,
                                     ),
                                     customShadows: [
                                       BoxShadow(
-                                        color: pageColor.withOpacity(
-                                          isDark ? 0.30 : 0.18,
+                                        color: pageColor.withValues(
+                                          alpha: isDark ? 0.20 : 0.12,
                                         ),
-                                        blurRadius: 24,
-                                        offset: const Offset(0, 8),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 6),
                                       ),
                                     ],
                                     child: Icon(
@@ -240,8 +245,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               )
                                   .animate()
                                   .scale(
-                                    duration: 500.ms,
-                                    curve: Curves.easeOutBack,
+                                    duration: 420.ms,
+                                    curve: Curves.easeOutCubic,
                                   )
                                   .fadeIn(),
 
@@ -303,8 +308,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  ZenGlassPill(
-                    blurSigma: 16,
+                  ZenGlassPill.lightweight(
                     borderRadius: 24,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -317,7 +321,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         (index) {
                           final bool isActive = _currentPage == index;
                           return AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
+                            duration: const Duration(milliseconds: 260),
                             curve: Curves.easeOutCubic,
                             margin: EdgeInsets.only(
                               right: index == pages.length - 1 ? 0 : 7,
@@ -328,15 +332,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               color: isActive
                                   ? activePageColor
                                   : (isDark
-                                      ? Colors.white.withOpacity(0.22)
+                                      ? Colors.white.withValues(alpha: 0.22)
                                       : const Color(0xFFCBD5E1)),
                               borderRadius: BorderRadius.circular(6),
                               boxShadow: isActive
                                   ? [
                                       BoxShadow(
-                                        color:
-                                            activePageColor.withOpacity(0.45),
-                                        blurRadius: 8,
+                                        color: activePageColor.withValues(
+                                          alpha: 0.28,
+                                        ),
+                                        blurRadius: 6,
                                         offset: const Offset(0, 2),
                                       ),
                                     ]
@@ -347,27 +352,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                   ),
-
-                  ZenGlassButton(
-                    label: _currentPage == 2
-                        ? context.tr('btn_get_started')
-                        : context.tr('btn_next'),
-                    icon: _currentPage == 2
-                        ? Icons.rocket_launch_rounded
-                        : Icons.arrow_forward_rounded,
-                    accentColor: _currentPage == 2 ? null : activePageColor,
-                    borderRadius: 22,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 15,
-                    ),
-                    onPressed: _onNext,
-                  ).animate(key: ValueKey(_currentPage == 2)).scaleXY(
-                        begin: 0.94,
-                        end: 1.0,
-                        duration: 240.ms,
-                        curve: Curves.easeOutBack,
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: ZenGlassButton.lightweight(
+                      label: _currentPage == 2
+                          ? context.tr('btn_get_started')
+                          : context.tr('btn_next'),
+                      icon: _currentPage == 2
+                          ? Icons.rocket_launch_rounded
+                          : Icons.arrow_forward_rounded,
+                      accentColor: _currentPage == 2 ? null : activePageColor,
+                      borderRadius: 22,
+                      maxLines: 2,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
                       ),
+                      onPressed: _onNext,
+                    ),
+                  ),
                 ],
               ),
             ),

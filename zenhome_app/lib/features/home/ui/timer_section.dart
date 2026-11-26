@@ -1099,7 +1099,7 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
     return false;
   }
 
-  void _executeTimer() {
+  Future<void> _executeTimer() async {
     final activeConfig = ref.read(homeConfigProvider).activeConfig;
 
     // Kiểm tra nếu tài khoản đang bị Chủ nhà tạm khóa
@@ -1124,12 +1124,6 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
       return;
     }
 
-    final mqttState = ref.read(mqttConnectionStateProvider);
-    final isOnline = ref.read(espOnlineStateProvider);
-    if (mqttState != 2 || !isOnline) {
-      showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
-      return;
-    }
 
     if (_timerDevices.isEmpty) {
       showFloatingToast(context, context.tr('error'), context.tr('err_select_device') ?? 'Vui lòng chọn ít nhất một thiết bị!', isError: true);
@@ -1149,12 +1143,12 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
 
     for (int i = 0; i < _timerDevices.length; i++) {
       String deviceTopic = _timerDevices[i];
-      if (_timerAction == 'delay_off') {
-        ref.read(mqttRepositoryProvider).publishCmd('$deviceTopic/timer_off', mins.toString());
-      } else if (_timerAction == 'delay_on') {
-        ref.read(mqttRepositoryProvider).publishCmd('$deviceTopic/timer_on', mins.toString());
-      }
-
+      final op = _timerAction == 'delay_off' ? 'timer_off' : 'timer_on';
+      if (!await ref.read(mqttRepositoryProvider).publishCmd('$deviceTopic/$op', mins.toString())) {
+          if (mounted) showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_timeout'), isError: true);
+          return;
+        }
+        if (!mounted) return;
       String timerId = '${DateTime.now().millisecondsSinceEpoch}_$i';
 
       Map<String, dynamic> newTimer = {
@@ -1211,12 +1205,6 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
       return;
     }
 
-    final mqttState = ref.read(mqttConnectionStateProvider);
-    final isOnline = ref.read(espOnlineStateProvider);
-    if (mqttState != 2 || !isOnline) {
-      showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_wait') ?? 'Đang kết nối máy chủ...', isError: true);
-      return;
-    }
     
     showPremiumConfirmDialog(
       context: context,
@@ -1226,11 +1214,19 @@ class _TimerSectionState extends ConsumerState<TimerSection> with SingleTickerPr
       cancelText: context.tr('btn_cancel'),
       isDanger: true,
       icon: Icons.timer_off_rounded,
-      onConfirm: () {
+      onConfirm: () async {
         final activeConfig = ref.read(homeConfigProvider).activeConfig;
         String topic = _timerHistory[index]['topic'];
-        ref.read(mqttRepositoryProvider).publishCmd('$topic/timer_off', '0');
-        ref.read(mqttRepositoryProvider).publishCmd('$topic/timer_on', '0');
+if (!await ref.read(mqttRepositoryProvider).publishCmd('$topic/timer_off', '0')) {
+          if (mounted) showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_timeout'), isError: true);
+          return;
+        }
+        if (!mounted) return;
+if (!await ref.read(mqttRepositoryProvider).publishCmd('$topic/timer_on', '0')) {
+          if (mounted) showFloatingToast(context, context.tr('error'), context.tr('toast_mqtt_timeout'), isError: true);
+          return;
+        }
+        if (!mounted) return;
         setState(() => _timerHistory[index]['status'] = 'canceled');
         
         String targetId = activeConfig.userId;

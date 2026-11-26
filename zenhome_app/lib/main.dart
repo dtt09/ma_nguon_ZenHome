@@ -10,7 +10,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -89,12 +88,6 @@ void main() async {
     statusBarColor: Colors.transparent,
   ));
   
-  // FIX 1: Bọc try-catch cho dotenv để không sập app nếu mất file
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    print("⚠️ Không tìm thấy file .env hoặc cấu hình thiếu trong assets.");
-  }
 
   final container = ProviderContainer();
   await container.read(homeConfigProvider).loadConfigFromStorage();
@@ -122,23 +115,25 @@ void main() async {
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF43F5E).withOpacity(0.15),
+                    color: const Color(0xFFF43F5E).withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.error_outline_rounded, size: 48, color: Color(0xFFF43F5E)),
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  PlatformDispatcher.instance.locale.languageCode == 'vi' ? 'Đã xảy ra lỗi giao diện' : 'UI Display Error',
+                  PlatformDispatcher.instance.locale.languageCode == 'vi'
+                      ? 'Đã xảy ra lỗi giao diện'
+                      : 'Interface Error',
                   style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   PlatformDispatcher.instance.locale.languageCode == 'vi'
                       ? 'Thành phần giao diện gặp sự cố tạm thời. Vui lòng khởi động lại ứng dụng.'
-                      : 'An interface component encountered an error. Please restart the app.',
+                      : 'A component encountered a temporary issue. Please restart the app.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
                 ),
               ],
             ),

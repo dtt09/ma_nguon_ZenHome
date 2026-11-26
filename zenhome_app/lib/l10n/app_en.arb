@@ -23,6 +23,8 @@
   "status_on": "ON",
   "status_off": "OFF",
   "tab_home": "Home",
+  "show_password": "Show password",
+  "hide_password": "Hide password",
   "tab_scene": "Utilities",
   "tab_settings": "Settings",
   "setting_title": "Settings",
@@ -230,9 +232,9 @@
   "err_wifi_empty": "Please enter your Wi-Fi name",
   "msg_pump_success": "Configuration pushed to device successfully!",
   "err_pump_fail": "Device not found, make sure you are connected to its Wi-Fi!",
-  "mqtt_user": "MQTT Username (Optional)",
+  "mqtt_user": "Home MQTT username",
   "mqtt_user_hint": "Enter MQTT Username",
-  "mqtt_pass": "MQTT Password (Optional)",
+  "mqtt_pass": "Home MQTT password",
   "mqtt_pass_hint": "Enter MQTT Password",
   "onboarding_title_1": "Welcome to ZenHome",
   "onboarding_desc_1": "Control all your smart devices from one place.",
@@ -795,9 +797,9 @@
   "wifi_detected_esp_title": "Detected ESP32 Signals ({count})",
   "wifi_no_esp_found": "No ESP32 signal detected nearby. Please ensure the board is powered on and LED is blinking in setup mode.",
   "wifi_connect_esp_title": "Connect to {ssid}",
-  "wifi_connect_esp_subtitle": "Enter the ESP32 AP password (leave empty if open network without password):",
+  "wifi_connect_esp_subtitle": "Enter the hub setup code displayed over USB.",
   "wifi_esp_pass_label": "ESP32 Wi-Fi Password",
-  "wifi_esp_pass_hint": "Leave blank if open, or enter AP password",
+  "wifi_esp_pass_hint": "Hub setup code",
   "wifi_btn_connect_now": "Confirm & Connect",
   "wifi_connecting_in_app": "Connecting to {ssid}...",
   "wifi_connect_success": "Successfully connected to {ssid}!",
@@ -1029,5 +1031,739 @@
   "theme_preset_amethyst": "Amethyst Twilight",
   "theme_preset_gold": "Champagne Gold",
   "theme_preset_ruby": "Ruby Coral",
-  "theme_preset_cyber": "Titanium Slate"
+  "theme_preset_cyber": "Titanium Slate",
+  "room_all": "All Rooms",
+  "automation_hub_title": "Automation Hub",
+  "quick_scenes": "Quick Scenes",
+  "see_all": "See all",
+  "custom_duration": "Custom",
+  "ui_error_title": "Interface Error",
+  "ui_error_desc": "A component encountered a temporary issue. Please restart the app.",
+  "anomaly_banner_title": "HARDWARE SAFETY ALERT",
+  "anomaly_locked_pill": "Locked {seconds}s",
+  "@anomaly_locked_pill": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "anomaly_tripped_msg": "Safety alert: Relay {pin} ({name}) emergency tripped due to chattering/short circuit. Safety locked for 30s.",
+  "@anomaly_tripped_msg": {
+    "placeholders": {
+      "pin": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "anomaly_unlocked_title": "Safety Lock Released",
+  "anomaly_unlocked_desc": "Relay {pin} ({name}) completed 30s safety lock and is ready.",
+  "@anomaly_unlocked_desc": {
+    "placeholders": {
+      "pin": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "anomaly_relay_locked_title": "Relay safety locked",
+  "anomaly_relay_locked_desc": "Relay {pin} ({name}) is in overload protection ({seconds}s left). Please wait!",
+  "@anomaly_relay_locked_desc": {
+    "placeholders": {
+      "pin": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "anomaly_more_locked": "+ {count} more relay(s) are also safety locked",
+  "@anomaly_more_locked": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "hub_latency_label": "Latency: {latency}",
+  "@hub_latency_label": {
+    "placeholders": {
+      "latency": {
+        "type": "String"
+      }
+    }
+  },
+  "hub_lan_no_ip": "Hub IP not detected",
+  "hub_ble_secured_suffix": "{info} (Key Secured)",
+  "@hub_ble_secured_suffix": {
+    "placeholders": {
+      "info": {
+        "type": "String"
+      }
+    }
+  },
+  "hub_ble_ready_ondemand": "Ready (Connect-on-Demand & auto-yield)",
+  "hub_ble_ready_simple": "Ready (Connect-on-Demand)",
+  "hub_ble_backup_desc": "Background backup when Wi-Fi router loses power",
+  "hub_ble_ready_short": "Ready ⚡",
+  "hub_broker_unconfigured": "Broker not configured",
+  "quick_timer_set_success": "Timer set to {action} {name} in {minutes} min",
+  "@quick_timer_set_success": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "hours_short": "h",
+  "minutes_short": "m",
+  "disabled_desc_detailed": "Your account is temporarily disabled or devices in this home are offline.",
+  "btn_switch_other_home": "Switch to another home",
+  "btn_manage_members_perms": "Manage Members & Permissions",
+  "btn_reconfig_hub_wifi": "Reconfigure Hub Wi-Fi",
+  "err_no_automation_perm": "You have not been granted automation management permission.",
+  "err_no_device_perm_scene": "You do not have permission to control devices in this scene!",
+  "err_no_device_to_create_scene": "You have no controllable devices to create a scene.",
+  "err_no_device_to_create_schedule": "You have no controllable devices to create a schedule.",
+  "scene_subtitle_one_tap": "Smart synced scenario in just 1 tap",
+  "scene_name_example_hint": "E.g. Leave Home, Evening Relax...",
+  "icon_count_label": "{count} Icons",
+  "@icon_count_label": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "selected_devices_ratio": "{selected}/{total} devices",
+  "@selected_devices_ratio": {
+    "placeholders": {
+      "selected": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "scene_share_hint": "All household members can trigger this scene",
+  "scene_run_now_title": "Activate Scene Now",
+  "scene_run_now_desc": "Execute {count} device actions immediately",
+  "@scene_run_now_desc": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "scene_edit_desc": "Customize icon, color and devices",
+  "scene_delete_desc": "Permanently remove this scene",
+  "scene_created_by_readonly": "Created by {author}. You can activate it but cannot edit or delete.",
+  "@scene_created_by_readonly": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "scene_shared_readonly": "You can activate this shared scene but cannot edit or delete it.",
+  "timer_err_gt_zero": "Please enter duration greater than 0",
+  "timer_err_max_24h": "Maximum duration is 24 hours (1440 minutes)",
+  "timer_pick_devices_title": "Select Timer Devices",
+  "timer_auto_off_tag": "→ Auto: Timer OFF",
+  "timer_auto_on_tag": "→ Auto: Timer ON",
+  "btn_confirm_devices_count": "Confirm ({count} devices)",
+  "@btn_confirm_devices_count": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "timer_set_multi_success": "Timer set for {count} devices ({minutes} min)",
+  "@timer_set_multi_success": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "err_no_cancel_timer_perm": "You do not have permission to cancel this timer (set by Owner or another member).",
+  "schedule_created_by_you": "Created by you",
+  "home_rules_active_count": "{count} rules active",
+  "@home_rules_active_count": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "home_rules_activated_ratio": "{active}/{total} active",
+  "@home_rules_activated_ratio": {
+    "placeholders": {
+      "active": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "home_name_example_hint": "E.g. Lakeside Condo, Villa...",
+  "badge_recommended": "Recommended",
+  "home_switcher_title": "Manage & Switch Homes",
+  "home_switcher_empty_other": "No other homes available",
+  "home_switcher_tip": "You can own multiple homes and switch instantly without logging out.",
+  "home_esp_unlinked_badge": "ESP32 not set up",
+  "home_smart_rules_count": "{count} smart rules",
+  "@home_smart_rules_count": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "home_menu_properties": "Properties & Rules",
+  "home_menu_delete": "Delete this home",
+  "home_switched_toast": "Switched to {name}!",
+  "@home_switched_toast": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "home_new_name_label": "New home name:",
+  "home_new_name_hint": "E.g. Garden House, Apt 2, Villa...",
+  "btn_delete_forever": "Delete Permanently",
+  "home_icon_eco": "Eco Home",
+  "home_icon_beach": "Beach House",
+  "home_icon_castle": "Mansion",
+  "home_icon_warehouse": "Warehouse",
+  "home_color_zen": "Zen Jade",
+  "home_color_royal": "Royal Blue",
+  "home_color_purple": "Modern Purple",
+  "home_color_orange": "Energy Orange",
+  "home_color_emerald": "Emerald",
+  "home_color_ruby": "Ruby Red",
+  "home_color_amber": "Amber",
+  "home_color_slate": "Marble Slate",
+  "greeting_user": "Hello, {name}",
+  "@greeting_user": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "to_phone_label": "To: {phone}",
+  "@to_phone_label": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "err_otp_send_title": "Failed to send OTP",
+  "err_link_account_title": "Account Linking Error",
+  "err_verification_title": "Verification Error",
+  "msg_data_synced": "Data synced!",
+  "google_sign_in_label": "Sign in with Google",
+  "member_perm_dialog_subtitle": "Device control permissions",
+  "member_all_devices": "Full Access (All devices)",
+  "member_selected_devices_only": "Selected devices only",
+  "member_select_devices_count": "Select controllable devices ({selected}/{total}):",
+  "@member_select_devices_count": {
+    "placeholders": {
+      "selected": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "msg_device_perms_updated": "Device permissions updated",
+  "err_update_failed": "Update failed",
+  "sent_invites_header": "Sent Invitations ({count}):",
+  "@sent_invites_header": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "err_invalid_username_input": "Please enter a valid Username",
+  "msg_invite_sent_to": "Invitation sent to {username}",
+  "@msg_invite_sent_to": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "msg_invite_revoked": "Revoked invitation to {username}",
+  "@msg_invite_revoked": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "msg_invite_declined": "Declined invitation from {username}",
+  "@msg_invite_declined": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "msg_member_removed": "Removed access for {username}",
+  "@msg_member_removed": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "msg_member_perms_updated_for": "Updated device permissions for {username}",
+  "@msg_member_perms_updated_for": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "msg_member_disabled_user": "Disabled {username}",
+  "@msg_member_disabled_user": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "msg_member_enabled_user": "Restored {username}",
+  "@msg_member_enabled_user": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "msg_auto_granted_user": "Granted automation edit to {username}",
+  "@msg_auto_granted_user": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "msg_auto_revoked_user": "Revoked automation edit from {username}",
+  "@msg_auto_revoked_user": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "msg_role_updated_user": "Updated role for {username}",
+  "@msg_role_updated_user": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "settings_hub_linked_mac": "Linked (MAC: {mac})",
+  "@settings_hub_linked_mac": {
+    "placeholders": {
+      "mac": {
+        "type": "String"
+      }
+    }
+  },
+  "settings_hub_linked_desc": "Configure Wi-Fi network and Hub link",
+  "settings_hub_linked_prompt": "Your Hub is securely linked. Do you want to reconfigure Wi-Fi or unlink & Factory Reset the Hub remotely?",
+  "settings_hub_offline_unlink_title": "ESP32 Hub is offline!",
+  "settings_hub_offline_unlink_desc": "If the device is lost or damaged, unlinking removes it from your cloud account while the board retains old config until manually reset.",
+  "btn_unlink_anyway_offline": "Unlink Anyway (Hub offline)",
+  "btn_check_again_short": "Check again",
+  "admin_pass_hub_title": "Hub Admin Password",
+  "admin_pass_unlink_desc": "Please enter ESP32 Hub admin password to authorize remote unlink & wipe.",
+  "admin_pass_reconfig_desc": "Please enter ESP32 Hub admin password to change Wi-Fi & MQTT settings.",
+  "admin_pass_ota_desc": "Please enter ESP32 Hub admin password to authorize firmware upgrade.",
+  "security_action_canceled": "Security Action Canceled",
+  "security_admin_pass_missing_unlink": "Admin password not verified. ESP32 Hub remains protected.",
+  "security_identity_missing_unlink": "Identity verification incomplete. ESP32 Hub remains intact.",
+  "security_admin_pass_missing_reconfig": "Admin password not verified. ESP32 Hub config kept safe.",
+  "security_identity_missing_ota": "Identity not verified. Firmware upgrade safely canceled.",
+  "security_admin_pass_missing_ota": "Admin password not verified. ESP32 Hub stays on current version.",
+  "reason_unlink_hub": "confirm unlinking and remotely wiping ESP32 Hub configuration",
+  "reason_ota_hub": "confirm ESP32 Hub firmware upgrade",
+  "unlink_hub_final_mac_note": "Hub MAC: {mac} • ESP32 will immediately wipe /config.json, turn off all relays, and reboot into AP Setup.",
+  "@unlink_hub_final_mac_note": {
+    "placeholders": {
+      "mac": {
+        "type": "String"
+      }
+    }
+  },
+  "btn_reset_and_unlink": "Send Reset & Unlink",
+  "btn_keep_linked": "Keep Linked",
+  "unlink_hub_cloud_success": "Successfully unlinked ESP32 Hub from your Cloud account.",
+  "detail_action_label": "Action",
+  "detail_mac_label": "MAC Address",
+  "detail_esp_signal_label": "ESP32 Signal",
+  "detail_time_label": "Time",
+  "detail_reset_sent": "Secure Reset command sent",
+  "detail_hub_offline_removed": "Hub Offline (Removed from Cloud)",
+  "detail_factory_reset_unlink": "Factory Reset & Unlink Hub",
+  "hub_unlinked_short": "Hub Not Linked",
+  "hub_unlinked_setup_desc": "No ESP32 Hub is linked to this account. Please set up Hub Wi-Fi first.",
+  "hub_offline_title": "ESP32 Hub Offline",
+  "hub_offline_troubleshoot": "Please check device power supply and Wi-Fi connection.",
+  "label_hub_id": "Hub ID",
+  "label_status": "Status",
+  "label_troubleshoot": "Troubleshoot",
+  "restart_hub_tls_note": "MAC: {mac} • Command sent over encrypted MQTT TLS.",
+  "@restart_hub_tls_note": {
+    "placeholders": {
+      "mac": {
+        "type": "String"
+      }
+    }
+  },
+  "btn_restart_now": "Restart Now",
+  "detail_remote_reboot": "Remote Hub Reboot",
+  "detail_device_mac": "Device MAC",
+  "detail_control_channel": "Control Channel",
+  "detail_tls_channel": "Encrypted TLS Channel",
+  "err_send_cmd_title": "Command Failed",
+  "err_send_reboot_failed": "Could not send reboot command: {err}",
+  "@err_send_reboot_failed": {
+    "placeholders": {
+      "err": {
+        "type": "String"
+      }
+    }
+  },
+  "delete_sub_home_confirm_desc": "This action cannot be undone. The app will automatically switch back to your primary home.",
+  "msg_deleted_sub_home": "Deleted home and returned to primary home!",
+  "delete_sub_home_subtitle": "Permanently delete {name} and return to primary home",
+  "@delete_sub_home_subtitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "hub_reconfig_title": "Hub Wi-Fi & MQTT Config",
+  "hub_reconfig_online": "ESP32 Hub Online",
+  "hub_reconfig_offline": "ESP32 Hub Offline",
+  "hub_reconfig_online_desc": "Hub is online on MQTT. You can push new Wi-Fi and Broker settings directly via OTA without replugging!",
+  "hub_reconfig_offline_desc": "Hub is offline. Save config to Cloud or use the button below to provision directly via Hub Wi-Fi AP (192.168.4.1).",
+  "hub_wifi_section": "Wi-Fi Network",
+  "hub_wifi_ssid_label": "Wi-Fi Name (SSID)",
+  "hub_wifi_ssid_hint": "Enter 2.4GHz Wi-Fi name",
+  "hub_scan_wifi_tooltip": "Scan nearby Wi-Fi",
+  "hub_no_wifi_found": "No available Wi-Fi networks found",
+  "hub_err_empty_ssid": "Please enter or select a Wi-Fi Name (SSID)",
+  "hub_mqtt_section": "MQTT Broker Configuration",
+  "hub_mqtt_host_label": "MQTT Server (Broker Host)",
+  "hub_err_empty_mqtt": "Please enter MQTT server address",
+  "hub_comm_channel_title": "Channel: Internal Encrypted",
+  "hub_comm_channel_desc": "Dedicated secure routing bound to User ID and Hub MAC.",
+  "hub_admin_security_section": "Admin Security & Sync",
+  "hub_admin_pass_desc": "Hub Admin Password (Protects permissions, pin mapping, unlinking)",
+  "hub_err_empty_admin_pass": "Admin password cannot be empty",
+  "hub_btn_apply_ota": "Save & Push OTA to Hub",
+  "hub_btn_save_cloud": "Save Config to Cloud",
+  "hub_btn_softap": "Configure via Hub Wi-Fi AP (192.168.4.1)",
+  "hub_reconfig_confirm_title": "Confirm Wi-Fi & MQTT Change",
+  "hub_reconfig_confirm_desc": "ESP32 Hub will save the new configuration and reboot to join the new Wi-Fi and MQTT Broker.",
+  "hub_reconfig_summary": "New Wi-Fi: {ssid}\nMQTT Broker: {broker}\nHub MAC: {mac}",
+  "@hub_reconfig_summary": {
+    "placeholders": {
+      "ssid": {
+        "type": "String"
+      },
+      "broker": {
+        "type": "String"
+      },
+      "mac": {
+        "type": "String"
+      }
+    }
+  },
+  "hub_btn_push_ota_now": "Push OTA Config Now",
+  "btn_review": "Review",
+  "hub_reconfig_success_title": "Configuration Updated",
+  "hub_reconfig_ota_success_desc": "Pushed new Wi-Fi & MQTT config to ESP32 Hub via OTA! The board is rebooting into the new network.",
+  "hub_reconfig_cloud_success_desc": "Saved new configuration to Cloud. Since Hub is offline, provision via AP or wait for Hub reconnect.",
+  "btn_done": "Done",
+  "hub_reconfig_err_title": "Failed to Apply Config",
+  "hub_reconfig_err_desc": "Unable to update configuration",
+  "hub_reconfig_method_cloud": "Saved to Cloud (Hub Offline)",
+  "hub_reconfig_method_ota": "Cloud OTA Command (Success)",
+  "hub_reconfig_method_local": "Direct LAN/BLE Zero-Touch (Success)",
+  "detail_new_wifi": "New Wi-Fi",
+  "detail_method": "Method",
+  "err_wifi_scan_failed": "Wi-Fi scan error: {err}",
+  "@err_wifi_scan_failed": {
+    "placeholders": {
+      "err": {
+        "type": "String"
+      }
+    }
+  },
+  "wifi_band_24_available": "Supported band: 2.4GHz ({count} networks available)",
+  "@wifi_band_24_available": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "wifi_no_internet_prompt": "Network has no Internet, continue?",
+  "wifi_hub_not_connected_title": "Not Connected to ESP32 Hub",
+  "wifi_hub_not_connected_desc": "To configure Wi-Fi and link your account, your phone must connect to the Wi-Fi AP emitted by the ESP32 Hub first.",
+  "wifi_troubleshoot_checklist": "Check ESP32 Board:\n• Ensure ESP32 is powered on (red LED lit).\n• Blue LED (GPIO 2) blinks rapidly (AP setup mode).\n• If solid or off: Hold BOOT button for 5s to reset.\n• Ensure Phone Location (GPS) and Wi-Fi are enabled.",
+  "wifi_connected_continue": "Connected ({mac}) • Continue",
+  "@wifi_connected_continue": {
+    "placeholders": {
+      "mac": {
+        "type": "String"
+      }
+    }
+  },
+  "wifi_check_hub_continue": "Check Hub Connection & Continue",
+  "wifi_setting_up_for": "Setting up for: ",
+  "wifi_exclusive_hub_note": "{type} • ESP32 Hub will link exclusively to this home",
+  "@wifi_exclusive_hub_note": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "wifi_wizard_checking": "Checking connection to ESP32 Hub...",
+  "wifi_wizard_handshaking": "Handshaking with ESP32 Hub...",
+  "wifi_wizard_not_found": "ESP32 device not found (192.168.4.1). Please connect to Hub Wi-Fi.",
+  "wifi_wizard_sending_cfg": "Sending Wi-Fi & MQTT credentials to Hub...",
+  "wifi_wizard_rejected": "ESP32 rejected configuration. Please check Admin Password.",
+  "wifi_wizard_waiting_cloud": "Waiting for Hub to connect Wi-Fi & MQTT Cloud...",
+  "wifi_wizard_signal_ack": "Hub signal detected! Sending activation confirmation...",
+  "wifi_wizard_waiting_loop": "Waiting for initial Hub signal ({sec}s / 3 min)...",
+  "@wifi_wizard_waiting_loop": {
+    "placeholders": {
+      "sec": {
+        "type": "String"
+      }
+    }
+  },
+  "wifi_wizard_completed_nav": "Setup complete! Features unlocked. Opening Device Mapping...",
+  "ota_denied_title": "Access Denied",
+  "ota_owner_only_desc": "Only the Home Owner can upgrade ESP32 microcontroller firmware.",
+  "ota_offline_desc": "ESP32 Hub is offline (power or Wi-Fi lost). Please check device before upgrading firmware.",
+  "ota_require_online": "Hub must be online to receive OTA command",
+  "ota_no_update_title": "No New Firmware",
+  "ota_no_update_desc": "No firmware binary (.bin) is currently ready on server for ESP32 Hub OTA.",
+  "ota_server_label": "Server",
+  "ota_binary_not_found": "firmware.bin not found",
+  "ota_up_to_date_title": "ESP32 Hub Up to Date",
+  "ota_up_to_date_desc": "Your ESP32 Hub is running the latest firmware. System is performing optimally!",
+  "ota_hub_version_label": "Hub Version",
+  "ota_latest_server_label": "Latest on Server",
+  "ota_optimal_status": "Running optimally",
+  "ota_reflash_hint": "Only re-flash if you want to cleanly wipe Flash partitions or recover firmware.",
+  "ota_btn_reflash": "Re-flash",
+  "ota_new_found_desc": "New firmware version is ready to flash to ESP32 Hub.",
+  "ota_new_version_label": "New Version",
+  "ota_size_label": "Size",
+  "ota_security_verify_label": "Security",
+  "ota_ecdsa_signed": "ECDSA Digital Signature (Verified)",
+  "ota_target_label": "Target",
+  "ota_flash_caution": "Note: Flashing takes 30–60 seconds. Do NOT disconnect power or Wi-Fi.",
+  "ota_sending_cmd": "Sending secure OTA command to ESP32 Hub...",
+  "ota_flashing_progress": "Downloading & flashing MCU: {progress}%",
+  "@ota_flashing_progress": {
+    "placeholders": {
+      "progress": {
+        "type": "String"
+      }
+    }
+  },
+  "ota_flash_rebooting": "Upgrade complete! ESP32 Hub is rebooting...",
+  "ota_flash_error": "Error during firmware flash!",
+  "ota_flash_back_online": "Upgrade complete! ESP32 Hub is back online.",
+  "ota_timeout_90s": "ESP32 Hub response timed out (90s). Please check Hub power!",
+  "ota_server_accepted": "ESP32 Hub received command via Server. Downloading firmware...",
+  "ota_status_success_title": "Upgrade Complete!",
+  "ota_status_failed_title": "Upgrade Failed",
+  "ota_status_flashing_title": "Flashing OTA Firmware",
+  "ota_badge_done": "DONE",
+  "ota_badge_error": "ERROR",
+  "ota_badge_flashing": "FLASHING",
+  "ota_keep_power_wifi": "Keep power & Wi-Fi stable throughout flashing",
+  "ota_verified_100": "100% Firmware flashed & integrity verified!",
+  "ota_swap_boot_note": "ESP32 Hub is swapping boot partitions and rebooting (~5–10s).",
+  "ota_unknown_error": "An unknown error occurred.",
+  "changelog_version_build": "Version {version} • Build {build}",
+  "@changelog_version_build": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "changelog_cloud_server_ver": "Cloud Server: v{version} (Build {build})",
+  "@changelog_cloud_server_ver": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "changelog_cdn_channel": "Official ZenHome Cloud CDN Channel",
+  "changelog_esp_hw_title": "ESP32 Hub Microcontroller",
+  "changelog_esp_hw_arch": "Dual-Partition OTA Architecture • ECDSA Signed",
+  "changelog_feat1_title": "Soft Luxury Glass Architecture",
+  "changelog_feat1_desc": "Refined translucent aurora optics, hairline rims, and unified 6 Zen Luxury presets.",
+  "changelog_feat2_title": "Dynamic Bilingual Localization",
+  "changelog_feat2_desc": "Full bilingual English & Vietnamese support across every screen and dialog.",
+  "changelog_feat3_title": "Cloud Security & Firestore RBAC",
+  "changelog_feat3_desc": "Hardened Firestore security rules and seamless multi-identity account matching.",
+  "changelog_feat4_title": "Network & Offline Resilience",
+  "changelog_feat4_desc": "Eliminated UDP broadcast crashes on Android 14–16 and hardened MQTT reconnection.",
+  "changelog_feat5_title": "120Hz Performance & Fast Startup",
+  "changelog_feat5_desc": "Accelerated cloud sync and reduced background network & GPU overhead.",
+  "changelog_rel_1_8_21": "Soft translucent Liquid Glass upgrade, hairline rims, Hybrid Glass 120Hz cards, and overflow fixes across all screens.",
+  "changelog_rel_1_8_20": "Introduced Anti-Collision Semantic Palette for 6 Zen Luxury presets and 120fps tab/menu smoothness.",
+  "changelog_rel_1_8_19": "Zen Liquid Glass 2.0 aurora backdrop, beveled rims, and unified glass dialogs across screens.",
+  "changelog_rel_1_8_18": "Resolved 9/9 Cloudflare Audit security items: tightened Firestore rules, blocked IDOR, enforced ECDSA P-256 OTA signatures.",
+  "changelog_rel_1_8_17": "Launched Zen Liquid Glass UI generation for weather, device cards, and floating navigation.",
+  "changelog_rel_1_8_1": "Added smooth spring UI animations, Root protection, tightened Local LAN API and power-loss state sync.",
+  "changelog_rel_1_8_0": "Added Admin Passkey authentication, release changelog viewer, and dynamic language switching.",
+  "changelog_rel_1_7_14": "Fixed UDP Socket broadcast issues on Android 16 and guarded stream listeners.",
+  "changelog_rel_1_7_13": "Optimized multi-session auth flow and high-security real-time sync.",
+  "changelog_rel_1_7_10": "Integrated bidirectional Firebase Crashlytics sync and web monitoring.",
+  "changelog_rel_1_7_0": "Launched ZenHome Fluent Design UI with Dark Mode and sensor cards.",
+  "mapping_gpio_conflict_detail": "GPIO pin {pin} is already assigned to multiple devices: \"{names}\". Each device needs a unique GPIO pin.",
+  "@mapping_gpio_conflict_detail": {
+    "placeholders": {
+      "pin": {
+        "type": "String"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "mapping_room_conflict_detail": "\"{room}\" has multiple devices named \"{name}\". Please use unique names.",
+  "@mapping_room_conflict_detail": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mapping_gpio_in_use_detail": "GPIO pin {pin} is already used by \"{name}\" ({room}). Please pick another pin!",
+  "@mapping_gpio_in_use_detail": {
+    "placeholders": {
+      "pin": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      },
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "mapping_room_name_exists_detail": "\"{room}\" already has a device named \"{name}\". Please choose a different name!",
+  "@mapping_room_name_exists_detail": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mapping_dup_id_detail": "Device ID \"{id}\" is already used by another device. Please choose a different ID.",
+  "@mapping_dup_id_detail": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "mapping_delete_warning_detail": "Room: {room} • ID: {id}\nNote: Any schedules, timers, and scenes linked to this device will be removed.",
+  "@mapping_delete_warning_detail": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      },
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "detail_gpio_pin": "GPIO Pin",
+  "detail_duplicate_devices": "Duplicate Devices",
+  "detail_requirement": "Requirement",
+  "mapping_req_change_gpio": "Change GPIO pin before saving",
+  "mapping_req_rename_device": "Rename device before saving",
+  "detail_area": "Room / Area",
+  "detail_conflict_name": "Conflicting Name",
+  "detail_entered_id": "Entered ID",
+  "detail_used_by": "Used by",
+  "detail_room": "Room",
+  "detail_dup_name": "Duplicate Name",
+  "detail_mode": "Mode",
+  "mapping_saved_offline_mode": "Saved locally (Offline)",
+  "detail_details_prefix": "Details: {details}",
+  "@detail_details_prefix": {
+    "placeholders": {
+      "details": {
+        "type": "String"
+      }
+    }
+  },
+  "mapping_device_count": "Device Count",
+  "mapping_cloud_sync": "Cloud Sync",
+  "mapping_firestore_ok": "Firestore succeeded",
+  "mapping_esp_sync": "ESP32 Sync",
+  "mapping_sent_secure": "Sent via encrypted channel",
+  "btn_confirm_action": "Confirm Action",
+  "btn_cancel_action": "Cancel"
 }

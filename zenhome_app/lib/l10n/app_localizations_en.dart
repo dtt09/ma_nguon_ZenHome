@@ -78,6 +78,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tab_home => 'Home';
 
   @override
+  String get show_password => 'Show password';
+
+  @override
+  String get hide_password => 'Hide password';
+
+  @override
   String get tab_scene => 'Utilities';
 
   @override
@@ -691,13 +697,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Device not found, make sure you are connected to its Wi-Fi!';
 
   @override
-  String get mqtt_user => 'MQTT Username (Optional)';
+  String get mqtt_user => 'Home MQTT username';
 
   @override
   String get mqtt_user_hint => 'Enter MQTT Username';
 
   @override
-  String get mqtt_pass => 'MQTT Password (Optional)';
+  String get mqtt_pass => 'Home MQTT password';
 
   @override
   String get mqtt_pass_hint => 'Enter MQTT Password';
@@ -2209,13 +2215,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wifi_connect_esp_subtitle =>
-      'Enter the ESP32 AP password (leave empty if open network without password):';
+      'Enter the hub setup code displayed over USB.';
 
   @override
   String get wifi_esp_pass_label => 'ESP32 Wi-Fi Password';
 
   @override
-  String get wifi_esp_pass_hint => 'Leave blank if open, or enter AP password';
+  String get wifi_esp_pass_hint => 'Hub setup code';
 
   @override
   String get wifi_btn_connect_now => 'Confirm & Connect';
@@ -3003,4 +3009,1090 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get theme_preset_cyber => 'Titanium Slate';
+
+  @override
+  String get room_all => 'All Rooms';
+
+  @override
+  String get automation_hub_title => 'Automation Hub';
+
+  @override
+  String get quick_scenes => 'Quick Scenes';
+
+  @override
+  String get see_all => 'See all';
+
+  @override
+  String get custom_duration => 'Custom';
+
+  @override
+  String get ui_error_title => 'Interface Error';
+
+  @override
+  String get ui_error_desc =>
+      'A component encountered a temporary issue. Please restart the app.';
+
+  @override
+  String get anomaly_banner_title => 'HARDWARE SAFETY ALERT';
+
+  @override
+  String anomaly_locked_pill(String seconds) {
+    return 'Locked ${seconds}s';
+  }
+
+  @override
+  String anomaly_tripped_msg(String pin, String name) {
+    return 'Safety alert: Relay $pin ($name) emergency tripped due to chattering/short circuit. Safety locked for 30s.';
+  }
+
+  @override
+  String get anomaly_unlocked_title => 'Safety Lock Released';
+
+  @override
+  String anomaly_unlocked_desc(String pin, String name) {
+    return 'Relay $pin ($name) completed 30s safety lock and is ready.';
+  }
+
+  @override
+  String get anomaly_relay_locked_title => 'Relay safety locked';
+
+  @override
+  String anomaly_relay_locked_desc(String pin, String name, String seconds) {
+    return 'Relay $pin ($name) is in overload protection (${seconds}s left). Please wait!';
+  }
+
+  @override
+  String anomaly_more_locked(String count) {
+    return '+ $count more relay(s) are also safety locked';
+  }
+
+  @override
+  String hub_latency_label(String latency) {
+    return 'Latency: $latency';
+  }
+
+  @override
+  String get hub_lan_no_ip => 'Hub IP not detected';
+
+  @override
+  String hub_ble_secured_suffix(String info) {
+    return '$info (Key Secured)';
+  }
+
+  @override
+  String get hub_ble_ready_ondemand => 'Ready (Connect-on-Demand & auto-yield)';
+
+  @override
+  String get hub_ble_ready_simple => 'Ready (Connect-on-Demand)';
+
+  @override
+  String get hub_ble_backup_desc =>
+      'Background backup when Wi-Fi router loses power';
+
+  @override
+  String get hub_ble_ready_short => 'Ready ⚡';
+
+  @override
+  String get hub_broker_unconfigured => 'Broker not configured';
+
+  @override
+  String quick_timer_set_success(String action, String name, String minutes) {
+    return 'Timer set to $action $name in $minutes min';
+  }
+
+  @override
+  String get hours_short => 'h';
+
+  @override
+  String get minutes_short => 'm';
+
+  @override
+  String get disabled_desc_detailed =>
+      'Your account is temporarily disabled or devices in this home are offline.';
+
+  @override
+  String get btn_switch_other_home => 'Switch to another home';
+
+  @override
+  String get btn_manage_members_perms => 'Manage Members & Permissions';
+
+  @override
+  String get btn_reconfig_hub_wifi => 'Reconfigure Hub Wi-Fi';
+
+  @override
+  String get err_no_automation_perm =>
+      'You have not been granted automation management permission.';
+
+  @override
+  String get err_no_device_perm_scene =>
+      'You do not have permission to control devices in this scene!';
+
+  @override
+  String get err_no_device_to_create_scene =>
+      'You have no controllable devices to create a scene.';
+
+  @override
+  String get err_no_device_to_create_schedule =>
+      'You have no controllable devices to create a schedule.';
+
+  @override
+  String get scene_subtitle_one_tap => 'Smart synced scenario in just 1 tap';
+
+  @override
+  String get scene_name_example_hint => 'E.g. Leave Home, Evening Relax...';
+
+  @override
+  String icon_count_label(String count) {
+    return '$count Icons';
+  }
+
+  @override
+  String selected_devices_ratio(String selected, String total) {
+    return '$selected/$total devices';
+  }
+
+  @override
+  String get scene_share_hint => 'All household members can trigger this scene';
+
+  @override
+  String get scene_run_now_title => 'Activate Scene Now';
+
+  @override
+  String scene_run_now_desc(String count) {
+    return 'Execute $count device actions immediately';
+  }
+
+  @override
+  String get scene_edit_desc => 'Customize icon, color and devices';
+
+  @override
+  String get scene_delete_desc => 'Permanently remove this scene';
+
+  @override
+  String scene_created_by_readonly(String author) {
+    return 'Created by $author. You can activate it but cannot edit or delete.';
+  }
+
+  @override
+  String get scene_shared_readonly =>
+      'You can activate this shared scene but cannot edit or delete it.';
+
+  @override
+  String get timer_err_gt_zero => 'Please enter duration greater than 0';
+
+  @override
+  String get timer_err_max_24h => 'Maximum duration is 24 hours (1440 minutes)';
+
+  @override
+  String get timer_pick_devices_title => 'Select Timer Devices';
+
+  @override
+  String get timer_auto_off_tag => '→ Auto: Timer OFF';
+
+  @override
+  String get timer_auto_on_tag => '→ Auto: Timer ON';
+
+  @override
+  String btn_confirm_devices_count(String count) {
+    return 'Confirm ($count devices)';
+  }
+
+  @override
+  String timer_set_multi_success(String count, String minutes) {
+    return 'Timer set for $count devices ($minutes min)';
+  }
+
+  @override
+  String get err_no_cancel_timer_perm =>
+      'You do not have permission to cancel this timer (set by Owner or another member).';
+
+  @override
+  String get schedule_created_by_you => 'Created by you';
+
+  @override
+  String home_rules_active_count(String count) {
+    return '$count rules active';
+  }
+
+  @override
+  String home_rules_activated_ratio(String active, String total) {
+    return '$active/$total active';
+  }
+
+  @override
+  String get home_name_example_hint => 'E.g. Lakeside Condo, Villa...';
+
+  @override
+  String get badge_recommended => 'Recommended';
+
+  @override
+  String get home_switcher_title => 'Manage & Switch Homes';
+
+  @override
+  String get home_switcher_empty_other => 'No other homes available';
+
+  @override
+  String get home_switcher_tip =>
+      'You can own multiple homes and switch instantly without logging out.';
+
+  @override
+  String get home_esp_unlinked_badge => 'ESP32 not set up';
+
+  @override
+  String home_smart_rules_count(String count) {
+    return '$count smart rules';
+  }
+
+  @override
+  String get home_menu_properties => 'Properties & Rules';
+
+  @override
+  String get home_menu_delete => 'Delete this home';
+
+  @override
+  String home_switched_toast(String name) {
+    return 'Switched to $name!';
+  }
+
+  @override
+  String get home_new_name_label => 'New home name:';
+
+  @override
+  String get home_new_name_hint => 'E.g. Garden House, Apt 2, Villa...';
+
+  @override
+  String get btn_delete_forever => 'Delete Permanently';
+
+  @override
+  String get home_icon_eco => 'Eco Home';
+
+  @override
+  String get home_icon_beach => 'Beach House';
+
+  @override
+  String get home_icon_castle => 'Mansion';
+
+  @override
+  String get home_icon_warehouse => 'Warehouse';
+
+  @override
+  String get home_color_zen => 'Zen Jade';
+
+  @override
+  String get home_color_royal => 'Royal Blue';
+
+  @override
+  String get home_color_purple => 'Modern Purple';
+
+  @override
+  String get home_color_orange => 'Energy Orange';
+
+  @override
+  String get home_color_emerald => 'Emerald';
+
+  @override
+  String get home_color_ruby => 'Ruby Red';
+
+  @override
+  String get home_color_amber => 'Amber';
+
+  @override
+  String get home_color_slate => 'Marble Slate';
+
+  @override
+  String greeting_user(String name) {
+    return 'Hello, $name';
+  }
+
+  @override
+  String to_phone_label(String phone) {
+    return 'To: $phone';
+  }
+
+  @override
+  String get err_otp_send_title => 'Failed to send OTP';
+
+  @override
+  String get err_link_account_title => 'Account Linking Error';
+
+  @override
+  String get err_verification_title => 'Verification Error';
+
+  @override
+  String get msg_data_synced => 'Data synced!';
+
+  @override
+  String get google_sign_in_label => 'Sign in with Google';
+
+  @override
+  String get member_perm_dialog_subtitle => 'Device control permissions';
+
+  @override
+  String get member_all_devices => 'Full Access (All devices)';
+
+  @override
+  String get member_selected_devices_only => 'Selected devices only';
+
+  @override
+  String member_select_devices_count(String selected, String total) {
+    return 'Select controllable devices ($selected/$total):';
+  }
+
+  @override
+  String get msg_device_perms_updated => 'Device permissions updated';
+
+  @override
+  String get err_update_failed => 'Update failed';
+
+  @override
+  String sent_invites_header(String count) {
+    return 'Sent Invitations ($count):';
+  }
+
+  @override
+  String get err_invalid_username_input => 'Please enter a valid Username';
+
+  @override
+  String msg_invite_sent_to(String username) {
+    return 'Invitation sent to $username';
+  }
+
+  @override
+  String msg_invite_revoked(String username) {
+    return 'Revoked invitation to $username';
+  }
+
+  @override
+  String msg_invite_declined(String username) {
+    return 'Declined invitation from $username';
+  }
+
+  @override
+  String msg_member_removed(String username) {
+    return 'Removed access for $username';
+  }
+
+  @override
+  String msg_member_perms_updated_for(String username) {
+    return 'Updated device permissions for $username';
+  }
+
+  @override
+  String msg_member_disabled_user(String username) {
+    return 'Disabled $username';
+  }
+
+  @override
+  String msg_member_enabled_user(String username) {
+    return 'Restored $username';
+  }
+
+  @override
+  String msg_auto_granted_user(String username) {
+    return 'Granted automation edit to $username';
+  }
+
+  @override
+  String msg_auto_revoked_user(String username) {
+    return 'Revoked automation edit from $username';
+  }
+
+  @override
+  String msg_role_updated_user(String username) {
+    return 'Updated role for $username';
+  }
+
+  @override
+  String settings_hub_linked_mac(String mac) {
+    return 'Linked (MAC: $mac)';
+  }
+
+  @override
+  String get settings_hub_linked_desc => 'Configure Wi-Fi network and Hub link';
+
+  @override
+  String get settings_hub_linked_prompt =>
+      'Your Hub is securely linked. Do you want to reconfigure Wi-Fi or unlink & Factory Reset the Hub remotely?';
+
+  @override
+  String get settings_hub_offline_unlink_title => 'ESP32 Hub is offline!';
+
+  @override
+  String get settings_hub_offline_unlink_desc =>
+      'If the device is lost or damaged, unlinking removes it from your cloud account while the board retains old config until manually reset.';
+
+  @override
+  String get btn_unlink_anyway_offline => 'Unlink Anyway (Hub offline)';
+
+  @override
+  String get btn_check_again_short => 'Check again';
+
+  @override
+  String get admin_pass_hub_title => 'Hub Admin Password';
+
+  @override
+  String get admin_pass_unlink_desc =>
+      'Please enter ESP32 Hub admin password to authorize remote unlink & wipe.';
+
+  @override
+  String get admin_pass_reconfig_desc =>
+      'Please enter ESP32 Hub admin password to change Wi-Fi & MQTT settings.';
+
+  @override
+  String get admin_pass_ota_desc =>
+      'Please enter ESP32 Hub admin password to authorize firmware upgrade.';
+
+  @override
+  String get security_action_canceled => 'Security Action Canceled';
+
+  @override
+  String get security_admin_pass_missing_unlink =>
+      'Admin password not verified. ESP32 Hub remains protected.';
+
+  @override
+  String get security_identity_missing_unlink =>
+      'Identity verification incomplete. ESP32 Hub remains intact.';
+
+  @override
+  String get security_admin_pass_missing_reconfig =>
+      'Admin password not verified. ESP32 Hub config kept safe.';
+
+  @override
+  String get security_identity_missing_ota =>
+      'Identity not verified. Firmware upgrade safely canceled.';
+
+  @override
+  String get security_admin_pass_missing_ota =>
+      'Admin password not verified. ESP32 Hub stays on current version.';
+
+  @override
+  String get reason_unlink_hub =>
+      'confirm unlinking and remotely wiping ESP32 Hub configuration';
+
+  @override
+  String get reason_ota_hub => 'confirm ESP32 Hub firmware upgrade';
+
+  @override
+  String unlink_hub_final_mac_note(String mac) {
+    return 'Hub MAC: $mac • ESP32 will immediately wipe /config.json, turn off all relays, and reboot into AP Setup.';
+  }
+
+  @override
+  String get btn_reset_and_unlink => 'Send Reset & Unlink';
+
+  @override
+  String get btn_keep_linked => 'Keep Linked';
+
+  @override
+  String get unlink_hub_cloud_success =>
+      'Successfully unlinked ESP32 Hub from your Cloud account.';
+
+  @override
+  String get detail_action_label => 'Action';
+
+  @override
+  String get detail_mac_label => 'MAC Address';
+
+  @override
+  String get detail_esp_signal_label => 'ESP32 Signal';
+
+  @override
+  String get detail_time_label => 'Time';
+
+  @override
+  String get detail_reset_sent => 'Secure Reset command sent';
+
+  @override
+  String get detail_hub_offline_removed => 'Hub Offline (Removed from Cloud)';
+
+  @override
+  String get detail_factory_reset_unlink => 'Factory Reset & Unlink Hub';
+
+  @override
+  String get hub_unlinked_short => 'Hub Not Linked';
+
+  @override
+  String get hub_unlinked_setup_desc =>
+      'No ESP32 Hub is linked to this account. Please set up Hub Wi-Fi first.';
+
+  @override
+  String get hub_offline_title => 'ESP32 Hub Offline';
+
+  @override
+  String get hub_offline_troubleshoot =>
+      'Please check device power supply and Wi-Fi connection.';
+
+  @override
+  String get label_hub_id => 'Hub ID';
+
+  @override
+  String get label_status => 'Status';
+
+  @override
+  String get label_troubleshoot => 'Troubleshoot';
+
+  @override
+  String restart_hub_tls_note(String mac) {
+    return 'MAC: $mac • Command sent over encrypted MQTT TLS.';
+  }
+
+  @override
+  String get btn_restart_now => 'Restart Now';
+
+  @override
+  String get detail_remote_reboot => 'Remote Hub Reboot';
+
+  @override
+  String get detail_device_mac => 'Device MAC';
+
+  @override
+  String get detail_control_channel => 'Control Channel';
+
+  @override
+  String get detail_tls_channel => 'Encrypted TLS Channel';
+
+  @override
+  String get err_send_cmd_title => 'Command Failed';
+
+  @override
+  String err_send_reboot_failed(String err) {
+    return 'Could not send reboot command: $err';
+  }
+
+  @override
+  String get delete_sub_home_confirm_desc =>
+      'This action cannot be undone. The app will automatically switch back to your primary home.';
+
+  @override
+  String get msg_deleted_sub_home =>
+      'Deleted home and returned to primary home!';
+
+  @override
+  String delete_sub_home_subtitle(String name) {
+    return 'Permanently delete $name and return to primary home';
+  }
+
+  @override
+  String get hub_reconfig_title => 'Hub Wi-Fi & MQTT Config';
+
+  @override
+  String get hub_reconfig_online => 'ESP32 Hub Online';
+
+  @override
+  String get hub_reconfig_offline => 'ESP32 Hub Offline';
+
+  @override
+  String get hub_reconfig_online_desc =>
+      'Hub is online on MQTT. You can push new Wi-Fi and Broker settings directly via OTA without replugging!';
+
+  @override
+  String get hub_reconfig_offline_desc =>
+      'Hub is offline. Save config to Cloud or use the button below to provision directly via Hub Wi-Fi AP (192.168.4.1).';
+
+  @override
+  String get hub_wifi_section => 'Wi-Fi Network';
+
+  @override
+  String get hub_wifi_ssid_label => 'Wi-Fi Name (SSID)';
+
+  @override
+  String get hub_wifi_ssid_hint => 'Enter 2.4GHz Wi-Fi name';
+
+  @override
+  String get hub_scan_wifi_tooltip => 'Scan nearby Wi-Fi';
+
+  @override
+  String get hub_no_wifi_found => 'No available Wi-Fi networks found';
+
+  @override
+  String get hub_err_empty_ssid => 'Please enter or select a Wi-Fi Name (SSID)';
+
+  @override
+  String get hub_mqtt_section => 'MQTT Broker Configuration';
+
+  @override
+  String get hub_mqtt_host_label => 'MQTT Server (Broker Host)';
+
+  @override
+  String get hub_err_empty_mqtt => 'Please enter MQTT server address';
+
+  @override
+  String get hub_comm_channel_title => 'Channel: Internal Encrypted';
+
+  @override
+  String get hub_comm_channel_desc =>
+      'Dedicated secure routing bound to User ID and Hub MAC.';
+
+  @override
+  String get hub_admin_security_section => 'Admin Security & Sync';
+
+  @override
+  String get hub_admin_pass_desc =>
+      'Hub Admin Password (Protects permissions, pin mapping, unlinking)';
+
+  @override
+  String get hub_err_empty_admin_pass => 'Admin password cannot be empty';
+
+  @override
+  String get hub_btn_apply_ota => 'Save & Push OTA to Hub';
+
+  @override
+  String get hub_btn_save_cloud => 'Save Config to Cloud';
+
+  @override
+  String get hub_btn_softap => 'Configure via Hub Wi-Fi AP (192.168.4.1)';
+
+  @override
+  String get hub_reconfig_confirm_title => 'Confirm Wi-Fi & MQTT Change';
+
+  @override
+  String get hub_reconfig_confirm_desc =>
+      'ESP32 Hub will save the new configuration and reboot to join the new Wi-Fi and MQTT Broker.';
+
+  @override
+  String hub_reconfig_summary(String ssid, String broker, String mac) {
+    return 'New Wi-Fi: $ssid\nMQTT Broker: $broker\nHub MAC: $mac';
+  }
+
+  @override
+  String get hub_btn_push_ota_now => 'Push OTA Config Now';
+
+  @override
+  String get btn_review => 'Review';
+
+  @override
+  String get hub_reconfig_success_title => 'Configuration Updated';
+
+  @override
+  String get hub_reconfig_ota_success_desc =>
+      'Pushed new Wi-Fi & MQTT config to ESP32 Hub via OTA! The board is rebooting into the new network.';
+
+  @override
+  String get hub_reconfig_cloud_success_desc =>
+      'Saved new configuration to Cloud. Since Hub is offline, provision via AP or wait for Hub reconnect.';
+
+  @override
+  String get btn_done => 'Done';
+
+  @override
+  String get hub_reconfig_err_title => 'Failed to Apply Config';
+
+  @override
+  String get hub_reconfig_err_desc => 'Unable to update configuration';
+
+  @override
+  String get hub_reconfig_method_cloud => 'Saved to Cloud (Hub Offline)';
+
+  @override
+  String get hub_reconfig_method_ota => 'Cloud OTA Command (Success)';
+
+  @override
+  String get hub_reconfig_method_local => 'Direct LAN/BLE Zero-Touch (Success)';
+
+  @override
+  String get detail_new_wifi => 'New Wi-Fi';
+
+  @override
+  String get detail_method => 'Method';
+
+  @override
+  String err_wifi_scan_failed(String err) {
+    return 'Wi-Fi scan error: $err';
+  }
+
+  @override
+  String wifi_band_24_available(String count) {
+    return 'Supported band: 2.4GHz ($count networks available)';
+  }
+
+  @override
+  String get wifi_no_internet_prompt => 'Network has no Internet, continue?';
+
+  @override
+  String get wifi_hub_not_connected_title => 'Not Connected to ESP32 Hub';
+
+  @override
+  String get wifi_hub_not_connected_desc =>
+      'To configure Wi-Fi and link your account, your phone must connect to the Wi-Fi AP emitted by the ESP32 Hub first.';
+
+  @override
+  String get wifi_troubleshoot_checklist =>
+      'Check ESP32 Board:\n• Ensure ESP32 is powered on (red LED lit).\n• Blue LED (GPIO 2) blinks rapidly (AP setup mode).\n• If solid or off: Hold BOOT button for 5s to reset.\n• Ensure Phone Location (GPS) and Wi-Fi are enabled.';
+
+  @override
+  String wifi_connected_continue(String mac) {
+    return 'Connected ($mac) • Continue';
+  }
+
+  @override
+  String get wifi_check_hub_continue => 'Check Hub Connection & Continue';
+
+  @override
+  String get wifi_setting_up_for => 'Setting up for: ';
+
+  @override
+  String wifi_exclusive_hub_note(String type) {
+    return '$type • ESP32 Hub will link exclusively to this home';
+  }
+
+  @override
+  String get wifi_wizard_checking => 'Checking connection to ESP32 Hub...';
+
+  @override
+  String get wifi_wizard_handshaking => 'Handshaking with ESP32 Hub...';
+
+  @override
+  String get wifi_wizard_not_found =>
+      'ESP32 device not found (192.168.4.1). Please connect to Hub Wi-Fi.';
+
+  @override
+  String get wifi_wizard_sending_cfg =>
+      'Sending Wi-Fi & MQTT credentials to Hub...';
+
+  @override
+  String get wifi_wizard_rejected =>
+      'ESP32 rejected configuration. Please check Admin Password.';
+
+  @override
+  String get wifi_wizard_waiting_cloud =>
+      'Waiting for Hub to connect Wi-Fi & MQTT Cloud...';
+
+  @override
+  String get wifi_wizard_signal_ack =>
+      'Hub signal detected! Sending activation confirmation...';
+
+  @override
+  String wifi_wizard_waiting_loop(String sec) {
+    return 'Waiting for initial Hub signal (${sec}s / 3 min)...';
+  }
+
+  @override
+  String get wifi_wizard_completed_nav =>
+      'Setup complete! Features unlocked. Opening Device Mapping...';
+
+  @override
+  String get ota_denied_title => 'Access Denied';
+
+  @override
+  String get ota_owner_only_desc =>
+      'Only the Home Owner can upgrade ESP32 microcontroller firmware.';
+
+  @override
+  String get ota_offline_desc =>
+      'ESP32 Hub is offline (power or Wi-Fi lost). Please check device before upgrading firmware.';
+
+  @override
+  String get ota_require_online => 'Hub must be online to receive OTA command';
+
+  @override
+  String get ota_no_update_title => 'No New Firmware';
+
+  @override
+  String get ota_no_update_desc =>
+      'No firmware binary (.bin) is currently ready on server for ESP32 Hub OTA.';
+
+  @override
+  String get ota_server_label => 'Server';
+
+  @override
+  String get ota_binary_not_found => 'firmware.bin not found';
+
+  @override
+  String get ota_up_to_date_title => 'ESP32 Hub Up to Date';
+
+  @override
+  String get ota_up_to_date_desc =>
+      'Your ESP32 Hub is running the latest firmware. System is performing optimally!';
+
+  @override
+  String get ota_hub_version_label => 'Hub Version';
+
+  @override
+  String get ota_latest_server_label => 'Latest on Server';
+
+  @override
+  String get ota_optimal_status => 'Running optimally';
+
+  @override
+  String get ota_reflash_hint =>
+      'Only re-flash if you want to cleanly wipe Flash partitions or recover firmware.';
+
+  @override
+  String get ota_btn_reflash => 'Re-flash';
+
+  @override
+  String get ota_new_found_desc =>
+      'New firmware version is ready to flash to ESP32 Hub.';
+
+  @override
+  String get ota_new_version_label => 'New Version';
+
+  @override
+  String get ota_size_label => 'Size';
+
+  @override
+  String get ota_security_verify_label => 'Security';
+
+  @override
+  String get ota_ecdsa_signed => 'ECDSA Digital Signature (Verified)';
+
+  @override
+  String get ota_target_label => 'Target';
+
+  @override
+  String get ota_flash_caution =>
+      'Note: Flashing takes 30–60 seconds. Do NOT disconnect power or Wi-Fi.';
+
+  @override
+  String get ota_sending_cmd => 'Sending secure OTA command to ESP32 Hub...';
+
+  @override
+  String ota_flashing_progress(String progress) {
+    return 'Downloading & flashing MCU: $progress%';
+  }
+
+  @override
+  String get ota_flash_rebooting =>
+      'Upgrade complete! ESP32 Hub is rebooting...';
+
+  @override
+  String get ota_flash_error => 'Error during firmware flash!';
+
+  @override
+  String get ota_flash_back_online =>
+      'Upgrade complete! ESP32 Hub is back online.';
+
+  @override
+  String get ota_timeout_90s =>
+      'ESP32 Hub response timed out (90s). Please check Hub power!';
+
+  @override
+  String get ota_server_accepted =>
+      'ESP32 Hub received command via Server. Downloading firmware...';
+
+  @override
+  String get ota_status_success_title => 'Upgrade Complete!';
+
+  @override
+  String get ota_status_failed_title => 'Upgrade Failed';
+
+  @override
+  String get ota_status_flashing_title => 'Flashing OTA Firmware';
+
+  @override
+  String get ota_badge_done => 'DONE';
+
+  @override
+  String get ota_badge_error => 'ERROR';
+
+  @override
+  String get ota_badge_flashing => 'FLASHING';
+
+  @override
+  String get ota_keep_power_wifi =>
+      'Keep power & Wi-Fi stable throughout flashing';
+
+  @override
+  String get ota_verified_100 => '100% Firmware flashed & integrity verified!';
+
+  @override
+  String get ota_swap_boot_note =>
+      'ESP32 Hub is swapping boot partitions and rebooting (~5–10s).';
+
+  @override
+  String get ota_unknown_error => 'An unknown error occurred.';
+
+  @override
+  String changelog_version_build(String version, String build) {
+    return 'Version $version • Build $build';
+  }
+
+  @override
+  String changelog_cloud_server_ver(String version, String build) {
+    return 'Cloud Server: v$version (Build $build)';
+  }
+
+  @override
+  String get changelog_cdn_channel => 'Official ZenHome Cloud CDN Channel';
+
+  @override
+  String get changelog_esp_hw_title => 'ESP32 Hub Microcontroller';
+
+  @override
+  String get changelog_esp_hw_arch =>
+      'Dual-Partition OTA Architecture • ECDSA Signed';
+
+  @override
+  String get changelog_feat1_title => 'Soft Luxury Glass Architecture';
+
+  @override
+  String get changelog_feat1_desc =>
+      'Refined translucent aurora optics, hairline rims, and unified 6 Zen Luxury presets.';
+
+  @override
+  String get changelog_feat2_title => 'Dynamic Bilingual Localization';
+
+  @override
+  String get changelog_feat2_desc =>
+      'Full bilingual English & Vietnamese support across every screen and dialog.';
+
+  @override
+  String get changelog_feat3_title => 'Cloud Security & Firestore RBAC';
+
+  @override
+  String get changelog_feat3_desc =>
+      'Hardened Firestore security rules and seamless multi-identity account matching.';
+
+  @override
+  String get changelog_feat4_title => 'Network & Offline Resilience';
+
+  @override
+  String get changelog_feat4_desc =>
+      'Eliminated UDP broadcast crashes on Android 14–16 and hardened MQTT reconnection.';
+
+  @override
+  String get changelog_feat5_title => '120Hz Performance & Fast Startup';
+
+  @override
+  String get changelog_feat5_desc =>
+      'Accelerated cloud sync and reduced background network & GPU overhead.';
+
+  @override
+  String get changelog_rel_1_8_21 =>
+      'Soft translucent Liquid Glass upgrade, hairline rims, Hybrid Glass 120Hz cards, and overflow fixes across all screens.';
+
+  @override
+  String get changelog_rel_1_8_20 =>
+      'Introduced Anti-Collision Semantic Palette for 6 Zen Luxury presets and 120fps tab/menu smoothness.';
+
+  @override
+  String get changelog_rel_1_8_19 =>
+      'Zen Liquid Glass 2.0 aurora backdrop, beveled rims, and unified glass dialogs across screens.';
+
+  @override
+  String get changelog_rel_1_8_18 =>
+      'Resolved 9/9 Cloudflare Audit security items: tightened Firestore rules, blocked IDOR, enforced ECDSA P-256 OTA signatures.';
+
+  @override
+  String get changelog_rel_1_8_17 =>
+      'Launched Zen Liquid Glass UI generation for weather, device cards, and floating navigation.';
+
+  @override
+  String get changelog_rel_1_8_1 =>
+      'Added smooth spring UI animations, Root protection, tightened Local LAN API and power-loss state sync.';
+
+  @override
+  String get changelog_rel_1_8_0 =>
+      'Added Admin Passkey authentication, release changelog viewer, and dynamic language switching.';
+
+  @override
+  String get changelog_rel_1_7_14 =>
+      'Fixed UDP Socket broadcast issues on Android 16 and guarded stream listeners.';
+
+  @override
+  String get changelog_rel_1_7_13 =>
+      'Optimized multi-session auth flow and high-security real-time sync.';
+
+  @override
+  String get changelog_rel_1_7_10 =>
+      'Integrated bidirectional Firebase Crashlytics sync and web monitoring.';
+
+  @override
+  String get changelog_rel_1_7_0 =>
+      'Launched ZenHome Fluent Design UI with Dark Mode and sensor cards.';
+
+  @override
+  String mapping_gpio_conflict_detail(String pin, String names) {
+    return 'GPIO pin $pin is already assigned to multiple devices: \"$names\". Each device needs a unique GPIO pin.';
+  }
+
+  @override
+  String mapping_room_conflict_detail(String room, String name) {
+    return '\"$room\" has multiple devices named \"$name\". Please use unique names.';
+  }
+
+  @override
+  String mapping_gpio_in_use_detail(String pin, String name, String room) {
+    return 'GPIO pin $pin is already used by \"$name\" ($room). Please pick another pin!';
+  }
+
+  @override
+  String mapping_room_name_exists_detail(String room, String name) {
+    return '\"$room\" already has a device named \"$name\". Please choose a different name!';
+  }
+
+  @override
+  String mapping_dup_id_detail(String id) {
+    return 'Device ID \"$id\" is already used by another device. Please choose a different ID.';
+  }
+
+  @override
+  String mapping_delete_warning_detail(String room, String id) {
+    return 'Room: $room • ID: $id\nNote: Any schedules, timers, and scenes linked to this device will be removed.';
+  }
+
+  @override
+  String get detail_gpio_pin => 'GPIO Pin';
+
+  @override
+  String get detail_duplicate_devices => 'Duplicate Devices';
+
+  @override
+  String get detail_requirement => 'Requirement';
+
+  @override
+  String get mapping_req_change_gpio => 'Change GPIO pin before saving';
+
+  @override
+  String get mapping_req_rename_device => 'Rename device before saving';
+
+  @override
+  String get detail_area => 'Room / Area';
+
+  @override
+  String get detail_conflict_name => 'Conflicting Name';
+
+  @override
+  String get detail_entered_id => 'Entered ID';
+
+  @override
+  String get detail_used_by => 'Used by';
+
+  @override
+  String get detail_room => 'Room';
+
+  @override
+  String get detail_dup_name => 'Duplicate Name';
+
+  @override
+  String get detail_mode => 'Mode';
+
+  @override
+  String get mapping_saved_offline_mode => 'Saved locally (Offline)';
+
+  @override
+  String detail_details_prefix(String details) {
+    return 'Details: $details';
+  }
+
+  @override
+  String get mapping_device_count => 'Device Count';
+
+  @override
+  String get mapping_cloud_sync => 'Cloud Sync';
+
+  @override
+  String get mapping_firestore_ok => 'Firestore succeeded';
+
+  @override
+  String get mapping_esp_sync => 'ESP32 Sync';
+
+  @override
+  String get mapping_sent_secure => 'Sent via encrypted channel';
+
+  @override
+  String get btn_confirm_action => 'Confirm Action';
+
+  @override
+  String get btn_cancel_action => 'Cancel';
 }

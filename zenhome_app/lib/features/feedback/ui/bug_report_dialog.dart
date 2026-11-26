@@ -1,14 +1,14 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:zenhome_app/core/theme/app_theme.dart';
-import 'package:zenhome_app/core/utils/toast_helper.dart';
-import 'package:zenhome_app/core/utils/localization_extension.dart';
 import 'package:zenhome_app/core/utils/helpers.dart';
+import 'package:zenhome_app/core/utils/localization_extension.dart';
+import 'package:zenhome_app/core/utils/toast_helper.dart';
 import 'package:zenhome_app/core/widgets/zen_liquid_glass.dart';
 
 Future<void> showBugReportDialog(BuildContext context) =>
@@ -38,38 +38,48 @@ class _BugReportDialogState extends State<BugReportDialog> {
   String _selectedCategory = 'ui';
   bool _isSubmitting = false;
 
-  final List<Map<String, dynamic>> _categories = [
+  static const List<Map<String, dynamic>> _categories = [
     {
       'id': 'ui',
       'labelKey': 'bug_report_category_ui',
       'icon': Icons.palette_rounded,
-      'color': Color(0xFF8B5CF6),
     },
     {
       'id': 'mqtt',
       'labelKey': 'bug_report_category_network',
       'icon': Icons.wifi_rounded,
-      'color': Color(0xFFF59E0B),
     },
     {
       'id': 'device',
       'labelKey': 'bug_report_category_control',
       'icon': Icons.toggle_on_rounded,
-      'color': Color(0xFF3B82F6),
     },
     {
       'id': 'automation',
       'labelKey': 'bug_report_category_scene',
       'icon': Icons.auto_awesome_rounded,
-      'color': Color(0xFF10B981),
     },
     {
       'id': 'other',
       'labelKey': 'bug_report_category_other',
       'icon': Icons.help_outline_rounded,
-      'color': Color(0xFF64748B),
     },
   ];
+
+  Color _categoryColor(ZenThemeColorsExtension zen, String id) {
+    switch (id) {
+      case 'ui':
+        return zen.primary;
+      case 'mqtt':
+        return zen.warning;
+      case 'device':
+        return zen.info;
+      case 'automation':
+        return zen.success;
+      default:
+        return zen.offline;
+    }
+  }
 
   @override
   void dispose() {
@@ -83,44 +93,64 @@ class _BugReportDialogState extends State<BugReportDialog> {
     final desc = _descController.text.trim();
 
     if (title.isEmpty) {
-      showFloatingToast(context, context.tr('error'), context.tr('bug_report_err_empty_title'), isError: true);
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('bug_report_err_empty_title'),
+        isError: true,
+      );
       return;
     }
     if (desc.isEmpty) {
-      showFloatingToast(context, context.tr('error'), context.tr('bug_report_err_empty_desc'), isError: true);
+      showFloatingToast(
+        context,
+        context.tr('error'),
+        context.tr('bug_report_err_empty_desc'),
+        isError: true,
+      );
       return;
     }
+
+    final defaultDeviceModel = context.tr('bug_report_device_mobile');
+    final defaultAuthorName = context.tr('bug_report_user_zenhome');
+    final successTitle = context.tr('toast_success');
+    final successMsg = context.tr('bug_report_success_msg');
+    final errTitle = context.tr('error');
+    final errPrefix = context.tr('bug_report_send_failed');
 
     setState(() => _isSubmitting = true);
     HapticFeedback.lightImpact();
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      String deviceModel = context.tr('bug_report_device_mobile');
+      String deviceModel = defaultDeviceModel;
       try {
         final deviceInfo = DeviceInfoPlugin();
         if (Platform.isAndroid) {
           final androidInfo = await deviceInfo.androidInfo;
-          deviceModel = '${androidInfo.brand} ${androidInfo.model} (Android ${androidInfo.version.release})';
+          deviceModel =
+              '${androidInfo.brand} ${androidInfo.model} (Android ${androidInfo.version.release})';
         } else if (Platform.isIOS) {
           final iosInfo = await deviceInfo.iosInfo;
-          deviceModel = '${iosInfo.utsname.machine} (iOS ${iosInfo.systemVersion})';
+          deviceModel =
+              '${iosInfo.utsname.machine} (iOS ${iosInfo.systemVersion})';
         }
       } catch (_) {}
 
-      String appVersion = '1.7.9';
-      int buildNumber = 177;
+      String appVersion = '1.8.21';
+      int buildNumber = 209;
       try {
         final pkg = await PackageInfo.fromPlatform();
         appVersion = pkg.version;
-        buildNumber = int.tryParse(pkg.buildNumber) ?? 171;
+        buildNumber = int.tryParse(pkg.buildNumber) ?? 209;
       } catch (_) {}
 
       final contact = getDisplayEmailOrPhone(user);
 
       final reportData = {
         'userId': user?.uid ?? 'guest',
-        'authorName': user?.displayName ?? (contact.isNotEmpty ? contact : context.tr('bug_report_user_zenhome')),
+        'authorName': user?.displayName ??
+            (contact.isNotEmpty ? contact : defaultAuthorName),
         'contactInfo': contact,
         'category': _selectedCategory,
         'title': title,
@@ -132,10 +162,8 @@ class _BugReportDialogState extends State<BugReportDialog> {
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      // 1. Lưu vào collection top-level bug_reports để Admin Web hiển thị realtime
       await FirebaseFirestore.instance.collection('bug_reports').add(reportData);
 
-      // 2. Lưu vào subcollection người dùng nếu có UID
       if (user != null && user.uid.isNotEmpty) {
         try {
           final userSnap = await FirebaseFirestore.instance
@@ -144,23 +172,19 @@ class _BugReportDialogState extends State<BugReportDialog> {
               .limit(1)
               .get();
           if (userSnap.docs.isNotEmpty) {
-            await userSnap.docs.first.reference.collection('bug_reports').add(reportData);
+            await userSnap.docs.first.reference
+                .collection('bug_reports')
+                .add(reportData);
           }
         } catch (_) {}
       }
 
-      if (mounted) {
-        Navigator.pop(context);
-        showFloatingToast(
-          context,
-          context.tr('toast_success'),
-          context.tr('bug_report_success_msg'),
-        );
-      }
+      if (!mounted) return;
+      Navigator.pop(context);
+      showFloatingToast(context, successTitle, successMsg);
     } catch (e) {
-      if (mounted) {
-        showFloatingToast(context, context.tr('error'), '${context.tr('bug_report_send_failed')} $e', isError: true);
-      }
+      if (!mounted) return;
+      showFloatingToast(context, errTitle, '$errPrefix $e', isError: true);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -170,6 +194,9 @@ class _BugReportDialogState extends State<BugReportDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final zen = context.zenColors;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final mutedColor =
+        isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
 
     return SafeArea(
       top: false,
@@ -179,16 +206,15 @@ class _BugReportDialogState extends State<BugReportDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Row (không lặp lại drag handle vì showZenGlassBottomSheet đã có sẵn)
             Row(
               children: [
-                ZenLiquidGlass(
-                  blurSigma: 0,
+                ZenLiquidGlass.lightweight(
                   width: 44,
                   height: 44,
                   borderRadius: 14,
                   glowColor: zen.primary,
-                  surfaceColor: zen.primary.withOpacity(isDark ? 0.18 : 0.12),
+                  surfaceColor:
+                      zen.primary.withValues(alpha: isDark ? 0.18 : 0.12),
                   alignment: Alignment.center,
                   child: Icon(
                     Icons.bug_report_rounded,
@@ -203,44 +229,44 @@ class _BugReportDialogState extends State<BugReportDialog> {
                     children: [
                       Text(
                         context.tr('bug_report_modal_title'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.2,
-                          color: isDark ? AppColors.darkText : AppColors.lightText,
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         context.tr('bug_report_modal_subtitle'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12,
-                          color: isDark
-                              ? AppColors.darkTextMuted
-                              : AppColors.lightTextMuted,
+                          color: mutedColor,
                         ),
                       ),
                     ],
                   ),
                 ),
-                ZenGlassIconButton(
+                const SizedBox(width: 8),
+                ZenGlassIconButton.lightweight(
                   icon: Icons.close_rounded,
                   size: 36,
                   iconSize: 18,
-                  blurSigma: 0,
                   onTap: () => Navigator.pop(context),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-
-            // Category Selector (ZenGlassPill)
             Text(
               context.tr('bug_report_category_label'),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.darkText : AppColors.lightText,
+                color: textColor,
               ),
             ),
             const SizedBox(height: 10),
@@ -248,11 +274,11 @@ class _BugReportDialogState extends State<BugReportDialog> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: _categories.map((cat) {
-                  final isSelected = _selectedCategory == cat['id'];
-                  final Color catColor = cat['color'] as Color;
+                  final String id = cat['id'] as String;
+                  final isSelected = _selectedCategory == id;
+                  final Color catColor = _categoryColor(zen, id);
 
-                  return ZenGlassPill(
-                    blurSigma: 0,
+                  return ZenGlassPill.lightweight(
                     isSelected: isSelected,
                     glowColor: catColor,
                     margin: const EdgeInsets.only(right: 8),
@@ -263,7 +289,7 @@ class _BugReportDialogState extends State<BugReportDialog> {
                     borderRadius: 16,
                     onTap: () {
                       HapticFeedback.selectionClick();
-                      setState(() => _selectedCategory = cat['id'] as String);
+                      setState(() => _selectedCategory = id);
                     },
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -271,24 +297,20 @@ class _BugReportDialogState extends State<BugReportDialog> {
                         Icon(
                           cat['icon'] as IconData,
                           size: 16,
-                          color: isSelected
-                              ? catColor
-                              : (isDark
-                                  ? AppColors.darkTextMuted
-                                  : AppColors.lightTextMuted),
+                          color: isSelected ? catColor : mutedColor,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           context.tr(cat['labelKey'] as String),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12.5,
                             fontWeight:
                                 isSelected ? FontWeight.w700 : FontWeight.w500,
                             color: isSelected
                                 ? (isDark ? Colors.white : catColor)
-                                : (isDark
-                                    ? AppColors.darkText
-                                    : AppColors.lightText),
+                                : textColor,
                           ),
                         ),
                       ],
@@ -298,14 +320,12 @@ class _BugReportDialogState extends State<BugReportDialog> {
               ),
             ),
             const SizedBox(height: 18),
-
-            // Title Input
             Text(
               context.tr('bug_report_title_label'),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.darkText : AppColors.lightText,
+                color: textColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -314,7 +334,7 @@ class _BugReportDialogState extends State<BugReportDialog> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: isDark ? AppColors.darkText : AppColors.lightText,
+                color: textColor,
               ),
               decoration: zenGlassInputDecoration(
                 context,
@@ -323,14 +343,12 @@ class _BugReportDialogState extends State<BugReportDialog> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // Description Input
             Text(
               context.tr('bug_report_desc_label'),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: isDark ? AppColors.darkText : AppColors.lightText,
+                color: textColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -340,7 +358,7 @@ class _BugReportDialogState extends State<BugReportDialog> {
               style: TextStyle(
                 fontSize: 14,
                 height: 1.4,
-                color: isDark ? AppColors.darkText : AppColors.lightText,
+                color: textColor,
               ),
               decoration: zenGlassInputDecoration(
                 context,
@@ -352,15 +370,12 @@ class _BugReportDialogState extends State<BugReportDialog> {
               ),
             ),
             const SizedBox(height: 14),
-
-            // Diagnostic Auto-Attach Note
-            ZenLiquidGlass(
-              blurSigma: 0,
+            ZenLiquidGlass.lightweight(
               borderRadius: 14,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               surfaceColor: isDark
-                  ? Colors.white.withOpacity(0.05)
-                  : Colors.white.withOpacity(0.55),
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.white.withValues(alpha: 0.55),
               child: Row(
                 children: [
                   Icon(
@@ -375,9 +390,7 @@ class _BugReportDialogState extends State<BugReportDialog> {
                       style: TextStyle(
                         fontSize: 11.5,
                         height: 1.35,
-                        color: isDark
-                            ? AppColors.darkTextMuted
-                            : AppColors.lightTextMuted,
+                        color: mutedColor,
                       ),
                     ),
                   ),
@@ -385,15 +398,14 @@ class _BugReportDialogState extends State<BugReportDialog> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Submit Button
             SizedBox(
               width: double.infinity,
-              child: ZenGlassButton(
+              child: ZenGlassButton.lightweight(
                 label: context.tr('bug_report_btn_submit'),
                 icon: Icons.send_rounded,
                 isPrimary: true,
                 isLoading: _isSubmitting,
+                maxLines: 2,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 15,
@@ -407,4 +419,3 @@ class _BugReportDialogState extends State<BugReportDialog> {
     );
   }
 }
-
